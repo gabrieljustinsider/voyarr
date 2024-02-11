@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: jizzarr-db
+    environment:
+      POSTGRES_DB: jizzarr
+      POSTGRES_USER: jizzarr_user
+      POSTGRES_PASSWORD: jizzarr_password
+    volumes:
+      - jizzarr_db_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - jizzarr_network
+
+  backend:
+    build: ./backend
+    container_name: jizzarr-backend
+    environment:
+      - DATABASE_URL=postgresql://jizzarr_user:jizzarr_password@db:5432/jizzarr
+      - NAS_MEDIA_ROOT=/media/nas
+    volumes:
+      - ${NAS_MEDIA_ROOT:-./media}:/media/nas
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    networks:
+      - jizzarr_network
+
+  frontend:
+    build: ./frontend
+    container_name: jizzarr-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - jizzarr_network
+
+volumes:
+  jizzarr_db_data:
+
+networks:
+  jizzarr_network:
+    driver: bridge
