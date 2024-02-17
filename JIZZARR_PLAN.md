@@ -2,7 +2,7 @@
 
 ## **🚀 Overview**
 
-**Jizzarr** is a self-hosted (Docker/NAS) media management ecosystem designed to handle subscriptions, metadata scraping, and automated downloads from adult websites. It integrates with **Stash**, **StashDB**, and **ThePornDB**, featuring a remote-control browser extension for dynamic metadata mapping.
+**Jizzarr** is a self-hosted (Docker/Self-Hosted) media management ecosystem designed to handle subscriptions, metadata scraping, and automated downloads from adult websites. It integrates with **Stash**, **StashDB**, and **ThePornDB**, featuring a remote-control browser extension for dynamic metadata mapping.
 
 ## **🏗️ System Architecture**
 
@@ -20,7 +20,7 @@
 | site\_recipes | CSS/XPath/Regex selectors for dynamic site scraping and "Map Mode" data. |
 | credentials | Encrypted logins for automated authentication (AES-256-GCM). |
 | media\_entries | Metadata (Title, Performers, Tags), ohash, phash, and site IDs. |
-| local\_files | Tracks physical NAS paths, file sizes, and matching resolution status. |
+| local\_files | Tracks physical storage paths, file sizes, and matching resolution status. |
 | download\_queue | Real-time progress percentage, file size, speed, and retry status. |
 | filters | Multi-criteria rules (Performers, Categories, Resolution) for auto-queueing. |
 
@@ -58,7 +58,7 @@ services:
   backend:  
     image: jizzarr-api \# Python FastAPI  
     volumes:  
-      \- ${NAS\_MEDIA\_ROOT}:/media/nas  
+      \- ${MEDIA\_ROOT}:/media/storage  
       \- ./backend:/app  
   frontend:  
     image: jizzarr-ui \# PWA
@@ -73,4 +73,4 @@ services:
 
 1. **Initialize Git:** Push .gitignore, .env.example, and init.sql.  
 2. **Backend Foundation:** Define the ProviderBase Python class for modular scraping.  
-3. **API Skeleton:** Build FastAPI routes for credential management and progress streaming.
+3. **API Skeleton:** Build FastAPI routes for credential management and progress streaming.ming.
