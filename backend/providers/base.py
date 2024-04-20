@@ -50,5 +50,9 @@ class ProviderBase(ABC):
     
     def build_filename(self, metadata: Dict, pattern: str) -> str:
         """Build filename based on naming pattern."""
-        # TODO: Implement pattern replacement
-        return f"{metadata.get('title', 'unknown')}.mp4"
+        try:
+            from collections import defaultdict
+            safe_metadata = defaultdict(lambda: "unknown", metadata)
+            return pattern.format_map(safe_metadata)
+        except Exception:
+            return f"{metadata.get('title', 'unknown')}.mp4"
