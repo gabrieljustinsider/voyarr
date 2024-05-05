@@ -14,3 +14,8 @@ webdriver-manager==4.0.1
 ffmpeg-python==0.2.0
 mutagen==1.47.0
 python-dotenv==1.0.0
+celery==5.3.6
+redis==5.0.1
+yt-dlp==2023.11.16
+Pillow==10.1.0
+ImageHash==4.3.1

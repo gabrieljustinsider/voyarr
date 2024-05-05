@@ -1,70 +1,40 @@
-# Jizzarr
+# Voyarr
 
-Jizzarr is a self-hosted media downloader and metadata scraper platform. It includes a FastAPI backend, PostgreSQL database support, and a React/Vite frontend.
+**Voyarr** is a self-hosted media management ecosystem designed to handle subscriptions, metadata scraping, and automated downloads from adult websites. It integrates with **Stash**, **StashDB**, and **ThePornDB**, featuring a remote-control browser extension for dynamic metadata mapping.
 
-## Architecture
+## 🚀 Overview
 
-- `backend/` - FastAPI application with database models, credential encryption, and REST API endpoints.
-- `frontend/` - React application built with Vite for managing providers, credentials, and download queue interaction.
-- `docker-compose.yml` - Orchestrates PostgreSQL, backend, and frontend services.
-- `init.sql` - Database schema for providers, site recipes, encrypted credentials, media metadata, local files, download queue, and filters.
+Voyarr automates the tedious parts of managing a local media library. From automatically queueing videos based on performer rules to upgrading existing files when a higher resolution becomes available, Voyarr is your automated media assistant.
 
-## Features
+## 🏗️ System Architecture
 
-### Backend
+* **Frontend:** React PWA with Material UI, offering an installable, app-like experience.
+* **Backend:** Python (FastAPI) handling API requests.
+* **Task Queue:** Celery backed by Redis for robust, persistent download task management (using `yt-dlp`).
+* **Database:** PostgreSQL for relational metadata, local file tracking, and rule management.
+* **Integrations:** Stash Plugin + Browser Extension (Manifest V3).
+* **Security:** AES-256-GCM encryption for credentials using a RAM-only Master Key.
 
-- FastAPI REST API with CORS support.
-- PostgreSQL support via SQLAlchemy.
-- Encrypted credential storage using `cryptography.Fernet`.
-- Database models for:
-  - Providers
-  - Site recipes
-  - Encrypted credentials
-  - Media entries and metadata
-  - Local file tracking
-  - Download queue management
-  - Filters and auto-queue rules
-- Basic API endpoints:
-  - `GET /` - health check
-  - `POST /credentials` - save provider credentials (encrypted)
-  - `GET /credentials/{provider_id}` - retrieves and decrypts provider credentials
-  - `GET /progress/{task_id}` - progress streaming endpoint for download queue
+## 🔍 Core Features
 
-### Frontend
+1. **Robust Task Queue:** Uses Celery and Redis to track long-running downloads. Supports pause/resume and persists through container restarts.
+2. **Advanced Filtering & Rules:** Set multi-criteria rules (Performers, Categories, Resolution) to automate the queueing of specific content.
+3. **Mass Rip Workflow:** Provide a channel/performer URL to automatically scrape all videos, evaluate them against your rules, and queue them.
+4. **Quality Upgrade:** Automatically detects if a queued video is a higher resolution (e.g., 4K) than a local file (e.g., 1080p) and upgrades it.
+5. **Reverse Regex Matching Engine:** Scans your `/media` folder and automatically extracts metadata (Title, Performers, Resolution) from existing files based on configurable naming patterns.
+6. **True Perceptual Hashing (phash):** Uses FFmpeg to extract frames and calculates DCT visual hashes to detect visually similar or duplicate videos.
+7. **Remote Mapping Extension:** A Chrome browser extension with a "Map Mode" UI allowing you to click on elements on live websites to generate CSS selectors for site scraping recipes.
 
-- React UI using Vite and ESLint.
-- Provider list display and API integration.
-- Credential capture form for provider authentication.
-- Download queue progress view.
-- Designed for future integration with the backend API.
+## 🐳 Docker Configuration
 
-## Prerequisites
+Voyarr is designed to be run via Docker Compose. The stack includes:
+* `db`: PostgreSQL 15 database.
+* `redis`: Redis 7 for the Celery message broker.
+* `backend`: FastAPI Python application.
+* `celery_worker`: Background task worker for downloads and heavy processing.
+* `frontend`: Vite-powered React PWA served on port 3000.
 
-- Docker and Docker Compose
-- Node.js 18+ (for local frontend development)
-- Python 3.11+ (for local backend development)
-
-## Environment Variables
-
-The application uses the following variables. Most are optional when using `docker-compose.yml`, because default values are provided.
-
-- `POSTGRES_DB` - PostgreSQL database name (default: `jizzarr`)
-- `POSTGRES_USER` - PostgreSQL username (default: `jizzarr_user`)
-- `POSTGRES_PASSWORD` - PostgreSQL password (default: `jizzarr_password`)
-- `POSTGRES_PORT` - PostgreSQL port (default: `5432`)
-- `DATABASE_URL` - Full database connection string (overrides individual vars)
-- `MEDIA_ROOT` - Host path to store downloaded media (default: `./media`)
-- `MASTER_KEY` - Encryption key used by the backend to encrypt credentials
-- `THEPORNDB_API_KEY` - External API key for ThePornDB integration
-- `STASHDB_API_KEY` - External API key for StashDB integration
-- `STASH_URL` - StashDB service URL
-- `EXTENSION_SECRET` - Extension secret token for browser/extension integration
-- `SECRET_KEY` - App secret key for future use
-- `HOST` - Backend bind host (default: `0.0.0.0`)
-- `PORT` - Backend port (default: `8000`)
-- `CORS_ORIGINS` - Allowed origins for frontend requests (default: `http://localhost:3000`)
-
-## Initial Setup with Docker
+## ⚙️ Initial Setup
 
 1. Copy the provided `.env.example` file to `.env` and fill in your values:
 
@@ -72,7 +42,7 @@ The application uses the following variables. Most are optional when using `dock
 cp .env.example .env
 ```
 
-Then open `.env` and update any required secrets and API keys.
+Update any required secrets (e.g., `MASTER_KEY`) and API keys.
 
 2. Start the stack:
 
@@ -82,90 +52,24 @@ docker compose up --build
 
 3. Access the services:
 
-- Frontend: `http://localhost:3000`
-- Backend API: `http://localhost:8000`
-- FastAPI docs: `http://localhost:8000/docs`
+- **Frontend:** `http://localhost:3000` (Installable as a PWA)
+- **Backend API:** `http://localhost:8000`
+- **FastAPI docs:** `http://localhost:8000/docs`
 
-## Local Development
+## 🧩 Browser Extension Setup
 
-If you deploy with Docker Compose, the backend and frontend dependency installation and build steps are already handled automatically when the containers are built. These local development steps are only required when you want to run the services outside of Docker.
+To use the "Map Mode" for visual scraping configuration:
+1. Open Google Chrome or a Chromium-based browser.
+2. Navigate to `chrome://extensions/`.
+3. Enable **Developer mode**.
+4. Click **Load unpacked** and select the `/extension` directory in this repository.
+5. You can now use the extension to map CSS selectors on supported websites.
 
-### Backend
+## 🛤️ Roadmap & GitHub Integration
 
-1. Create and activate a Python virtual environment:
+* **Repo:** [gabrieljustinsider/voyarr](https://github.com/gabrieljustinsider/voyarr)
+* **Project Board:** [Voyarr Board #1](https://github.com/users/gabrieljustinsider/projects/1)
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-```
+## 📄 License
 
-2. Install dependencies:
-
-```bash
-pip install -r backend/requirements.txt
-```
-
-3. Run the backend locally:
-
-```bash
-cd backend
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
-```
-
-4. Verify the backend is reachable at `http://localhost:8000`.
-
-### Frontend
-
-1. Install dependencies:
-
-```bash
-cd frontend
-npm install
-```
-
-2. Start the Vite dev server:
-
-```bash
-npm run dev
-```
-
-3. Visit `http://localhost:5173` (or the address shown in the terminal).
-
-## Database Initialization
-
-The PostgreSQL container initializes using `init.sql` mounted into `/docker-entrypoint-initdb.d/`. The backend also calls SQLAlchemy `Base.metadata.create_all()` on startup to ensure tables exist.
-
-## Notes
-
-- Provider management, scraping, download queue processing, and metadata extraction are designed in the schema but need further implementation.
-
-## Project Structure
-
-```
-/                 # Root project
-  docker-compose.yml
-  init.sql
-  README.md
-  backend/         # FastAPI backend service
-    Dockerfile
-    main.py
-    models.py
-    requirements.txt
-  frontend/        # React/Vite frontend service
-    Dockerfile
-    package.json
-    src/
-      App.jsx
-      main.jsx
-```
-
-## Useful Commands
-
-- `docker compose up --build` - build and start everything (preferred first-time setup)
-- `docker compose down` - stop and remove containers
-- `cd backend && uvicorn main:app --reload` - run backend locally
-- `cd frontend && npm run dev` - run frontend locally
-
-## License
-
-This project currently does not specify a license in the root README. Please refer to the repository metadata or add a `LICENSE` file if you want to share it publicly.
+This project does not currently specify a license. Please check back later or consult the repository maintainers.

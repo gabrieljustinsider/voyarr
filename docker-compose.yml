@@ -3,24 +3,33 @@ version: '3.8'
 services:
   db:
     image: postgres:15-alpine
-    container_name: jizzarr-db
+    container_name: voyarr-db
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-jizzarr}
-      POSTGRES_USER: ${POSTGRES_USER:-jizzarr_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-jizzarr_password}
+      POSTGRES_DB: ${POSTGRES_DB:-voyarr}
+      POSTGRES_USER: ${POSTGRES_USER:-voyarr_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-voyarr_password}
     volumes:
-      - jizzarr_db_data:/var/lib/postgresql/data
+      - voyarr_db_data:/var/lib/postgresql/data
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     networks:
-      - jizzarr_network
+      - voyarr_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: voyarr-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - voyarr_network
 
   backend:
     build: ./backend
-    container_name: jizzarr-backend
+    container_name: voyarr-backend
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-jizzarr_user}:${POSTGRES_PASSWORD:-jizzarr_password}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-jizzarr}}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-voyarr}}
+      - REDIS_URL=redis://redis:6379/0
       - MEDIA_ROOT=${MEDIA_ROOT:-/media/storage}
       - MASTER_KEY=${MASTER_KEY}
       - THEPORNDB_API_KEY=${THEPORNDB_API_KEY}
@@ -39,21 +48,38 @@ services:
     depends_on:
       - db
     networks:
-      - jizzarr_network
+      - voyarr_network
+
+  celery_worker:
+    build: ./backend
+    container_name: voyarr-celery
+    command: celery -A celery_app.celery_app worker --loglevel=info
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-voyarr}}
+      - REDIS_URL=redis://redis:6379/0
+      - MEDIA_ROOT=${MEDIA_ROOT:-/media/storage}
+    volumes:
+      - ${MEDIA_ROOT:-./media}:/media/storage
+      - ./backend:/app
+    depends_on:
+      - db
+      - redis
+    networks:
+      - voyarr_network
 
   frontend:
     build: ./frontend
-    container_name: jizzarr-frontend
+    container_name: voyarr-frontend
     ports:
       - "3000:80"
     depends_on:
       - backend
     networks:
-      - jizzarr_network
+      - voyarr_network
 
 volumes:
-  jizzarr_db_data:
+  voyarr_db_data:
 
 networks:
-  jizzarr_network:
+  voyarr_network:
     driver: bridge
