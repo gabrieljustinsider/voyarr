@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from models import SiteRecipe
+from models import SiteRecipe, Provider
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
+from sqlalchemy.orm.attributes import flag_modified
 
-router = APIRouter(prefix="/scraper", tags=["scraper"])
+from dependencies import verify_api_key
+router = APIRouter(prefix="/scraper", tags=["scraper"], dependencies=[Depends(verify_api_key)])
 
 class SiteRecipeCreate(BaseModel):
     provider_id: int
@@ -36,3 +38,31 @@ def delete_recipe(recipe_id: int, db: Session = Depends(get_db)):
         db.delete(recipe)
         db.commit()
     return {"message": "Recipe deleted"}
+
+class MapModePayload(BaseModel):
+    host: str
+    property: str
+    selector: str
+
+@router.post("/map-mode")
+def save_map_mode_mapping(payload: MapModePayload, db: Session = Depends(get_db)):
+    # Try to match the host to a known provider
+    provider = db.query(Provider).filter(Provider.base_url.ilike(f"%{payload.host}%")).first()
+    if not provider:
+        raise HTTPException(status_code=404, detail=f"No provider configured for host: {payload.host}")
+
+    recipe = db.query(SiteRecipe).filter(SiteRecipe.provider_id == provider.id).first()
+    if not recipe:
+        recipe = SiteRecipe(provider_id=provider.id, css_selectors={})
+        db.add(recipe)
+
+    # Update CSS selectors
+    selectors = recipe.css_selectors or {}
+    selectors[payload.property] = payload.selector
+    recipe.css_selectors = selectors
+
+    # Tell SQLAlchemy the JSON field was explicitly modified
+    flag_modified(recipe, "css_selectors")
+    db.commit()
+    
+    return {"success": True, "message": "Mapped successfully!"}

@@ -7,7 +7,8 @@ from typing import Optional
 import os
 from services.reverse_regex import ReverseRegexMatcher
 
-router = APIRouter(prefix="/library", tags=["library"])
+from dependencies import verify_api_key
+router = APIRouter(prefix="/library", tags=["library"], dependencies=[Depends(verify_api_key)])
 
 @router.post("/scan")
 def scan_library(
@@ -16,6 +17,13 @@ def scan_library(
     db: Session = Depends(get_db)
 ):
     """Scan a directory and reverse-engineer filenames into Library entries."""
+    
+    # SECURITY: Prevent path traversal and arbitrary directory scanning
+    media_root = os.path.abspath(os.getenv("MEDIA_ROOT", "/media/storage"))
+    target_dir = os.path.abspath(directory)
+    if not target_dir.startswith(media_root):
+        raise HTTPException(status_code=403, detail="Forbidden: Cannot scan directories outside of the configured media root.")
+        
     prefs = db.query(DownloadPreference).filter(DownloadPreference.provider_id == provider_id).first()
     pattern = prefs.naming_pattern if prefs else "{title}_{performers}_{resolution}"
     

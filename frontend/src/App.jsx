@@ -13,6 +13,7 @@ import MetadataManager from './components/MetadataManager'
 import ExternalAPIs from './components/ExternalAPIs'
 import DownloadRules from './components/DownloadRules'
 import CookiesManager from './components/CookiesManager'
+import MassRip from './components/MassRip'
 import './App.css'
 
 const theme = createTheme({
@@ -41,7 +42,9 @@ function App() {
 
   const fetchProviders = async () => {
     try {
-      const response = await fetch(`${API_BASE}/providers`)
+      const response = await fetch(`${API_BASE}/providers`, {
+        headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
+      })
       if (response.ok) {
         const data = await response.json()
         setProviders(data)
@@ -60,7 +63,9 @@ function App() {
 
   const fetchQueue = async () => {
     try {
-      const response = await fetch(`${API_BASE}/progress/1`)
+      const response = await fetch(`${API_BASE}/progress/1`, {
+        headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
+      })
       if (response.ok) {
         const data = await response.json()
         setQueue([data])
@@ -103,7 +108,10 @@ function App() {
     try {
       const response = await fetch(`${API_BASE}/credentials`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
+        },
         body: JSON.stringify(payload)
       })
       if (response.ok) {
@@ -137,6 +145,7 @@ function App() {
             <Tab label="Credentials" />
             <Tab label="Session Cookies" />
             <Tab label="Downloads" />
+            <Tab label="Mass Rip" />
             <Tab label="Rules & Lists" />
             <Tab label="Duplicates" />
             <Tab label="Adv. Preferences" />
@@ -171,12 +180,13 @@ function App() {
             )}
             {tabValue === 4 && <CookiesManager />}
             {tabValue === 5 && <DownloadQueue queue={queue} />}
-            {tabValue === 6 && <DownloadRules />}
-            {tabValue === 7 && <Duplicates />}
-            {tabValue === 8 && <PreferencesAdvanced />}
-            {tabValue === 9 && <MetadataManager />}
-            {tabValue === 10 && <ExternalAPIs />}
-            {tabValue === 11 && <Settings />}
+            {tabValue === 6 && <MassRip />}
+            {tabValue === 7 && <DownloadRules />}
+            {tabValue === 8 && <Duplicates />}
+            {tabValue === 9 && <PreferencesAdvanced />}
+            {tabValue === 10 && <MetadataManager />}
+            {tabValue === 11 && <ExternalAPIs />}
+            {tabValue === 12 && <Settings />}
           </Box>
         </Paper>
       </Container>

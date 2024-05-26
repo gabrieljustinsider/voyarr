@@ -5,7 +5,8 @@ from models import DuplicateEntry, LibraryEntry
 from pydantic import BaseModel
 import os
 
-router = APIRouter(prefix="/duplicates", tags=["duplicates"])
+from dependencies import verify_api_key
+router = APIRouter(prefix="/duplicates", tags=["duplicates"], dependencies=[Depends(verify_api_key)])
 
 class ResolveRequest(BaseModel):
     action: str  # 'overwrite' or 'keep_both'

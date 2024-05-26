@@ -4,7 +4,8 @@ from database import get_db
 from models import Settings
 from pydantic import BaseModel
 
-router = APIRouter(prefix="/settings", tags=["settings"])
+from dependencies import verify_api_key
+router = APIRouter(prefix="/settings", tags=["settings"], dependencies=[Depends(verify_api_key)])
 
 class SettingUpdate(BaseModel):
     key: str

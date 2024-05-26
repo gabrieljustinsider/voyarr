@@ -1,22 +1,28 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <style>
-    body { width: 300px; font-family: sans-serif; padding: 10px; }
-    button { width: 100%; padding: 10px; margin-bottom: 10px; cursor: pointer; }
-    .title { font-weight: bold; margin-bottom: 15px; }
-    #status { font-size: 12px; color: green; }
-  </style>
+    <title>Voyarr Controls</title>
+    <style>
+        body { width: 300px; padding: 15px; font-family: sans-serif; background: #121212; color: white; }
+        input { width: 100%; margin-bottom: 10px; padding: 8px; box-sizing: border-box; background: #2c2c2c; border: 1px solid #444; color: white; }
+        button { width: 100%; padding: 10px; background: #1976d2; color: white; border: none; cursor: pointer; margin-bottom: 10px; }
+        button:hover { background: #115293; }
+        .activate-btn { background: #dc004e; }
+        .activate-btn:hover { background: #9a0036; }
+    </style>
 </head>
 <body>
-  <div class="title">Voyarr Extension</div>
-  
-  <button id="toggleMapMode">Toggle Map Mode</button>
-  <button id="scrapePage">Scrape Current Page</button>
-  
-  <div id="status"></div>
-  
-  <script src="popup.js"></script>
+    <h3>Voyarr Configuration</h3>
+    <label>Backend API URL</label>
+    <input type="text" id="apiUrl" placeholder="http://localhost:8000" />
+    
+    <label>Extension Secret Key</label>
+    <input type="password" id="secretKey" placeholder="Paste generated key here" />
+    
+    <button id="saveConfig">Save Configuration</button>
+    <hr style="border: 1px solid #333; margin: 15px 0;">
+    <button id="activateMapMode" class="activate-btn">Activate Map Mode on Page</button>
+
+    <script src="popup.js"></script>
 </body>
 </html>

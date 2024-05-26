@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { 
   Box, Typography, Card, CardContent, Grid, TextField, 
   Chip, FormControl, InputLabel, Select, MenuItem, Paper, CardMedia,
-  Dialog, DialogTitle, DialogContent, IconButton
+  Dialog, DialogTitle, DialogContent, IconButton, Button, DialogActions,
+  CircularProgress, Alert
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline'
@@ -15,6 +16,14 @@ export default function Library() {
     tag: ''
   })
   const [playingVideo, setPlayingVideo] = useState(null)
+  
+  // Scanner State
+  const [scanDialogOpen, setScanDialogOpen] = useState(false)
+  const [providers, setProviders] = useState([])
+  const [scanProviderId, setScanProviderId] = useState('')
+  const [scanDirectory, setScanDirectory] = useState('/media/storage/downloads')
+  const [scanLoading, setScanLoading] = useState(false)
+  const [scanResult, setScanResult] = useState(null)
 
   const fetchLibrary = async () => {
     try {
@@ -24,7 +33,9 @@ export default function Library() {
       if (filters.performer) params.append('performer', filters.performer)
       if (filters.tag) params.append('tag', filters.tag)
 
-      const res = await fetch(`http://localhost:8000/library?${params.toString()}`)
+      const res = await fetch(`http://localhost:8000/library?${params.toString()}`, {
+        headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
+      })
       if (res.ok) setEntries(await res.json())
     } catch (e) {
       console.error("Failed to fetch library entries:", e)
@@ -43,9 +54,52 @@ export default function Library() {
     setPlayingVideo(null)
   }
 
+  const fetchProviders = async () => {
+    try {
+      const res = await fetch(`http://localhost:8000/providers`, {
+        headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
+      })
+      if (res.ok) setProviders(await res.json())
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  useEffect(() => {
+    if (scanDialogOpen && providers.length === 0) fetchProviders()
+  }, [scanDialogOpen])
+
+  const handleScanDirectory = async () => {
+    setScanLoading(true)
+    setScanResult(null)
+    try {
+      const params = new URLSearchParams()
+      params.append('provider_id', scanProviderId)
+      params.append('directory', scanDirectory)
+      
+      const res = await fetch(`http://localhost:8000/library/scan?${params.toString()}`, {
+        method: 'POST',
+        headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setScanResult({ type: 'success', message: `Scan complete! Added: ${data.result.added}, Matched: ${data.result.matched}, Errors: ${data.result.errors.length}` })
+        fetchLibrary() // Refresh library
+      } else {
+        setScanResult({ type: 'error', message: data.detail || 'Scan failed' })
+      }
+    } catch (e) {
+      setScanResult({ type: 'error', message: e.message })
+    }
+    setScanLoading(false)
+  }
+
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>Media Library</Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h4">Media Library</Typography>
+        <Button variant="contained" onClick={() => setScanDialogOpen(true)}>Scan Directory</Button>
+      </Box>
       
       {/* Filters Bar */}
       <Paper sx={{ p: 2, mb: 3 }}>
@@ -104,6 +158,39 @@ export default function Library() {
           ))}
         </Grid>
       )}
+
+      {/* Scan Directory Dialog */}
+      <Dialog open={scanDialogOpen} onClose={() => !scanLoading && setScanDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Scan Local Media Directory</DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="body2" sx={{ mb: 3 }}>
+            Select a provider to apply its specific naming rules and map the newly discovered files into the database.
+          </Typography>
+          <FormControl fullWidth size="small" sx={{ mb: 3 }}>
+            <InputLabel>Provider Ruleset</InputLabel>
+            <Select value={scanProviderId} label="Provider Ruleset" onChange={e => setScanProviderId(e.target.value)}>
+              {providers.map(p => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
+            </Select>
+          </FormControl>
+          <TextField 
+            fullWidth 
+            size="small" 
+            label="Directory Path" 
+            value={scanDirectory} 
+            onChange={e => setScanDirectory(e.target.value)} 
+            sx={{ mb: 2 }}
+          />
+          {scanResult && (
+            <Alert severity={scanResult.type} sx={{ mt: 2 }}>{scanResult.message}</Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setScanDialogOpen(false)} disabled={scanLoading}>Close</Button>
+          <Button onClick={handleScanDirectory} variant="contained" disabled={scanLoading || !scanProviderId || !scanDirectory}>
+            {scanLoading ? <CircularProgress size={24} /> : 'Start Scan'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Video Player Modal */}
       <Dialog open={Boolean(playingVideo)} onClose={handleClosePlayer} maxWidth="lg" fullWidth>
