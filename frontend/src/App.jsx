@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
-import { CssBaseline, AppBar, Toolbar, Typography, Container, Tabs, Tab, Box, Paper, Snackbar, Alert } from '@mui/material'
+import { CssBaseline, AppBar, Toolbar, Typography, Container, Tabs, Tab, Box, Paper, Snackbar, Alert, Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material'
 import ProviderList from './components/ProviderList'
 import CredentialForm from './components/CredentialForm'
 import DownloadQueue from './components/DownloadQueue'
@@ -14,6 +14,9 @@ import ExternalAPIs from './components/ExternalAPIs'
 import DownloadRules from './components/DownloadRules'
 import CookiesManager from './components/CookiesManager'
 import MassRip from './components/MassRip'
+import ScheduleManager from './components/ScheduleManager'
+import BackupManager from './components/BackupManager'
+import LogsViewer from './components/LogsViewer'
 import './App.css'
 
 const theme = createTheme({
@@ -37,8 +40,9 @@ function App() {
   const [tabValue, setTabValue] = useState(0)
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
   const [searchQuery, setSearchQuery] = useState('')
+  const [confirmModal, setConfirmModal] = useState({ open: false, message: '', onConfirm: null, onCancel: null })
 
-  const API_BASE = 'http://localhost:8000'
+  const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
 
   const fetchProviders = async () => {
     try {
@@ -63,12 +67,12 @@ function App() {
 
   const fetchQueue = async () => {
     try {
-      const response = await fetch(`${API_BASE}/progress/1`, {
+      const response = await fetch(`${API_BASE}/download/`, {
         headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
       })
       if (response.ok) {
         const data = await response.json()
-        setQueue([data])
+        setQueue(data)
       }
     } catch (error) {
       console.error('Failed to fetch queue:', error)
@@ -79,8 +83,36 @@ function App() {
     // eslint-disable-next-line
     fetchProviders()
     fetchQueue()
-    const interval = setInterval(fetchQueue, 5000)
-    return () => clearInterval(interval)
+    
+    const abortController = new AbortController()
+    const startSSE = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/download/stream`, {
+          headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY },
+          signal: abortController.signal
+        })
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder('utf-8')
+        let buffer = ''
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n\n')
+          buffer = lines.pop()
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try { setQueue(JSON.parse(line.substring(6))) } catch (e) {}
+            }
+          }
+        }
+      } catch (e) {
+        if (e.name !== 'AbortError') setTimeout(startSSE, 5000) // Reconnect after 5 seconds on fail
+      }
+    }
+    startSSE()
+
+    return () => abortController.abort()
   }, [])
 
   useEffect(() => {
@@ -91,6 +123,33 @@ function App() {
       )
     )
   }, [providers, searchQuery])
+
+  useEffect(() => {
+    const handleToast = (e) => {
+      setSnackbar({ open: true, message: e.detail.message, severity: e.detail.severity || 'info' })
+    }
+    window.addEventListener('show-toast', handleToast)
+
+    // Block native dialogs globally and pipe to toasts
+    window.alert = (message) => {
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: String(message), severity: 'info' } }))
+    }
+    
+    window.appConfirm = (message) => new Promise((resolve) => {
+      setConfirmModal({ open: true, message, onConfirm: () => resolve(true), onCancel: () => resolve(false) })
+    })
+
+    window.confirm = (message) => {
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: `Use await window.appConfirm() for async dialogs: ${message}`, severity: 'warning' } }))
+      return false // Safely reject native execution
+    }
+    window.prompt = (message) => {
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: `Prompt blocked: ${message}`, severity: 'error' } }))
+      return null // Safely block native input
+    }
+
+    return () => window.removeEventListener('show-toast', handleToast)
+  }, [])
 
   const handleCredentialSubmit = async (e) => {
     e.preventDefault()
@@ -146,12 +205,15 @@ function App() {
             <Tab label="Session Cookies" />
             <Tab label="Downloads" />
             <Tab label="Mass Rip" />
+            <Tab label="Schedules" />
             <Tab label="Rules & Lists" />
             <Tab label="Duplicates" />
             <Tab label="Adv. Preferences" />
             <Tab label="Metadata" />
             <Tab label="External APIs" />
             <Tab label="Settings" />
+            <Tab label="Backup" />
+            <Tab label="Logs" />
           </Tabs>
           <Box sx={{ mt: 2 }}>
             {tabValue === 0 && <Dashboard />}
@@ -179,14 +241,17 @@ function App() {
               )
             )}
             {tabValue === 4 && <CookiesManager />}
-            {tabValue === 5 && <DownloadQueue queue={queue} />}
+          {tabValue === 5 && <DownloadQueue queue={queue} onRefresh={fetchQueue} />}
             {tabValue === 6 && <MassRip />}
-            {tabValue === 7 && <DownloadRules />}
-            {tabValue === 8 && <Duplicates />}
-            {tabValue === 9 && <PreferencesAdvanced />}
-            {tabValue === 10 && <MetadataManager />}
-            {tabValue === 11 && <ExternalAPIs />}
-            {tabValue === 12 && <Settings />}
+            {tabValue === 7 && <ScheduleManager />}
+            {tabValue === 8 && <DownloadRules />}
+            {tabValue === 9 && <Duplicates />}
+            {tabValue === 10 && <PreferencesAdvanced />}
+            {tabValue === 11 && <MetadataManager />}
+            {tabValue === 12 && <ExternalAPIs />}
+            {tabValue === 13 && <Settings />}
+            {tabValue === 14 && <BackupManager />}
+            {tabValue === 15 && <LogsViewer />}
           </Box>
         </Paper>
       </Container>
@@ -199,6 +264,21 @@ function App() {
           {snackbar.message}
         </Alert>
       </Snackbar>
+
+      <Dialog open={confirmModal.open} onClose={() => { confirmModal.onCancel?.(); setConfirmModal({ ...confirmModal, open: false }) }} maxWidth="xs" fullWidth>
+        <DialogTitle>Confirmation Required</DialogTitle>
+        <DialogContent dividers>
+          <Typography>{confirmModal.message}</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { confirmModal.onCancel?.(); setConfirmModal({ ...confirmModal, open: false }) }}>
+            Cancel
+          </Button>
+          <Button color="error" variant="contained" onClick={() => { confirmModal.onConfirm?.(); setConfirmModal({ ...confirmModal, open: false }) }}>
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
     </ThemeProvider>
   )
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { 
   Box, Typography, TextField, Button, Paper, Grid, Snackbar, Alert, 
-  FormControl, InputLabel, Select, MenuItem, Switch, FormControlLabel, Divider 
+  FormControl, InputLabel, Select, MenuItem, Switch, FormControlLabel, Divider, CircularProgress, Tooltip, IconButton
 } from '@mui/material'
 
 export default function PreferencesAdvanced() {
@@ -13,11 +13,17 @@ export default function PreferencesAdvanced() {
     append_metadata: true,
     auto_tag_files: true,
     duplicate_handling: 'skip',
-    custom_base_path: ''
+    custom_base_path: '',
+    max_retries: 3
   })
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
+  
+  // Pattern Validation State
+  const [validating, setValidating] = useState(false)
+  const [validationResult, setValidationResult] = useState(null)
+  const [patternInfo, setPatternInfo] = useState(null)
 
-  const API_BASE = 'http://localhost:8000'
+  const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
   const HEADERS = {
     'Content-Type': 'application/json',
     'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
@@ -27,6 +33,11 @@ export default function PreferencesAdvanced() {
     fetch(`${API_BASE}/providers`, { headers: HEADERS })
       .then(res => res.json())
       .then(data => setProviders(data))
+      .catch(console.error)
+      
+    fetch(`${API_BASE}/preferences/naming-patterns`, { headers: HEADERS })
+      .then(res => res.json())
+      .then(data => setPatternInfo(data))
       .catch(console.error)
   }, [])
 
@@ -41,7 +52,8 @@ export default function PreferencesAdvanced() {
             append_metadata: data.append_metadata !== false,
             auto_tag_files: data.auto_tag_files !== false,
             duplicate_handling: data.duplicate_handling || 'skip',
-            custom_base_path: data.custom_base_path || ''
+            custom_base_path: data.custom_base_path || '',
+            max_retries: data.max_retries ?? 3
           })
         })
         .catch(console.error)
@@ -54,6 +66,23 @@ export default function PreferencesAdvanced() {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }))
+  }
+
+  const handleValidatePattern = async () => {
+    setValidating(true)
+    setValidationResult(null)
+    try {
+      const res = await fetch(`${API_BASE}/preferences/validate-pattern`, {
+        method: 'POST',
+        headers: HEADERS,
+        body: JSON.stringify({ pattern: prefs.naming_pattern })
+      })
+      const data = await res.json()
+      setValidationResult(data)
+    } catch (err) {
+      setValidationResult({ valid: false, error: err.message })
+    }
+    setValidating(false)
   }
 
   const handleSave = async () => {
@@ -103,7 +132,27 @@ export default function PreferencesAdvanced() {
             </Grid>
             
             <Grid item xs={12} md={6}>
-              <TextField fullWidth label="Naming Pattern" name="naming_pattern" value={prefs.naming_pattern} onChange={handleChange} helperText="Available vars: {title}, {performers}, {tags}, {resolution}, {date}, {site_id}" />
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                <TextField fullWidth label="Naming Pattern" name="naming_pattern" value={prefs.naming_pattern} onChange={handleChange} />
+                <Button variant="outlined" onClick={handleValidatePattern} disabled={validating || !prefs.naming_pattern} sx={{ mt: 1 }}>
+                  {validating ? <CircularProgress size={24} /> : 'Test'}
+                </Button>
+              </Box>
+              <Box sx={{ mt: 1 }}>
+                <Typography variant="caption" color="textSecondary">Available variables:</Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+                  {patternInfo ? Object.entries(patternInfo.template_variables).map(([key, desc]) => (
+                    <Tooltip key={key} title={desc}>
+                      <Chip size="small" label={`{${key}}`} />
+                    </Tooltip>
+                  )) : <Typography variant="caption">Loading variables...</Typography>}
+                </Box>
+              </Box>
+              {validationResult && (
+                <Alert severity={validationResult.valid ? "info" : "error"} sx={{ mt: 1 }}>
+                  {validationResult.valid ? `Example output: ${validationResult.example}` : `Error: ${validationResult.error}`}
+                </Alert>
+              )}
             </Grid>
 
             <Grid item xs={12}>
@@ -131,6 +180,10 @@ export default function PreferencesAdvanced() {
                   <MenuItem value="overwrite">Overwrite (Upgrade)</MenuItem>
                 </Select>
               </FormControl>
+            </Grid>
+
+            <Grid item xs={12} md={4}>
+              <TextField fullWidth type="number" label="Max Retries" name="max_retries" value={prefs.max_retries} onChange={handleChange} helperText="Auto-retry limit for failed downloads" />
             </Grid>
 
             <Grid item xs={12} md={4}>

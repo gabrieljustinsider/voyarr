@@ -11,3 +11,17 @@ if MASTER_KEY:
     cipher = Fernet(key)
 else:
     cipher = None
+
+def encrypt_data(data: str) -> str:
+    if not cipher or not data:
+        return data
+    return cipher.encrypt(data.encode()).decode()
+
+def decrypt_data(encrypted_data: str) -> str:
+    if not cipher or not encrypted_data:
+        return encrypted_data
+    try:
+        return cipher.decrypt(encrypted_data.encode()).decode()
+    except Exception:
+        return encrypted_data # Fallback if not encrypted or wrong key
+

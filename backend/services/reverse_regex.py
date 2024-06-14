@@ -1,65 +1,79 @@
 import os
 import re
-from typing import Dict, Any
 from sqlalchemy.orm import Session
-from models import LibraryEntry
+from models import LibraryEntry, MediaEntry
 from services.hash_service import HashService
 
 class ReverseRegexMatcher:
     def __init__(self, db: Session):
         self.db = db
 
-    def scan_directory(self, directory: str, provider_id: int, pattern: str) -> Dict[str, Any]:
+    def pattern_to_regex(self, pattern: str) -> re.Pattern:
+        """
+        Converts a Voyarr naming pattern like '{title}_{performers}_{resolution}'
+        into a functional regex like '^(?P<title>.*?)_(?P<performers>.*?)_(?P<resolution>.*?)$'
+        """
+        escaped_pattern = re.escape(pattern)
+        # Revert escaped curly braces so we can process them
+        escaped_pattern = escaped_pattern.replace(r'\{', '{').replace(r'\}', '}')
+        
+        # Replace template variables with named capture groups
+        regex_str = re.sub(r'\{(\w+)\}', r'(?P<\1>.*?)', escaped_pattern)
+        return re.compile(f"^{regex_str}$", re.IGNORECASE)
+
+    def scan_directory(self, directory: str, provider_id: int, pattern: str) -> dict:
         if not os.path.exists(directory):
             return {"error": f"Directory not found: {directory}"}
 
-        # Convert pattern like {title}_{performers}_{resolution} to regex
-        # Escape the pattern first
-        regex_pattern = re.escape(pattern)
-        
-        # Replace placeholders with named capture groups
-        placeholders = ["title", "performers", "tags", "resolution", "date", "site_id", "duration", "provider"]
-        for ph in placeholders:
-            regex_pattern = regex_pattern.replace(f"\\{{{ph}\\}}", f"(?P<{ph}>.+?)")
-
-        # Add extension matching
-        regex_pattern = f"^{regex_pattern}\\.(mp4|mkv|avi|mov|wmv)$"
-        compiled_regex = re.compile(regex_pattern, re.IGNORECASE)
-
-        results = {"scanned": 0, "matched": 0, "added": 0, "errors": []}
+        regex = self.pattern_to_regex(pattern)
+        added = 0
+        matched = 0
+        errors = []
 
         for root, _, files in os.walk(directory):
             for file in files:
-                results["scanned"] += 1
-                match = compiled_regex.match(file)
-                if match:
-                    results["matched"] += 1
-                    try:
-                        extracted = match.groupdict()
-                        file_path = os.path.join(root, file)
-                        
-                        # Check if already in DB to avoid duplicates
-                        existing = self.db.query(LibraryEntry).filter(LibraryEntry.file_path == file_path).first()
-                        if not existing:
-                            performers = [p.strip() for p in extracted.get("performers", "").split(",")] if extracted.get("performers") else []
-                            tags = [t.strip() for t in extracted.get("tags", "").split(",")] if extracted.get("tags") else []
-                            
-                            new_entry = LibraryEntry(
-                                provider_id=provider_id,
-                                title=extracted.get("title", file),
-                                performers=performers,
-                                tags=tags,
-                                file_path=file_path,
-                                resolution=extracted.get("resolution", "Unknown"),
-                                file_size=os.path.getsize(file_path),
-                                ohash=HashService.generate_ohash(file_path),
-                                metadata=extracted
-                            )
-                            self.db.add(new_entry)
-                            self.db.commit()
-                            results["added"] += 1
-                    except Exception as e:
-                        self.db.rollback()
-                        results["errors"].append({"file": file, "error": str(e)})
+                if not file.lower().endswith(('.mp4', '.mkv', '.avi', '.mov', '.webm')):
+                    continue
 
-        return results
+                file_path = os.path.join(root, file)
+                filename_no_ext = os.path.splitext(file)[0]
+
+                match = regex.match(filename_no_ext)
+                if not match:
+                    continue
+
+                matched += 1
+                data = match.groupdict()
+
+                existing = self.db.query(LibraryEntry).filter(LibraryEntry.file_path == file_path).first()
+                if existing:
+                    continue
+
+                try:
+                    title = data.get('title', filename_no_ext).replace('_', ' ')
+                    performers_str = data.get('performers', '')
+                    performers = [p.strip() for p in performers_str.split(',')] if performers_str else []
+                    tags_str = data.get('tags', '')
+                    tags = [t.strip() for t in tags_str.split(',')] if tags_str else []
+                    resolution = data.get('resolution', '1080p')
+
+                    # Create database entries using the extracted metadata
+                    media = MediaEntry(provider_id=provider_id, title=title, performers=performers, tags=tags, media_metadata=data)
+                    self.db.add(media)
+                    self.db.flush() # Ensure we have media.id available
+
+                    library_entry = LibraryEntry(
+                        media_entry_id=media.id, provider_id=provider_id, title=title,
+                        performers=performers, tags=tags, file_path=file_path, resolution=resolution,
+                        file_size=os.path.getsize(file_path), metadata=data
+                    )
+                    library_entry.ohash = HashService.generate_ohash(file_path)
+                    library_entry.phash = HashService.generate_phash(file_path)
+                    
+                    self.db.add(library_entry)
+                    self.db.commit()
+                    added += 1
+                except Exception as e:
+                    self.db.rollback()
+                    errors.append(f"Failed to add {file}: {str(e)}")
+        return {"added": added, "matched": matched, "errors": errors}

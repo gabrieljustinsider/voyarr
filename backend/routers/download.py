@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from database import get_db
+from database import get_db, SessionLocal
 from models import DownloadQueue, MediaEntry, LibraryEntry, DownloadPreference, Provider, DuplicateEntry, DownloadRule, CustomList, SessionCookie, Credential
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
@@ -11,6 +12,8 @@ import yt_dlp
 from services.media_tagger import MediaTagger
 from services.hash_service import HashService
 from tasks.download_tasks import real_download_task
+import asyncio
+import json
 
 from dependencies import verify_api_key
 router = APIRouter(prefix="/download", tags=["download"], dependencies=[Depends(verify_api_key)])
@@ -19,6 +22,7 @@ class DownloadRequest(BaseModel):
     provider_id: int
     url: str
     metadata: Optional[Dict[str, Any]] = None
+    force_duplicate: bool = False
 
 def evaluate_rules(db: Session, provider_id: int, metadata: dict):
     rules = db.query(DownloadRule).filter(
@@ -144,7 +148,7 @@ def check_limits_and_cookies(db: Session, provider_id: int):
     return True, active_cookie
 
 @router.post("/start")
-async def start_download(req: DownloadRequest, db: Session = Depends(get_db)):
+def start_download(req: DownloadRequest, db: Session = Depends(get_db)):
     provider = db.query(Provider).filter(Provider.id == req.provider_id).first()
     if not provider:
         # Fallback for testing
@@ -165,9 +169,10 @@ async def start_download(req: DownloadRequest, db: Session = Depends(get_db)):
         return {"message": "Skipped due to custom download rule"}
     
     # 3. Duplicate Checking and Quality Upgrade
-    dupe_check = evaluate_duplicate_quality(db, prefs, title, meta)
-    if not dupe_check.get("proceed"):
-        return dupe_check.get("response")
+    if not req.force_duplicate:
+        dupe_check = evaluate_duplicate_quality(db, prefs, title, meta)
+        if not dupe_check.get("proceed"):
+            return dupe_check.get("response")
     
     # 3.5 Check Limits
     can_download, limit_result = check_limits_and_cookies(db, req.provider_id)
@@ -235,12 +240,41 @@ def get_download_queue(
         
     return query.all()
 
+@router.get("/stream")
+async def stream_download_queue():
+    """Server-Sent Events endpoint for real-time download progress updates."""
+    async def event_generator():
+        while True:
+            db = SessionLocal()
+            try:
+                tasks = db.query(DownloadQueue).all()
+                data = []
+                for t in tasks:
+                    media = t.media_entry
+                    data.append({
+                        "id": t.id,
+                        "url": t.url,
+                        "status": t.status,
+                        "progress_percentage": t.progress_percentage,
+                        "media_entry": {
+                            "id": media.id,
+                            "title": media.title,
+                            "provider_id": media.provider_id
+                        } if media else None
+                    })
+                yield f"data: {json.dumps(data)}\n\n"
+            finally:
+                db.close()
+            await asyncio.sleep(2.0)
+            
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
 class MassRipRequest(BaseModel):
     provider_id: int
     url: str
 
 @router.post("/mass_rip")
-async def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
+def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
     """
     Parses a channel/performer page, evaluates rules, and queues videos.
     (Mocked URL extraction for now)

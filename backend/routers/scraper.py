@@ -66,3 +66,24 @@ def save_map_mode_mapping(payload: MapModePayload, db: Session = Depends(get_db)
     db.commit()
     
     return {"success": True, "message": "Mapped successfully!"}
+
+class ScraperTestRequest(BaseModel):
+    url: str
+    provider_id: int
+
+@router.post("/test")
+def test_scraper(req: ScraperTestRequest, db: Session = Depends(get_db)):
+    recipe = db.query(SiteRecipe).filter(SiteRecipe.provider_id == req.provider_id).first()
+    if not recipe:
+        raise HTTPException(status_code=404, detail="No scraping recipe configured for this provider.")
+        
+    return {
+        "status": "success",
+        "message": f"Successfully loaded configuration for {req.provider_id}. Ready to execute.",
+        "metadata": {
+            "title": f"Mock Title Extracted from {req.url}",
+            "performers": ["Scraped Performer 1"],
+            "tags": ["scraped", "test"],
+            "description": "This is a dummy response returning data extracted based on the configured regex/css selectors."
+        }
+    }

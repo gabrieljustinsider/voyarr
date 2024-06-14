@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { 
   Box, Typography, Card, CardContent, Grid, TextField, 
-  Chip, FormControl, InputLabel, Select, MenuItem, Paper, CardMedia,
+  Chip, FormControl, InputLabel, Select, MenuItem, Paper, CardMedia, Tooltip,
   Dialog, DialogTitle, DialogContent, IconButton, Button, DialogActions,
   CircularProgress, Alert
 } from '@mui/material'
@@ -13,7 +13,8 @@ export default function Library() {
   const [filters, setFilters] = useState({
     resolution: '',
     performer: '',
-    tag: ''
+    tag: '',
+    ohash: ''
   })
   const [playingVideo, setPlayingVideo] = useState(null)
   
@@ -23,7 +24,10 @@ export default function Library() {
   const [scanProviderId, setScanProviderId] = useState('')
   const [scanDirectory, setScanDirectory] = useState('/media/storage/downloads')
   const [scanLoading, setScanLoading] = useState(false)
+  const [rescanLoading, setRescanLoading] = useState(false)
   const [scanResult, setScanResult] = useState(null)
+
+  const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
 
   const fetchLibrary = async () => {
     try {
@@ -32,8 +36,9 @@ export default function Library() {
       if (filters.resolution) params.append('resolution', filters.resolution)
       if (filters.performer) params.append('performer', filters.performer)
       if (filters.tag) params.append('tag', filters.tag)
+      if (filters.ohash) params.append('ohash', filters.ohash)
 
-      const res = await fetch(`http://localhost:8000/library?${params.toString()}`, {
+      const res = await fetch(`${API_BASE}/library?${params.toString()}`, {
         headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
       })
       if (res.ok) setEntries(await res.json())
@@ -56,7 +61,7 @@ export default function Library() {
 
   const fetchProviders = async () => {
     try {
-      const res = await fetch(`http://localhost:8000/providers`, {
+      const res = await fetch(`${API_BASE}/providers`, {
         headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
       })
       if (res.ok) setProviders(await res.json())
@@ -77,7 +82,7 @@ export default function Library() {
       params.append('provider_id', scanProviderId)
       params.append('directory', scanDirectory)
       
-      const res = await fetch(`http://localhost:8000/library/scan?${params.toString()}`, {
+      const res = await fetch(`${API_BASE}/library/scan?${params.toString()}`, {
         method: 'POST',
         headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
       })
@@ -94,16 +99,42 @@ export default function Library() {
     setScanLoading(false)
   }
 
+  const handleRescanHashes = async () => {
+    setRescanLoading(true)
+    try {
+      const res = await fetch(`${API_BASE}/library/rescan-hashes`, {
+        method: 'POST',
+        headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
+      })
+      const data = await res.json()
+      if (res.ok) {
+        window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: data.message, severity: 'success' } }))
+        fetchLibrary()
+      } else {
+        window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: data.detail || 'Failed to start rescan', severity: 'error' } }))
+      }
+    } catch (e) {
+      console.error(e)
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Error: ' + e.message, severity: 'error' } }))
+    }
+    setRescanLoading(false)
+  }
+
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h4">Media Library</Typography>
-        <Button variant="contained" onClick={() => setScanDialogOpen(true)}>Scan Directory</Button>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button variant="outlined" color="secondary" onClick={handleRescanHashes} disabled={rescanLoading}>
+            {rescanLoading ? <CircularProgress size={24} /> : 'Re-scan Hashes'}
+          </Button>
+          <Button variant="contained" onClick={() => setScanDialogOpen(true)}>Scan Directory</Button>
+        </Box>
       </Box>
       
       {/* Filters Bar */}
       <Paper sx={{ p: 2, mb: 3 }}>
-        <Grid container spacing={2} alignItems="center">
+        <Grid container spacing={2} alignItems="center" mb={2}>
           <Grid item xs={12} sm={4}>
             <FormControl fullWidth size="small">
               <InputLabel>Resolution</InputLabel>
@@ -120,6 +151,9 @@ export default function Library() {
           </Grid>
           <Grid item xs={12} sm={4}>
             <TextField fullWidth size="small" label="Filter by Tag" name="tag" value={filters.tag} onChange={handleFilterChange} />
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <TextField fullWidth size="small" label="Search by ohash" name="ohash" value={filters.ohash} onChange={handleFilterChange} />
           </Grid>
         </Grid>
       </Paper>
@@ -150,7 +184,12 @@ export default function Library() {
                 </CardMedia>
                 <CardContent sx={{ flexGrow: 1 }}>
                   <Typography variant="h6" noWrap title={entry.title}>{entry.title}</Typography>
-                  <Typography variant="body2" color="textSecondary" gutterBottom>{entry.resolution} • {entry.file_size ? (entry.file_size / (1024*1024)).toFixed(1) + ' MB' : 'Unknown Size'}</Typography>
+                  <Typography variant="body2" color="textSecondary" gutterBottom>
+                    {entry.resolution} • {entry.file_size ? (entry.file_size / (1024*1024)).toFixed(1) + ' MB' : 'Unknown Size'}
+                  </Typography>
+                  {entry.ohash && (
+                    <Typography variant="caption" color="textSecondary" display="block" gutterBottom>ohash: {entry.ohash}</Typography>
+                  )}
                   <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>{entry.performers?.slice(0, 3).map(p => <Chip key={p} label={p} size="small" />)}</Box>
                 </CardContent>
               </Card>
@@ -200,17 +239,48 @@ export default function Library() {
             <CloseIcon />
           </IconButton>
         </DialogTitle>
-        <DialogContent dividers sx={{ p: 0, backgroundColor: 'black', display: 'flex', justifyContent: 'center' }}>
+        <DialogContent dividers sx={{ p: 0, display: 'flex', flexDirection: { xs: 'column', md: 'row' } }}>
           {playingVideo && (
-            <video 
-              controls 
-              autoPlay 
-              style={{ width: '100%', maxHeight: '75vh', outline: 'none' }}
-              src={`http://localhost:8000/library/${playingVideo.id}/stream`}
-              controlsList="nodownload"
-            >
-              Your browser does not support the video tag.
-            </video>
+            <>
+              <Box sx={{ flexGrow: 1, backgroundColor: 'black', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <video 
+                  controls 
+                  autoPlay 
+                  style={{ width: '100%', maxHeight: '75vh', outline: 'none' }}
+                  src={`${API_BASE}/library/${playingVideo.id}/stream?api_key=${import.meta.env.VITE_MASTER_KEY}`}
+                  controlsList="nodownload"
+                >
+                  Your browser does not support the video tag.
+                </video>
+              </Box>
+              
+              <Box sx={{ width: { xs: '100%', md: 300 }, minWidth: { md: 300 }, p: 2, backgroundColor: '#1e1e1e', overflowY: 'auto', maxHeight: { md: '75vh' } }}>
+                <Typography variant="h6" gutterBottom>File Details</Typography>
+                <Typography variant="body2" color="textSecondary">Resolution: {playingVideo.resolution || 'Unknown'}</Typography>
+                <Typography variant="body2" color="textSecondary" gutterBottom>
+                  Size: {playingVideo.file_size ? (playingVideo.file_size / (1024*1024)).toFixed(1) + ' MB' : 'Unknown'}
+                </Typography>
+                
+                <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>Performers</Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 2 }}>
+                  {playingVideo.performers?.length > 0 ? (
+                    playingVideo.performers.map(p => <Chip key={p} label={p} size="small" color="primary" variant="outlined" />)
+                  ) : <Typography variant="body2" color="textSecondary">None</Typography>}
+                </Box>
+
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>Tags</Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 2 }}>
+                  {playingVideo.tags?.length > 0 ? (
+                    playingVideo.tags.map(t => <Chip key={t} label={t} size="small" variant="outlined" />)
+                  ) : <Typography variant="body2" color="textSecondary">None</Typography>}
+                </Box>
+                
+                {playingVideo.metadata?.description && (
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>Description</Typography>
+                )}
+                <Typography variant="body2" color="textSecondary">{playingVideo.metadata?.description}</Typography>
+              </Box>
+            </>
           )}
         </DialogContent>
       </Dialog>

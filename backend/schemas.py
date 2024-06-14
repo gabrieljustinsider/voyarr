@@ -86,3 +86,34 @@ class DownloadRuleResponse(DownloadRuleBase):
     created_at: Optional[datetime] = None
     class Config:
         orm_mode = True
+
+class ScrapeScheduleBase(BaseModel):
+    provider_id: int
+    name: str
+    target_url: Optional[str] = None
+    cron_expression: str
+    action: str = 'metadata_and_download'
+    is_active: bool = True
+
+class ScrapeScheduleCreate(ScrapeScheduleBase):
+    pass
+
+class ScrapeScheduleUpdate(BaseModel):
+    provider_id: Optional[int] = None
+    name: Optional[str] = None
+    target_url: Optional[str] = None
+    cron_expression: Optional[str] = None
+    action: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class ScrapeScheduleResponse(ScrapeScheduleBase):
+    id: int
+    last_run: Optional[datetime] = None
+    last_run_status: Optional[str] = None
+    last_run_details: Optional[str] = None
+    next_run: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        orm_mode = True
