@@ -44,6 +44,7 @@ class HashService:
         Generates a perceptual hash (phash) for a video file by extracting
         a frame from the middle of the video and computing the DCT hash.
         """
+        temp_frame_path = None
         try:
             # Get video duration to find the midpoint
             probe = ffmpeg.probe(file_path)
@@ -73,5 +74,5 @@ class HashService:
             print(f"Error generating phash for {file_path}: {e}")
             return ""
         finally:
-            if 'temp_frame_path' in locals() and os.path.exists(temp_frame_path):
+            if temp_frame_path and os.path.exists(temp_frame_path):
                 os.remove(temp_frame_path)

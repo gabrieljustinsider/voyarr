@@ -17,6 +17,7 @@ import MassRip from './components/MassRip'
 import ScheduleManager from './components/ScheduleManager'
 import BackupManager from './components/BackupManager'
 import LogsViewer from './components/LogsViewer'
+import ScraperTester from './components/ScraperTester'
 import './App.css'
 
 const theme = createTheme({
@@ -214,6 +215,7 @@ function App() {
             <Tab label="Settings" />
             <Tab label="Backup" />
             <Tab label="Logs" />
+            <Tab label="Scraper Tester" />
           </Tabs>
           <Box sx={{ mt: 2 }}>
             {tabValue === 0 && <Dashboard />}
@@ -252,6 +254,7 @@ function App() {
             {tabValue === 13 && <Settings />}
             {tabValue === 14 && <BackupManager />}
             {tabValue === 15 && <LogsViewer />}
+            {tabValue === 16 && <ScraperTester />}
           </Box>
         </Paper>
       </Container>

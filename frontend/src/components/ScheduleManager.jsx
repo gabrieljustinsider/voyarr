@@ -18,6 +18,7 @@ export default function ScheduleManager() {
     action: 'metadata_and_download',
     is_active: true
   });
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`;
   const HEADERS = {
@@ -73,7 +74,8 @@ export default function ScheduleManager() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Delete this schedule?')) return;
+    const confirmed = await window.appConfirm('Delete this schedule?');
+    if (!confirmed) return;
     try {
       const res = await fetch(`${API_BASE}/schedules/${id}`, {
         method: 'DELETE',
@@ -212,15 +214,6 @@ export default function ScheduleManager() {
       <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={() => setSnackbar({ ...snackbar, open: false })}>
         <Alert severity={snackbar.severity} sx={{ width: '100%' }}>{snackbar.message}</Alert>
       </Snackbar>
-
-      <Dialog open={Boolean(confirmDeleteId)} onClose={() => setConfirmDeleteId(null)}>
-        <DialogTitle>Confirm Deletion</DialogTitle>
-        <DialogContent>Are you sure you want to delete this schedule?</DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmDeleteId(null)}>Cancel</Button>
-          <Button onClick={handleConfirmDelete} color="error" variant="contained">Delete</Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 }

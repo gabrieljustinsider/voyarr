@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Box, Typography, TextField, Button, Paper, Grid, Snackbar, Alert, Divider } from '@mui/material'
+import { Box, Typography, TextField, Button, Paper, Grid, Snackbar, Alert, Divider, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material'
+import DeleteIcon from '@mui/icons-material/Delete'
 
 export default function Settings() {
   const [settings, setSettings] = useState({
@@ -16,11 +17,15 @@ export default function Settings() {
     stashdb_api_key: ''
   })
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
+  const [apiKeys, setApiKeys] = useState([])
+  const [newKeyName, setNewKeyName] = useState('')
+  const [generatedKey, setGeneratedKey] = useState(null)
 
-  const API_BASE = `${import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`}/settings`
+  const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
+  const SETTINGS_API = `${API_BASE}/settings`
 
   useEffect(() => {
-    fetch(API_BASE, {
+    fetch(SETTINGS_API, {
       headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
     })
       .then(res => res.json())
@@ -28,7 +33,15 @@ export default function Settings() {
         setSettings(prev => ({ ...prev, ...data }))
       })
       .catch(console.error)
+    fetchApiKeys()
   }, [])
+
+  const fetchApiKeys = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/apikeys`, { headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY } })
+      if (res.ok) setApiKeys(await res.json())
+    } catch (err) { console.error('Failed to fetch API keys:', err) }
+  }
 
   const handleChange = (e) => {
     setSettings({ ...settings, [e.target.name]: e.target.value })
@@ -36,7 +49,7 @@ export default function Settings() {
 
   const handleSave = async (key, value) => {
     try {
-      const res = await fetch(API_BASE, {
+      const res = await fetch(SETTINGS_API, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -57,6 +70,32 @@ export default function Settings() {
     window.crypto.getRandomValues(array)
     const newKey = Array.from(array, byte => ('0' + byte.toString(16)).slice(-2)).join('')
     setSettings(prev => ({ ...prev, extension_secret: newKey }))
+  }
+
+  const handleCreateApiKey = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/apikeys`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY },
+        body: JSON.stringify({ name: newKeyName })
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setGeneratedKey(data.raw_key)
+        setNewKeyName('')
+        fetchApiKeys()
+      }
+    } catch (err) { console.error(err) }
+  }
+
+  const handleDeleteApiKey = async (id) => {
+    const confirmed = await window.appConfirm('Revoke this API Key? Any scripts currently using it will immediately lose access.')
+    if (!confirmed) return
+    await fetch(`${API_BASE}/apikeys/${id}`, { 
+      method: 'DELETE', 
+      headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY } 
+    })
+    fetchApiKeys()
   }
 
   return (
@@ -170,9 +209,66 @@ export default function Settings() {
         </Box>
       </Paper>
 
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>External API Keys</Typography>
+        <Typography variant="body2" sx={{ mb: 2 }} color="textSecondary">
+          Generate scoped API keys for external tools (e.g., third-party scrapers, automation scripts, or the *arr stack) to interact with Voyarr securely without exposing your MASTER_KEY.
+        </Typography>
+        <Divider sx={{ mb: 2 }} />
+        
+        <Grid container spacing={2} alignItems="center" sx={{ mb: 3 }}>
+          <Grid item xs={12} md={9}>
+            <TextField fullWidth size="small" label="New Key Name (e.g. 'Stash Webhook')" value={newKeyName} onChange={e => setNewKeyName(e.target.value)} />
+          </Grid>
+          <Grid item xs={12} md={3}>
+            <Button fullWidth variant="contained" onClick={handleCreateApiKey} disabled={!newKeyName}>Generate Key</Button>
+          </Grid>
+        </Grid>
+
+        <TableContainer component={Paper} variant="outlined">
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Name</TableCell>
+                <TableCell>Created</TableCell>
+                <TableCell>Last Used</TableCell>
+                <TableCell align="right">Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {apiKeys.length === 0 ? (
+                <TableRow><TableCell colSpan={4} align="center">No external API keys configured.</TableCell></TableRow>
+              ) : (
+                apiKeys.map(key => (
+                  <TableRow key={key.id}>
+                    <TableCell>{key.name}</TableCell>
+                    <TableCell>{new Date(key.created_at).toLocaleDateString()}</TableCell>
+                    <TableCell>{key.last_used ? new Date(key.last_used).toLocaleString() : 'Never'}</TableCell>
+                    <TableCell align="right">
+                      <IconButton color="error" size="small" onClick={() => handleDeleteApiKey(key.id)}><DeleteIcon /></IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Paper>
+
       <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={() => setSnackbar({ ...snackbar, open: false })}>
         <Alert severity={snackbar.severity} sx={{ width: '100%' }}>{snackbar.message}</Alert>
       </Snackbar>
+
+      <Dialog open={!!generatedKey} onClose={() => setGeneratedKey(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>API Key Generated</DialogTitle>
+        <DialogContent dividers>
+          <Alert severity="warning" sx={{ mb: 2 }}>Please copy this key now. For your security, it will never be shown again!</Alert>
+          <TextField fullWidth value={generatedKey || ''} InputProps={{ readOnly: true }} />
+        </DialogContent>
+        <DialogActions>
+          <Button variant="contained" onClick={() => setGeneratedKey(null)}>I have copied it</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }

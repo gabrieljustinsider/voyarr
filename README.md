@@ -65,11 +65,12 @@ To use the "Map Mode" for visual scraping configuration:
 4. Click **Load unpacked** and select the `/extension` directory in this repository.
 5. You can now use the extension to map CSS selectors on supported websites.
 
-## 🛤️ Roadmap & GitHub Integration
+## ⚖️ Legal & Privacy
 
-* **Repo:** [gabrieljustinsider/voyarr](https://github.com/gabrieljustinsider/voyarr)
-* **Project Board:** [Voyarr Board #1](https://github.com/users/gabrieljustinsider/projects/1)
+By using Voyarr, you agree to our terms and understand our privacy practices as a self-hosted software:
+* [Terms of Service](TERMS_OF_SERVICE.md)
+* [Privacy Policy](PRIVACY_POLICY.md)
 
 ## 📄 License
 
-This project does not currently specify a license. Please check back later or consult the repository maintainers.
+This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.

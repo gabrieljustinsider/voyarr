@@ -64,7 +64,11 @@ services:
       - voyarr_network
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        - VITE_MASTER_KEY=${MASTER_KEY}
+        - VITE_API_BASE=${API_BASE:-http://localhost:8000}
     container_name: voyarr-frontend
     ports:
       - "3000:80"

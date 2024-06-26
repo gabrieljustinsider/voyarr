@@ -8,7 +8,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 return;
             }
 
-            fetch(`${config.voyarrApiUrl}/scraper/map-mode`, {
+            // Strip trailing slash if the user added one
+            const baseUrl = config.voyarrApiUrl.replace(/\/$/, '');
+
+            fetch(`${baseUrl}/external-api/extension/recipe`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -22,7 +25,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             .catch(error => sendResponse({ success: false, error: error.toString() }));
         });
         
-        // Keep channel open for async fetch
-        return true; 
+        return true; // Keep message channel open for async fetch
     }
 });

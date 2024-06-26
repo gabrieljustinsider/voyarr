@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, DECIMAL, BIGINT, JSON, Boolean, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 
 Base = declarative_base()
 
@@ -91,6 +92,8 @@ class DownloadQueue(Base):
     retry_count = Column(Integer, default=0)
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
     updated_at = Column(TIMESTAMP, default=func.current_timestamp())
+    
+    media_entry = relationship("MediaEntry")
 
 class CustomList(Base):
     __tablename__ = 'custom_lists'
@@ -117,6 +120,7 @@ class LibraryEntry(Base):
     
     id = Column(Integer, primary_key=True)
     provider_id = Column(Integer, ForeignKey('providers.id'), nullable=False)
+    media_entry_id = Column(Integer, ForeignKey('media_entries.id'), nullable=True)
     title = Column(String(500), nullable=False)
     performers = Column(JSON)  # Array of performer names
     tags = Column(JSON)  # Array of tags/categories
@@ -141,6 +145,9 @@ class DuplicateEntry(Base):
     reason = Column(String(255))  # Why it's marked as duplicate (e.g., "same_hash", "similar_metadata")
     resolved = Column(Boolean, default=False)
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
+    
+    entry1 = relationship("LibraryEntry", foreign_keys=[library_entry_id1])
+    entry2 = relationship("LibraryEntry", foreign_keys=[library_entry_id2])
 
 class DownloadPreference(Base):
     __tablename__ = 'download_preferences'
@@ -152,6 +159,8 @@ class DownloadPreference(Base):
     append_metadata = Column(Boolean, default=True)  # Write metadata to files
     auto_tag_files = Column(Boolean, default=True)  # Embed metadata tags
     duplicate_handling = Column(String(50), default='skip')  # "skip", "overwrite", "ask"
+    custom_base_path = Column(String(500), nullable=True)
+    max_retries = Column(Integer, default=3)
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
     updated_at = Column(TIMESTAMP, default=func.current_timestamp(), onupdate=func.current_timestamp())
 
@@ -196,6 +205,7 @@ class SessionCookie(Base):
     id = Column(Integer, primary_key=True)
     provider_id = Column(Integer, ForeignKey('providers.id'), nullable=True)
     site_id = Column(String(100), nullable=True)
+    cookie_text = Column(Text, nullable=True)
     status = Column(String(50), default='active')
     download_limit = Column(Integer)
     downloads_used = Column(Integer, default=0)
@@ -203,3 +213,12 @@ class SessionCookie(Base):
     expires_at = Column(TIMESTAMP)
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
     updated_at = Column(TIMESTAMP, default=func.current_timestamp(), onupdate=func.current_timestamp())
+
+class ApiKey(Base):
+    __tablename__ = 'api_keys'
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), index=True)
+    key_hash = Column(String(255), unique=True, index=True)
+    created_at = Column(TIMESTAMP, default=func.current_timestamp())
+    last_used = Column(TIMESTAMP, nullable=True)

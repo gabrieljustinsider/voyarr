@@ -1,0 +1,17 @@
+name: Voyarr TPDB Proxy
+description: Scrapes metadata from ThePornDB via your Voyarr proxy.
+version: 1.0.0
+url: https://api.theporndb.net
+
+scrapes:
+  - scene:
+      action: scrape
+      title:
+        - theporndb.py
+      hash:
+        - theporndb.py
+
+execConfig:
+  args:
+    - python
+    - "{pluginDir}/theporndb.py"
