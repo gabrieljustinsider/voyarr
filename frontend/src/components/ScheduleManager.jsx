@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Box, Typography, Paper, TextField, Button, Grid,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
@@ -6,6 +6,12 @@ import {
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+
+const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`;
+const HEADERS = {
+  'Content-Type': 'application/json',
+  'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
+};
 
 export default function ScheduleManager() {
   const [schedules, setSchedules] = useState([]);
@@ -20,13 +26,7 @@ export default function ScheduleManager() {
   });
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
-  const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`;
-  const HEADERS = {
-    'Content-Type': 'application/json',
-    'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
-  };
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const [schedRes, provRes] = await Promise.all([
         fetch(`${API_BASE}/schedules`, { headers: HEADERS }),
@@ -37,11 +37,14 @@ export default function ScheduleManager() {
     } catch (e) {
       console.error('Failed to fetch data:', e);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    const init = async () => {
+      await fetchData();
+    };
+    init();
+  }, [fetchData]);
 
   const handleChange = (e) => {
     const { name, value, checked, type } = e.target;

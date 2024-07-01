@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { CssBaseline, AppBar, Toolbar, Typography, Container, Tabs, Tab, Box, Paper, Snackbar, Alert, Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material'
 import ProviderList from './components/ProviderList'
@@ -32,9 +32,10 @@ const theme = createTheme({
   },
 })
 
+const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
+
 function App() {
   const [providers, setProviders] = useState([])
-  const [filteredProviders, setFilteredProviders] = useState([])
   const [selectedProvider, setSelectedProvider] = useState(null)
   const [credentials, setCredentials] = useState({ username: '', password: '', dailyLimit: '' })
   const [queue, setQueue] = useState([])
@@ -43,9 +44,7 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('')
   const [confirmModal, setConfirmModal] = useState({ open: false, message: '', onConfirm: null, onCancel: null })
 
-  const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
-
-  const fetchProviders = async () => {
+  const fetchProviders = useCallback(async () => {
     try {
       const response = await fetch(`${API_BASE}/providers`, {
         headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
@@ -64,9 +63,9 @@ function App() {
         { id: 1, name: 'Example Provider', base_url: 'https://example.com', automatic_limits: { daily_downloads: 50 } }
       ])
     }
-  }
+  }, [])
 
-  const fetchQueue = async () => {
+  const fetchQueue = useCallback(async () => {
     try {
       const response = await fetch(`${API_BASE}/download/`, {
         headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
@@ -78,10 +77,9 @@ function App() {
     } catch (error) {
       console.error('Failed to fetch queue:', error)
     }
-  }
+  }, [])
 
   useEffect(() => {
-    // eslint-disable-next-line
     fetchProviders()
     fetchQueue()
     
@@ -103,7 +101,7 @@ function App() {
           buffer = lines.pop()
           for (const line of lines) {
             if (line.startsWith('data: ')) {
-              try { setQueue(JSON.parse(line.substring(6))) } catch (e) {}
+              try { setQueue(JSON.parse(line.substring(6))) } catch (e) { console.debug('JSON Parse error', e) }
             }
           }
         }
@@ -114,16 +112,12 @@ function App() {
     startSSE()
 
     return () => abortController.abort()
-  }, [])
+  }, [fetchProviders, fetchQueue])
 
-  useEffect(() => {
-    setFilteredProviders(
-      providers.filter(provider =>
-        provider.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        provider.base_url.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    )
-  }, [providers, searchQuery])
+  const filteredProviders = useMemo(() => providers.filter(provider =>
+    provider.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    provider.base_url.toLowerCase().includes(searchQuery.toLowerCase())
+  ), [providers, searchQuery])
 
   useEffect(() => {
     const handleToast = (e) => {
