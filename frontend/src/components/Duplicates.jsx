@@ -39,15 +39,19 @@ export default function Duplicates() {
   }
 
   const resolveDuplicate = async (id, action) => {
-    await fetch(`${API_BASE}/duplicates/${id}/resolve`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
-      },
-      body: JSON.stringify({ action })
-    })
-    fetchDuplicates()
+    try {
+      await fetch(`${API_BASE}/duplicates/${id}/resolve`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
+        },
+        body: JSON.stringify({ action })
+      })
+      fetchDuplicates()
+    } catch (e) {
+      console.error('Failed to resolve duplicate:', e)
+    }
   }
 
   const handleCompare = async () => {

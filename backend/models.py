@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, DECIMAL, BIGINT, JSON, Boolean, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 
@@ -131,7 +131,7 @@ class LibraryEntry(Base):
     ohash = Column(String(16))  # Perceptual hash for duplicate detection
     phash = Column(String(16))  # Perceptual hash
     site_id = Column(String(100))  # Original source site ID
-    metadata = Column(JSON)  # Full metadata from scraping
+    entry_metadata = Column(JSON)  # Full metadata from scraping
     last_updated = Column(TIMESTAMP, default=func.current_timestamp())
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
 

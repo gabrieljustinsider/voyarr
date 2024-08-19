@@ -23,6 +23,14 @@ export default function ExternalAPIs() {
 
   const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
 
+  const handleTabChange = (e, value) => {
+    setTabValue(value)
+    setResults([])
+    setSearchQuery('')
+    setMessage('')
+    setSelectedResult(null)
+  }
+
   const handleSearchThePornDB = async () => {
     if (!tpdbKey) {
       setMessage('Please enter ThePornDB API key')
@@ -113,6 +121,9 @@ export default function ExternalAPIs() {
       if (response.ok) {
         setMessage('Synced to ThePornDB successfully')
         setOpenSyncDialog(false)
+      } else {
+        const errData = await response.json().catch(() => ({}))
+        setMessage(`Failed to sync: ${errData.detail || response.statusText}`)
       }
     } catch (error) {
       setMessage(`Error: ${error.message}`)
@@ -143,6 +154,9 @@ export default function ExternalAPIs() {
       if (response.ok) {
         setMessage('Synced to StashDB successfully')
         setOpenSyncDialog(false)
+      } else {
+        const errData = await response.json().catch(() => ({}))
+        setMessage(`Failed to sync: ${errData.detail || response.statusText}`)
       }
     } catch (error) {
       setMessage(`Error: ${error.message}`)
@@ -156,7 +170,7 @@ export default function ExternalAPIs() {
         External API Integration
       </Typography>
 
-      <Tabs value={tabValue} onChange={(e, value) => setTabValue(value)} sx={{ mb: 3 }}>
+      <Tabs value={tabValue} onChange={handleTabChange} sx={{ mb: 3 }}>
         <Tab label="ThePornDB" />
         <Tab label="StashDB" />
       </Tabs>
@@ -217,7 +231,7 @@ export default function ExternalAPIs() {
                         <TableCell>{result.title}</TableCell>
                         <TableCell>
                           {result.performers?.slice(0, 2).map(p => (
-                            <Chip key={p} label={p} size="small" sx={{ mr: 0.5 }} />
+                            <Chip key={p.name || p} label={p.name || p} size="small" sx={{ mr: 0.5 }} />
                           ))}
                         </TableCell>
                         <TableCell>
@@ -328,8 +342,12 @@ export default function ExternalAPIs() {
           {selectedResult && (
             <Box sx={{ pt: 2 }}>
               <Typography><strong>Title:</strong> {selectedResult.title}</Typography>
-              <Typography><strong>Performers:</strong> {selectedResult.performers?.join(', ')}</Typography>
-              <Typography><strong>Tags:</strong> {selectedResult.tags?.join(', ')}</Typography>
+              <Typography>
+                <strong>Performers:</strong> {selectedResult.performers?.map(p => p.name || p).join(', ')}
+              </Typography>
+              <Typography>
+                <strong>Tags:</strong> {selectedResult.tags?.map(t => t.name || t).join(', ')}
+              </Typography>
             </Box>
           )}
         </DialogContent>

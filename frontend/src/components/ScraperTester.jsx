@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Box, TextField, Button, Typography, Paper, CircularProgress } from '@mui/material';
 
 export default function ScraperTester() {
@@ -7,6 +7,7 @@ export default function ScraperTester() {
   const [status, setStatus] = useState('Idle');
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const eventSourceRef = useRef(null);
 
   const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`;
   const MASTER_KEY = import.meta.env.VITE_MASTER_KEY;
@@ -44,9 +45,18 @@ export default function ScraperTester() {
     }
   };
 
+  useEffect(() => {
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
+    };
+  }, []);
+
   const startSSE = (taskId) => {
     // Using query parameter for auth since EventSource doesn't support custom headers
     const eventSource = new EventSource(`${API_BASE}/external-api/scrape/stream/${taskId}?api_key=${MASTER_KEY}`);
+    eventSourceRef.current = eventSource;
 
     eventSource.onmessage = (event) => {
       const data = JSON.parse(event.data);

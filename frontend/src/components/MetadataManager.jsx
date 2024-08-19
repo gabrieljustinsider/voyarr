@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Box, Button, Card, CardContent, TextField, Typography, 
   Dialog, DialogTitle, DialogContent, DialogActions, Alert,
@@ -21,8 +21,13 @@ export default function MetadataManager() {
 
   useEffect(() => {
     fetch(`${API_BASE}/library`, { headers: HEADERS })
-      .then(res => res.json())
-      .then(data => setLibraryEntries(data))
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch library entries')
+        return res.json()
+      })
+      .then(data => {
+        if (Array.isArray(data)) setLibraryEntries(data)
+      })
       .catch(console.error)
   }, [])
 
@@ -62,6 +67,9 @@ export default function MetadataManager() {
       })
       if (response.ok) {
         setMessage('Metadata updated successfully')
+      } else {
+        const errData = await response.json().catch(() => ({}))
+        setMessage(`Failed to update metadata: ${errData.detail || response.statusText}`)
       }
     } catch (error) {
       setMessage(`Error: ${error.message}`)
@@ -100,6 +108,7 @@ export default function MetadataManager() {
     setLoading(true)
     try {
       const settingsRes = await fetch(`${API_BASE}/settings`, { headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY } })
+      if (!settingsRes.ok) throw new Error('Failed to retrieve external API settings')
       const settings = await settingsRes.json()
       const apiKey = source === 'theporndb' ? settings.tpdb_api_key : settings.stashdb_api_key
       

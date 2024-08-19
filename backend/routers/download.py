@@ -1,18 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, contains_eager
 from database import get_db, SessionLocal
 from models import DownloadQueue, MediaEntry, LibraryEntry, DownloadPreference, Provider, DuplicateEntry, DownloadRule, CustomList, SessionCookie, Credential
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 import hashlib
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 import yt_dlp
 from services.media_tagger import MediaTagger
 from services.hash_service import HashService
 from tasks.download_tasks import real_download_task
-import asyncio
+import time
 import json
 
 from dependencies import verify_api_key
@@ -39,31 +40,47 @@ def evaluate_rules(db: Session, provider_id: int, metadata: dict):
             if key == "resolution" and metadata.get("resolution") != value:
                 match = False
             elif key == "performers":
+                performers = metadata.get("performers") or []
                 if isinstance(value, dict) and "contains" in value:
                     if not any(value["contains"].lower() in p.lower() for p in metadata.get("performers", [])):
+                    if not any(value["contains"].lower() in p.lower() for p in performers):
                         match = False
                 elif isinstance(value, str):
                     if value.lower() not in [p.lower() for p in metadata.get("performers", [])]:
+                    if value.lower() not in [p.lower() for p in performers]:
                         match = False
             elif key == "categories" or key == "tags":
+                tags_cats = (metadata.get("tags") or []) + (metadata.get("categories") or [])
                 if isinstance(value, dict) and "contains" in value:
                     if not any(value["contains"].lower() in t.lower() for t in metadata.get("tags", []) + metadata.get("categories", [])):
+                    if not any(value["contains"].lower() in t.lower() for t in tags_cats):
                         match = False
                 elif isinstance(value, str):
                     if value.lower() not in [t.lower() for t in metadata.get("tags", []) + metadata.get("categories", [])]:
+                    if value.lower() not in [t.lower() for t in tags_cats]:
                         match = False
             elif key == "series":
+                series = metadata.get("series") or ""
                 if isinstance(value, dict) and "contains" in value:
                     if value["contains"].lower() not in metadata.get("series", "").lower():
+                    if value["contains"].lower() not in series.lower():
                         match = False
                 elif isinstance(value, str):
                     if value.lower() != metadata.get("series", "").lower():
+                    if value.lower() != series.lower():
                         match = False
             elif key == "sub_site":
                 if value.lower() != metadata.get("sub_site", "").lower():
+                sub_site = metadata.get("sub_site") or ""
+                if value.lower() != sub_site.lower():
                     match = False
             elif key == "custom_terms":
                 search_text = (metadata.get("title", "") + " " + metadata.get("description", "")).lower()
+                title = metadata.get("title")
+                desc = metadata.get("description")
+                title_str = " ".join(title) if isinstance(title, list) else str(title or "")
+                desc_str = " ".join(desc) if isinstance(desc, list) else str(desc or "")
+                search_text = (title_str + " " + desc_str).lower()
                 if isinstance(value, list):
                     if not any(term.lower() in search_text for term in value):
                         match = False
@@ -79,12 +96,16 @@ def evaluate_rules(db: Session, provider_id: int, metadata: dict):
                     
                     if item_type == "performers":
                         meta_items = [p.lower() for p in metadata.get("performers", [])]
+                        meta_items = [p.lower() for p in (metadata.get("performers") or [])]
                     elif item_type == "tags" or item_type == "categories":
                         meta_items = [t.lower() for t in metadata.get("tags", []) + metadata.get("categories", [])]
+                        meta_items = [t.lower() for t in ((metadata.get("tags") or []) + (metadata.get("categories") or []))]
                     elif item_type == "series":
                         meta_items = [metadata.get("series", "").lower()]
+                        meta_items = [(metadata.get("series") or "").lower()]
                     else:
                         meta_items = [p.lower() for p in metadata.get("performers", [])] + [t.lower() for t in metadata.get("tags", [])]
+                        meta_items = [p.lower() for p in (metadata.get("performers") or [])] + [t.lower() for t in ((metadata.get("tags") or []) + (metadata.get("categories") or []))]
                     
                     if not any(item in list_items for item in meta_items):
                         match = False
@@ -99,6 +120,8 @@ def evaluate_rules(db: Session, provider_id: int, metadata: dict):
 def evaluate_duplicate_quality(db: Session, prefs: DownloadPreference, title: str, meta: dict):
     if prefs and prefs.duplicate_handling != "overwrite":
         existing = db.query(LibraryEntry).filter(LibraryEntry.title.ilike(f"%{title}%")).first()
+        escaped_title = title.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        existing = db.query(LibraryEntry).filter(LibraryEntry.title.ilike(f"%{escaped_title}%", escape="\\")).first()
         if existing:
             resolutions = {"480p": 1, "720p": 2, "1080p": 3, "2K": 4, "4K": 5, "8K": 6}
             existing_res = existing.resolution or "1080p"
@@ -140,7 +163,7 @@ def check_limits_and_cookies(db: Session, provider_id: int):
             active_cookie.status = 'limit_reached'
             db.commit()
             return False, "Session cookie download limit reached"
-        if active_cookie.expires_at and datetime.utcnow() > active_cookie.expires_at:
+        if active_cookie.expires_at and datetime.now(timezone.utc).replace(tzinfo=None) > active_cookie.expires_at:
             active_cookie.status = 'expired'
             db.commit()
             return False, "Session cookie expired"
@@ -162,6 +185,8 @@ def start_download(req: DownloadRequest, db: Session = Depends(get_db)):
     # 2. Extract Title for Naming & Duplicate Check
     meta = req.metadata or {}
     title = meta.get("title", "Unknown_Title")
+    title_raw = meta.get("title")
+    title = title_raw[0] if isinstance(title_raw, list) and title_raw else str(title_raw or "Unknown_Title")
     
     # 2.5 Evaluate Rules
     action = evaluate_rules(db, req.provider_id, meta)
@@ -179,7 +204,7 @@ def start_download(req: DownloadRequest, db: Session = Depends(get_db)):
     if not can_download:
         action = "queue" # Force queue if limits reached
         
-    # 4. Create Entries
+    # 4. Create and stage database entries
     media = MediaEntry(
         provider_id=req.provider_id,
         title=title,
@@ -188,25 +213,31 @@ def start_download(req: DownloadRequest, db: Session = Depends(get_db)):
         media_metadata=meta
     )
     db.add(media)
-    db.commit()
-    db.refresh(media)
 
     queue = DownloadQueue(
-        media_entry_id=media.id,
         url=req.url,
         status="pending" if action != "queue" else "queued",
         progress_percentage=0.0
     )
+    queue.media_entry = media
     db.add(queue)
-    db.commit()
-    db.refresh(queue)
     
-    # 5. Start Background Task (if not strictly just queued to wait)
     if action != "queue":
         if isinstance(limit_result, SessionCookie):
             limit_result.downloads_used += 1
-            db.commit()
+
+    # Commit all changes in a single, atomic transaction
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+    db.refresh(media)
+    db.refresh(queue)
             
+    # 5. Start Background Task (if not strictly just queued to wait)
+    if action != "queue":
         prefs_dict = {
             "preferred_resolution": prefs.preferred_resolution if prefs else "1080p",
             "append_metadata": prefs.append_metadata if prefs else False,
@@ -227,7 +258,11 @@ def get_download_queue(
     db: Session = Depends(get_db)
 ):
     """Advanced filtering for the download list"""
-    query = db.query(DownloadQueue).join(MediaEntry, DownloadQueue.media_entry_id == MediaEntry.id)
+    # Use joinedload to prevent N+1 queries when accessing the media_entry relationship
+    query = db.query(DownloadQueue).options(joinedload(DownloadQueue.media_entry))
+    query = query.join(MediaEntry, DownloadQueue.media_entry_id == MediaEntry.id)
+    # Use contains_eager to prevent N+1 queries when joining the media_entry relationship
+    query = db.query(DownloadQueue).join(DownloadQueue.media_entry).options(contains_eager(DownloadQueue.media_entry))
     
     if provider_id:
         query = query.filter(MediaEntry.provider_id == provider_id)
@@ -241,13 +276,14 @@ def get_download_queue(
     return query.all()
 
 @router.get("/stream")
-async def stream_download_queue():
+def stream_download_queue():
     """Server-Sent Events endpoint for real-time download progress updates."""
-    async def event_generator():
+    def event_generator():
         while True:
             db = SessionLocal()
             try:
                 tasks = db.query(DownloadQueue).all()
+                tasks = db.query(DownloadQueue).options(joinedload(DownloadQueue.media_entry)).all()
                 data = []
                 for t in tasks:
                     media = t.media_entry
@@ -255,7 +291,7 @@ async def stream_download_queue():
                         "id": t.id,
                         "url": t.url,
                         "status": t.status,
-                        "progress_percentage": t.progress_percentage,
+                        "progress_percentage": float(t.progress_percentage) if t.progress_percentage is not None else 0.0,
                         "media_entry": {
                             "id": media.id,
                             "title": media.title,
@@ -265,7 +301,7 @@ async def stream_download_queue():
                 yield f"data: {json.dumps(data)}\n\n"
             finally:
                 db.close()
-            await asyncio.sleep(2.0)
+            time.sleep(2.0)
             
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
@@ -312,14 +348,26 @@ def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
     prefs = db.query(DownloadPreference).filter(DownloadPreference.provider_id == req.provider_id).first()
     queued_count = 0
     skipped_count = 0
+    tasks_to_fire = []
+
+    # Prepare prefs_dict once to avoid re-querying in a loop
+    prefs_dict = {
+        "preferred_resolution": prefs.preferred_resolution if prefs else "1080p",
+        "append_metadata": prefs.append_metadata if prefs else False,
+        "custom_base_path": getattr(prefs, "custom_base_path", None) if prefs else None
+    }
     
     for video in extracted_videos:
         if not video["url"]:
             continue
         meta = video["metadata"]
         
+        title_raw = meta.get("title")
+        title = title_raw[0] if isinstance(title_raw, list) and title_raw else str(title_raw or "Unknown")
+        
         # 1.5 Duplicate Checking
         dupe_check = evaluate_duplicate_quality(db, prefs, meta.get("title", "Unknown"), meta)
+        dupe_check = evaluate_duplicate_quality(db, prefs, title, meta)
         if not dupe_check.get("proceed"):
             skipped_count += 1
             continue
@@ -330,41 +378,48 @@ def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
             skipped_count += 1
             continue
             
-        # 3. Add to Database
+        # 2.5 Check Limits
+        can_download, limit_result = check_limits_and_cookies(db, req.provider_id)
+        if not can_download:
+            action = "queue"
+            
+        # 3. Add to session, but don't commit yet
         media = MediaEntry(
             provider_id=req.provider_id,
             title=meta.get("title", "Unknown"),
+            title=title,
             performers=meta.get("performers", []),
             tags=meta.get("tags", []),
             media_metadata=meta
         )
-        db.add(media)
-        db.commit()
-        db.refresh(media)
 
         queue = DownloadQueue(
-            media_entry_id=media.id,
             url=video["url"],
             status="pending" if action != "queue" else "queued",
             progress_percentage=0.0
         )
+        queue.media_entry = media
         db.add(queue)
-        db.commit()
-        db.refresh(queue)
         
-        # 4. Fire Celery Task
+        # 4. Defer Celery task until after commit
         if action != "queue":
-            prefs = db.query(DownloadPreference).filter(DownloadPreference.provider_id == req.provider_id).first()
-            prefs_dict = {
-                "preferred_resolution": prefs.preferred_resolution if prefs else "1080p",
-                "append_metadata": prefs.append_metadata if prefs else False,
-                "custom_base_path": getattr(prefs, "custom_base_path", None) if prefs else None
-            }
-            # Note: Quality Upgrade is handled during start_download usually, but we assume it's queued here.
-            real_download_task.delay(queue.id, prefs_dict, meta)
+            if isinstance(limit_result, SessionCookie):
+                limit_result.downloads_used += 1
+            tasks_to_fire.append({'queue': queue, 'meta': meta})
             
         queued_count += 1
-        
+
+    # Commit all new entries in a single transaction
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+    # Now that the queue items have IDs, dispatch the Celery tasks
+    for task_info in tasks_to_fire:
+        real_download_task.delay(task_info['queue'].id, prefs_dict, task_info['meta'])
+
     return {
         "message": f"Mass rip completed. Queued: {queued_count}, Skipped: {skipped_count}",
         "queued": queued_count,

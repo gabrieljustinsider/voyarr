@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Box, Typography, Paper, TextField, Button, Grid,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  IconButton, Chip, FormControl, InputLabel, Select, MenuItem, Switch, FormControlLabel, Tooltip
+  IconButton, Chip, FormControl, InputLabel, Select, MenuItem, Switch, FormControlLabel, Tooltip, Snackbar, Alert
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
@@ -67,17 +67,18 @@ export default function ScheduleManager() {
           name: '', provider_id: '', target_url: '', cron_expression: '0 0 * * *', action: 'metadata_and_download', is_active: true
         });
         fetchData();
+        setSnackbar({ open: true, message: 'Schedule created successfully!', severity: 'success' });
       } else {
         const error = await res.json();
-        alert(`Error: ${error.detail || 'Failed to create schedule'}`);
+        setSnackbar({ open: true, message: `Error: ${error.detail || 'Failed to create schedule'}`, severity: 'error' });
       }
     } catch (e) {
-      alert(`Error: ${e.message}`);
+      setSnackbar({ open: true, message: `Error: ${e.message}`, severity: 'error' });
     }
   };
 
   const handleDelete = async (id) => {
-    const confirmed = await window.appConfirm('Delete this schedule?');
+    const confirmed = window.appConfirm ? await window.appConfirm('Delete this schedule?') : window.confirm('Delete this schedule?');
     if (!confirmed) return;
     try {
       const res = await fetch(`${API_BASE}/schedules/${id}`, {
