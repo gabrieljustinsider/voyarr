@@ -7,7 +7,8 @@ CREATE TABLE providers (
     base_url VARCHAR(500) NOT NULL,
     naming_pattern TEXT,
     separator VARCHAR(10) DEFAULT '_',
-    space_replacement VARCHAR(10) DEFAULT '_'
+    space_replacement VARCHAR(10) DEFAULT '_',
+    automatic_limits JSONB
 );
 
 -- Site recipes table
@@ -24,8 +25,7 @@ CREATE TABLE site_recipes (
 CREATE TABLE credentials (
     id SERIAL PRIMARY KEY,
     provider_id INTEGER REFERENCES providers(id) ON DELETE CASCADE,
-    username_encrypted TEXT NOT NULL,
-    password_encrypted TEXT NOT NULL,
+    custom_limits JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -34,12 +34,12 @@ CREATE TABLE media_entries (
     id SERIAL PRIMARY KEY,
     provider_id INTEGER REFERENCES providers(id) ON DELETE CASCADE,
     title VARCHAR(500),
-    performers TEXT[],
-    tags TEXT[],
+    performers JSONB,
+    tags JSONB,
     ohash VARCHAR(16) UNIQUE,
     phash VARCHAR(16),
     site_id VARCHAR(100),
-    metadata JSONB,
+    media_metadata JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -68,15 +68,6 @@ CREATE TABLE download_queue (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Filters table
-CREATE TABLE filters (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    criteria JSONB, -- e.g., {"performers": ["name1"], "categories": ["cat1"], "resolution": "1080p"}
-    auto_queue BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
 -- Custom lists table
 CREATE TABLE custom_lists (
     id SERIAL PRIMARY KEY,
@@ -101,6 +92,7 @@ CREATE TABLE download_rules (
 CREATE TABLE library_entries (
     id SERIAL PRIMARY KEY,
     provider_id INTEGER REFERENCES providers(id) ON DELETE CASCADE,
+    media_entry_id INTEGER REFERENCES media_entries(id),
     title VARCHAR(500) NOT NULL,
     performers JSONB,
     tags JSONB,
@@ -111,7 +103,7 @@ CREATE TABLE library_entries (
     ohash VARCHAR(16),
     phash VARCHAR(16),
     site_id VARCHAR(100),
-    metadata JSONB,
+    entry_metadata JSONB,
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -136,6 +128,8 @@ CREATE TABLE download_preferences (
     append_metadata BOOLEAN DEFAULT TRUE,
     auto_tag_files BOOLEAN DEFAULT TRUE,
     duplicate_handling VARCHAR(50) DEFAULT 'skip',
+    custom_base_path TEXT,
+    max_retries INTEGER DEFAULT 3,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -163,7 +157,7 @@ CREATE TABLE session_cookies (
     id SERIAL PRIMARY KEY,
     provider_id INTEGER REFERENCES providers(id) ON DELETE CASCADE,
     site_id VARCHAR(100),
-    cookie_data TEXT NOT NULL,
+    cookie_text TEXT,
     status VARCHAR(50) DEFAULT 'active',
     download_limit INTEGER,
     downloads_used INTEGER DEFAULT 0,
@@ -173,8 +167,58 @@ CREATE TABLE session_cookies (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Vault table
+CREATE TABLE vault (
+    id SERIAL PRIMARY KEY,
+    entity_type VARCHAR(50) NOT NULL,
+    entity_id INTEGER NOT NULL,
+    key VARCHAR(100) NOT NULL,
+    encrypted_value TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Settings table
+CREATE TABLE settings (
+    id SERIAL PRIMARY KEY,
+    key VARCHAR(255) UNIQUE NOT NULL,
+    value TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Scrape schedules table
+CREATE TABLE scrape_schedules (
+    id SERIAL PRIMARY KEY,
+    provider_id INTEGER REFERENCES providers(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    target_url TEXT,
+    cron_expression VARCHAR(100) NOT NULL,
+    action VARCHAR(50) DEFAULT 'metadata_and_download',
+    is_active BOOLEAN DEFAULT TRUE,
+    last_run TIMESTAMP,
+    last_run_status VARCHAR(50),
+    last_run_details TEXT,
+    next_run TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- API Keys table
+CREATE TABLE api_keys (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255),
+    key_hash VARCHAR(255) UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_used TIMESTAMP
+);
+
 -- Indexes for performance
 CREATE INDEX idx_media_entries_ohash ON media_entries(ohash);
 CREATE INDEX idx_media_entries_phash ON media_entries(phash);
 CREATE INDEX idx_local_files_path ON local_files(file_path);
 CREATE INDEX idx_download_queue_status ON download_queue(status);
+
+-- Trigram index for faster ILIKE text searches
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE INDEX idx_library_entries_title_trgm ON library_entries USING gin (title gin_trgm_ops);

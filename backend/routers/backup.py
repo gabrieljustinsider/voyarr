@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from database import get_db
 from models import Base, Settings
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 from typing import Optional
 from decimal import Decimal
@@ -30,7 +30,7 @@ def export_backup(type: str = 'full', tables: Optional[str] = None, db: Session 
         settings = db.query(Settings).all()
         data = {
             "type": "settings",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "version": "1.0",
             "data": {
                 "settings": [{"key": s.key, "value": s.value} for s in settings]
@@ -40,7 +40,7 @@ def export_backup(type: str = 'full', tables: Optional[str] = None, db: Session 
     elif type == 'full':
         data = {
             "type": "full",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "version": "1.0",
             "data": {}
         }
@@ -55,7 +55,7 @@ def export_backup(type: str = 'full', tables: Optional[str] = None, db: Session 
         target_tables = [t.strip() for t in tables.split(',')]
         data = {
             "type": "custom",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "version": "1.0",
             "data": {}
         }
@@ -134,8 +134,9 @@ def restore_backup(file: UploadFile = File(...), db: Session = Depends(get_db)):
                 table_name = table.name
                 try:
                     db.execute(text(f"SELECT setval(pg_get_serial_sequence('{table_name}', 'id'), coalesce(max(id), 1), max(id) IS NOT null) FROM {table_name};"))
-                except Exception:
-                    pass
+                except Exception as e:
+                    # This can fail if a table doesn't have a default sequence named 'id'.
+                    print(f"Could not reset sequence for table '{table_name}': {e}")
                     
             db.commit()
             return {"message": "Full database restored successfully"}
@@ -163,8 +164,8 @@ def restore_backup(file: UploadFile = File(...), db: Session = Depends(get_db)):
                 table_name = table.name
                 try:
                     db.execute(text(f"SELECT setval(pg_get_serial_sequence('{table_name}', 'id'), coalesce(max(id), 1), max(id) IS NOT null) FROM {table_name};"))
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"Could not reset sequence for table '{table_name}': {e}")
             db.commit()
             return {"message": f"Custom tables ({', '.join(tables_in_backup)}) restored successfully"}
     except Exception as e:

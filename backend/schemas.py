@@ -11,10 +11,11 @@ class CredentialCreate(BaseModel):
 class CredentialResponse(BaseModel):
     id: int
     provider_id: int
-    username: str
     custom_limits: dict | None = None
-    created_at: str
+    created_at: datetime
 
+    class Config:
+        from_attributes = True
 class LibraryEntryBase(BaseModel):
     provider_id: int
     title: str
@@ -73,7 +74,7 @@ class CustomListResponse(CustomListBase):
 
 class DownloadRuleBase(BaseModel):
     name: str
-    criteria: Dict[str, Any]
+    criteria: Optional[Dict[str, Any]] = None
     action: str = 'download'
     scope: str = 'global'
     is_active: bool = True
@@ -117,3 +118,22 @@ class ScrapeScheduleResponse(ScrapeScheduleBase):
 
     class Config:
         from_attributes = True
+
+class CookieCreate(BaseModel):
+    provider_id: int
+    cookie_text: str
+    download_limit: Optional[int] = None
+
+class CookieResponse(BaseModel):
+    id: int
+    provider_id: int
+    status: str
+    downloads_used: int
+    download_limit: Optional[int] = None
+    expires_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+class DuplicateAction(BaseModel):
+    action: str

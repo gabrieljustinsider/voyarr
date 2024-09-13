@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
-from datetime import datetime
+from datetime import datetime, timezone
 
 from database import get_db
 from models import ScrapeSchedule
 from schemas import ScrapeScheduleCreate, ScrapeScheduleUpdate, ScrapeScheduleResponse
 from croniter import croniter
+from tasks.schedule_tasks import process_schedules
 
 from dependencies import verify_api_key
 
@@ -27,7 +28,7 @@ def create_schedule(schedule: ScrapeScheduleCreate, db: Session = Depends(get_db
         db_schedule = ScrapeSchedule(**schedule.dict())
     
     # Calculate next run
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     iter = croniter(schedule.cron_expression, now)
     db_schedule.next_run = iter.get_next(datetime)
     
@@ -55,7 +56,7 @@ def update_schedule(schedule_id: int, schedule: ScrapeScheduleUpdate, db: Sessio
         
     if 'cron_expression' in update_data or 'is_active' in update_data:
         if db_schedule.is_active:
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
             iter = croniter(db_schedule.cron_expression, now)
             db_schedule.next_run = iter.get_next(datetime)
         else:
@@ -74,3 +75,17 @@ def delete_schedule(schedule_id: int, db: Session = Depends(get_db)):
     db.delete(db_schedule)
     db.commit()
     return {"message": "Schedule deleted successfully"}
+
+@router.post("/{schedule_id}/trigger")
+def trigger_schedule(schedule_id: int, db: Session = Depends(get_db)):
+    db_schedule = db.query(ScrapeSchedule).filter(ScrapeSchedule.id == schedule_id).first()
+    if not db_schedule:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+        
+    # Force the next run to now so the task processor picks it up immediately
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    db_schedule.next_run = now
+    db.commit()
+    
+    process_schedules.delay()
+    return {"message": "Schedule queued for immediate execution"}

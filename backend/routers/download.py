@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.orm import Session, joinedload, contains_eager
 from database import get_db, SessionLocal
 from models import DownloadQueue, MediaEntry, LibraryEntry, DownloadPreference, Provider, DuplicateEntry, DownloadRule, CustomList, SessionCookie, Credential
@@ -15,6 +14,9 @@ from services.hash_service import HashService
 from tasks.download_tasks import real_download_task
 import time
 import json
+import asyncio
+import requests
+import re
 
 from dependencies import verify_api_key
 router = APIRouter(prefix="/download", tags=["download"], dependencies=[Depends(verify_api_key)])
@@ -25,14 +27,7 @@ class DownloadRequest(BaseModel):
     metadata: Optional[Dict[str, Any]] = None
     force_duplicate: bool = False
 
-def evaluate_rules(db: Session, provider_id: int, metadata: dict):
-    rules = db.query(DownloadRule).filter(
-        DownloadRule.is_active == True,
-        (DownloadRule.scope == 'global') | 
-        (DownloadRule.scope == 'session') | 
-        (DownloadRule.scope == f'provider:{provider_id}')
-    ).all()
-    
+def evaluate_rules(db: Session, metadata: dict, rules: list[DownloadRule], custom_lists: Dict[int, CustomList]):
     for rule in rules:
         criteria = rule.criteria or {}
         match = True
@@ -42,40 +37,32 @@ def evaluate_rules(db: Session, provider_id: int, metadata: dict):
             elif key == "performers":
                 performers = metadata.get("performers") or []
                 if isinstance(value, dict) and "contains" in value:
-                    if not any(value["contains"].lower() in p.lower() for p in metadata.get("performers", [])):
                     if not any(value["contains"].lower() in p.lower() for p in performers):
                         match = False
                 elif isinstance(value, str):
-                    if value.lower() not in [p.lower() for p in metadata.get("performers", [])]:
                     if value.lower() not in [p.lower() for p in performers]:
                         match = False
             elif key == "categories" or key == "tags":
                 tags_cats = (metadata.get("tags") or []) + (metadata.get("categories") or [])
                 if isinstance(value, dict) and "contains" in value:
-                    if not any(value["contains"].lower() in t.lower() for t in metadata.get("tags", []) + metadata.get("categories", [])):
                     if not any(value["contains"].lower() in t.lower() for t in tags_cats):
                         match = False
                 elif isinstance(value, str):
-                    if value.lower() not in [t.lower() for t in metadata.get("tags", []) + metadata.get("categories", [])]:
                     if value.lower() not in [t.lower() for t in tags_cats]:
                         match = False
             elif key == "series":
                 series = metadata.get("series") or ""
                 if isinstance(value, dict) and "contains" in value:
-                    if value["contains"].lower() not in metadata.get("series", "").lower():
                     if value["contains"].lower() not in series.lower():
                         match = False
                 elif isinstance(value, str):
-                    if value.lower() != metadata.get("series", "").lower():
                     if value.lower() != series.lower():
                         match = False
             elif key == "sub_site":
-                if value.lower() != metadata.get("sub_site", "").lower():
                 sub_site = metadata.get("sub_site") or ""
                 if value.lower() != sub_site.lower():
                     match = False
             elif key == "custom_terms":
-                search_text = (metadata.get("title", "") + " " + metadata.get("description", "")).lower()
                 title = metadata.get("title")
                 desc = metadata.get("description")
                 title_str = " ".join(title) if isinstance(title, list) else str(title or "")
@@ -89,22 +76,18 @@ def evaluate_rules(db: Session, provider_id: int, metadata: dict):
                         match = False
             elif key == "in_list":
                 list_id = value
-                custom_list = db.query(CustomList).filter(CustomList.id == list_id).first()
+                custom_list = custom_lists.get(list_id)
                 if custom_list:
-                    list_items = [i.lower() for i in custom_list.items]
+                    list_items = [i.lower() for i in (custom_list.items or [])]
                     item_type = custom_list.item_type
                     
                     if item_type == "performers":
-                        meta_items = [p.lower() for p in metadata.get("performers", [])]
                         meta_items = [p.lower() for p in (metadata.get("performers") or [])]
                     elif item_type == "tags" or item_type == "categories":
-                        meta_items = [t.lower() for t in metadata.get("tags", []) + metadata.get("categories", [])]
                         meta_items = [t.lower() for t in ((metadata.get("tags") or []) + (metadata.get("categories") or []))]
                     elif item_type == "series":
-                        meta_items = [metadata.get("series", "").lower()]
                         meta_items = [(metadata.get("series") or "").lower()]
                     else:
-                        meta_items = [p.lower() for p in metadata.get("performers", [])] + [t.lower() for t in metadata.get("tags", [])]
                         meta_items = [p.lower() for p in (metadata.get("performers") or [])] + [t.lower() for t in ((metadata.get("tags") or []) + (metadata.get("categories") or []))]
                     
                     if not any(item in list_items for item in meta_items):
@@ -119,7 +102,6 @@ def evaluate_rules(db: Session, provider_id: int, metadata: dict):
 
 def evaluate_duplicate_quality(db: Session, prefs: DownloadPreference, title: str, meta: dict):
     if prefs and prefs.duplicate_handling != "overwrite":
-        existing = db.query(LibraryEntry).filter(LibraryEntry.title.ilike(f"%{title}%")).first()
         escaped_title = title.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         existing = db.query(LibraryEntry).filter(LibraryEntry.title.ilike(f"%{escaped_title}%", escape="\\")).first()
         if existing:
@@ -189,7 +171,17 @@ def start_download(req: DownloadRequest, db: Session = Depends(get_db)):
     title = title_raw[0] if isinstance(title_raw, list) and title_raw else str(title_raw or "Unknown_Title")
     
     # 2.5 Evaluate Rules
-    action = evaluate_rules(db, req.provider_id, meta)
+    rules = db.query(DownloadRule).filter(
+        DownloadRule.is_active == True,
+        (DownloadRule.scope == 'global') | 
+        (DownloadRule.scope == 'session') | 
+        (DownloadRule.scope == f'provider:{req.provider_id}')
+    ).all()
+    list_ids = [rule.criteria['in_list'] for rule in rules if rule.criteria and 'in_list' in rule.criteria]
+    custom_lists_query = db.query(CustomList).filter(CustomList.id.in_(list_ids)).all() if list_ids else []
+    custom_lists_map = {cl.id: cl for cl in custom_lists_query}
+
+    action = evaluate_rules(db, meta, rules, custom_lists_map)
     if action == "skip":
         return {"message": "Skipped due to custom download rule"}
     
@@ -258,9 +250,6 @@ def get_download_queue(
     db: Session = Depends(get_db)
 ):
     """Advanced filtering for the download list"""
-    # Use joinedload to prevent N+1 queries when accessing the media_entry relationship
-    query = db.query(DownloadQueue).options(joinedload(DownloadQueue.media_entry))
-    query = query.join(MediaEntry, DownloadQueue.media_entry_id == MediaEntry.id)
     # Use contains_eager to prevent N+1 queries when joining the media_entry relationship
     query = db.query(DownloadQueue).join(DownloadQueue.media_entry).options(contains_eager(DownloadQueue.media_entry))
     
@@ -278,12 +267,15 @@ def get_download_queue(
 @router.get("/stream")
 def stream_download_queue():
     """Server-Sent Events endpoint for real-time download progress updates."""
-    def event_generator():
+    async def event_generator():
         while True:
             db = SessionLocal()
             try:
-                tasks = db.query(DownloadQueue).all()
-                tasks = db.query(DownloadQueue).options(joinedload(DownloadQueue.media_entry)).all()
+                # Only push active tasks to the client to save bandwidth and memory
+                tasks = db.query(DownloadQueue).options(
+                    joinedload(DownloadQueue.media_entry)
+                ).filter(DownloadQueue.status.in_(['pending', 'running', 'queued'])).all()
+                
                 data = []
                 for t in tasks:
                     media = t.media_entry
@@ -301,7 +293,7 @@ def stream_download_queue():
                 yield f"data: {json.dumps(data)}\n\n"
             finally:
                 db.close()
-            time.sleep(2.0)
+            await asyncio.sleep(2.0)
             
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
@@ -327,21 +319,34 @@ def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
             info = ydl.extract_info(req.url, download=False)
             
         extracted_videos = []
-        if 'entries' in info:
+        if info and 'entries' in info:
             for entry in info['entries']:
-                extracted_videos.append({
-                    "url": entry.get('url') or entry.get('webpage_url'),
-                    "metadata": {
-                        "title": entry.get('title', 'Unknown')
-                    }
-                })
-        else:
+                if not entry:
+                    continue
+                url = entry.get('url') or entry.get('webpage_url')
+                if url:
+                    extracted_videos.append({
+                        "url": url,
+                        "metadata": {"title": entry.get('title', 'Unknown')}
+                    })
+        elif info:
             extracted_videos.append({
                 "url": info.get('url') or info.get('webpage_url') or req.url,
-                "metadata": {
-                    "title": info.get('title', 'Unknown')
-                }
+                "metadata": {"title": info.get('title', 'Unknown')}
             })
+            
+        # Hardened Fallback: If yt-dlp returns nothing, try a naive HTML scrape
+        if not extracted_videos:
+            resp = requests.get(req.url, timeout=15)
+            hrefs = re.findall(r'href=[\'"]?([^\'" >]+)', resp.text)
+            for href in set(hrefs):
+                if '/video/' in href.lower() or '/watch/' in href.lower() or '.mp4' in href.lower():
+                    full_url = href if href.startswith('http') else req.url.rstrip('/') + '/' + href.lstrip('/')
+                    extracted_videos.append({
+                        "url": full_url, 
+                        "metadata": {"title": "Unknown"}
+                    })
+                    
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to extract URLs: {str(e)}")
     
@@ -356,6 +361,18 @@ def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
         "append_metadata": prefs.append_metadata if prefs else False,
         "custom_base_path": getattr(prefs, "custom_base_path", None) if prefs else None
     }
+
+    rules = db.query(DownloadRule).filter(
+        DownloadRule.is_active == True,
+        (DownloadRule.scope == 'global') | 
+        (DownloadRule.scope == 'session') | 
+        (DownloadRule.scope == f'provider:{req.provider_id}')
+    ).all()
+    
+    # Pre-fetch custom lists to avoid N+1 queries in evaluate_rules
+    list_ids = [rule.criteria['in_list'] for rule in rules if rule.criteria and 'in_list' in rule.criteria]
+    custom_lists_query = db.query(CustomList).filter(CustomList.id.in_(list_ids)).all() if list_ids else []
+    custom_lists_map = {cl.id: cl for cl in custom_lists_query}
     
     for video in extracted_videos:
         if not video["url"]:
@@ -366,14 +383,13 @@ def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
         title = title_raw[0] if isinstance(title_raw, list) and title_raw else str(title_raw or "Unknown")
         
         # 1.5 Duplicate Checking
-        dupe_check = evaluate_duplicate_quality(db, prefs, meta.get("title", "Unknown"), meta)
         dupe_check = evaluate_duplicate_quality(db, prefs, title, meta)
         if not dupe_check.get("proceed"):
             skipped_count += 1
             continue
         
         # 2. Evaluate Rules
-        action = evaluate_rules(db, req.provider_id, meta)
+        action = evaluate_rules(db, meta, rules, custom_lists_map)
         if action == "skip":
             skipped_count += 1
             continue
@@ -386,7 +402,6 @@ def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
         # 3. Add to session, but don't commit yet
         media = MediaEntry(
             provider_id=req.provider_id,
-            title=meta.get("title", "Unknown"),
             title=title,
             performers=meta.get("performers", []),
             tags=meta.get("tags", []),

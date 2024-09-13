@@ -6,10 +6,13 @@ import {
   CircularProgress, Alert
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
-import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline'
+import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutlined'
+import SettingsIcon from '@mui/icons-material/Settings'
 
 export default function Library() {
   const [entries, setEntries] = useState([])
+  const [apiKey, setApiKey] = useState(localStorage.getItem('voyarr_api_key') || '')
+  const [settingsOpen, setSettingsOpen] = useState(!localStorage.getItem('voyarr_api_key'))
   const [filters, setFilters] = useState({
     resolution: '',
     performer: '',
@@ -28,6 +31,9 @@ export default function Library() {
   const [scanResult, setScanResult] = useState(null)
 
   const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
+  const getApiKey = () => {
+    return apiKey || import.meta.env.VITE_MASTER_KEY || '';
+  }
 
   const fetchLibrary = async () => {
     try {
@@ -39,7 +45,7 @@ export default function Library() {
       if (filters.ohash) params.append('ohash', filters.ohash)
 
       const res = await fetch(`${API_BASE}/library?${params.toString()}`, {
-        headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
+        headers: { 'X-Voyarr-Api-Key': getApiKey() }
       })
       if (res.ok) setEntries(await res.json())
     } catch (e) {
@@ -50,6 +56,12 @@ export default function Library() {
   useEffect(() => {
     fetchLibrary()
   }, [filters])
+
+  const handleSaveSettings = () => {
+    localStorage.setItem('voyarr_api_key', apiKey)
+    setSettingsOpen(false)
+    fetchLibrary()
+  }
 
   const handleFilterChange = (e) => {
     setFilters({ ...filters, [e.target.name]: e.target.value })
@@ -62,7 +74,7 @@ export default function Library() {
   const fetchProviders = async () => {
     try {
       const res = await fetch(`${API_BASE}/providers`, {
-        headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
+        headers: { 'X-Voyarr-Api-Key': getApiKey() }
       })
       if (res.ok) setProviders(await res.json())
     } catch (e) {
@@ -84,7 +96,7 @@ export default function Library() {
       
       const res = await fetch(`${API_BASE}/library/scan?${params.toString()}`, {
         method: 'POST',
-        headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
+        headers: { 'X-Voyarr-Api-Key': getApiKey() }
       })
       const data = await res.json()
       if (res.ok) {
@@ -104,7 +116,7 @@ export default function Library() {
     try {
       const res = await fetch(`${API_BASE}/library/rescan-hashes`, {
         method: 'POST',
-        headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
+        headers: { 'X-Voyarr-Api-Key': getApiKey() }
       })
       const data = await res.json()
       if (res.ok) {
@@ -125,6 +137,9 @@ export default function Library() {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h4">Media Library</Typography>
         <Box sx={{ display: 'flex', gap: 2 }}>
+          <Tooltip title="Settings">
+            <Button variant="outlined" color="inherit" onClick={() => setSettingsOpen(true)}><SettingsIcon /></Button>
+          </Tooltip>
           <Button variant="outlined" color="secondary" onClick={handleRescanHashes} disabled={rescanLoading}>
             {rescanLoading ? <CircularProgress size={24} /> : 'Re-scan Hashes'}
           </Button>
@@ -231,6 +246,29 @@ export default function Library() {
         </DialogActions>
       </Dialog>
 
+      {/* Settings / API Key Dialog */}
+      <Dialog open={settingsOpen} onClose={() => { if(apiKey) setSettingsOpen(false) }} maxWidth="sm" fullWidth>
+        <DialogTitle>Voyarr Configuration</DialogTitle>
+        <DialogContent dividers>
+          <Alert severity="info" sx={{ mb: 3 }}>
+            Please enter your API Key or Master Key to authenticate with the Voyarr backend.
+          </Alert>
+          <TextField 
+            fullWidth 
+            type="password"
+            label="API Key / Master Key" 
+            value={apiKey} 
+            onChange={e => setApiKey(e.target.value)} 
+            placeholder="vyr_..."
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleSaveSettings} variant="contained" disabled={!apiKey}>
+            Save Settings
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Video Player Modal */}
       <Dialog open={Boolean(playingVideo)} onClose={handleClosePlayer} maxWidth="lg" fullWidth>
         <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -247,7 +285,7 @@ export default function Library() {
                   controls 
                   autoPlay 
                   style={{ width: '100%', maxHeight: '75vh', outline: 'none' }}
-                  src={`${API_BASE}/library/${playingVideo.id}/stream?api_key=${import.meta.env.VITE_MASTER_KEY}`}
+                  src={`${API_BASE}/library/${playingVideo.id}/stream?api_key=${getApiKey()}`}
                   controlsList="nodownload"
                 >
                   Your browser does not support the video tag.
