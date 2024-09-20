@@ -1,164 +1,100 @@
 import { useState, useEffect } from 'react'
 import { 
-  Box, Typography, Card, CardContent, Button, Grid, Divider,
-  Dialog, DialogTitle, DialogContent, DialogActions, TextField, 
-  FormControl, InputLabel, Select, MenuItem, Alert
+  Box, Typography, Card, CardContent, Grid, Button, 
+  Alert, CircularProgress, Chip, Divider
 } from '@mui/material'
 
 export default function Duplicates() {
   const [duplicates, setDuplicates] = useState([])
-  
-  // Hash Comparison Tool State
-  const [compareOpen, setCompareOpen] = useState(false)
-  const [compareData, setCompareData] = useState({ hash1: '', hash2: '', hash_type: 'phash' })
-  const [compareResult, setCompareResult] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
+  const getApiKey = () => localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY || ''
 
   const fetchDuplicates = async () => {
+    setLoading(true)
     try {
       const res = await fetch(`${API_BASE}/duplicates`, {
-        headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
+        headers: { 'X-Voyarr-Api-Key': getApiKey() }
       })
-      if (res.ok) setDuplicates(await res.json())
-    } catch (e) {
-      console.error(e)
+      if (!res.ok) throw new Error('Failed to fetch duplicates')
+      setDuplicates(await res.json())
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
     }
   }
 
-  useEffect(() => { fetchDuplicates() }, [])
+  useEffect(() => {
+    fetchDuplicates()
+  }, [])
 
-  const handleScan = async () => {
-    await fetch(`${API_BASE}/duplicates/scan`, {
-      method: 'POST',
-      headers: {
-        'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
-      }
-    })
-    window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Scan started! Refresh in a few moments.', severity: 'success' } }))
-  }
-
-  const resolveDuplicate = async (id, action) => {
+  const handleResolve = async (dupeId, action) => {
     try {
-      await fetch(`${API_BASE}/duplicates/${id}/resolve`, {
+      const res = await fetch(`${API_BASE}/duplicates/${dupeId}/resolve`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
+          'X-Voyarr-Api-Key': getApiKey() 
         },
         body: JSON.stringify({ action })
       })
-      fetchDuplicates()
-    } catch (e) {
-      console.error('Failed to resolve duplicate:', e)
+      if (!res.ok) throw new Error('Failed to resolve duplicate')
+      
+      // Remove from list
+      setDuplicates(duplicates.filter(d => d.id !== dupeId))
+    } catch (err) {
+      alert(`Error resolving: ${err.message}`)
     }
   }
 
-  const handleCompare = async () => {
-    setCompareResult(null)
-    try {
-      const res = await fetch(`${API_BASE}/duplicates/compare`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
-        },
-        body: JSON.stringify(compareData)
-      })
-      const data = await res.json()
-      if (res.ok) {
-        setCompareResult(data)
-      } else {
-        setCompareResult({ error: data.detail })
-      }
-    } catch (e) {
-      setCompareResult({ error: e.message })
-    }
-  }
+  if (loading) return <CircularProgress />
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h4">Duplicate Resolution Queue</Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button variant="outlined" color="secondary" onClick={() => setCompareOpen(true)}>Hash Tester</Button>
-          <Button variant="contained" onClick={handleScan}>Scan for Duplicates</Button>
-        </Box>
-      </Box>
-      {duplicates.length === 0 ? (
-        <Typography>No pending duplicates found.</Typography>
-      ) : (
-        <Grid container spacing={3}>
-          {duplicates.map(dupe => (
-            <Grid item xs={12} key={dupe.id}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>Match Score: {dupe.similarity_score}% - Reason: {dupe.reason}</Typography>
-                  <Box sx={{ display: 'flex', gap: 4, my: 2 }}>
-                    <Box flex={1}>
-                      <Typography variant="subtitle1" color="primary">Entry 1 (Existing File)</Typography>
-                      <Typography variant="body1">{dupe.entry1?.title || 'Unknown Title'}</Typography>
-                      <Typography variant="body2" color="textSecondary">{dupe.entry1?.path || 'Unknown Path'}</Typography>
-                    </Box>
-                    <Divider orientation="vertical" flexItem />
-                    <Box flex={1}>
-                      <Typography variant="subtitle1" color="secondary">Entry 2 (New File)</Typography>
-                      <Typography variant="body1">{dupe.entry2?.title || 'Unknown Title'}</Typography>
-                      <Typography variant="body2" color="textSecondary">{dupe.entry2?.path || 'Unknown Path'}</Typography>
-                    </Box>
-                  </Box>
-                  <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
-                    <Button variant="contained" color="error" onClick={() => resolveDuplicate(dupe.id, 'overwrite')}>Overwrite Existing</Button>
-                    <Button variant="outlined" onClick={() => resolveDuplicate(dupe.id, 'keep_both')}>Keep Both</Button>
-                  </Box>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
+      <Typography variant="h4" gutterBottom>Duplicate Resolution</Typography>
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {duplicates.length === 0 && !loading && (
+        <Alert severity="success">No unresolved duplicates found in the library!</Alert>
       )}
 
-      <Dialog open={compareOpen} onClose={() => setCompareOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Hash Comparison Tool</DialogTitle>
-        <DialogContent dividers>
-          <Typography variant="body2" sx={{ mb: 3 }}>
-            Test the difference scores of two specific ohash or phash values side by side.
-          </Typography>
-          <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-            <InputLabel>Hash Type</InputLabel>
-            <Select 
-              value={compareData.hash_type} 
-              label="Hash Type" 
-              onChange={e => setCompareData({...compareData, hash_type: e.target.value})}
-            >
-              <MenuItem value="phash">Perceptual Hash (phash)</MenuItem>
-              <MenuItem value="ohash">OpenSubtitles Hash (ohash)</MenuItem>
-            </Select>
-          </FormControl>
-          <TextField 
-            fullWidth size="small" label="Hash 1" sx={{ mb: 2 }}
-            value={compareData.hash1} onChange={e => setCompareData({...compareData, hash1: e.target.value})} 
-          />
-          <TextField 
-            fullWidth size="small" label="Hash 2" sx={{ mb: 2 }}
-            value={compareData.hash2} onChange={e => setCompareData({...compareData, hash2: e.target.value})} 
-          />
-          
-          {compareResult && !compareResult.error && (
-            <Alert severity={compareResult.match ? "success" : "warning"} sx={{ mt: 2 }}>
-              Similarity Score: <strong>{compareResult.score.toFixed(2)}%</strong><br/>
-              Match Threshold Met: {compareResult.match ? 'Yes' : 'No'}
-            </Alert>
-          )}
-          {compareResult && compareResult.error && (
-            <Alert severity="error" sx={{ mt: 2 }}>{compareResult.error}</Alert>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setCompareOpen(false)}>Close</Button>
-          <Button onClick={handleCompare} variant="contained" disabled={!compareData.hash1 || !compareData.hash2}>Compare</Button>
-        </DialogActions>
-      </Dialog>
+      {duplicates.map(dupe => (
+        <Card key={dupe.id} sx={{ mb: 3 }}>
+          <CardContent>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, alignItems: 'center' }}>
+              <Typography variant="h6">Potential Match ({dupe.similarity_score}% Similar)</Typography>
+              <Button variant="outlined" color="info" onClick={() => handleResolve(dupe.id, 'keep_both')}>
+                False Positive (Keep Both)
+              </Button>
+            </Box>
+            <Divider sx={{ mb: 2 }} />
+            
+            <Grid container spacing={3}>
+              {[dupe.entry1, dupe.entry2].map((entry, idx) => (
+                <Grid item xs={12} md={6} key={entry.id}>
+                  <Box sx={{ p: 2, border: '1px solid #333', borderRadius: 1 }}>
+                    <Typography variant="subtitle1" noWrap title={entry.title}>
+                      <strong>{entry.title}</strong>
+                    </Typography>
+                    <Typography variant="body2" color="textSecondary" sx={{ mb: 1, wordBreak: 'break-all' }}>
+                      {entry.file_path}
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                      <Chip label={entry.resolution || 'Unknown Res'} size="small" />
+                      <Chip label={`${(entry.file_size / (1024*1024)).toFixed(1)} MB`} size="small" />
+                    </Box>
+                    <Button variant="contained" color="primary" fullWidth onClick={() => handleResolve(dupe.id, `keep_${idx + 1}`)}>
+                      Keep This & Delete Other
+                    </Button>
+                  </Box>
+                </Grid>
+              ))}
+            </Grid>
+          </CardContent>
+        </Card>
+      ))}
     </Box>
   )
 }
