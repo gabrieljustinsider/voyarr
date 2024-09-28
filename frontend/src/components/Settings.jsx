@@ -42,7 +42,7 @@ export default function Settings() {
 
   const fetchApiKeys = async () => {
     try {
-      const res = await fetch(`${API_BASE}/apikeys`, { headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY } })
+      const res = await fetch(`${API_BASE}/apikeys`, { headers: { 'X-Voyarr-Api-Key': getApiKey() } })
       if (res.ok) setApiKeys(await res.json())
     } catch (err) { console.error('Failed to fetch API keys:', err) }
   }
@@ -57,7 +57,7 @@ export default function Settings() {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
+          'X-Voyarr-Api-Key': getApiKey()
         },
         body: JSON.stringify({ key, value: String(value) })
       })
@@ -82,7 +82,7 @@ export default function Settings() {
     try {
       const res = await fetch(`${API_BASE}/apikeys`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY },
+        headers: { 'Content-Type': 'application/json', 'X-Voyarr-Api-Key': getApiKey() },
         body: JSON.stringify({ name: newKeyName })
       })
       if (res.ok) {
@@ -99,24 +99,50 @@ export default function Settings() {
     }
   }
 
-  const handleDeleteApiKey = async (id) => {
-    const confirmed = window.appConfirm ? await window.appConfirm('Revoke this API Key? Any scripts currently using it will immediately lose access.') : window.confirm('Revoke this API Key? Any scripts currently using it will immediately lose access.')
-    if (!confirmed) return
+  const handleDeleteApiKey = (id) => {
+    setDeleteConfirm({ open: true, keyId: id })
+  }
+
+  const confirmDeleteApiKey = async () => {
+    if (!deleteConfirm.keyId) return
     try {
-      await fetch(`${API_BASE}/apikeys/${id}`, { 
+      await fetch(`${API_BASE}/apikeys/${deleteConfirm.keyId}`, { 
         method: 'DELETE', 
-        headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY } 
+        headers: { 'X-Voyarr-Api-Key': getApiKey() } 
       })
+      setDeleteConfirm({ open: false, keyId: null })
       fetchApiKeys()
     } catch (err) {
       console.error('Failed to revoke API key:', err)
     }
   }
 
+  const handleSaveMasterKey = () => {
+    localStorage.setItem('voyarr_api_key', masterKeyInput)
+    setSnackbar({ open: true, message: 'Master Key saved to browser securely!', severity: 'success' })
+    // Refresh data with new key to force an updated fetch
+    window.location.reload()
+  }
+
   return (
     <Box>
       <Typography variant="h4" gutterBottom>Application Settings</Typography>
       
+      <Paper sx={{ p: 3, mb: 3, border: '1px solid #ff9800' }}>
+        <Typography variant="h6" color="warning.main" gutterBottom>Security: API Master Key</Typography>
+        <Typography variant="body2" sx={{ mb: 2 }}>
+          Your Master Key is required to communicate with the backend. It is stored securely in your browser's local storage and is never bundled in the source code.
+        </Typography>
+        <Grid container spacing={2}>
+          <Grid item xs={12} md={10}>
+            <TextField fullWidth type="password" label="Master Key" value={masterKeyInput} onChange={e => setMasterKeyInput(e.target.value)} />
+          </Grid>
+          <Grid item xs={12} md={2}>
+            <Button fullWidth variant="contained" color="warning" onClick={handleSaveMasterKey}>Save Key</Button>
+          </Grid>
+        </Grid>
+      </Paper>
+
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>Storage & Paths</Typography>
         <Divider sx={{ mb: 2 }} />
@@ -282,6 +308,17 @@ export default function Settings() {
         </DialogContent>
         <DialogActions>
           <Button variant="contained" onClick={() => setGeneratedKey(null)}>I have copied it</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={deleteConfirm.open} onClose={() => setDeleteConfirm({ open: false, keyId: null })}>
+        <DialogTitle>Revoke API Key</DialogTitle>
+        <DialogContent>
+          <Typography>Revoke this API Key? Any scripts currently using it will immediately lose access.</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteConfirm({ open: false, keyId: null })}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={confirmDeleteApiKey}>Revoke</Button>
         </DialogActions>
       </Dialog>
     </Box>

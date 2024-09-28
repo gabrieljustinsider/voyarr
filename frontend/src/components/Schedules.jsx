@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { 
   Box, Typography, Button, TextField, CircularProgress, Dialog, 
   DialogTitle, DialogContent, DialogActions, Table, TableHead, 
-  TableBody, TableRow, TableCell, TableContainer, Paper, Switch, IconButton
+  TableBody, TableRow, TableCell, TableContainer, Paper, Switch, IconButton,
+  Snackbar, Alert
 } from '@mui/material'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import DeleteIcon from '@mui/icons-material/Delete'
@@ -11,10 +12,12 @@ export default function Schedules() {
   const [schedules, setSchedules] = useState([])
   const [loading, setLoading] = useState(true)
   const [openDialog, setOpenDialog] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState({ open: false, scheduleId: null })
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' })
   const [formData, setFormData] = useState({ name: '', provider_id: '', target_url: '', cron_expression: '0 0 * * *' })
 
   const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
-  const getApiKey = () => localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY || ''
+  const getApiKey = () => localStorage.getItem('voyarr_api_key') || ''
 
   const fetchSchedules = async () => {
     setLoading(true)
@@ -51,10 +54,10 @@ export default function Schedules() {
         fetchSchedules()
       } else {
         const err = await res.json()
-        alert(`Error: ${err.detail}`)
+        setSnackbar({ open: true, message: `Error: ${err.detail}`, severity: 'error' })
       }
     } catch (e) {
-      alert(`Error creating schedule: ${e.message}`)
+      setSnackbar({ open: true, message: `Error creating schedule: ${e.message}`, severity: 'error' })
     }
   }
 
@@ -74,14 +77,17 @@ export default function Schedules() {
     }
   }
 
-  const handleDelete = async (scheduleId) => {
-    if (!confirm('Delete this schedule?')) return
+  const confirmDelete = async () => {
+    const scheduleId = deleteConfirm.scheduleId
+    if (!scheduleId) return
     try {
       await fetch(`${API_BASE}/schedules/${scheduleId}`, {
         method: 'DELETE',
         headers: { 'X-Voyarr-Api-Key': getApiKey() }
       })
+      setDeleteConfirm({ open: false, scheduleId: null })
       fetchSchedules()
+      setSnackbar({ open: true, message: 'Schedule deleted successfully', severity: 'success' })
     } catch (e) {
       console.error(e)
     }
@@ -94,12 +100,13 @@ export default function Schedules() {
         headers: { 'X-Voyarr-Api-Key': getApiKey() }
       })
       if (res.ok) {
-        alert('Schedule triggered! Check the download queue shortly.')
+        setSnackbar({ open: true, message: 'Schedule triggered! Check the download queue shortly.', severity: 'success' })
         fetchSchedules()
       } else {
-        alert('Failed to trigger schedule.')
+        setSnackbar({ open: true, message: 'Failed to trigger schedule.', severity: 'error' })
       }
     } catch (e) {
+      setSnackbar({ open: true, message: `Error: ${e.message}`, severity: 'error' })
       console.error(e)
     }
   }
@@ -144,7 +151,7 @@ export default function Schedules() {
                   <TableCell>{s.next_run && s.is_active ? formatTime(s.next_run) : 'Paused'}</TableCell>
                   <TableCell align="right">
                     <IconButton onClick={() => handleTrigger(s.id)} color="primary" title="Trigger Now"><PlayArrowIcon /></IconButton>
-                    <IconButton onClick={() => handleDelete(s.id)} color="error" title="Delete"><DeleteIcon /></IconButton>
+                    <IconButton onClick={() => setDeleteConfirm({ open: true, scheduleId: s.id })} color="error" title="Delete"><DeleteIcon /></IconButton>
                   </TableCell>
                 </TableRow>
               ))}
@@ -166,6 +173,21 @@ export default function Schedules() {
           <Button variant="contained" onClick={handleCreate}>Save Schedule</Button>
         </DialogActions>
       </Dialog>
+
+      <Dialog open={deleteConfirm.open} onClose={() => setDeleteConfirm({ open: false, scheduleId: null })}>
+        <DialogTitle>Delete Schedule</DialogTitle>
+        <DialogContent>
+          <Typography>Are you sure you want to delete this schedule? This action cannot be undone.</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteConfirm({ open: false, scheduleId: null })}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={confirmDelete}>Delete</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={() => setSnackbar({ ...snackbar, open: false })}>
+        <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: '100%' }}>{snackbar.message}</Alert>
+      </Snackbar>
     </Box>
   )
 }

@@ -213,6 +213,20 @@ CREATE TABLE api_keys (
     last_used TIMESTAMP
 );
 
+-- Transcoding queue table
+CREATE TABLE transcoding_queue (
+    id SERIAL PRIMARY KEY,
+    library_entry_id INTEGER REFERENCES library_entries(id) ON DELETE CASCADE,
+    status VARCHAR(50) DEFAULT 'pending', -- pending, running, completed, failed
+    target_codec VARCHAR(20) DEFAULT 'h265',
+    target_resolution VARCHAR(20),
+    progress_percentage DECIMAL(5,2) DEFAULT 0,
+    details TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_active_transcode_per_entry UNIQUE (library_entry_id) WHERE (status IN ('pending', 'running'))
+);
+
 -- Indexes for performance
 CREATE INDEX idx_media_entries_ohash ON media_entries(ohash);
 CREATE INDEX idx_media_entries_phash ON media_entries(phash);
@@ -222,3 +236,4 @@ CREATE INDEX idx_download_queue_status ON download_queue(status);
 -- Trigram index for faster ILIKE text searches
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE INDEX idx_library_entries_title_trgm ON library_entries USING gin (title gin_trgm_ops);
+CREATE INDEX idx_transcoding_queue_status ON transcoding_queue(status);
