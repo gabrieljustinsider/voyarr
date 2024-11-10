@@ -17,13 +17,20 @@ export default function Schedules() {
   const [formData, setFormData] = useState({ name: '', provider_id: '', target_url: '', cron_expression: '0 0 * * *' })
 
   const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
-  const getApiKey = () => localStorage.getItem('voyarr_api_key') || ''
+
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('voyarr_jwt')
+    if (token) return { 'Authorization': `Bearer ${token}` }
+    const apiKey = localStorage.getItem('voyarr_api_key')
+    if (apiKey) return { 'X-Voyarr-Api-Key': apiKey }
+    return {}
+  }
 
   const fetchSchedules = async () => {
     setLoading(true)
     try {
       const res = await fetch(`${API_BASE}/schedules`, {
-        headers: { 'X-Voyarr-Api-Key': getApiKey() }
+        headers: getAuthHeaders()
       })
       if (res.ok) setSchedules(await res.json())
     } finally {
@@ -40,8 +47,8 @@ export default function Schedules() {
       const res = await fetch(`${API_BASE}/schedules`, {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json',
-          'X-Voyarr-Api-Key': getApiKey() 
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           ...formData,
@@ -66,8 +73,8 @@ export default function Schedules() {
       await fetch(`${API_BASE}/schedules/${scheduleId}`, {
         method: 'PUT',
         headers: { 
-          'Content-Type': 'application/json',
-          'X-Voyarr-Api-Key': getApiKey() 
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ is_active: !isActive })
       })
@@ -83,7 +90,7 @@ export default function Schedules() {
     try {
       await fetch(`${API_BASE}/schedules/${scheduleId}`, {
         method: 'DELETE',
-        headers: { 'X-Voyarr-Api-Key': getApiKey() }
+        headers: getAuthHeaders()
       })
       setDeleteConfirm({ open: false, scheduleId: null })
       fetchSchedules()
@@ -97,7 +104,7 @@ export default function Schedules() {
     try {
       const res = await fetch(`${API_BASE}/schedules/${scheduleId}/trigger`, {
         method: 'POST',
-        headers: { 'X-Voyarr-Api-Key': getApiKey() }
+        headers: getAuthHeaders()
       })
       if (res.ok) {
         setSnackbar({ open: true, message: 'Schedule triggered! Check the download queue shortly.', severity: 'success' })

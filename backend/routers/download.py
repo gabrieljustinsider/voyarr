@@ -3,7 +3,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload, contains_eager
 from database import get_db, SessionLocal
 from models import DownloadQueue, MediaEntry, LibraryEntry, DownloadPreference, Provider, DuplicateEntry, DownloadRule, CustomList, SessionCookie, Credential
-from pydantic import BaseModel
+from pydantic import BaseModel, HttpUrl
 from typing import Optional, Dict, Any
 import hashlib
 from datetime import datetime, timezone
@@ -17,13 +17,14 @@ import json
 import asyncio
 import requests
 import re
+import urllib.parse
 
 from dependencies import verify_api_key
 router = APIRouter(prefix="/download", tags=["download"], dependencies=[Depends(verify_api_key)])
 
 class DownloadRequest(BaseModel):
     provider_id: int
-    url: str
+    url: HttpUrl
     metadata: Optional[Dict[str, Any]] = None
     force_duplicate: bool = False
 
@@ -154,6 +155,19 @@ def check_limits_and_cookies(db: Session, provider_id: int):
 
 @router.post("/start")
 def start_download(req: DownloadRequest, db: Session = Depends(get_db)):
+    # SECURITY: Prevent SSRF via the download engine
+    url_str = str(req.url)
+    if not url_str.lower().startswith(('http://', 'https://')):
+        raise HTTPException(status_code=400, detail="Invalid URL scheme")
+        
+    try:
+        parsed = urllib.parse.urlparse(url_str)
+        hostname = parsed.hostname.lower() if parsed.hostname else ""
+        if hostname in ['localhost', '127.0.0.1', '0.0.0.0', '169.254.169.254'] or hostname.endswith('.internal'):
+            raise HTTPException(status_code=400, detail="Disallowed internal hostname")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid URL format")
+
     provider = db.query(Provider).filter(Provider.id == req.provider_id).first()
     if not provider:
         # Fallback for testing
@@ -207,7 +221,7 @@ def start_download(req: DownloadRequest, db: Session = Depends(get_db)):
     db.add(media)
 
     queue = DownloadQueue(
-        url=req.url,
+        url=str(req.url),
         status="pending" if action != "queue" else "queued",
         progress_percentage=0.0
     )
@@ -299,7 +313,7 @@ def stream_download_queue():
 
 class MassRipRequest(BaseModel):
     provider_id: int
-    url: str
+    url: HttpUrl
 
 @router.post("/mass_rip")
 def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
@@ -307,6 +321,19 @@ def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
     Parses a channel/performer page, evaluates rules, and queues videos.
     (Mocked URL extraction for now)
     """
+    # SECURITY: Prevent SSRF via the download engine
+    url_str = str(req.url)
+    if not url_str.lower().startswith(('http://', 'https://')):
+        raise HTTPException(status_code=400, detail="Invalid URL scheme")
+        
+    try:
+        parsed = urllib.parse.urlparse(url_str)
+        hostname = parsed.hostname.lower() if parsed.hostname else ""
+        if hostname in ['localhost', '127.0.0.1', '0.0.0.0', '169.254.169.254'] or hostname.endswith('.internal'):
+            raise HTTPException(status_code=400, detail="Disallowed internal hostname")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid URL format")
+
     # 1. Fetch provider
     provider = db.query(Provider).filter(Provider.id == req.provider_id).first()
     if not provider:
@@ -316,7 +343,7 @@ def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
     ydl_opts = {'extract_flat': True, 'quiet': True}
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(req.url, download=False)
+            info = ydl.extract_info(url_str, download=False)
             
         extracted_videos = []
         if info and 'entries' in info:
@@ -331,17 +358,17 @@ def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
                     })
         elif info:
             extracted_videos.append({
-                "url": info.get('url') or info.get('webpage_url') or req.url,
+                "url": info.get('url') or info.get('webpage_url') or url_str,
                 "metadata": {"title": info.get('title', 'Unknown')}
             })
             
         # Hardened Fallback: If yt-dlp returns nothing, try a naive HTML scrape
         if not extracted_videos:
-            resp = requests.get(req.url, timeout=15)
+            resp = requests.get(url_str, timeout=15)
             hrefs = re.findall(r'href=[\'"]?([^\'" >]+)', resp.text)
             for href in set(hrefs):
                 if '/video/' in href.lower() or '/watch/' in href.lower() or '.mp4' in href.lower():
-                    full_url = href if href.startswith('http') else req.url.rstrip('/') + '/' + href.lstrip('/')
+                    full_url = href if href.startswith('http') else url_str.rstrip('/') + '/' + href.lstrip('/')
                     extracted_videos.append({
                         "url": full_url, 
                         "metadata": {"title": "Unknown"}

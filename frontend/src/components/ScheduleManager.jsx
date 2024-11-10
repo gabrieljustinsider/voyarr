@@ -2,15 +2,19 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Box, Typography, Paper, TextField, Button, Grid,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  IconButton, Chip, FormControl, InputLabel, Select, MenuItem, Switch, FormControlLabel, Tooltip, Snackbar, Alert
+  IconButton, Chip, FormControl, InputLabel, Select, MenuItem, Switch, FormControlLabel, Tooltip, Snackbar, Alert, Dialog, DialogTitle, DialogContent, DialogActions
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 
 const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`;
-const HEADERS = {
-  'Content-Type': 'application/json',
-  'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
+
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('voyarr_jwt');
+  if (token) return { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+  const apiKey = localStorage.getItem('voyarr_api_key');
+  if (apiKey) return { 'X-Voyarr-Api-Key': apiKey, 'Content-Type': 'application/json' };
+  return { 'Content-Type': 'application/json' };
 };
 
 export default function ScheduleManager() {
@@ -25,12 +29,13 @@ export default function ScheduleManager() {
     is_active: true
   });
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [deleteConfirm, setDeleteConfirm] = useState({ open: false, scheduleId: null });
 
   const fetchData = useCallback(async () => {
     try {
       const [schedRes, provRes] = await Promise.all([
-        fetch(`${API_BASE}/schedules`, { headers: HEADERS }),
-        fetch(`${API_BASE}/providers`, { headers: HEADERS })
+        fetch(`${API_BASE}/schedules`, { headers: getAuthHeaders() }),
+        fetch(`${API_BASE}/providers`, { headers: getAuthHeaders() })
       ]);
       if (schedRes.ok) setSchedules(await schedRes.json());
       if (provRes.ok) setProviders(await provRes.json());
@@ -59,7 +64,7 @@ export default function ScheduleManager() {
     try {
       const res = await fetch(`${API_BASE}/schedules`, {
         method: 'POST',
-        headers: HEADERS,
+        headers: getAuthHeaders(),
         body: JSON.stringify(formData)
       });
       if (res.ok) {
@@ -77,15 +82,19 @@ export default function ScheduleManager() {
     }
   };
 
-  const handleDelete = async (id) => {
-    const confirmed = window.appConfirm ? await window.appConfirm('Delete this schedule?') : window.confirm('Delete this schedule?');
-    if (!confirmed) return;
+  const confirmDelete = async () => {
+    const id = deleteConfirm.scheduleId;
+    if (!id) return;
     try {
       const res = await fetch(`${API_BASE}/schedules/${id}`, {
         method: 'DELETE',
-        headers: HEADERS
+        headers: getAuthHeaders()
       });
-      if (res.ok) fetchData();
+      if (res.ok) {
+        setDeleteConfirm({ open: false, scheduleId: null });
+        fetchData();
+        setSnackbar({ open: true, message: 'Schedule deleted successfully', severity: 'success' });
+      }
     } catch (e) {
       console.error('Failed to delete schedule:', e);
     }
@@ -95,7 +104,7 @@ export default function ScheduleManager() {
     try {
       const res = await fetch(`${API_BASE}/schedules/${id}`, {
         method: 'PUT',
-        headers: HEADERS,
+        headers: getAuthHeaders(),
         body: JSON.stringify({ is_active: !currentStatus })
       });
       if (res.ok) {
@@ -112,7 +121,7 @@ export default function ScheduleManager() {
     try {
       const res = await fetch(`${API_BASE}/schedules/${id}/trigger`, {
         method: 'POST',
-        headers: HEADERS
+        headers: getAuthHeaders()
       });
       if (res.ok) {
         setSnackbar({ open: true, message: 'Schedule triggered! Check the download queue shortly.', severity: 'success' });
@@ -239,7 +248,7 @@ export default function ScheduleManager() {
                       </IconButton>
                     </Tooltip>
                     <Tooltip title="Delete">
-                      <IconButton size="small" color="error" onClick={() => handleDelete(row.id)}>
+                      <IconButton size="small" color="error" onClick={() => setDeleteConfirm({ open: true, scheduleId: row.id })}>
                         <DeleteIcon />
                       </IconButton>
                     </Tooltip>
@@ -255,6 +264,17 @@ export default function ScheduleManager() {
           </TableBody>
         </Table>
       </TableContainer>
+
+      <Dialog open={deleteConfirm.open} onClose={() => setDeleteConfirm({ open: false, scheduleId: null })}>
+        <DialogTitle>Delete Schedule</DialogTitle>
+        <DialogContent>
+          <Typography>Are you sure you want to delete this schedule? This action cannot be undone.</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteConfirm({ open: false, scheduleId: null })}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={confirmDelete}>Delete</Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={() => setSnackbar({ ...snackbar, open: false })}>
         <Alert severity={snackbar.severity} sx={{ width: '100%' }}>{snackbar.message}</Alert>

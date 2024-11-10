@@ -81,11 +81,12 @@ services:
 8. ~~**Browser Extension "Map Mode" UI:** Build the UI/Content Script for the Chrome extension.~~
 9. ~~**PWA Compatibility:** Configure Vite with `vite-plugin-pwa` to build the app as an installable PWA.~~
 10. ~~**Automated Transcoding Pipeline:** Integrate background FFmpeg tasks via Celery to transcode large files.~~
+11. ~~**Multi-User & Role-Based Access Control (RBAC):** Introduce a multi-user environment and JWT tokens.~~
+12. ~~**AI-Powered Auto-Tagging:** Integrate local Vision models or lightweight LLMs to automatically identify performers, tags, or categorize content.~~
+13. ~~**Distributed Worker Nodes:** Expand the Celery architecture to support remote worker nodes across multiple machines.~~
+14. ~~**Webhooks & Notification Ecosystem:** Build outbound webhooks to trigger events in other home lab applications.~~
+15. ~~**Scheduled & Off-Peak Tasks:** Enhance the transcoding and download pipelines to run during user-defined off-peak hours.~~
 
 ## **🚀 Future Milestones**
 
-1. **AI-Powered Auto-Tagging:** Integrate local Vision models or lightweight LLMs to automatically identify performers, tags, or categorize content directly from video frames/descriptions.
-2. **Distributed Worker Nodes:** Expand the Celery architecture to support remote worker nodes across multiple machines, allowing distributed downloading/scraping to easily bypass IP rate limits.
-3. **Multi-User & Role-Based Access Control (RBAC):** Introduce a multi-user environment allowing separate accounts with permissions to view, queue, or manage specific provider libraries.
-4. **Webhooks & Notification Ecosystem:** Build outbound webhooks to trigger events in other home lab applications (like Discord/Telegram bot notifications, or triggering external library scans in Stash) when media downloads complete.
-5. **Scheduled & Off-Peak Tasks:** Enhance the transcoding and download pipelines to run during user-defined off-peak hours to manage system load.
+(All initial milestones achieved. The application is now feature-complete!)

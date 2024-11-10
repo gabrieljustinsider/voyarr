@@ -1,6 +1,20 @@
 import { useState, useEffect } from 'react'
-import { Box, Typography, TextField, Button, Paper, Grid, Snackbar, Alert, Divider, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material'
+import { Box, Typography, TextField, Button, Paper, Grid, Snackbar, Alert, Divider, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Select, MenuItem, FormControl, InputLabel, Tabs, Tab } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
+import SyncIcon from '@mui/icons-material/Sync'
+
+function TabPanel(props) {
+  const { children, value, index, ...other } = props;
+  return (
+    <div role="tabpanel" hidden={value !== index} {...other}>
+      {value === index && (
+        <Box sx={{ pt: 1 }}>
+          {children}
+        </Box>
+      )}
+    </div>
+  );
+}
 
 export default function Settings() {
   const [settings, setSettings] = useState({
@@ -14,19 +28,44 @@ export default function Settings() {
     theme: 'dark',
     extension_secret: '',
     tpdb_api_key: '',
-    stashdb_api_key: ''
+    stashdb_api_key: '',
+    op_connect_host: '',
+    op_connect_token: '',
+    op_vault_id: '',
+    bw_connect_host: '',
+    bw_session_token: '',
+    bw_folder_id: '',
+    pm_auto_sync_interval: 'disabled',
+    pm_sync_direction: 'pull'
   })
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
   const [apiKeys, setApiKeys] = useState([])
   const [newKeyName, setNewKeyName] = useState('')
   const [generatedKey, setGeneratedKey] = useState(null)
+  const [masterKeyInput, setMasterKeyInput] = useState(localStorage.getItem('voyarr_api_key') || '')
+  const [deleteConfirm, setDeleteConfirm] = useState({ open: false, keyId: null })
+  
+  const [tabValue, setTabValue] = useState(0)
+  const handleTabChange = (event, newValue) => {
+    setTabValue(newValue);
+  };
+
+  const [newUser, setNewUser] = useState({ username: '', password: '', role: 'user' })
 
   const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
   const SETTINGS_API = `${API_BASE}/settings`
+  
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('voyarr_jwt')
+    if (token) return { 'Authorization': `Bearer ${token}` }
+    const apiKey = localStorage.getItem('voyarr_api_key')
+    if (apiKey) return { 'X-Voyarr-Api-Key': apiKey }
+    return {}
+  }
 
   useEffect(() => {
     fetch(SETTINGS_API, {
-      headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
+      headers: getAuthHeaders()
     })
       .then(res => {
         if (!res.ok) throw new Error('Failed to fetch settings')
@@ -42,7 +81,7 @@ export default function Settings() {
 
   const fetchApiKeys = async () => {
     try {
-      const res = await fetch(`${API_BASE}/apikeys`, { headers: { 'X-Voyarr-Api-Key': getApiKey() } })
+      const res = await fetch(`${API_BASE}/apikeys`, { headers: getAuthHeaders() })
       if (res.ok) setApiKeys(await res.json())
     } catch (err) { console.error('Failed to fetch API keys:', err) }
   }
@@ -56,8 +95,8 @@ export default function Settings() {
       const res = await fetch(SETTINGS_API, {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json',
-          'X-Voyarr-Api-Key': getApiKey()
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ key, value: String(value) })
       })
@@ -82,7 +121,7 @@ export default function Settings() {
     try {
       const res = await fetch(`${API_BASE}/apikeys`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Voyarr-Api-Key': getApiKey() },
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newKeyName })
       })
       if (res.ok) {
@@ -108,7 +147,7 @@ export default function Settings() {
     try {
       await fetch(`${API_BASE}/apikeys/${deleteConfirm.keyId}`, { 
         method: 'DELETE', 
-        headers: { 'X-Voyarr-Api-Key': getApiKey() } 
+        headers: getAuthHeaders() 
       })
       setDeleteConfirm({ open: false, keyId: null })
       fetchApiKeys()
@@ -122,6 +161,25 @@ export default function Settings() {
     setSnackbar({ open: true, message: 'Master Key saved to browser securely!', severity: 'success' })
     // Refresh data with new key to force an updated fetch
     window.location.reload()
+  }
+
+  const handleCreateUser = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/auth/register`, {
+        method: 'POST',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(newUser)
+      })
+      if (res.ok) {
+        setSnackbar({ open: true, message: `User ${newUser.username} created successfully!`, severity: 'success' })
+        setNewUser({ username: '', password: '', role: 'user' })
+      } else {
+        const err = await res.json()
+        setSnackbar({ open: true, message: `Failed: ${err.detail}`, severity: 'error' })
+      }
+    } catch (err) {
+      setSnackbar({ open: true, message: 'Network error creating user.', severity: 'error' })
+    }
   }
 
   return (
@@ -248,6 +306,106 @@ export default function Settings() {
             3. Click <strong>Load unpacked</strong> and select the <code>/extension</code> folder from your Voyarr installation directory.
           </Typography>
         </Box>
+      </Paper>
+
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>1Password Connect Integration</Typography>
+        <Typography variant="body2" sx={{ mb: 2 }} color="textSecondary">
+          Sync your Voyarr credentials with a 1Password Connect server.
+        </Typography>
+        <Divider sx={{ mb: 2 }} />
+        <Grid container spacing={3} alignItems="center">
+          <Grid item xs={12} md={10}>
+            <TextField fullWidth label="1Password Connect Host" name="op_connect_host" value={settings.op_connect_host || ''} onChange={handleChange} helperText="e.g. http://localhost:8080" />
+          </Grid>
+          <Grid item xs={12} md={2}>
+            <Button fullWidth variant="contained" onClick={() => handleSave('op_connect_host', settings.op_connect_host)}>Save</Button>
+          </Grid>
+          
+          <Grid item xs={12} md={10}>
+            <TextField fullWidth type="password" label="1Password Connect Token" name="op_connect_token" value={settings.op_connect_token || ''} onChange={handleChange} />
+          </Grid>
+          <Grid item xs={12} md={2}>
+            <Button fullWidth variant="contained" onClick={() => handleSave('op_connect_token', settings.op_connect_token)}>Save</Button>
+          </Grid>
+          
+          <Grid item xs={12} md={10}>
+            <TextField fullWidth label="1Password Vault ID" name="op_vault_id" value={settings.op_vault_id || ''} onChange={handleChange} helperText="The ID of the vault to sync with." />
+          </Grid>
+          <Grid item xs={12} md={2}>
+            <Button fullWidth variant="contained" onClick={() => handleSave('op_vault_id', settings.op_vault_id)}>Save</Button>
+          </Grid>
+          <Grid item xs={12} md={6}>
+          <Button fullWidth variant="outlined" color="primary" onClick={() => handleSyncManager('1password', 'push')}>Push to 1Password</Button>
+          </Grid>
+          <Grid item xs={12} md={6}>
+          <Button fullWidth variant="outlined" color="secondary" onClick={() => handleSyncManager('1password', 'pull')}>Pull from 1Password</Button>
+          </Grid>
+        </Grid>
+      </Paper>
+
+    <Paper sx={{ p: 3, mb: 3 }}>
+      <Typography variant="h6" gutterBottom>Bitwarden Integration</Typography>
+      <Typography variant="body2" sx={{ mb: 2 }} color="textSecondary">
+        Sync your Voyarr credentials with Bitwarden or Vaultwarden via the Bitwarden CLI REST server ('bw serve').
+      </Typography>
+      <Divider sx={{ mb: 2 }} />
+      <Grid container spacing={3} alignItems="center">
+        <Grid item xs={12} md={10}>
+          <TextField fullWidth label="Bitwarden Serve Host" name="bw_connect_host" value={settings.bw_connect_host || ''} onChange={handleChange} helperText="e.g. http://localhost:8087" />
+        </Grid>
+        <Grid item xs={12} md={2}>
+          <Button fullWidth variant="contained" onClick={() => handleSave('bw_connect_host', settings.bw_connect_host)}>Save</Button>
+        </Grid>
+        
+        <Grid item xs={12} md={10}>
+          <TextField fullWidth type="password" label="Bitwarden Session Token" name="bw_session_token" value={settings.bw_session_token || ''} onChange={handleChange} helperText="The BW_SESSION token generated upon unlocking your vault." />
+        </Grid>
+        <Grid item xs={12} md={2}>
+          <Button fullWidth variant="contained" onClick={() => handleSave('bw_session_token', settings.bw_session_token)}>Save</Button>
+        </Grid>
+        
+        <Grid item xs={12} md={10}>
+          <TextField fullWidth label="Bitwarden Folder ID" name="bw_folder_id" value={settings.bw_folder_id || ''} onChange={handleChange} helperText="Optional: The ID of the folder to sync with." />
+        </Grid>
+        <Grid item xs={12} md={2}>
+          <Button fullWidth variant="contained" onClick={() => handleSave('bw_folder_id', settings.bw_folder_id)}>Save</Button>
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <Button fullWidth variant="outlined" color="primary" onClick={() => handleSyncManager('bitwarden', 'push')}>Push to Bitwarden</Button>
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <Button fullWidth variant="outlined" color="secondary" onClick={() => handleSyncManager('bitwarden', 'pull')}>Pull from Bitwarden</Button>
+        </Grid>
+      </Grid>
+    </Paper>
+
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>User Management</Typography>
+        <Typography variant="body2" sx={{ mb: 2 }} color="textSecondary">
+          Create user accounts to grant access to the UI without sharing your Master Key.
+        </Typography>
+        <Divider sx={{ mb: 2 }} />
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} md={3}>
+            <TextField fullWidth size="small" label="Username" value={newUser.username} onChange={e => setNewUser({...newUser, username: e.target.value})} />
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <TextField fullWidth size="small" type="password" label="Password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} />
+          </Grid>
+          <Grid item xs={12} md={3}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Role</InputLabel>
+              <Select value={newUser.role} label="Role" onChange={e => setNewUser({...newUser, role: e.target.value})}>
+                <MenuItem value="admin">Admin</MenuItem>
+                <MenuItem value="user">User</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} md={2}>
+            <Button fullWidth variant="contained" onClick={handleCreateUser} disabled={!newUser.username || !newUser.password}>Create User</Button>
+          </Grid>
+        </Grid>
       </Paper>
 
       <Paper sx={{ p: 3, mb: 3 }}>
