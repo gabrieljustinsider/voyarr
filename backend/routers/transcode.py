@@ -9,24 +9,35 @@ from typing import Optional
 
 from dependencies import verify_api_key
 from rate_limiter import rate_limit
-router = APIRouter(prefix="/transcode", tags=["transcode"], dependencies=[Depends(verify_api_key)])
+
+router = APIRouter(
+    prefix="/transcode", tags=["transcode"], dependencies=[Depends(verify_api_key)]
+)
+
 
 class TranscodeRequest(BaseModel):
-    target_codec: Optional[str] = 'h265'
+    target_codec: Optional[str] = "h265"
 
-@router.post("/{library_entry_id}", dependencies=[Depends(rate_limit(max_requests=10, window_seconds=60))])
-def start_transcode(library_entry_id: int, req: TranscodeRequest, db: Session = Depends(get_db)):
+
+@router.post(
+    "/{library_entry_id}",
+    dependencies=[Depends(rate_limit(max_requests=10, window_seconds=60))],
+)
+def start_transcode(
+    library_entry_id: int, req: TranscodeRequest, db: Session = Depends(get_db)
+):
     """
     Adds a video from the library to the transcoding queue.
     """
-    library_entry = db.query(LibraryEntry).filter(LibraryEntry.id == library_entry_id).first()
+    library_entry = (
+        db.query(LibraryEntry).filter(LibraryEntry.id == library_entry_id).first()
+    )
     if not library_entry:
         raise HTTPException(status_code=404, detail="Library entry not found")
 
     # Create a new transcoding job
     new_job = TranscodingQueue(
-        library_entry_id=library_entry_id,
-        target_codec=req.target_codec
+        library_entry_id=library_entry_id, target_codec=req.target_codec
     )
     db.add(new_job)
 
@@ -35,12 +46,16 @@ def start_transcode(library_entry_id: int, req: TranscodeRequest, db: Session = 
         db.refresh(new_job)
     except IntegrityError:
         db.rollback()
-        raise HTTPException(status_code=409, detail="An active transcode job for this item already exists.")
+        raise HTTPException(
+            status_code=409,
+            detail="An active transcode job for this item already exists.",
+        )
 
     # Dispatch the Celery task
     transcode_video_task.delay(new_job.id)
 
     return {"message": "Transcoding job started", "job_id": new_job.id}
+
 
 @router.get("/")
 def get_transcode_jobs(status: Optional[str] = None, db: Session = Depends(get_db)):
@@ -52,6 +67,7 @@ def get_transcode_jobs(status: Optional[str] = None, db: Session = Depends(get_d
         query = query.filter(TranscodingQueue.status == status)
     return query.all()
 
+
 @router.delete("/{job_id}")
 def delete_transcode_job(job_id: int, db: Session = Depends(get_db)):
     """
@@ -60,7 +76,13 @@ def delete_transcode_job(job_id: int, db: Session = Depends(get_db)):
     job = db.query(TranscodingQueue).filter(TranscodingQueue.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    
+
+    if job.status == "running":
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete a running transcoding job. Please wait for it to finish or fail.",
+        )
+
     db.delete(job)
     db.commit()
     return {"message": "Job deleted successfully"}

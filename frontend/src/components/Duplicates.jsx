@@ -1,18 +1,18 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { 
   Box, Typography, Card, CardContent, Grid, Button, 
   Alert, CircularProgress, Chip, Divider
 } from '@mui/material'
+
+const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
+const getApiKey = () => localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY || ''
 
 export default function Duplicates() {
   const [duplicates, setDuplicates] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
-  const getApiKey = () => localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY || ''
-
-  const fetchDuplicates = async () => {
+  const fetchDuplicates = useCallback(async () => {
     setLoading(true)
     try {
       const res = await fetch(`${API_BASE}/duplicates`, {
@@ -25,11 +25,11 @@ export default function Duplicates() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     fetchDuplicates()
-  }, [])
+  }, [fetchDuplicates])
 
   const handleResolve = async (dupeId, action) => {
     try {

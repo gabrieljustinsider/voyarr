@@ -11,7 +11,10 @@ from decimal import Decimal
 from dependencies import verify_api_key
 from rate_limiter import rate_limit
 
-router = APIRouter(prefix="/backup", tags=["backup"], dependencies=[Depends(verify_api_key)])
+router = APIRouter(
+    prefix="/backup", tags=["backup"], dependencies=[Depends(verify_api_key)]
+)
+
 
 class CustomJSONEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -21,156 +24,239 @@ class CustomJSONEncoder(json.JSONEncoder):
             return float(obj)
         return super().default(obj)
 
+
 @router.get("/tables")
 def get_backup_tables():
     return {"tables": [table.name for table in Base.metadata.sorted_tables]}
 
-@router.get("/export", dependencies=[Depends(rate_limit(max_requests=2, window_seconds=60))])
-def export_backup(type: str = 'full', tables: Optional[str] = None, db: Session = Depends(get_db)):
-    if type == 'settings':
+
+@router.get(
+    "/export", dependencies=[Depends(rate_limit(max_requests=2, window_seconds=60))]
+)
+def export_backup(
+    type: str = "full", tables: Optional[str] = None, db: Session = Depends(get_db)
+):
+    if type == "settings":
+        from models import Vault
+        from security import decrypt_data
+
         settings = db.query(Settings).all()
+        settings_list = [{"key": s.key, "value": s.value} for s in settings]
+
+        vault_items = (
+            db.query(Vault).filter(Vault.entity_type == "global_setting").all()
+        )
+        for item in vault_items:
+            settings_list.append(
+                {"key": item.key, "value": decrypt_data(item.encrypted_value)}
+            )
+
         data = {
             "type": "settings",
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "version": "1.0",
-            "data": {
-                "settings": [{"key": s.key, "value": s.value} for s in settings]
-            }
+            "data": {"settings": settings_list},
         }
-        return Response(content=json.dumps(data, cls=CustomJSONEncoder), media_type="application/json")
-    elif type == 'full':
+        return Response(
+            content=json.dumps(data, cls=CustomJSONEncoder),
+            media_type="application/json",
+        )
+    elif type == "full":
         data = {
             "type": "full",
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "version": "1.0",
-            "data": {}
+            "data": {},
         }
         for table in Base.metadata.sorted_tables:
             rows = db.execute(table.select()).mappings().all()
             data["data"][table.name] = [dict(row) for row in rows]
-            
-        return Response(content=json.dumps(data, cls=CustomJSONEncoder), media_type="application/json")
-    elif type == 'custom':
+
+        return Response(
+            content=json.dumps(data, cls=CustomJSONEncoder),
+            media_type="application/json",
+        )
+    elif type == "custom":
         if not tables:
-            raise HTTPException(status_code=400, detail="Tables must be specified for custom backup")
-        target_tables = [t.strip() for t in tables.split(',')]
+            raise HTTPException(
+                status_code=400, detail="Tables must be specified for custom backup"
+            )
+        target_tables = [t.strip() for t in tables.split(",")]
         data = {
             "type": "custom",
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "version": "1.0",
-            "data": {}
+            "data": {},
         }
         for table in Base.metadata.sorted_tables:
             if table.name in target_tables:
                 rows = db.execute(table.select()).mappings().all()
                 data["data"][table.name] = [dict(row) for row in rows]
-                
-        return Response(content=json.dumps(data, cls=CustomJSONEncoder), media_type="application/json")
+
+        return Response(
+            content=json.dumps(data, cls=CustomJSONEncoder),
+            media_type="application/json",
+        )
     else:
         raise HTTPException(status_code=400, detail="Invalid export type")
+
 
 @router.post("/verify")
 def verify_backup(file: UploadFile = File(...)):
     try:
         content = file.file.read()
         data = json.loads(content)
-        
+
         if "type" not in data or "data" not in data or "version" not in data:
-            return {"valid": False, "message": "Invalid backup format: missing required fields"}
-            
+            return {
+                "valid": False,
+                "message": "Invalid backup format: missing required fields",
+            }
+
         type = data["type"]
-        record_count = sum(len(rows) for rows in data["data"].values()) if isinstance(data["data"], dict) else 0
+        record_count = (
+            sum(len(rows) for rows in data["data"].values())
+            if isinstance(data["data"], dict)
+            else 0
+        )
         table_count = len(data["data"].keys()) if isinstance(data["data"], dict) else 0
-        
+
         return {
-            "valid": True, 
-            "type": type, 
+            "valid": True,
+            "type": type,
             "timestamp": data.get("timestamp"),
             "table_count": table_count,
             "record_count": record_count,
-            "message": "Backup is valid and ready to restore"
+            "message": "Backup is valid and ready to restore",
         }
     except json.JSONDecodeError:
-        return {"valid": False, "message": "Invalid backup format: not a valid JSON file"}
+        return {
+            "valid": False,
+            "message": "Invalid backup format: not a valid JSON file",
+        }
     except Exception as e:
         print(f"Backup verification error: {str(e)}")
-        return {"valid": False, "message": "Verification failed due to an internal error"}
+        return {
+            "valid": False,
+            "message": "Verification failed due to an internal error",
+        }
 
-@router.post("/restore", dependencies=[Depends(rate_limit(max_requests=2, window_seconds=60))])
+
+@router.post(
+    "/restore", dependencies=[Depends(rate_limit(max_requests=2, window_seconds=60))]
+)
 def restore_backup(file: UploadFile = File(...), db: Session = Depends(get_db)):
     try:
         content = file.file.read()
         backup_data = json.loads(content)
-        
+
         if "type" not in backup_data or "data" not in backup_data:
             raise HTTPException(status_code=400, detail="Invalid backup format")
-            
+
         btype = backup_data["type"]
-        
-        if btype == 'settings':
-            db.query(Settings).delete()
-            for item in backup_data["data"].get("settings", []):
-                db.add(Settings(key=item["key"], value=item["value"]))
-            db.commit()
-            return {"message": "Settings restored successfully"}
-            
-        elif btype == 'full':
+
+        if btype == "settings":
+            from models import Vault
+            from security import encrypt_data
+
+            try:
+                db.query(Settings).delete()
+                db.query(Vault).filter(Vault.entity_type == "global_setting").delete()
+
+                SECURE_SETTINGS = [
+                    "tpdb_api_key",
+                    "stashdb_api_key",
+                    "extension_secret",
+                    "op_connect_token",
+                    "bw_session_token",
+                ]
+
+                for item in backup_data["data"].get("settings", []):
+                    if item["key"] in SECURE_SETTINGS:
+                        db.add(
+                            Vault(
+                                entity_type="global_setting",
+                                entity_id=0,
+                                key=item["key"],
+                                encrypted_value=encrypt_data(item["value"])
+                                if item["value"]
+                                else "",
+                            )
+                        )
+                    else:
+                        db.add(Settings(key=item["key"], value=item["value"]))
+                db.commit()
+                return {"message": "Settings restored successfully"}
+            except Exception as e:
+                db.rollback()
+                raise e
+
+        elif btype == "full":
             tables_reversed = list(reversed(Base.metadata.sorted_tables))
-            
+
             for table in tables_reversed:
                 db.execute(table.delete())
-            db.commit()
-            
+
             for table in Base.metadata.sorted_tables:
                 table_name = table.name
                 rows = backup_data["data"].get(table_name, [])
-                
+
                 # SQLAlchemy 2.0 requires parsing datetimes from strings manually if not using ORM models
                 # We will just insert dictionaries and hope the DB driver coerces ISO format strings to timestamps
                 if rows:
                     db.execute(table.insert(), rows)
-                    
-            db.commit()
-            
+
             for table in Base.metadata.sorted_tables:
                 table_name = table.name
                 try:
-                    db.execute(text(f"SELECT setval(pg_get_serial_sequence('{table_name}', 'id'), coalesce(max(id), 1), max(id) IS NOT null) FROM {table_name};"))
+                    db.execute(
+                        text(
+                            f"SELECT setval(pg_get_serial_sequence('{table_name}', 'id'), coalesce(max(id), 1), max(id) IS NOT null) FROM {table_name};"
+                        )
+                    )
                 except Exception as e:
                     # This can fail if a table doesn't have a default sequence named 'id'.
                     print(f"Could not reset sequence for table '{table_name}': {e}")
-                    
+
             db.commit()
             return {"message": "Full database restored successfully"}
-            
-        elif btype == 'custom':
+
+        elif btype == "custom":
             tables_in_backup = list(backup_data["data"].keys())
-            
+
             # Sort tables by dependency order for deletion (reverse) and insertion (forward)
             sorted_metadata_tables = Base.metadata.sorted_tables
-            tables_to_restore = [t for t in sorted_metadata_tables if t.name in tables_in_backup]
+            tables_to_restore = [
+                t for t in sorted_metadata_tables if t.name in tables_in_backup
+            ]
             tables_to_restore_reversed = list(reversed(tables_to_restore))
-            
+
             for table in tables_to_restore_reversed:
                 db.execute(table.delete())
-            db.commit()
-            
+
             for table in tables_to_restore:
                 table_name = table.name
                 rows = backup_data["data"].get(table_name, [])
                 if rows:
                     db.execute(table.insert(), rows)
-            db.commit()
-            
+
             for table in tables_to_restore:
                 table_name = table.name
                 try:
-                    db.execute(text(f"SELECT setval(pg_get_serial_sequence('{table_name}', 'id'), coalesce(max(id), 1), max(id) IS NOT null) FROM {table_name};"))
+                    db.execute(
+                        text(
+                            f"SELECT setval(pg_get_serial_sequence('{table_name}', 'id'), coalesce(max(id), 1), max(id) IS NOT null) FROM {table_name};"
+                        )
+                    )
                 except Exception as e:
                     print(f"Could not reset sequence for table '{table_name}': {e}")
             db.commit()
-            return {"message": f"Custom tables ({', '.join(tables_in_backup)}) restored successfully"}
+            return {
+                "message": f"Custom tables ({', '.join(tables_in_backup)}) restored successfully"
+            }
     except Exception as e:
         db.rollback()
         print(f"Database restore error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Restore failed due to an internal server error")
+        raise HTTPException(
+            status_code=500, detail="Restore failed due to an internal server error"
+        )

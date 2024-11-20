@@ -45,10 +45,6 @@ export default function Settings() {
   const [masterKeyInput, setMasterKeyInput] = useState(localStorage.getItem('voyarr_api_key') || '')
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, keyId: null })
   
-  const [tabValue, setTabValue] = useState(0)
-  const handleTabChange = (event, newValue) => {
-    setTabValue(newValue);
-  };
 
   const [newUser, setNewUser] = useState({ username: '', password: '', role: 'user' })
 
@@ -61,6 +57,13 @@ export default function Settings() {
     const apiKey = localStorage.getItem('voyarr_api_key')
     if (apiKey) return { 'X-Voyarr-Api-Key': apiKey }
     return {}
+  }
+
+  const fetchApiKeys = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/apikeys`, { headers: getAuthHeaders() })
+      if (res.ok) setApiKeys(await res.json())
+    } catch (err) { console.error('Failed to fetch API keys:', err) }
   }
 
   useEffect(() => {
@@ -77,13 +80,27 @@ export default function Settings() {
       })
       .catch(console.error)
     fetchApiKeys()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const fetchApiKeys = async () => {
+
+
+  const handleSyncManager = async (provider, direction) => {
     try {
-      const res = await fetch(`${API_BASE}/apikeys`, { headers: getAuthHeaders() })
-      if (res.ok) setApiKeys(await res.json())
-    } catch (err) { console.error('Failed to fetch API keys:', err) }
+      const res = await fetch(`${API_BASE}/settings/sync/${provider}`, {
+        method: 'POST',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ direction })
+      })
+      if (res.ok) {
+        setSnackbar({ open: true, message: `Sync initiated for ${provider}`, severity: 'success' })
+      } else {
+        setSnackbar({ open: true, message: `Failed to sync ${provider}`, severity: 'error' })
+      }
+    } catch (err) {
+      console.error(err)
+      setSnackbar({ open: true, message: 'Network error during sync.', severity: 'error' })
+    }
   }
 
   const handleChange = (e) => {
@@ -106,6 +123,7 @@ export default function Settings() {
         setSnackbar({ open: true, message: `Failed to update "${key}". Server returned ${res.status}`, severity: 'error' })
       }
     } catch (err) {
+      console.error(err)
       setSnackbar({ open: true, message: `Failed to update "${key}".`, severity: 'error' })
     }
   }
@@ -133,6 +151,7 @@ export default function Settings() {
         setSnackbar({ open: true, message: `Failed to create API key. Server returned ${res.status}`, severity: 'error' })
       }
     } catch (err) {
+      console.error(err)
       setSnackbar({ open: true, message: 'Network error creating API key.', severity: 'error' })
       console.error(err) 
     }
@@ -178,6 +197,7 @@ export default function Settings() {
         setSnackbar({ open: true, message: `Failed: ${err.detail}`, severity: 'error' })
       }
     } catch (err) {
+      console.error(err)
       setSnackbar({ open: true, message: 'Network error creating user.', severity: 'error' })
     }
   }

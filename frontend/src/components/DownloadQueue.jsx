@@ -4,17 +4,17 @@ import {
   TextField, Select, MenuItem, FormControl, InputLabel, Paper, Grid, CircularProgress 
 } from '@mui/material'
 
+const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
+const HEADERS = {
+  'Content-Type': 'application/json',
+  'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
+}
+
 export default function DownloadQueue({ queue, onRefresh }) {
   const [providers, setProviders] = useState([])
   const [newDownload, setNewDownload] = useState({ provider_id: '', url: '' })
   const [loading, setLoading] = useState(false)
   const [filters, setFilters] = useState({ status: '', url_contains: '', provider_id: '' })
-
-  const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
-  const HEADERS = {
-    'Content-Type': 'application/json',
-    'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
-  }
 
   useEffect(() => {
     fetch(`${API_BASE}/providers`, { headers: HEADERS })

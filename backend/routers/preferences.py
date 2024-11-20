@@ -3,9 +3,14 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import DownloadPreference, Provider
 from pydantic import BaseModel
+from typing import Optional
 
 from dependencies import verify_api_key
-router = APIRouter(prefix="/preferences", tags=["preferences"], dependencies=[Depends(verify_api_key)])
+
+router = APIRouter(
+    prefix="/preferences", tags=["preferences"], dependencies=[Depends(verify_api_key)]
+)
+
 
 class PreferenceUpdate(BaseModel):
     preferred_resolution: str = "1080p"
@@ -16,13 +21,16 @@ class PreferenceUpdate(BaseModel):
     custom_base_path: Optional[str] = None
     max_retries: int = 3
 
+
 @router.get("/provider/{provider_id}")
 def get_preferences(provider_id: int, db: Session = Depends(get_db)):
     """Get download preferences for a provider."""
-    prefs = db.query(DownloadPreference).filter(
-        DownloadPreference.provider_id == provider_id
-    ).first()
-    
+    prefs = (
+        db.query(DownloadPreference)
+        .filter(DownloadPreference.provider_id == provider_id)
+        .first()
+    )
+
     if not prefs:
         # Return defaults
         return {
@@ -35,11 +43,17 @@ def get_preferences(provider_id: int, db: Session = Depends(get_db)):
             "duplicate_handling": "skip",
             "max_retries": 3,
             "available_variables": [
-                "title", "performers", "tags", "resolution",
-                "date", "duration", "site_id", "provider"
-            ]
+                "title",
+                "performers",
+                "tags",
+                "resolution",
+                "date",
+                "duration",
+                "site_id",
+                "provider",
+            ],
         }
-    
+
     return {
         "provider_id": prefs.provider_id,
         "preferred_resolution": prefs.preferred_resolution,
@@ -50,23 +64,34 @@ def get_preferences(provider_id: int, db: Session = Depends(get_db)):
         "custom_base_path": getattr(prefs, "custom_base_path", None),
         "max_retries": getattr(prefs, "max_retries", 3),
         "available_variables": [
-            "title", "performers", "tags", "resolution",
-            "date", "duration", "site_id", "provider"
-        ]
+            "title",
+            "performers",
+            "tags",
+            "resolution",
+            "date",
+            "duration",
+            "site_id",
+            "provider",
+        ],
     }
 
+
 @router.post("/provider/{provider_id}")
-def update_preferences(provider_id: int, prefs: PreferenceUpdate, db: Session = Depends(get_db)):
+def update_preferences(
+    provider_id: int, prefs: PreferenceUpdate, db: Session = Depends(get_db)
+):
     """Update download preferences for a provider."""
     # Verify provider exists
     provider = db.query(Provider).filter(Provider.id == provider_id).first()
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
-    
-    db_prefs = db.query(DownloadPreference).filter(
-        DownloadPreference.provider_id == provider_id
-    ).first()
-    
+
+    db_prefs = (
+        db.query(DownloadPreference)
+        .filter(DownloadPreference.provider_id == provider_id)
+        .first()
+    )
+
     if db_prefs:
         db_prefs.preferred_resolution = prefs.preferred_resolution
         db_prefs.naming_pattern = prefs.naming_pattern
@@ -84,16 +109,17 @@ def update_preferences(provider_id: int, prefs: PreferenceUpdate, db: Session = 
             naming_pattern=prefs.naming_pattern,
             append_metadata=prefs.append_metadata,
             auto_tag_files=prefs.auto_tag_files,
-            duplicate_handling=prefs.duplicate_handling
+            duplicate_handling=prefs.duplicate_handling,
         )
         if hasattr(db_prefs, "custom_base_path"):
             db_prefs.custom_base_path = prefs.custom_base_path
         if hasattr(db_prefs, "max_retries"):
             db_prefs.max_retries = prefs.max_retries
         db.add(db_prefs)
-    
+
     db.commit()
     return {"message": "Preferences updated"}
+
 
 @router.get("/naming-patterns")
 def get_naming_patterns():
@@ -107,15 +133,16 @@ def get_naming_patterns():
             "date": "Publication date (YYYY-MM-DD format)",
             "duration": "Video duration in minutes",
             "site_id": "Original site ID",
-            "provider": "Provider name"
+            "provider": "Provider name",
         },
         "example_patterns": [
             "{title}_{performers}_{resolution}",
             "{title}_{date}",
             "{performers}_{title}",
             "{resolution}_{title}_{tags}",
-        ]
+        ],
     }
+
 
 @router.post("/validate-pattern")
 def validate_naming_pattern(pattern: dict):
@@ -128,9 +155,9 @@ def validate_naming_pattern(pattern: dict):
         "date": "2024-05-10",
         "duration": "45",
         "site_id": "12345",
-        "provider": "example"
+        "provider": "example",
     }
-    
+
     try:
         result = pattern.get("pattern", "").format(**sample_metadata)
         return {"valid": True, "example": result}

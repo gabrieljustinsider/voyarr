@@ -4,18 +4,18 @@ import {
   FormControl, InputLabel, Select, MenuItem, Alert, CircularProgress 
 } from '@mui/material'
 
+const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
+const HEADERS = {
+  'Content-Type': 'application/json',
+  'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
+}
+
 export default function MassRip() {
   const [providers, setProviders] = useState([])
   const [providerId, setProviderId] = useState('')
   const [url, setUrl] = useState('')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
-
-  const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
-  const HEADERS = {
-    'Content-Type': 'application/json',
-    'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
-  }
 
   useEffect(() => {
     fetch(`${API_BASE}/providers`, { headers: HEADERS })

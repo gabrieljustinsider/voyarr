@@ -29,6 +29,7 @@ export default function Login() {
         setError('Invalid credentials')
       }
     } catch (err) {
+      console.error('Login error:', err)
       setError('Network error preventing login.')
     }
   }

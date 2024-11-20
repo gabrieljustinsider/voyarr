@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Box, Typography, Card, CardContent, Button, TextField, Select, MenuItem,
   FormControl, InputLabel, Chip, List, ListItem, ListItemText, IconButton,
@@ -6,6 +6,8 @@ import {
 } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
 import AddIcon from '@mui/icons-material/Add'
+
+const API_BASE = `${import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`}/rules`
 
 export default function DownloadRules() {
   const [lists, setLists] = useState([])
@@ -23,9 +25,7 @@ export default function DownloadRules() {
   const [criteriaValue, setCriteriaValue] = useState('')
   const [criteriaListId, setCriteriaListId] = useState('')
 
-  const API_BASE = `${import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`}/rules`
-
-  const fetchLists = async () => {
+  const fetchLists = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/lists`, {
         headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
@@ -34,9 +34,9 @@ export default function DownloadRules() {
     } catch (e) {
       console.error('Failed to fetch lists:', e)
     }
-  }
+  }, [])
 
-  const fetchRules = async () => {
+  const fetchRules = useCallback(async () => {
     try {
       const res = await fetch(API_BASE, {
         headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
@@ -45,12 +45,12 @@ export default function DownloadRules() {
     } catch (e) {
       console.error('Failed to fetch rules:', e)
     }
-  }
+  }, [])
 
   useEffect(() => {
     fetchLists()
     fetchRules()
-  }, [])
+  }, [fetchLists, fetchRules])
 
   // --- Custom List Handlers ---
   const handleSaveList = async () => {

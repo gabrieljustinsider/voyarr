@@ -23,9 +23,12 @@ else:
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 JWT_SECRET = os.getenv("SECRET_KEY")
 if not JWT_SECRET or JWT_SECRET == "your_secret_key_here":
-    print("WARNING: Using unsafe fallback SECRET_KEY. Please set a secure SECRET_KEY in your .env file!")
+    print(
+        "WARNING: Using unsafe fallback SECRET_KEY. Please set a secure SECRET_KEY in your .env file!"
+    )
     JWT_SECRET = "fallback_secret_change_me_in_production"
 ALGORITHM = "HS256"
+
 
 def encrypt_data(data: str) -> str:
     if not data:
@@ -34,19 +37,23 @@ def encrypt_data(data: str) -> str:
         raise ValueError("Encryption cipher is not initialized. MASTER_KEY is missing.")
     return cipher.encrypt(data.encode()).decode()
 
+
 def decrypt_data(encrypted_data: str) -> str:
     if not cipher or not encrypted_data:
         return encrypted_data
     try:
         return cipher.decrypt(encrypted_data.encode()).decode()
     except Exception:
-        return encrypted_data # Fallback if not encrypted or wrong key
+        return encrypted_data  # Fallback if not encrypted or wrong key
+
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
+
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
+
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()

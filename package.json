@@ -1,7 +1,7 @@
 {
   "name": "voyarr",
-  "version": "1.3.0",
-  "description": "Media downloader and metadata scraper",
+  "version": "1.5.0",
+  "description": "Media downloader/manager and metadata scraper",
   "main": "index.js",
   "scripts": {
     "start": "docker compose up --build -d",

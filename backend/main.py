@@ -5,7 +5,27 @@ from jose import jwt
 from security import JWT_SECRET, ALGORITHM
 from database import engine
 from models import Base
-from routers import providers, credentials, progress, settings, library, duplicates, preferences, metadata, external_api, download, rules, schedules, backup, notifications, apikeys, cookies, transcode, auth, webhooks
+from routers import (
+    providers,
+    credentials,
+    progress,
+    settings,
+    library,
+    duplicates,
+    preferences,
+    metadata,
+    external_api,
+    download,
+    rules,
+    schedules,
+    backup,
+    notifications,
+    apikeys,
+    cookies,
+    transcode,
+    auth,
+    webhooks,
+)
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -15,11 +35,15 @@ app = FastAPI(title="Voyarr API", version="1.1.0")
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("CORS_ORIGINS", "http://localhost:3000").split(","),
+    allow_origins=[
+        origin.strip()
+        for origin in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # Middleware to translate JWT to API Key for unified route protection
 @app.middleware("http")
@@ -32,32 +56,56 @@ async def jwt_to_api_key_middleware(request: Request, call_next):
             if payload.get("sub"):
                 role = payload.get("role", "viewer")
                 path = request.url.path
-                
-                admin_routes = ["/settings", "/backup", "/credentials", "/schedules", "/apikeys", "/rules", "/auth/register", "/webhooks", "/cookies"]
+
+                admin_routes = [
+                    "/settings",
+                    "/backup",
+                    "/credentials",
+                    "/schedules",
+                    "/apikeys",
+                    "/rules",
+                    "/auth/register",
+                    "/webhooks",
+                    "/cookies",
+                    "/logs",
+                    "/transcode",
+                ]
                 is_admin_route = any(path.startswith(route) for route in admin_routes)
-                
+
                 is_allowed = False
                 if role == "admin":
                     is_allowed = True
                 elif role == "user" and not is_admin_route:
                     is_allowed = True
                     # Users shouldn't be able to alter providers or trigger full system scans
-                    if request.method not in ["GET"] and any(path.startswith(route) for route in ["/providers", "/library/scan"]):
+                    if request.method not in ["GET"] and any(
+                        path.startswith(route)
+                        for route in ["/providers", "/library/scan"]
+                    ):
                         is_allowed = False
-                elif role == "viewer" and request.method == "GET" and not is_admin_route:
+                elif (
+                    role == "viewer" and request.method == "GET" and not is_admin_route
+                ):
                     is_allowed = True
-                    
+
                 if is_allowed:
-                    headers = dict(request.scope['headers'])
+                    headers = dict(request.scope["headers"])
                     master_key = os.getenv("MASTER_KEY", "").encode()
                     headers[b"x-voyarr-api-key"] = master_key
-                    request.scope['headers'] = [(k, v) for k, v in headers.items()]
+                    request.scope["headers"] = [(k, v) for k, v in headers.items()]
                 else:
                     from fastapi.responses import JSONResponse
-                    return JSONResponse(status_code=403, content={"detail": "RBAC Forbidden: Your role is insufficient for this action."})
+
+                    return JSONResponse(
+                        status_code=403,
+                        content={
+                            "detail": "RBAC Forbidden: Your role is insufficient for this action."
+                        },
+                    )
         except Exception:
             pass
     return await call_next(request)
+
 
 # Include Routers
 app.include_router(providers.router)
@@ -79,6 +127,7 @@ app.include_router(cookies.router)
 app.include_router(transcode.router)
 app.include_router(auth.router)
 app.include_router(webhooks.router)
+
 
 @app.get("/")
 async def root():
