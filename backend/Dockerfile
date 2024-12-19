@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.11-slim-bullseye
 
 WORKDIR /app
 
@@ -12,8 +12,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Install Playwright browsers and system dependencies
-RUN playwright install chromium
-RUN playwright install-deps chromium
+RUN python -m playwright install chromium
+RUN python -m playwright install-deps chromium
 
 # Copy the rest of the application
 COPY . .
