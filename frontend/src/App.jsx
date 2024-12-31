@@ -18,6 +18,7 @@ import ScheduleManager from './components/ScheduleManager'
 import BackupManager from './components/BackupManager'
 import LogsViewer from './components/LogsViewer'
 import ScraperTester from './components/ScraperTester'
+import RequestManager from './components/RequestManager'
 import './App.css'
 
 const theme = createTheme({
@@ -213,6 +214,7 @@ function App() {
             <Tab label="Backup" />
             <Tab label="Logs" />
             <Tab label="Scraper Tester" />
+            <Tab label="Request Manager" />
           </Tabs>
           <Box sx={{ mt: 2 }}>
             {tabValue === 0 && <Dashboard />}
@@ -252,6 +254,7 @@ function App() {
             {tabValue === 14 && <BackupManager />}
             {tabValue === 15 && <LogsViewer />}
             {tabValue === 16 && <ScraperTester />}
+            {tabValue === 17 && <RequestManager />}
           </Box>
         </Paper>
       </Container>

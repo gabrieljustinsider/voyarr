@@ -25,6 +25,8 @@ from routers import (
     transcode,
     auth,
     webhooks,
+    requests,
+    discord,
 )
 
 # Create tables
@@ -127,6 +129,8 @@ app.include_router(cookies.router)
 app.include_router(transcode.router)
 app.include_router(auth.router)
 app.include_router(webhooks.router)
+app.include_router(requests.router)
+app.include_router(discord.router)
 
 
 @app.get("/")
