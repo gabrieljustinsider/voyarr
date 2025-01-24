@@ -2,6 +2,7 @@ import os
 import base64
 from cryptography.fernet import Fernet
 from dotenv import load_dotenv
+import secrets
 import hashlib
 from passlib.context import CryptContext
 from jose import jwt
@@ -24,9 +25,9 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 JWT_SECRET = os.getenv("SECRET_KEY")
 if not JWT_SECRET or JWT_SECRET == "your_secret_key_here":
     print(
-        "WARNING: Using unsafe fallback SECRET_KEY. Please set a secure SECRET_KEY in your .env file!"
+        "WARNING: Using an ephemeral fallback SECRET_KEY. Sessions will invalidate on restart. Please set a secure SECRET_KEY in your .env file!"
     )
-    JWT_SECRET = "fallback_secret_change_me_in_production"
+    JWT_SECRET = secrets.token_urlsafe(32)
 ALGORITHM = "HS256"
 
 
@@ -44,7 +45,7 @@ def decrypt_data(encrypted_data: str) -> str:
     try:
         return cipher.decrypt(encrypted_data.encode()).decode()
     except Exception:
-        return encrypted_data  # Fallback if not encrypted or wrong key
+        return ""  # Safe fallback to prevent leaking encrypted ciphertexts or bypassing encryption wrappers
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

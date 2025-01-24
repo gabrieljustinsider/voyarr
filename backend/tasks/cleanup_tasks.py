@@ -1,12 +1,11 @@
 from celery import shared_task
-from database import SessionLocal
 from models import MediaEntry, DownloadQueue
+from db_utils import get_db_session
 
 
 @shared_task
 def cleanup_abandoned_media():
-    db = SessionLocal()
-    try:
+    with get_db_session() as db:
         # Find all MediaEntry IDs currently referenced by the download queue
         active_media_ids = db.query(DownloadQueue.media_entry_id).filter(
             DownloadQueue.media_entry_id.isnot(None)
@@ -17,12 +16,5 @@ def cleanup_abandoned_media():
             db.query(MediaEntry).filter(MediaEntry.id.notin_(active_media_ids)).all()
         )
 
-        len(dangling_media)
         for media in dangling_media:
             db.delete(media)
-
-        db.commit()
-    except Exception:
-        db.rollback()
-    finally:
-        db.close()

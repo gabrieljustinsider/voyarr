@@ -10,7 +10,18 @@ export default function ScraperTester() {
   const eventSourceRef = useRef(null);
 
   const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`;
-  const MASTER_KEY = import.meta.env.VITE_MASTER_KEY;
+
+  const getAuthQuery = () => {
+    const token = localStorage.getItem('voyarr_jwt')
+    if (token) return `token=${encodeURIComponent(token)}`
+    const apiKey = localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY || ''
+    return `api_key=${encodeURIComponent(apiKey)}`
+  }
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('voyarr_jwt')
+    if (token) return { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+    return { 'X-Voyarr-Api-Key': localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY || '', 'Content-Type': 'application/json' }
+  }
 
   const handleScrape = async () => {
     if (!url || !recipeId) {
@@ -24,10 +35,7 @@ export default function ScraperTester() {
     try {
       const res = await fetch(`${API_BASE}/external-api/scrape`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Voyarr-Api-Key': MASTER_KEY
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ url, recipe_id: parseInt(recipeId, 10) })
       });
 
@@ -54,8 +62,12 @@ export default function ScraperTester() {
   }, []);
 
   const startSSE = (taskId) => {
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+    }
+
     // Using query parameter for auth since EventSource doesn't support custom headers
-    const eventSource = new EventSource(`${API_BASE}/external-api/scrape/stream/${taskId}?api_key=${MASTER_KEY}`);
+    const eventSource = new EventSource(`${API_BASE}/external-api/scrape/stream/${taskId}?${getAuthQuery()}`);
     eventSourceRef.current = eventSource;
 
     eventSource.onmessage = (event) => {

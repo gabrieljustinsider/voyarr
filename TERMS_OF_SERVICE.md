@@ -26,6 +26,7 @@ Voyarr is a tool for managing digital media. You acknowledge and agree that:
 You are responsible for the security of your instance of the Software. This includes, but is not limited to:
 
 *   Safeguarding your `MASTER_KEY`, `SECRET_KEY`, and any other credentials.
+*   Ensuring the security of any connected third-party password managers (e.g., 1Password, Bitwarden).
 *   Securing the server or machine where the Software is installed.
 *   Configuring network access (e.g., firewalls, reverse proxies) appropriately.
 

@@ -3,6 +3,19 @@ import { Box, Typography, Paper, Button, CircularProgress } from '@mui/material'
 
 const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
 
+const getAuthQuery = () => {
+  const token = localStorage.getItem('voyarr_jwt')
+  if (token) return `token=${encodeURIComponent(token)}`
+  const apiKey = localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY || ''
+  return `api_key=${encodeURIComponent(apiKey)}`
+}
+
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('voyarr_jwt')
+  if (token) return { 'Authorization': `Bearer ${token}` }
+  return { 'X-Voyarr-Api-Key': localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY || '' }
+}
+
 export default function LogsViewer() {
   const [logs, setLogs] = useState([])
   const [loading, setLoading] = useState(false)
@@ -10,7 +23,7 @@ export default function LogsViewer() {
   const wsRef = useRef(null)
 
   useEffect(() => {
-    const wsUrl = API_BASE.replace(/^http/, 'ws') + `/logs/ws?api_key=${import.meta.env.VITE_MASTER_KEY}`
+    const wsUrl = API_BASE.replace(/^http/, 'ws') + `/logs/ws?${getAuthQuery()}`
     const ws = new WebSocket(wsUrl)
     wsRef.current = ws
 
@@ -42,7 +55,7 @@ export default function LogsViewer() {
     try {
       await fetch(`${API_BASE}/logs`, {
         method: 'DELETE',
-        headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
+        headers: getAuthHeaders()
       })
       setLogs([])
     } catch (e) {

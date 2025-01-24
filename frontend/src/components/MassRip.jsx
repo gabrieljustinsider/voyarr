@@ -5,9 +5,16 @@ import {
 } from '@mui/material'
 
 const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
-const HEADERS = {
-  'Content-Type': 'application/json',
-  'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
+const getAuthHeaders = () => {
+  const headers = { 'Content-Type': 'application/json' }
+  const token = localStorage.getItem('voyarr_jwt')
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  } else {
+    const apiKey = localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY
+    if (apiKey) headers['X-Voyarr-Api-Key'] = apiKey
+  }
+  return headers
 }
 
 export default function MassRip() {
@@ -18,7 +25,7 @@ export default function MassRip() {
   const [result, setResult] = useState(null)
 
   useEffect(() => {
-    fetch(`${API_BASE}/providers`, { headers: HEADERS })
+    fetch(`${API_BASE}/providers`, { headers: getAuthHeaders() })
       .then(res => res.json())
       .then(data => setProviders(data))
       .catch(console.error)
@@ -32,7 +39,7 @@ export default function MassRip() {
     try {
       const res = await fetch(`${API_BASE}/download/mass_rip`, {
         method: 'POST',
-        headers: HEADERS,
+        headers: getAuthHeaders(),
         body: JSON.stringify({ provider_id: providerId, url: url })
       })
       const data = await res.json()

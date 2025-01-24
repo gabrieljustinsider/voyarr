@@ -11,6 +11,18 @@ function TabPanel({ children, value, index }) {
 }
 
 export default function ExternalAPIs() {
+  const getAuthHeaders = (extraHeaders = {}) => {
+    const headers = { 'Content-Type': 'application/json', ...extraHeaders }
+    const token = localStorage.getItem('voyarr_jwt')
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    } else {
+      const apiKey = localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY
+      if (apiKey) headers['X-Voyarr-Api-Key'] = apiKey
+    }
+    return headers
+  }
+
   const [tabValue, setTabValue] = useState(0)
   const [tpdbKey, setTpdbKey] = useState('')
   const [stashdbKey, setStashdbKey] = useState('')
@@ -44,11 +56,7 @@ export default function ExternalAPIs() {
         body: JSON.stringify({
           query: searchQuery
         }),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': tpdbKey,
-          'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
-        }
+        headers: getAuthHeaders({ 'X-API-Key': tpdbKey })
       })
 
       if (response.ok) {
@@ -74,11 +82,7 @@ export default function ExternalAPIs() {
     try {
       const response = await fetch(`${API_BASE}/external-api/stashdb/query`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': stashdbKey,
-          'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
-        },
+        headers: getAuthHeaders({ 'X-API-Key': stashdbKey }),
         body: JSON.stringify({
           query: searchQuery
         })
@@ -104,11 +108,7 @@ export default function ExternalAPIs() {
     try {
       const response = await fetch(`${API_BASE}/external-api/theporndb/update`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': tpdbKey,
-          'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
-        },
+        headers: getAuthHeaders({ 'X-API-Key': tpdbKey }),
         body: JSON.stringify({
           site_id: selectedResult.id,
           title: selectedResult.title,
@@ -138,11 +138,7 @@ export default function ExternalAPIs() {
     try {
       const response = await fetch(`${API_BASE}/external-api/stashdb/update`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': stashdbKey,
-          'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
-        },
+        headers: getAuthHeaders({ 'X-API-Key': stashdbKey }),
         body: JSON.stringify({
           site_id: selectedResult.id,
           title: selectedResult.title,

@@ -1,10 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { Box, Typography, Button, Paper, Grid, Checkbox, FormControlLabel, CircularProgress, Alert, Divider } from '@mui/material'
+import apiFetch from '../api'
 
-const API_BASE = `${import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`}/backup`
-const HEADERS = {
-  'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
-}
+const BACKUP_API = '/backup'
 
 export default function BackupManager() {
   const [tables, setTables] = useState([])
@@ -18,7 +16,7 @@ export default function BackupManager() {
   const fileInputRef = useRef(null)
 
   useEffect(() => {
-    fetch(`${API_BASE}/tables`, { headers: HEADERS })
+    apiFetch(`${BACKUP_API}/tables`)
       .then(res => res.json())
       .then(data => {
         if (data.tables) {
@@ -49,7 +47,7 @@ export default function BackupManager() {
     setLoading(true)
     setMessage(null)
     try {
-      let url = `${API_BASE}/export?type=${type}`
+      let url = `${BACKUP_API}/export?type=${type}`
       if (type === 'custom') {
         if (selectedTables.length === 0) {
           setMessage({ type: 'error', text: 'Please select at least one table for a custom backup.' })
@@ -59,7 +57,7 @@ export default function BackupManager() {
         url += `&tables=${selectedTables.join(',')}`
       }
 
-      const res = await fetch(url, { headers: HEADERS })
+      const res = await apiFetch(url)
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}))
         throw new Error(errData.detail || 'Export failed')
@@ -73,6 +71,7 @@ export default function BackupManager() {
       document.body.appendChild(a)
       a.click()
       a.remove()
+      window.URL.revokeObjectURL(downloadUrl)
       
       setMessage({ type: 'success', text: `Successfully exported ${type} backup!` })
     } catch (err) {
@@ -92,9 +91,8 @@ export default function BackupManager() {
     formData.append('file', file)
 
     try {
-      const res = await fetch(`${API_BASE}/verify`, {
+      const res = await apiFetch(`${BACKUP_API}/verify`, {
         method: 'POST',
-        headers: HEADERS, // Omit Content-Type so browser sets boundary for FormData
         body: formData
       })
       const data = await res.json()
@@ -114,9 +112,8 @@ export default function BackupManager() {
     formData.append('file', uploadFile)
 
     try {
-      const res = await fetch(`${API_BASE}/restore`, {
+      const res = await apiFetch(`${BACKUP_API}/restore`, {
         method: 'POST',
-        headers: HEADERS,
         body: formData
       })
       const data = await res.json()

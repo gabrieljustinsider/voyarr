@@ -3,7 +3,7 @@ import {
   Box, Typography, Card, CardContent, Grid, TextField, 
   Chip, FormControl, InputLabel, Select, MenuItem, Paper, CardMedia, Tooltip,
   Dialog, DialogTitle, DialogContent, IconButton, Button, DialogActions,
-  CircularProgress, Alert
+  CircularProgress, Alert, Pagination
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutlined'
@@ -21,38 +21,73 @@ export default function Library() {
     tag: '',
     ohash: ''
   })
+  const [debouncedFilters, setDebouncedFilters] = useState(filters)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
   const [playingVideo, setPlayingVideo] = useState(null)
   
   // Scanner State
   const [scanDialogOpen, setScanDialogOpen] = useState(false)
   const [providers, setProviders] = useState([])
   const [scanProviderId, setScanProviderId] = useState('')
-  const [scanDirectory, setScanDirectory] = useState('/media/storage/downloads')
+  const [scanDirectory, setScanDirectory] = useState('')
   const [scanLoading, setScanLoading] = useState(false)
   const [rescanLoading, setRescanLoading] = useState(false)
   const [scanResult, setScanResult] = useState(null)
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedFilters(filters)
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [filters])
 
-  const getApiKey = useCallback(() => {
-    return apiKey || import.meta.env.VITE_MASTER_KEY || '';
+  const getAuthHeaders = useCallback(() => {
+    const headers = {}
+    const token = localStorage.getItem('voyarr_jwt')
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    } else {
+      const key = apiKey || localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY || ''
+      if (key) headers['X-Voyarr-Api-Key'] = key
+    }
+    return headers
   }, [apiKey])
+
+  const getAuthQuery = () => {
+    const token = localStorage.getItem('voyarr_jwt')
+    if (token) return `token=${encodeURIComponent(token)}`
+    const key = apiKey || localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY || ''
+    return `api_key=${encodeURIComponent(key)}`
+  }
 
   const fetchLibrary = useCallback(async () => {
     try {
       // Construct query parameters from active filters
       const params = new URLSearchParams()
-      if (filters.resolution) params.append('resolution', filters.resolution)
-      if (filters.performer) params.append('performer', filters.performer)
-      if (filters.tag) params.append('tag', filters.tag)
-      if (filters.ohash) params.append('ohash', filters.ohash)
+      if (debouncedFilters.resolution) params.append('resolution', debouncedFilters.resolution)
+      if (debouncedFilters.performer) params.append('performer', debouncedFilters.performer)
+      if (debouncedFilters.tag) params.append('tag', debouncedFilters.tag)
+      if (debouncedFilters.ohash) params.append('ohash', debouncedFilters.ohash)
+      params.append('page', page)
+      params.append('limit', 50)
 
       const res = await fetch(`${API_BASE}/library?${params.toString()}`, {
-        headers: { 'X-Voyarr-Api-Key': getApiKey() }
+        headers: getAuthHeaders()
       })
-      if (res.ok) setEntries(await res.json())
+      if (res.ok) {
+        const data = await res.json()
+        if (Array.isArray(data)) {
+          setEntries(data)
+        } else {
+          setEntries(data.items || [])
+          setTotalPages(data.pages || 1)
+        }
+      }
     } catch (e) {
       console.error("Failed to fetch library entries:", e)
     }
-  }, [filters, getApiKey])
+  }, [debouncedFilters, page, getAuthHeaders])
 
   useEffect(() => {
     fetchLibrary()
@@ -66,6 +101,7 @@ export default function Library() {
 
   const handleFilterChange = (e) => {
     setFilters({ ...filters, [e.target.name]: e.target.value })
+    setPage(1)
   }
 
   const handleClosePlayer = () => {
@@ -75,13 +111,13 @@ export default function Library() {
   const fetchProviders = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/providers`, {
-        headers: { 'X-Voyarr-Api-Key': getApiKey() }
+        headers: getAuthHeaders()
       })
       if (res.ok) setProviders(await res.json())
     } catch (e) {
       console.error(e)
     }
-  }, [getApiKey])
+  }, [getAuthHeaders])
 
   useEffect(() => {
     if (scanDialogOpen && providers.length === 0) fetchProviders()
@@ -93,11 +129,11 @@ export default function Library() {
     try {
       const params = new URLSearchParams()
       params.append('provider_id', scanProviderId)
-      params.append('directory', scanDirectory)
+      if (scanDirectory) params.append('directory', scanDirectory)
       
       const res = await fetch(`${API_BASE}/library/scan?${params.toString()}`, {
         method: 'POST',
-        headers: { 'X-Voyarr-Api-Key': getApiKey() }
+        headers: getAuthHeaders()
       })
       const data = await res.json()
       if (res.ok) {
@@ -117,7 +153,7 @@ export default function Library() {
     try {
       const res = await fetch(`${API_BASE}/library/rescan-hashes`, {
         method: 'POST',
-        headers: { 'X-Voyarr-Api-Key': getApiKey() }
+        headers: getAuthHeaders()
       })
       const data = await res.json()
       if (res.ok) {
@@ -213,6 +249,12 @@ export default function Library() {
           ))}
         </Grid>
       )}
+      
+      {totalPages > 1 && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, mb: 4 }}>
+          <Pagination count={totalPages} page={page} onChange={(e, v) => setPage(v)} color="primary" />
+        </Box>
+      )}
 
       {/* Scan Directory Dialog */}
       <Dialog open={scanDialogOpen} onClose={() => !scanLoading && setScanDialogOpen(false)} maxWidth="sm" fullWidth>
@@ -230,7 +272,7 @@ export default function Library() {
           <TextField 
             fullWidth 
             size="small" 
-            label="Directory Path" 
+            label="Directory Path (Leave empty to scan all Media Roots)" 
             value={scanDirectory} 
             onChange={e => setScanDirectory(e.target.value)} 
             sx={{ mb: 2 }}
@@ -241,7 +283,7 @@ export default function Library() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setScanDialogOpen(false)} disabled={scanLoading}>Close</Button>
-          <Button onClick={handleScanDirectory} variant="contained" disabled={scanLoading || !scanProviderId || !scanDirectory}>
+          <Button onClick={handleScanDirectory} variant="contained" disabled={scanLoading || !scanProviderId}>
             {scanLoading ? <CircularProgress size={24} /> : 'Start Scan'}
           </Button>
         </DialogActions>
@@ -283,10 +325,11 @@ export default function Library() {
             <>
               <Box sx={{ flexGrow: 1, backgroundColor: 'black', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                 <video 
+                  key={playingVideo.id}
                   controls 
                   autoPlay 
                   style={{ width: '100%', maxHeight: '75vh', outline: 'none' }}
-                  src={`${API_BASE}/library/${playingVideo.id}/stream?api_key=${getApiKey()}`}
+                  src={`${API_BASE}/library/${playingVideo.id}/stream?${getAuthQuery()}`}
                   controlsList="nodownload"
                 >
                   Your browser does not support the video tag.

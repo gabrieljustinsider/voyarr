@@ -5,7 +5,14 @@ import {
 } from '@mui/material'
 
 const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
-const getApiKey = () => localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY || ''
+
+const getAuthHeaders = () => {
+  const headers = { 'Content-Type': 'application/json' }
+  const token = localStorage.getItem('voyarr_jwt')
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  else headers['X-Voyarr-Api-Key'] = localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY || ''
+  return headers
+}
 
 export default function Duplicates() {
   const [duplicates, setDuplicates] = useState([])
@@ -16,7 +23,7 @@ export default function Duplicates() {
     setLoading(true)
     try {
       const res = await fetch(`${API_BASE}/duplicates`, {
-        headers: { 'X-Voyarr-Api-Key': getApiKey() }
+        headers: getAuthHeaders()
       })
       if (!res.ok) throw new Error('Failed to fetch duplicates')
       setDuplicates(await res.json())
@@ -35,18 +42,15 @@ export default function Duplicates() {
     try {
       const res = await fetch(`${API_BASE}/duplicates/${dupeId}/resolve`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-Voyarr-Api-Key': getApiKey() 
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ action })
       })
       if (!res.ok) throw new Error('Failed to resolve duplicate')
       
       // Remove from list
-      setDuplicates(duplicates.filter(d => d.id !== dupeId))
+      setDuplicates(prev => prev.filter(d => d.id !== dupeId))
     } catch (err) {
-      alert(`Error resolving: ${err.message}`)
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: `Error resolving: ${err.message}`, severity: 'error' } }))
     }
   }
 

@@ -3,6 +3,7 @@ import asyncio
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.websockets import WebSocketState
 from dependencies import verify_api_key
+from utils import get_primary_root
 
 router = APIRouter(
     prefix="/logs", tags=["logs"], dependencies=[Depends(verify_api_key)]
@@ -13,8 +14,9 @@ router = APIRouter(
 async def websocket_logs(websocket: WebSocket):
     await websocket.accept()
 
+    primary_root = get_primary_root()
     log_file = os.path.join(
-        os.getenv("MEDIA_ROOT", "/media/storage"), "logs", "celery.log"
+        primary_root, "logs", "celery.log"
     )
     if not os.path.exists(log_file):
         await websocket.send_text(
@@ -24,9 +26,10 @@ async def websocket_logs(websocket: WebSocket):
         return
 
     try:
+        from collections import deque
         with open(log_file, "r") as f:
             # Send the last 200 lines first
-            lines = f.readlines()[-200:]
+            lines = list(deque(f, maxlen=200))
             for line in lines:
                 await websocket.send_text(line)
 
@@ -46,8 +49,9 @@ async def websocket_logs(websocket: WebSocket):
 
 @router.get("/")
 def get_logs(lines: int = 200):
+    primary_root = get_primary_root()
     log_file = os.path.join(
-        os.getenv("MEDIA_ROOT", "/media/storage"), "logs", "celery.log"
+        primary_root, "logs", "celery.log"
     )
     if not os.path.exists(log_file):
         return {
@@ -57,17 +61,18 @@ def get_logs(lines: int = 200):
         }
 
     try:
+        from collections import deque
         with open(log_file, "r") as f:
-            all_lines = f.readlines()
-            return {"logs": all_lines[-lines:]}
+            return {"logs": list(deque(f, maxlen=lines))}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.delete("/")
 def clear_logs():
+    primary_root = get_primary_root()
     log_file = os.path.join(
-        os.getenv("MEDIA_ROOT", "/media/storage"), "logs", "celery.log"
+        primary_root, "logs", "celery.log"
     )
     if os.path.exists(log_file):
         with open(log_file, "w") as f:

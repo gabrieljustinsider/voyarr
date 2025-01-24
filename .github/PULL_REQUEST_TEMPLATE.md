@@ -19,5 +19,6 @@ Fixes #
 - [ ] My changes generate no new warnings
 - [ ] I have added tests that prove my fix is effective or that my feature works
 - [ ] New and existing unit tests pass locally with my changes
+- [ ] I have verified that any URL fetching or external API requests handle SSRF protections securely
 - [ ] Any dependent changes have been merged and published in downstream modules
 - [ ] My commits follow Conventional Commits (e.g., `feat:`, `fix:`) so the automated version bumper works correctly

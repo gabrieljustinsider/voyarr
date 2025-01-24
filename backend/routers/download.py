@@ -38,6 +38,84 @@ class DownloadRequest(BaseModel):
     force_duplicate: bool = False
 
 
+def validate_url_ssrf(url_str: str):
+    if not url_str.lower().startswith(("http://", "https://")):
+        raise HTTPException(status_code=400, detail="Invalid URL scheme")
+
+    try:
+        parsed = urllib.parse.urlparse(url_str)
+        hostname = parsed.hostname.lower() if parsed.hostname else ""
+
+        try:
+            import ipaddress
+            import socket
+
+            def is_disallowed_ip(ip_str_or_obj):
+                try:
+                    ip_obj = ipaddress.ip_address(ip_str_or_obj) if isinstance(ip_str_or_obj, str) else ip_str_or_obj
+                    
+                    # Unwrap IPv4-mapped IPv6 addresses to correctly evaluate their underlying IPv4 properties
+                    if isinstance(ip_obj, ipaddress.IPv6Address) and ip_obj.ipv4_mapped:
+                        ip_obj = ip_obj.ipv4_mapped
+                        
+                    return (
+                        ip_obj.is_loopback
+                        or ip_obj.is_private
+                        or ip_obj.is_link_local
+                        or ip_obj.is_multicast
+                        or ip_obj.is_unspecified
+                        or ip_obj.is_reserved
+                    )
+                except ValueError:
+                    return False
+
+            try:
+                ip_obj = ipaddress.ip_address(hostname.strip("[]"))
+                if is_disallowed_ip(ip_obj):
+                    raise HTTPException(status_code=400, detail="Disallowed internal IP")
+            except ValueError:
+                pass
+                
+            # Resolve hostname to catch custom domains pointing to internal IPs
+            try:
+                addr_info = socket.getaddrinfo(hostname, None)
+                for addr in addr_info:
+                    ip_str = addr[4][0]
+                    if is_disallowed_ip(ip_str):
+                        raise HTTPException(status_code=400, detail="Disallowed internal IP (resolved via DNS)")
+            except socket.gaierror:
+                pass # Unresolvable hostnames will fail naturally downstream
+
+            if hostname.startswith("0x"):
+                ip_int = int(hostname, 16)
+            elif hostname.startswith("0") and hostname.isdigit():
+                ip_int = int(hostname, 8)
+            elif hostname.isdigit():
+                ip_int = int(hostname)
+            else:
+                ip_int = None
+            if ip_int is not None and is_disallowed_ip(ipaddress.ip_address(ip_int)):
+                raise HTTPException(
+                    status_code=400, detail="Disallowed internal numeric IP"
+                )
+        except ValueError:
+            pass
+
+        if hostname in [
+            "localhost",
+            "127.0.0.1",
+            "0.0.0.0",
+            "169.254.169.254",
+            "::1",
+            "[::1]",
+        ] or hostname.endswith((".internal", ".nip.io", ".xip.io", ".sslip.io")):
+            raise HTTPException(status_code=400, detail="Disallowed internal hostname")
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid URL format")
+
+
 def evaluate_rules(
     db: Session,
     metadata: dict,
@@ -238,45 +316,7 @@ def check_limits_and_cookies(db: Session, provider_id: int):
 def start_download(req: DownloadRequest, db: Session = Depends(get_db)):
     # SECURITY: Prevent SSRF via the download engine
     url_str = str(req.url)
-    if not url_str.lower().startswith(("http://", "https://")):
-        raise HTTPException(status_code=400, detail="Invalid URL scheme")
-
-    try:
-        parsed = urllib.parse.urlparse(url_str)
-        hostname = parsed.hostname.lower() if parsed.hostname else ""
-
-        try:
-            import ipaddress
-
-            if hostname.startswith("0x"):
-                ip_int = int(hostname, 16)
-            elif hostname.startswith("0") and hostname.isdigit():
-                ip_int = int(hostname, 8)
-            elif hostname.isdigit():
-                ip_int = int(hostname)
-            else:
-                ip_int = None
-            if ip_int is not None and (
-                ipaddress.ip_address(ip_int).is_loopback
-                or ipaddress.ip_address(ip_int).is_private
-            ):
-                raise HTTPException(
-                    status_code=400, detail="Disallowed internal numeric IP"
-                )
-        except ValueError:
-            pass
-
-        if hostname in [
-            "localhost",
-            "127.0.0.1",
-            "0.0.0.0",
-            "169.254.169.254",
-            "::1",
-            "[::1]",
-        ] or hostname.endswith((".internal", ".nip.io", ".xip.io", ".sslip.io")):
-            raise HTTPException(status_code=400, detail="Disallowed internal hostname")
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid URL format")
+    validate_url_ssrf(url_str)
 
     provider = db.query(Provider).filter(Provider.id == req.provider_id).first()
     if not provider:
@@ -376,11 +416,7 @@ def start_download(req: DownloadRequest, db: Session = Depends(get_db)):
 
     if action != "queue":
         if isinstance(limit_result, SessionCookie):
-            db.query(SessionCookie).filter(SessionCookie.id == limit_result.id).update(
-                {"downloads_used": SessionCookie.downloads_used + 1}
-            )
-            db.flush()
-            db.refresh(limit_result)
+            limit_result.downloads_used += 1
 
     # Commit all changes in a single, atomic transaction
     try:
@@ -504,45 +540,7 @@ def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
     """
     # SECURITY: Prevent SSRF via the download engine
     url_str = str(req.url)
-    if not url_str.lower().startswith(("http://", "https://")):
-        raise HTTPException(status_code=400, detail="Invalid URL scheme")
-
-    try:
-        parsed = urllib.parse.urlparse(url_str)
-        hostname = parsed.hostname.lower() if parsed.hostname else ""
-
-        try:
-            import ipaddress
-
-            if hostname.startswith("0x"):
-                ip_int = int(hostname, 16)
-            elif hostname.startswith("0") and hostname.isdigit():
-                ip_int = int(hostname, 8)
-            elif hostname.isdigit():
-                ip_int = int(hostname)
-            else:
-                ip_int = None
-            if ip_int is not None and (
-                ipaddress.ip_address(ip_int).is_loopback
-                or ipaddress.ip_address(ip_int).is_private
-            ):
-                raise HTTPException(
-                    status_code=400, detail="Disallowed internal numeric IP"
-                )
-        except ValueError:
-            pass
-
-        if hostname in [
-            "localhost",
-            "127.0.0.1",
-            "0.0.0.0",
-            "169.254.169.254",
-            "::1",
-            "[::1]",
-        ] or hostname.endswith((".internal", ".nip.io", ".xip.io", ".sslip.io")):
-            raise HTTPException(status_code=400, detail="Disallowed internal hostname")
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid URL format")
+    validate_url_ssrf(url_str)
 
     # 1. Fetch provider
     provider = db.query(Provider).filter(Provider.id == req.provider_id).first()
@@ -578,7 +576,7 @@ def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
 
         # Hardened Fallback: If yt-dlp returns nothing, try a naive HTML scrape
         if not extracted_videos:
-            resp = requests.get(url_str, timeout=15)
+            resp = requests.get(url_str, timeout=15, allow_redirects=False)
             hrefs = re.findall(r'href=[\'"]?([^\'" >]+)', resp.text)
             for href in set(hrefs):
                 if (
@@ -697,16 +695,13 @@ def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
             )
             queue.media_entry = media
             db.add(queue)
+            db.flush()
 
             # 4. Defer Celery task until after commit
             if action != "queue":
                 if isinstance(limit_result, SessionCookie):
-                    db.query(SessionCookie).filter(
-                        SessionCookie.id == limit_result.id
-                    ).update({"downloads_used": SessionCookie.downloads_used + 1})
-                    db.flush()
-                    db.refresh(limit_result)
-                tasks_to_fire.append({"queue": queue, "meta": meta})
+                    limit_result.downloads_used += 1
+                tasks_to_fire.append({"queue_id": queue.id, "meta": meta})
 
             queued_count += 1
         else:
@@ -722,7 +717,7 @@ def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
 
     # Now that the queue items have IDs, dispatch the Celery tasks
     for task_info in tasks_to_fire:
-        real_download_task.delay(task_info["queue"].id, prefs_dict, task_info["meta"])
+        real_download_task.delay(task_info["queue_id"], prefs_dict, task_info["meta"])
 
     return {
         "message": f"Mass rip completed. Queued: {queued_count}, Skipped: {skipped_count}",

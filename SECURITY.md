@@ -6,15 +6,17 @@ Voyarr provides security updates for the current major release version.
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 1.1.x   | :white_check_mark: |
-| < 1.1   | :x:                |
+| 1.2.x   | :white_check_mark: |
+| < 1.2   | :x:                |
 
 ## Architecture Security
 
 Voyarr handles sensitive credentials for third-party media providers. 
 - **Database Encryption:** All provider passwords are encrypted at rest in the PostgreSQL database using AES-256-GCM.
+- **Password Manager Integrations:** Tokens for 1Password Connect and Bitwarden are encrypted identically to provider passwords.
 - **Master Key:** A `MASTER_KEY` environment variable is required to start the application. This key is never stored in the database and resides only in RAM during runtime.
 - **CORS:** Cross-Origin Resource Sharing is restricted via the `CORS_ORIGINS` environment variable to prevent unauthorized web clients from interacting with your local API.
+- **SSRF Protection:** All URL proxying and downloading mechanisms rigorously evaluate hostnames and IP addresses to prevent Server-Side Request Forgery against internal infrastructure.
 
 ## Reporting a Vulnerability
 

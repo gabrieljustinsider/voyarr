@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
-import { CssBaseline, AppBar, Toolbar, Typography, Container, Tabs, Tab, Box, Paper, Snackbar, Alert, Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material'
+import { CssBaseline, AppBar, Toolbar, Typography, Container, Tabs, Tab, Box, Paper, Snackbar, Alert, Dialog, DialogTitle, DialogContent, DialogActions, Button, IconButton } from '@mui/material'
+import LogoutIcon from '@mui/icons-material/Logout'
 import ProviderList from './components/ProviderList'
 import CredentialForm from './components/CredentialForm'
 import DownloadQueue from './components/DownloadQueue'
@@ -19,6 +20,8 @@ import BackupManager from './components/BackupManager'
 import LogsViewer from './components/LogsViewer'
 import ScraperTester from './components/ScraperTester'
 import RequestManager from './components/RequestManager'
+import Login from './components/Login'
+import { apiFetch, getAuthHeaders } from './api'
 import './App.css'
 
 const theme = createTheme({
@@ -36,6 +39,7 @@ const theme = createTheme({
 const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
 
 function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('voyarr_jwt') || !!localStorage.getItem('voyarr_api_key'))
   const [providers, setProviders] = useState([])
   const [selectedProvider, setSelectedProvider] = useState(null)
   const [credentials, setCredentials] = useState({ username: '', password: '', dailyLimit: '' })
@@ -47,9 +51,7 @@ function App() {
 
   const fetchProviders = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE}/providers`, {
-        headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
-      })
+      const response = await apiFetch('/providers')
       if (response.ok) {
         const data = await response.json()
         setProviders(data)
@@ -68,9 +70,7 @@ function App() {
 
   const fetchQueue = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE}/download/`, {
-        headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
-      })
+      const response = await apiFetch('/download/')
       if (response.ok) {
         const data = await response.json()
         setQueue(data)
@@ -81,6 +81,8 @@ function App() {
   }, [])
 
   useEffect(() => {
+    if (!isLoggedIn) return
+
     const init = async () => {
       await fetchProviders()
       await fetchQueue()
@@ -91,7 +93,7 @@ function App() {
     const startSSE = async () => {
       try {
         const res = await fetch(`${API_BASE}/download/stream`, {
-          headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY },
+          headers: getAuthHeaders(),
           signal: abortController.signal
         })
         const reader = res.body.getReader()
@@ -116,7 +118,7 @@ function App() {
     startSSE()
 
     return () => abortController.abort()
-  }, [fetchProviders, fetchQueue])
+  }, [isLoggedIn, fetchProviders, fetchQueue])
 
   const filteredProviders = useMemo(() => providers.filter(provider =>
     provider.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -129,7 +131,6 @@ function App() {
     }
     window.addEventListener('show-toast', handleToast)
 
-    // Block native dialogs globally and pipe to toasts
     window.alert = (message) => {
       window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: String(message), severity: 'info' } }))
     }
@@ -140,11 +141,11 @@ function App() {
 
     window.confirm = (message) => {
       window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: `Use await window.appConfirm() for async dialogs: ${message}`, severity: 'warning' } }))
-      return false // Safely reject native execution
+      return false
     }
     window.prompt = (message) => {
       window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: `Prompt blocked: ${message}`, severity: 'error' } }))
-      return null // Safely block native input
+      return null
     }
 
     return () => window.removeEventListener('show-toast', handleToast)
@@ -164,12 +165,8 @@ function App() {
     }
 
     try {
-      const response = await fetch(`${API_BASE}/credentials`, {
+      const response = await apiFetch('/credentials', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
-        },
         body: JSON.stringify(payload)
       })
       if (response.ok) {
@@ -184,6 +181,22 @@ function App() {
     }
   }
 
+  const handleLogout = () => {
+    localStorage.removeItem('voyarr_jwt')
+    localStorage.removeItem('voyarr_api_key')
+    setIsLoggedIn(false)
+    window.location.reload()
+  }
+
+  if (!isLoggedIn) {
+    return (
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Login onLogin={() => setIsLoggedIn(true)} />
+      </ThemeProvider>
+    )
+  }
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -192,6 +205,9 @@ function App() {
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
             Voyarr - Self-hosted Media Management
           </Typography>
+          <IconButton color="inherit" onClick={handleLogout} title="Logout">
+            <LogoutIcon />
+          </IconButton>
         </Toolbar>
       </AppBar>
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>

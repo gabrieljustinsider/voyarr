@@ -1,6 +1,6 @@
 from celery import shared_task
-from database import SessionLocal
 from models import LibraryEntry, DuplicateEntry
+from db_utils import get_db_session
 
 try:
     import imagehash
@@ -18,8 +18,7 @@ def scan_for_duplicates():
         print("imagehash library not installed. Skipping duplicate scan.")
         return
 
-    db = SessionLocal()
-    try:
+    with get_db_session() as db:
         entries = (
             db.query(LibraryEntry)
             .filter(LibraryEntry.phash.isnot(None), LibraryEntry.phash != "")
@@ -48,24 +47,26 @@ def scan_for_duplicates():
                 if existing:
                     continue
 
-                hash1 = imagehash.hex_to_hash(entry1.phash)
-                hash2 = imagehash.hex_to_hash(entry2.phash)
+                try:
+                    hash1 = imagehash.hex_to_hash(entry1.phash)
+                    hash2 = imagehash.hex_to_hash(entry2.phash)
 
-                # 64-bit hash max difference is 64
-                diff = hash1 - hash2
-                similarity = max(0, 100 - (diff * 100 / 64))
+                    # 64-bit hash max difference is 64
+                    diff = hash1 - hash2
+                    similarity = max(0, 100 - (diff * 100 / 64))
 
-                # 85% similarity is usually a match for different resolutions/watermarks
-                if similarity >= 85.0:
-                    dupe = DuplicateEntry(
-                        library_entry_id1=entry1.id,
-                        library_entry_id2=entry2.id,
-                        similarity_score=similarity,
-                        reason="Similar visual phash",
-                    )
-                    db.add(dupe)
-                    new_dupes += 1
-        db.commit()
+                    # 85% similarity is usually a match for different resolutions/watermarks
+                    if similarity >= 85.0:
+                        dupe = DuplicateEntry(
+                            library_entry_id1=entry1.id,
+                            library_entry_id2=entry2.id,
+                            similarity_score=similarity,
+                            reason="Similar visual phash",
+                        )
+                        db.add(dupe)
+                        new_dupes += 1
+                except Exception as e:
+                    print(f"Error comparing hashes for entries {entry1.id} and {entry2.id}: {e}")
+                    continue
+
         print(f"Duplicate scan complete. Found {new_dupes} potential duplicates.")
-    finally:
-        db.close()

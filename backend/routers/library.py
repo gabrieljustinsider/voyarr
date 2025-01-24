@@ -9,6 +9,7 @@ from services.reverse_regex import ReverseRegexMatcher
 from services.hash_service import HashService
 
 from dependencies import verify_api_key
+from utils import get_media_roots
 from rate_limiter import rate_limit
 
 router = APIRouter(
@@ -21,19 +22,35 @@ router = APIRouter(
 )
 def scan_library(
     provider_id: int,
-    directory: str = "/media/storage/downloads",
+    directory: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     """Scan a directory and reverse-engineer filenames into Library entries."""
 
-    # SECURITY: Prevent path traversal and arbitrary directory scanning
-    media_root = os.path.abspath(os.getenv("MEDIA_ROOT", "/media/storage"))
-    target_dir = os.path.abspath(directory)
-    if os.path.commonpath([media_root, target_dir]) != media_root:
-        raise HTTPException(
-            status_code=403,
-            detail="Forbidden: Cannot scan directories outside of the configured media root.",
-        )
+    media_roots = get_media_roots()
+    target_dirs = []
+
+    if directory:
+        # SECURITY: Prevent path traversal and arbitrary directory scanning
+        target_dir = os.path.realpath(directory)
+        is_valid_dir = False
+        for root in media_roots:
+            try:
+                if os.path.commonpath([root, target_dir]) == root:
+                    is_valid_dir = True
+                    break
+            except ValueError:
+                # Occurs on Windows when comparing paths across different drives
+                continue
+                
+        if not is_valid_dir:
+            raise HTTPException(
+                status_code=403,
+                detail="Forbidden: Cannot scan directories outside of the configured media root.",
+            )
+        target_dirs.append(target_dir)
+    else:
+        target_dirs = media_roots
 
     prefs = (
         db.query(DownloadPreference)
@@ -43,12 +60,20 @@ def scan_library(
     pattern = prefs.naming_pattern if prefs else "{title}_{performers}_{resolution}"
 
     matcher = ReverseRegexMatcher(db)
-    result = matcher.scan_directory(directory, provider_id, pattern)
+    aggregated_result = {"added": 0, "matched": 0, "errors": []}
 
-    if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
+    for d in target_dirs:
+        if not os.path.exists(d):
+            continue
+        result = matcher.scan_directory(d, provider_id, pattern)
+        if "error" in result:
+            raise HTTPException(status_code=400, detail=result["error"])
+        
+        aggregated_result["added"] += result.get("added", 0)
+        aggregated_result["matched"] += result.get("matched", 0)
+        aggregated_result["errors"].extend(result.get("errors", []))
 
-    return {"message": "Scan complete", "result": result}
+    return {"message": "Scan complete", "result": aggregated_result}
 
 
 @router.get("/")
@@ -58,6 +83,8 @@ def get_library_entries(
     tag: Optional[str] = None,
     performer: Optional[str] = None,
     ohash: Optional[str] = None,
+    page: int = 1,
+    limit: int = 50,
     db: Session = Depends(get_db),
 ):
     query = db.query(LibraryEntry)
@@ -71,7 +98,14 @@ def get_library_entries(
         query = query.filter(LibraryEntry.performers.contains([performer]))
     if ohash:
         query = query.filter(LibraryEntry.ohash == ohash)
-    return query.all()
+        
+    total = query.count()
+    items = query.offset((page - 1) * limit).limit(limit).all()
+    return {
+        "items": items,
+        "total": total,
+        "pages": (total + limit - 1) // limit if limit > 0 else 1
+    }
 
 
 @router.get("/{entry_id}/stream")
@@ -90,17 +124,24 @@ def stream_video(entry_id: int, db: Session = Depends(get_db)):
 def process_missing_hashes_task():
     db = SessionLocal()
     try:
-        entries = (
-            db.query(LibraryEntry)
+        entry_ids = [
+            row[0] for row in db.query(LibraryEntry.id)
             .filter((LibraryEntry.phash is None) | (LibraryEntry.phash == ""))
             .all()
-        )
-        for entry in entries:
-            if os.path.exists(entry.file_path):
-                if not entry.ohash or entry.ohash == "0000000000000000":
-                    entry.ohash = HashService.generate_ohash(entry.file_path)
-                entry.phash = HashService.generate_phash(entry.file_path)
-                db.commit()
+        ]
+        for eid in entry_ids:
+            try:
+                entry = db.query(LibraryEntry).get(eid)
+                if not entry:
+                    continue
+                if os.path.exists(entry.file_path):
+                    if not entry.ohash or entry.ohash == "0000000000000000":
+                        entry.ohash = HashService.generate_ohash(entry.file_path)
+                    entry.phash = HashService.generate_phash(entry.file_path)
+                    db.commit()
+            except Exception as e:
+                db.rollback()
+                print(f"Error rescanning hashes for entry {eid}: {str(e)}")
     finally:
         db.close()
 

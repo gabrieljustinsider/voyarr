@@ -4,8 +4,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from database import get_db
 from models import Base, Settings
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 import json
+import uuid
 from typing import Optional
 from decimal import Decimal
 from dependencies import verify_api_key
@@ -18,10 +19,15 @@ router = APIRouter(
 
 class CustomJSONEncoder(json.JSONEncoder):
     def default(self, obj):
-        if isinstance(obj, datetime):
+        if isinstance(obj, (datetime, date)):
             return obj.isoformat()
         if isinstance(obj, Decimal):
             return float(obj)
+        if isinstance(obj, uuid.UUID):
+            return str(obj)
+        if isinstance(obj, bytes):
+            # PostgreSQL natively accepts hex representation for bytea columns
+            return f"\\x{obj.hex()}"
         return super().default(obj)
 
 
@@ -209,11 +215,12 @@ def restore_backup(file: UploadFile = File(...), db: Session = Depends(get_db)):
             for table in Base.metadata.sorted_tables:
                 table_name = table.name
                 try:
-                    db.execute(
-                        text(
-                            f"SELECT setval(pg_get_serial_sequence('{table_name}', 'id'), coalesce(max(id), 1), max(id) IS NOT null) FROM {table_name};"
+                    with db.begin_nested():
+                        db.execute(
+                            text(
+                                f"SELECT setval(pg_get_serial_sequence('{table_name}', 'id'), coalesce(max(id), 1), max(id) IS NOT null) FROM {table_name};"
+                            )
                         )
-                    )
                 except Exception as e:
                     # This can fail if a table doesn't have a default sequence named 'id'.
                     print(f"Could not reset sequence for table '{table_name}': {e}")
@@ -243,11 +250,12 @@ def restore_backup(file: UploadFile = File(...), db: Session = Depends(get_db)):
             for table in tables_to_restore:
                 table_name = table.name
                 try:
-                    db.execute(
-                        text(
-                            f"SELECT setval(pg_get_serial_sequence('{table_name}', 'id'), coalesce(max(id), 1), max(id) IS NOT null) FROM {table_name};"
+                    with db.begin_nested():
+                        db.execute(
+                            text(
+                                f"SELECT setval(pg_get_serial_sequence('{table_name}', 'id'), coalesce(max(id), 1), max(id) IS NOT null) FROM {table_name};"
+                            )
                         )
-                    )
                 except Exception as e:
                     print(f"Could not reset sequence for table '{table_name}': {e}")
             db.commit()
