@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Box, Typography, TextField, Button, Paper, Grid, Snackbar, Alert, Divider, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Select, MenuItem, FormControl, InputLabel, Tabs, Tab } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
 import SyncIcon from '@mui/icons-material/Sync'
+import { apiFetch } from '../api'
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -48,28 +49,15 @@ export default function Settings() {
 
   const [newUser, setNewUser] = useState({ username: '', password: '', role: 'user' })
 
-  const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
-  const SETTINGS_API = `${API_BASE}/settings`
-  
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem('voyarr_jwt')
-    if (token) return { 'Authorization': `Bearer ${token}` }
-    const apiKey = localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY
-    if (apiKey) return { 'X-Voyarr-Api-Key': apiKey }
-    return {}
-  }
-
   const fetchApiKeys = async () => {
     try {
-      const res = await fetch(`${API_BASE}/apikeys`, { headers: getAuthHeaders() })
+      const res = await apiFetch('/apikeys')
       if (res.ok) setApiKeys(await res.json())
     } catch (err) { console.error('Failed to fetch API keys:', err) }
   }
 
   useEffect(() => {
-    fetch(SETTINGS_API, {
-      headers: getAuthHeaders()
-    })
+    apiFetch('/settings')
       .then(res => {
         if (!res.ok) throw new Error('Failed to fetch settings')
         return res.json()

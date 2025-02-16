@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Box, TextField, Button, Typography, Paper, CircularProgress } from '@mui/material';
+import { apiFetch, API_BASE } from '../api';
 
 export default function ScraperTester() {
   const [url, setUrl] = useState('');
@@ -9,18 +10,11 @@ export default function ScraperTester() {
   const [error, setError] = useState(null);
   const eventSourceRef = useRef(null);
 
-  const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`;
-
   const getAuthQuery = () => {
     const token = localStorage.getItem('voyarr_jwt')
     if (token) return `token=${encodeURIComponent(token)}`
-    const apiKey = localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY || ''
-    return `api_key=${encodeURIComponent(apiKey)}`
-  }
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem('voyarr_jwt')
-    if (token) return { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
-    return { 'X-Voyarr-Api-Key': localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY || '', 'Content-Type': 'application/json' }
+    const apiKey = localStorage.getItem('voyarr_api_key')
+    return `api_key=${encodeURIComponent(apiKey || '')}`
   }
 
   const handleScrape = async () => {
@@ -33,9 +27,8 @@ export default function ScraperTester() {
     setResult(null);
 
     try {
-      const res = await fetch(`${API_BASE}/external-api/scrape`, {
+      const res = await apiFetch('/external-api/scrape', {
         method: 'POST',
-        headers: getAuthHeaders(),
         body: JSON.stringify({ url, recipe_id: parseInt(recipeId, 10) })
       });
 
@@ -101,11 +94,11 @@ export default function ScraperTester() {
       <Paper sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
         <TextField label="Target URL" value={url} onChange={(e) => setUrl(e.target.value)} fullWidth />
         <TextField label="Database Recipe ID" type="number" value={recipeId} onChange={(e) => setRecipeId(e.target.value)} fullWidth />
-        
+
         <Button variant="contained" onClick={handleScrape} disabled={isBusy} startIcon={isBusy ? <CircularProgress size={20} color="inherit" /> : null}>
           {isBusy ? 'Scraping...' : 'Start Scrape'}
         </Button>
-        
+
         <Box sx={{ mt: 2 }}>
           <Typography variant="subtitle1">Status: {status}</Typography>
           {error && <Typography color="error">{error}</Typography>}

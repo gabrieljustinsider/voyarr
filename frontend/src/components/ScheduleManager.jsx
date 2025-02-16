@@ -6,16 +6,7 @@ import {
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-
-const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`;
-
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('voyarr_jwt');
-  if (token) return { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
-  const apiKey = localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY;
-  if (apiKey) return { 'X-Voyarr-Api-Key': apiKey, 'Content-Type': 'application/json' };
-  return { 'Content-Type': 'application/json' };
-};
+import apiFetch from '../api';
 
 export default function ScheduleManager() {
   const [schedules, setSchedules] = useState([]);
@@ -34,8 +25,8 @@ export default function ScheduleManager() {
   const fetchData = useCallback(async () => {
     try {
       const [schedRes, provRes] = await Promise.all([
-        fetch(`${API_BASE}/schedules`, { headers: getAuthHeaders() }),
-        fetch(`${API_BASE}/providers`, { headers: getAuthHeaders() })
+        apiFetch('/schedules'),
+        apiFetch('/providers')
       ]);
       if (schedRes.ok) setSchedules(await schedRes.json());
       if (provRes.ok) setProviders(await provRes.json());
@@ -45,10 +36,7 @@ export default function ScheduleManager() {
   }, []);
 
   useEffect(() => {
-    const init = async () => {
-      await fetchData();
-    };
-    init();
+    fetchData();
   }, [fetchData]);
 
   const handleChange = (e) => {
@@ -62,9 +50,8 @@ export default function ScheduleManager() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`${API_BASE}/schedules`, {
+      const res = await apiFetch('/schedules', {
         method: 'POST',
-        headers: getAuthHeaders(),
         body: JSON.stringify({
           ...formData,
           provider_id: formData.provider_id ? parseInt(formData.provider_id, 10) : null
@@ -89,9 +76,8 @@ export default function ScheduleManager() {
     const id = deleteConfirm.scheduleId;
     if (!id) return;
     try {
-      const res = await fetch(`${API_BASE}/schedules/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
+      const res = await apiFetch(`/schedules/${id}`, {
+        method: 'DELETE'
       });
       if (res.ok) {
         setDeleteConfirm({ open: false, scheduleId: null });
@@ -108,9 +94,8 @@ export default function ScheduleManager() {
 
   const handleToggle = async (id, currentStatus) => {
     try {
-      const res = await fetch(`${API_BASE}/schedules/${id}`, {
+      const res = await apiFetch(`/schedules/${id}`, {
         method: 'PUT',
-        headers: getAuthHeaders(),
         body: JSON.stringify({ is_active: !currentStatus })
       });
       if (res.ok) {
@@ -125,9 +110,8 @@ export default function ScheduleManager() {
 
   const handleTrigger = async (id) => {
     try {
-      const res = await fetch(`${API_BASE}/schedules/${id}/trigger`, {
-        method: 'POST',
-        headers: getAuthHeaders()
+      const res = await apiFetch(`/schedules/${id}/trigger`, {
+        method: 'POST'
       });
       if (res.ok) {
         setSnackbar({ open: true, message: 'Schedule triggered! Check the download queue shortly.', severity: 'success' });

@@ -1,21 +1,9 @@
 import { useState, useEffect } from 'react'
 import { 
   Box, Typography, TextField, Button, Paper, Grid, Snackbar, Alert, 
-  FormControl, InputLabel, Select, MenuItem, Switch, FormControlLabel, Divider, CircularProgress, Tooltip, IconButton
+  FormControl, InputLabel, Select, MenuItem, Switch, FormControlLabel, Divider, CircularProgress, Tooltip, Chip
 } from '@mui/material'
-
-const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
-const getAuthHeaders = () => {
-  const headers = { 'Content-Type': 'application/json' }
-  const token = localStorage.getItem('voyarr_jwt')
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  } else {
-    const apiKey = localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY
-    if (apiKey) headers['X-Voyarr-Api-Key'] = apiKey
-  }
-  return headers
-}
+import apiFetch from '../api'
 
 export default function PreferencesAdvanced() {
   const [providers, setProviders] = useState([])
@@ -37,12 +25,12 @@ export default function PreferencesAdvanced() {
   const [patternInfo, setPatternInfo] = useState(null)
 
   useEffect(() => {
-    fetch(`${API_BASE}/providers`, { headers: getAuthHeaders() })
+    apiFetch('/providers')
       .then(res => res.json())
       .then(data => setProviders(data))
       .catch(console.error)
       
-    fetch(`${API_BASE}/preferences/naming-patterns`, { headers: getAuthHeaders() })
+    apiFetch('/preferences/naming-patterns')
       .then(res => res.json())
       .then(data => setPatternInfo(data))
       .catch(console.error)
@@ -50,7 +38,7 @@ export default function PreferencesAdvanced() {
 
   useEffect(() => {
     if (selectedProvider) {
-      fetch(`${API_BASE}/preferences/provider/${selectedProvider}`, { headers: getAuthHeaders() })
+      apiFetch(`/preferences/provider/${selectedProvider}`)
         .then(res => res.json())
         .then(data => {
           setPrefs({
@@ -79,9 +67,8 @@ export default function PreferencesAdvanced() {
     setValidating(true)
     setValidationResult(null)
     try {
-      const res = await fetch(`${API_BASE}/preferences/validate-pattern`, {
+      const res = await apiFetch('/preferences/validate-pattern', {
         method: 'POST',
-        headers: getAuthHeaders(),
         body: JSON.stringify({ pattern: prefs.naming_pattern })
       })
       const data = await res.json()
@@ -94,9 +81,8 @@ export default function PreferencesAdvanced() {
 
   const handleSave = async () => {
     try {
-      const res = await fetch(`${API_BASE}/preferences/provider/${selectedProvider}`, {
+      const res = await apiFetch(`/preferences/provider/${selectedProvider}`, {
         method: 'POST',
-        headers: getAuthHeaders(),
         body: JSON.stringify(prefs)
       })
       if (res.ok) {

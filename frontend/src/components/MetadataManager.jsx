@@ -4,19 +4,7 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions, Alert,
   Chip, CircularProgress, FormControl, InputLabel, Select, MenuItem
 } from '@mui/material'
-
-const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
-const getAuthHeaders = (extraHeaders = {}) => {
-  const headers = { 'Content-Type': 'application/json', ...extraHeaders }
-  const token = localStorage.getItem('voyarr_jwt')
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  } else {
-    const apiKey = localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY
-    if (apiKey) headers['X-Voyarr-Api-Key'] = apiKey
-  }
-  return headers
-}
+import { apiFetch } from '../api'
 
 export default function MetadataManager() {
   const [entryId, setEntryId] = useState('')
@@ -26,7 +14,7 @@ export default function MetadataManager() {
   const [message, setMessage] = useState('')
 
   useEffect(() => {
-    fetch(`${API_BASE}/library?limit=1000`, { headers: getAuthHeaders() })
+    apiFetch('/library?limit=1000')
       .then(res => {
         if (!res.ok) throw new Error('Failed to fetch library entries')
         return res.json()
@@ -46,7 +34,7 @@ export default function MetadataManager() {
     
     setLoading(true)
     try {
-      const response = await fetch(`${API_BASE}/metadata/entry/${entryId}`, { headers: getAuthHeaders() })
+      const response = await apiFetch(`/metadata/entry/${entryId}`)
       if (response.ok) {
         const data = await response.json()
         setMetadata(data)
@@ -62,9 +50,8 @@ export default function MetadataManager() {
 
   const handleUpdateMetadata = async () => {
     try {
-      const response = await fetch(`${API_BASE}/metadata/entry/${entryId}/update`, {
+      const response = await apiFetch(`/metadata/entry/${entryId}/update`, {
         method: 'POST',
-        headers: getAuthHeaders(),
         body: JSON.stringify({
           title: metadata.title,
           performers: metadata.performers,
@@ -91,9 +78,8 @@ export default function MetadataManager() {
 
     setLoading(true)
     try {
-      const response = await fetch(`${API_BASE}/metadata/entry/${entryId}/write-to-file`, {
-        method: 'POST',
-        headers: getAuthHeaders()
+      const response = await apiFetch(`/metadata/entry/${entryId}/write-to-file`, {
+        method: 'POST'
       })
       if (response.ok) {
         const data = await response.json()
@@ -114,7 +100,7 @@ export default function MetadataManager() {
     }
     setLoading(true)
     try {
-      const settingsRes = await fetch(`${API_BASE}/settings`, { headers: getAuthHeaders() })
+      const settingsRes = await apiFetch('/settings')
       if (!settingsRes.ok) throw new Error('Failed to retrieve external API settings')
       const settings = await settingsRes.json()
       const apiKey = source === 'theporndb' ? settings.tpdb_api_key : settings.stashdb_api_key
@@ -123,9 +109,9 @@ export default function MetadataManager() {
         throw new Error(`Missing API Key for ${source}. Please configure it in the Settings tab.`)
       }
 
-      const res = await fetch(`${API_BASE}/external-api/${source}/query`, {
+      const res = await apiFetch(`/external-api/${source}/query`, {
         method: 'POST',
-        headers: getAuthHeaders({ 'X-API-Key': apiKey }),
+        headers: { 'X-API-Key': apiKey },
         body: JSON.stringify({ query: metadata.title })
       })
       const data = await res.json()

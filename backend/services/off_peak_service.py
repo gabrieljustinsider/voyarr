@@ -1,6 +1,6 @@
 from datetime import datetime
-from database import SessionLocal
 from models import Settings
+from db_utils import get_db_session
 
 
 class OffPeakService:
@@ -9,8 +9,7 @@ class OffPeakService:
         """
         Checks if the current time falls within the configured off-peak hours (e.g., '01:00-06:00').
         """
-        db = SessionLocal()
-        try:
+        with get_db_session() as db:
             setting = (
                 db.query(Settings).filter(Settings.key == "off_peak_hours").first()
             )
@@ -29,5 +28,3 @@ class OffPeakService:
                 return start_hour <= current_hour < end_hour
             else:
                 return current_hour >= start_hour or current_hour < end_hour
-        finally:
-            db.close()

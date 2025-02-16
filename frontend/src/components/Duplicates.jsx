@@ -3,16 +3,7 @@ import {
   Box, Typography, Card, CardContent, Grid, Button, 
   Alert, CircularProgress, Chip, Divider
 } from '@mui/material'
-
-const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
-
-const getAuthHeaders = () => {
-  const headers = { 'Content-Type': 'application/json' }
-  const token = localStorage.getItem('voyarr_jwt')
-  if (token) headers['Authorization'] = `Bearer ${token}`
-  else headers['X-Voyarr-Api-Key'] = localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY || ''
-  return headers
-}
+import apiFetch from '../api'
 
 export default function Duplicates() {
   const [duplicates, setDuplicates] = useState([])
@@ -22,9 +13,7 @@ export default function Duplicates() {
   const fetchDuplicates = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`${API_BASE}/duplicates`, {
-        headers: getAuthHeaders()
-      })
+      const res = await apiFetch('/duplicates')
       if (!res.ok) throw new Error('Failed to fetch duplicates')
       setDuplicates(await res.json())
     } catch (err) {
@@ -40,9 +29,8 @@ export default function Duplicates() {
 
   const handleResolve = async (dupeId, action) => {
     try {
-      const res = await fetch(`${API_BASE}/duplicates/${dupeId}/resolve`, {
+      const res = await apiFetch(`/duplicates/${dupeId}/resolve`, {
         method: 'POST',
-        headers: getAuthHeaders(),
         body: JSON.stringify({ action })
       })
       if (!res.ok) throw new Error('Failed to resolve duplicate')

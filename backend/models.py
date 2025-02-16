@@ -9,6 +9,7 @@ from sqlalchemy import (
     JSON,
     Boolean,
     ForeignKey,
+    Index,
 )
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.sql import func
@@ -32,7 +33,7 @@ class Provider(Base):
     __tablename__ = "providers"
 
     id = Column(Integer, primary_key=True)
-    name = Column(String(255), nullable=False, unique=True)
+    name = Column(String(255), nullable=False, unique=True, index=True)
     base_url = Column(String(500), nullable=False)
     naming_pattern = Column(Text)
     separator = Column(String(10), default="_")
@@ -46,7 +47,7 @@ class SiteRecipe(Base):
     __tablename__ = "site_recipes"
 
     id = Column(Integer, primary_key=True)
-    provider_id = Column(Integer, ForeignKey("providers.id"), nullable=False)
+    provider_id = Column(Integer, ForeignKey("providers.id"), nullable=False, index=True)
     css_selectors = Column(JSON)
     xpath_selectors = Column(JSON)
     regex_patterns = Column(JSON)
@@ -58,9 +59,9 @@ class Vault(Base):
 
     id = Column(Integer, primary_key=True)
     entity_type = Column(
-        String(50), nullable=False
+        String(50), nullable=False, index=True
     )  # e.g., 'credential', 'session_cookie'
-    entity_id = Column(Integer, nullable=False)
+    entity_id = Column(Integer, nullable=False, index=True)
     key = Column(
         String(100), nullable=False
     )  # e.g., 'username', 'password', 'cookie_data'
@@ -75,7 +76,7 @@ class Credential(Base):
     __tablename__ = "credentials"
 
     id = Column(Integer, primary_key=True)
-    provider_id = Column(Integer, ForeignKey("providers.id"), nullable=False)
+    provider_id = Column(Integer, ForeignKey("providers.id"), nullable=False, index=True)
     custom_limits = Column(
         JSON
     )  # Account-level custom provider limits (overrides automatic_limits)
@@ -89,13 +90,13 @@ class MediaEntry(Base):
     __tablename__ = "media_entries"
 
     id = Column(Integer, primary_key=True)
-    provider_id = Column(Integer, ForeignKey("providers.id"), nullable=False)
+    provider_id = Column(Integer, ForeignKey("providers.id"), nullable=False, index=True)
     title = Column(String(500))
     performers = Column(JSON)  # Array of strings
     tags = Column(JSON)  # Array of strings
-    ohash = Column(String(16), unique=True)
-    phash = Column(String(16))
-    site_id = Column(String(100))
+    ohash = Column(String(16), unique=True, index=True)
+    phash = Column(String(16), index=True)
+    site_id = Column(String(100), index=True)
     media_metadata = Column(JSON)
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
 
@@ -104,7 +105,7 @@ class Settings(Base):
     __tablename__ = "settings"
 
     id = Column(Integer, primary_key=True)
-    key = Column(String(255), unique=True, nullable=False)
+    key = Column(String(255), unique=True, nullable=False, index=True)
     value = Column(Text)
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
     updated_at = Column(
@@ -116,7 +117,7 @@ class LocalFile(Base):
     __tablename__ = "local_files"
 
     id = Column(Integer, primary_key=True)
-    media_entry_id = Column(Integer, ForeignKey("media_entries.id"), nullable=False)
+    media_entry_id = Column(Integer, ForeignKey("media_entries.id"), nullable=False, index=True)
     file_path = Column(Text, nullable=False)
     file_size = Column(BIGINT)
     resolution = Column(String(20))
@@ -128,9 +129,9 @@ class DownloadQueue(Base):
     __tablename__ = "download_queue"
 
     id = Column(Integer, primary_key=True)
-    media_entry_id = Column(Integer, ForeignKey("media_entries.id"), nullable=False)
+    media_entry_id = Column(Integer, ForeignKey("media_entries.id"), nullable=False, index=True)
     url = Column(Text, nullable=False)
-    status = Column(String(50), default="pending")
+    status = Column(String(50), default="pending", index=True)
     progress_percentage = Column(DECIMAL(5, 2), default=0)
     file_size = Column(BIGINT)
     speed = Column(String(20))
@@ -169,8 +170,8 @@ class LibraryEntry(Base):
     __tablename__ = "library_entries"
 
     id = Column(Integer, primary_key=True)
-    provider_id = Column(Integer, ForeignKey("providers.id"), nullable=False)
-    media_entry_id = Column(Integer, ForeignKey("media_entries.id"), nullable=True)
+    provider_id = Column(Integer, ForeignKey("providers.id"), nullable=False, index=True)
+    media_entry_id = Column(Integer, ForeignKey("media_entries.id"), nullable=True, index=True)
     title = Column(String(500), nullable=False)
     performers = Column(JSON)  # Array of performer names
     tags = Column(JSON)  # Array of tags/categories
@@ -178,9 +179,9 @@ class LibraryEntry(Base):
     file_size = Column(BIGINT)
     resolution = Column(String(20))  # e.g., "1080p", "720p", "4K"
     duration = Column(Integer)  # Duration in seconds
-    ohash = Column(String(16))  # Perceptual hash for duplicate detection
-    phash = Column(String(16))  # Perceptual hash
-    site_id = Column(String(100))  # Original source site ID
+    ohash = Column(String(16), index=True)  # Perceptual hash for duplicate detection
+    phash = Column(String(16), index=True)  # Perceptual hash
+    site_id = Column(String(100), index=True)  # Original source site ID
     entry_metadata = Column(JSON)  # Full metadata from scraping
     last_updated = Column(TIMESTAMP, default=func.current_timestamp())
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
@@ -191,16 +192,16 @@ class DuplicateEntry(Base):
 
     id = Column(Integer, primary_key=True)
     library_entry_id1 = Column(
-        Integer, ForeignKey("library_entries.id"), nullable=False
+        Integer, ForeignKey("library_entries.id"), nullable=False, index=True
     )
     library_entry_id2 = Column(
-        Integer, ForeignKey("library_entries.id"), nullable=False
+        Integer, ForeignKey("library_entries.id"), nullable=False, index=True
     )
     similarity_score = Column(DECIMAL(5, 2))  # 0-100% similarity
     reason = Column(
         String(255)
     )  # Why it's marked as duplicate (e.g., "same_hash", "similar_metadata")
-    resolved = Column(Boolean, default=False)
+    resolved = Column(Boolean, default=False, index=True)
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
 
     entry1 = relationship("LibraryEntry", foreign_keys=[library_entry_id1])
@@ -211,7 +212,7 @@ class DownloadPreference(Base):
     __tablename__ = "download_preferences"
 
     id = Column(Integer, primary_key=True)
-    provider_id = Column(Integer, ForeignKey("providers.id"), nullable=False)
+    provider_id = Column(Integer, ForeignKey("providers.id"), nullable=False, index=True)
     preferred_resolution = Column(
         String(20), default="1080p"
     )  # e.g., "1080p", "720p", "auto"
@@ -235,8 +236,8 @@ class MetadataCache(Base):
     __tablename__ = "metadata_cache"
 
     id = Column(Integer, primary_key=True)
-    site_id = Column(String(100), nullable=False, unique=True)
-    provider = Column(String(50))  # "theporndb", "stashdb", etc.
+    site_id = Column(String(100), nullable=False, unique=True, index=True)
+    provider = Column(String(50), index=True)  # "theporndb", "stashdb", etc.
     title = Column(String(500))
     performers = Column(JSON)
     tags = Column(JSON)
@@ -256,7 +257,7 @@ class ScrapeSchedule(Base):
     __tablename__ = "scrape_schedules"
 
     id = Column(Integer, primary_key=True)
-    provider_id = Column(Integer, ForeignKey("providers.id"), nullable=False)
+    provider_id = Column(Integer, ForeignKey("providers.id"), nullable=False, index=True)
     name = Column(String(255), nullable=False)
     target_url = Column(
         Text, nullable=True
@@ -265,7 +266,7 @@ class ScrapeSchedule(Base):
     action = Column(
         String(50), default="metadata_and_download"
     )  # "metadata_only", "download_only", "metadata_and_download"
-    is_active = Column(Boolean, default=True)
+    is_active = Column(Boolean, default=True, index=True)
     last_run = Column(TIMESTAMP, nullable=True)
     last_run_status = Column(String(50), nullable=True)  # e.g. 'success', 'failed'
     last_run_details = Column(Text, nullable=True)  # JSON or text details of the run
@@ -280,10 +281,10 @@ class SessionCookie(Base):
     __tablename__ = "session_cookies"
 
     id = Column(Integer, primary_key=True)
-    provider_id = Column(Integer, ForeignKey("providers.id"), nullable=True)
-    site_id = Column(String(100), nullable=True)
+    provider_id = Column(Integer, ForeignKey("providers.id"), nullable=True, index=True)
+    site_id = Column(String(100), nullable=True, index=True)
     cookie_text = Column(Text, nullable=True)
-    status = Column(String(50), default="active")
+    status = Column(String(50), default="active", index=True)
     download_limit = Column(Integer)
     downloads_used = Column(Integer, default=0)
     duration_limit_seconds = Column(Integer)
@@ -309,9 +310,9 @@ class TranscodingQueue(Base):
 
     id = Column(Integer, primary_key=True)
     library_entry_id = Column(
-        Integer, ForeignKey("library_entries.id", ondelete="CASCADE")
+        Integer, ForeignKey("library_entries.id", ondelete="CASCADE"), index=True
     )
-    status = Column(String(50), default="pending")
+    status = Column(String(50), default="pending", index=True)
     target_codec = Column(String(20), default="h265")
     target_resolution = Column(String(20), nullable=True)
     progress_percentage = Column(DECIMAL(5, 2), default=0.0)
@@ -331,7 +332,7 @@ class Webhook(Base):
     name = Column(String(255), nullable=False)
     url = Column(Text, nullable=False)
     events = Column(JSON)  # Array of event strings (e.g., 'transcode.completed')
-    is_active = Column(Boolean, default=True)
+    is_active = Column(Boolean, default=True, index=True)
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
 
 
@@ -342,7 +343,7 @@ class MediaRequest(Base):
     title = Column(String(500), nullable=False)
     url = Column(Text, nullable=True)
     status = Column(
-        String(50), default="pending"
+        String(50), default="pending", index=True
     )  # 'pending', 'approved', 'rejected', 'downloaded'
     requested_by = Column(String(255), nullable=True)
     notes = Column(Text, nullable=True)
