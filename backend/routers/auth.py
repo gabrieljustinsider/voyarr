@@ -106,7 +106,7 @@ def login_for_access_token(
         data={"sub": user.username, "role": user.role},
         expires_delta=access_token_expires,
     )
-    return {"access_token": access_token, "token_type": "bearer", "role": user.role}
+    return {"access_token": access_token, "token_type": "bearer", "role": user.role}  # nosec B105
 
 
 def get_current_user(

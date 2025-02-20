@@ -3,7 +3,7 @@ import time
 import tempfile
 import yt_dlp
 from celery import shared_task
-from models import DownloadQueue, LibraryEntry, SessionCookie, Vault
+from models import DownloadQueue, LibraryEntry, SessionCookie, Vault, Settings
 from security import decrypt_data
 from services.media_tagger import MediaTagger
 from services.hash_service import HashService
@@ -20,6 +20,15 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
 
         task.status = "running"
         db.commit()
+
+        # Fetch advanced yt-dlp integrations
+        global_settings = {s.key: s.value for s in db.query(Settings).filter(
+            Settings.key.in_([
+                "yt_write_subs", "yt_write_thumbs", "yt_sponsorblock", 
+                "yt_live_streams", "yt_native_playlists", 
+                "yt_browser_cookies", "yt_custom_format"
+            ])
+        ).all()}
 
         # Respect the custom_base_path from provider preferences, or fallback to default
         base_path = prefs_dict.get("custom_base_path")
@@ -82,13 +91,33 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
             "p", ""
         ).replace("4K", "2160").replace("8K", "4320").replace("2K", "1440")
 
+        format_str = f"bestvideo[height<={resolution_pref}]+bestaudio/best"
+        if global_settings.get("yt_custom_format"):
+            format_str = global_settings.get("yt_custom_format")
+
         ydl_opts = {
-            "format": f"bestvideo[height<={resolution_pref}]+bestaudio/best",
+            "format": format_str,
             "outtmpl": f"{base_path}/%(title)s.%(ext)s",
             "progress_hooks": [progress_hook],
             "quiet": True,
-            "noplaylist": True,
+            "noplaylist": global_settings.get("yt_native_playlists") != "true",
         }
+
+        if global_settings.get("yt_write_subs") == "true":
+            ydl_opts["writesubtitles"] = True
+            ydl_opts["writeautomaticsub"] = True
+            
+        if global_settings.get("yt_write_thumbs") == "true":
+            ydl_opts["writethumbnail"] = True
+            
+        if global_settings.get("yt_sponsorblock") == "true":
+            ydl_opts["sponsorblock_remove"] = ["all"]
+            
+        if global_settings.get("yt_live_streams") == "true":
+            ydl_opts["live_from_start"] = True
+            
+        if global_settings.get("yt_browser_cookies"):
+            ydl_opts["cookiesfrombrowser"] = (global_settings.get("yt_browser_cookies"),)
 
         cookie_temp_path = None
         active_cookie = (
@@ -173,8 +202,8 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
                     if os.path.exists(temp_file):
                         try:
                             os.remove(temp_file)
-                        except Exception:
-                            pass
+                        except Exception as rm_err:
+                            print(f"Failed to remove {temp_file}: {rm_err}")
 
             try:
                 should_retry = False
@@ -201,8 +230,8 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
                 ):
                     try:
                         os.remove(cookie_temp_path)
-                    except Exception:
-                        pass
+                    except Exception as cookie_err:
+                        print(f"Failed to remove cookie path: {cookie_err}")
                 raise self.retry(exc=e, countdown=60)
         finally:
             if (
@@ -212,5 +241,5 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
             ):
                 try:
                     os.remove(cookie_temp_path)
-                except Exception:
-                    pass
+                except Exception as cookie_err:
+                    print(f"Failed to remove cookie path: {cookie_err}")

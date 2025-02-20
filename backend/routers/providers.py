@@ -1,7 +1,9 @@
+from typing import List
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from database import get_db
 from models import Provider
+from schemas import ProviderResponse
 
 from dependencies import verify_api_key
 
@@ -10,7 +12,7 @@ router = APIRouter(
 )
 
 
-@router.get("")
+@router.get("", response_model=List[ProviderResponse])
 async def get_providers(db: Session = Depends(get_db)):
     providers = db.query(Provider).all()
     # Return a default provider if database is empty for testing purposes

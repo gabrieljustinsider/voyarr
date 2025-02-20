@@ -37,7 +37,14 @@ export default function Settings() {
     bw_session_token: '',
     bw_folder_id: '',
     pm_auto_sync_interval: 'disabled',
-    pm_sync_direction: 'pull'
+    pm_sync_direction: 'pull',
+    yt_write_subs: 'false',
+    yt_write_thumbs: 'false',
+    yt_sponsorblock: 'false',
+    yt_live_streams: 'false',
+    yt_native_playlists: 'false',
+    yt_custom_format: '',
+    yt_browser_cookies: ''
   })
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
   const [apiKeys, setApiKeys] = useState([])
@@ -68,16 +75,15 @@ export default function Settings() {
       })
       .catch(console.error)
     fetchApiKeys()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [])
 
 
 
   const handleSyncManager = async (provider, direction) => {
     try {
-      const res = await fetch(`${API_BASE}/settings/sync/${provider}`, {
+      const res = await apiFetch(`/settings/sync/${provider}`, {
         method: 'POST',
-        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ direction })
       })
       if (res.ok) {
@@ -97,12 +103,8 @@ export default function Settings() {
 
   const handleSave = async (key, value) => {
     try {
-      const res = await fetch(SETTINGS_API, {
+      const res = await apiFetch('/settings', {
         method: 'POST',
-        headers: { 
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify({ key, value: String(value) })
       })
       if (res.ok) {
@@ -116,6 +118,12 @@ export default function Settings() {
     }
   }
 
+  const handleToggleSetting = (name, checked) => {
+    const value = checked ? 'true' : 'false';
+    setSettings(prev => ({ ...prev, [name]: value }));
+    handleSave(name, value);
+  };
+
   const generateExtensionSecret = () => {
     const array = new Uint8Array(32)
     window.crypto.getRandomValues(array)
@@ -125,9 +133,8 @@ export default function Settings() {
 
   const handleCreateApiKey = async () => {
     try {
-      const res = await fetch(`${API_BASE}/apikeys`, {
+      const res = await apiFetch('/apikeys', {
         method: 'POST',
-        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newKeyName })
       })
       if (res.ok) {
@@ -152,9 +159,8 @@ export default function Settings() {
   const confirmDeleteApiKey = async () => {
     if (!deleteConfirm.keyId) return
     try {
-      await fetch(`${API_BASE}/apikeys/${deleteConfirm.keyId}`, { 
-        method: 'DELETE', 
-        headers: getAuthHeaders() 
+      await apiFetch(`/apikeys/${deleteConfirm.keyId}`, { 
+        method: 'DELETE'
       })
       setDeleteConfirm({ open: false, keyId: null })
       fetchApiKeys()
@@ -172,9 +178,8 @@ export default function Settings() {
 
   const handleCreateUser = async () => {
     try {
-      const res = await fetch(`${API_BASE}/auth/register`, {
+      const res = await apiFetch('/auth/register', {
         method: 'POST',
-        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify(newUser)
       })
       if (res.ok) {
@@ -239,6 +244,62 @@ export default function Settings() {
           </Grid>
           <Grid item xs={12} md={2}>
             <Button fullWidth variant="contained" onClick={() => handleSave('scan_folder', settings.scan_folder)}>Save</Button>
+          </Grid>
+        </Grid>
+      </Paper>
+
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>yt-dlp Advanced Integrations</Typography>
+        <Typography variant="body2" sx={{ mb: 2 }} color="textSecondary">
+          Unlock native yt-dlp features. Note: Some features may override Voyarr's default behaviors.
+        </Typography>
+        <Divider sx={{ mb: 2 }} />
+        <Grid container spacing={3} alignItems="center">
+          <Grid item xs={12} md={6}>
+            <FormControlLabel control={<Switch checked={settings.yt_write_subs === 'true'} onChange={e => handleToggleSetting('yt_write_subs', e.target.checked)} />} label="Download Subtitles" />
+            <br />
+            <FormControlLabel control={<Switch checked={settings.yt_write_thumbs === 'true'} onChange={e => handleToggleSetting('yt_write_thumbs', e.target.checked)} />} label="Download Thumbnails" />
+            <br />
+            <FormControlLabel control={<Switch checked={settings.yt_sponsorblock === 'true'} onChange={e => handleToggleSetting('yt_sponsorblock', e.target.checked)} />} label="SponsorBlock Removal" />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <FormControlLabel control={<Switch checked={settings.yt_live_streams === 'true'} onChange={e => handleToggleSetting('yt_live_streams', e.target.checked)} />} label="Live Stream Support" />
+            <br />
+            <FormControlLabel control={<Switch checked={settings.yt_native_playlists === 'true'} onChange={e => handleToggleSetting('yt_native_playlists', e.target.checked)} />} label="Native Playlist Downloading" />
+          </Grid>
+
+          <Grid item xs={12} md={10}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Native Browser Cookie Extraction</InputLabel>
+              <Select name="yt_browser_cookies" value={settings.yt_browser_cookies || ''} label="Native Browser Cookie Extraction" onChange={handleChange}>
+                <MenuItem value=""><em>Disabled</em></MenuItem>
+                <MenuItem value="chrome">Chrome</MenuItem>
+                <MenuItem value="firefox">Firefox</MenuItem>
+                <MenuItem value="edge">Edge</MenuItem>
+                <MenuItem value="opera">Opera</MenuItem>
+                <MenuItem value="safari">Safari</MenuItem>
+                <MenuItem value="brave">Brave</MenuItem>
+                <MenuItem value="vivaldi">Vivaldi</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} md={2}>
+            <Button fullWidth variant="contained" onClick={() => handleSave('yt_browser_cookies', settings.yt_browser_cookies)}>Save</Button>
+          </Grid>
+
+          <Grid item xs={12} md={10}>
+            <TextField 
+              fullWidth 
+              size="small" 
+              label="Advanced Format/Codec Selection" 
+              name="yt_custom_format" 
+              value={settings.yt_custom_format || ''} 
+              onChange={handleChange} 
+              helperText="Overrides preferred resolution. e.g., 'bestvideo[vcodec^=av1]+bestaudio/best'" 
+            />
+          </Grid>
+          <Grid item xs={12} md={2}>
+            <Button fullWidth variant="contained" onClick={() => handleSave('yt_custom_format', settings.yt_custom_format)}>Save</Button>
           </Grid>
         </Grid>
       </Paper>
