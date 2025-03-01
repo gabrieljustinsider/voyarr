@@ -18,8 +18,8 @@ RUN python -m playwright install-deps chromium
 # Copy the rest of the application
 COPY . .
 
-# Expose port
+# Expose port (Documentation only, overwritten by -p or docker-compose)
 EXPOSE 8000
 
-# Run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the application via the port-aware wrapper
+CMD ["python3", "run.py"]
