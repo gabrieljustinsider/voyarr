@@ -1,4 +1,4 @@
-from fastapi import Header, Query, HTTPException, Depends, status
+from fastapi import Header, Query, HTTPException, Depends, status, Request
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 from database import get_db
@@ -10,6 +10,7 @@ from security import JWT_SECRET, ALGORITHM
 
 
 async def verify_api_key(
+    request: Request,
     x_voyarr_api_key: str = Header(None),
     api_key: str = Query(None, alias="api_key"),
     authorization: str = Header(None),
@@ -17,23 +18,32 @@ async def verify_api_key(
 ):
     """
     Secures endpoints by requiring EITHER:
-    1. A Master API Key (X-Voyarr-Api-Key header or api_key query param)
-    2. A Scoped API Key (from the database)
-    3. A valid JWT Bearer Token (Authorization header)
+    1. A valid JWT Bearer Token (Authorization header)
+    2. A valid JWT token in an HTTP-only cookie (access_token)
+    3. A Master API Key (X-Voyarr-Api-Key header or api_key query param)
+    4. A Scoped API Key (from the database)
     """
     
-    # 1. Check for JWT first (preferred for UI usage)
+    token = None
+
+    # 1. Check for JWT in Authorization header
     if authorization and authorization.startswith("Bearer "):
         token = authorization.split(" ")[1]
+    
+    # 2. Check for JWT in cookie (Fallback for session persistence)
+    if not token:
+        token = request.cookies.get("access_token")
+
+    if token:
         try:
             payload = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
             username: str = payload.get("sub")
             if username:
                 return {"type": "jwt", "user": username, "role": payload.get("role")}
         except JWTError:
-            pass # Fallback to API Key check
+            pass # Fallback to API Key check if JWT is invalid/expired
 
-    # 2. Check for Master API Key
+    # 3. Check for Master API Key
     expected_key = os.getenv("MASTER_KEY")
     if not expected_key:
         raise HTTPException(
@@ -53,7 +63,7 @@ async def verify_api_key(
     if secrets.compare_digest(provided_key, expected_key):
         return {"type": "master_key"}
 
-    # 3. Fallback to Scoped API Keys (from database)
+    # 4. Fallback to Scoped API Keys (from database)
     try:
         from models import ApiKey
 
