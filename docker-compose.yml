@@ -23,6 +23,7 @@ services:
       - voyarr_network
 
   backend:
+    image: ghcr.io/gabrieljustinsider/voyarr-backend:latest
     build:
       context: ./backend
       network: host
@@ -49,6 +50,7 @@ services:
       - voyarr_network
 
   celery_worker:
+    image: ghcr.io/gabrieljustinsider/voyarr-backend:latest
     build:
       context: ./backend
       network: host
@@ -68,6 +70,7 @@ services:
       - voyarr_network
 
   frontend:
+    image: ghcr.io/gabrieljustinsider/voyarr-frontend:latest
     build:
       context: ./frontend
       args:
