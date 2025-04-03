@@ -40,7 +40,11 @@ services:
       - COOKIE_SAMESITE=${COOKIE_SAMESITE:-lax}
       - COOKIE_SECURE=${COOKIE_SECURE:-false}
     volumes:
-      - ${MEDIA_ROOT:-./media}:/media/storage
+      # Use host path bindings for flexible media storage
+      - ${CONFIG_ROOT:-./config}:/app/config
+      - ${MEDIA_ROOT_1:-./media}:/media/storage
+      - ${MEDIA_ROOT_2:-./media_alt1}:/media/storage_alt1
+      - ${MEDIA_ROOT_3:-./media_alt2}:/media/storage_alt2
       - ./backend:/app
     ports:
       - "${PORT:-8000}:${PORT:-8000}"
@@ -61,7 +65,10 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - MEDIA_ROOT=${MEDIA_ROOT:-/media/storage}
     volumes:
-      - ${MEDIA_ROOT:-./media}:/media/storage
+      - ${CONFIG_ROOT:-./config}:/app/config
+      - ${MEDIA_ROOT_1:-./media}:/media/storage
+      - ${MEDIA_ROOT_2:-./media_alt1}:/media/storage_alt1
+      - ${MEDIA_ROOT_3:-./media_alt2}:/media/storage_alt2
       - ./backend:/app
     depends_on:
       - db
@@ -85,6 +92,13 @@ services:
 
 volumes:
   voyarr_db_data:
+  # Placeholder for named volumes bound to host paths (uncomment to use)
+  # voyarr_media_1:
+  #   driver: local
+  #   driver_opts:
+  #     type: 'none'
+  #     o: 'bind'
+  #     device: '${MEDIA_ROOT_1:-/path/to/host/media1}'
 
 networks:
   voyarr_network:

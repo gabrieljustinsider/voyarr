@@ -91,7 +91,7 @@ def transcode_video_task(self, transcode_job_id: int):
             last_progress = 0.0
             error_log = []
 
-            for line in process.stderr:
+            for line in (process.stderr or []):
                 error_log.append(line)
                 if len(error_log) > 20:
                     error_log.pop(0)  # Keep only the last 20 lines to save memory

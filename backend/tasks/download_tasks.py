@@ -26,7 +26,7 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
             Settings.key.in_([
                 "yt_write_subs", "yt_write_thumbs", "yt_sponsorblock", 
                 "yt_live_streams", "yt_native_playlists", 
-                "yt_browser_cookies", "yt_custom_format"
+                "yt_browser_cookies", "yt_custom_format", "download_destination"
             ])
         ).all()}
 
@@ -93,7 +93,7 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
 
         format_str = f"bestvideo[height<={resolution_pref}]+bestaudio/best"
         if global_settings.get("yt_custom_format"):
-            format_str = global_settings.get("yt_custom_format")
+            format_str = str(global_settings.get("yt_custom_format"))
 
         ydl_opts = {
             "format": format_str,

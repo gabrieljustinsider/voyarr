@@ -68,7 +68,8 @@ def export_backup(
             media_type="application/json",
         )
     elif type == "full":
-        data = {
+        import typing
+        data: typing.Dict[str, typing.Any] = {
             "type": "full",
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "version": "1.0",

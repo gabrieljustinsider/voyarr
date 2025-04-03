@@ -18,7 +18,8 @@ if MASTER_KEY:
     key = base64.urlsafe_b64encode(derived_key)
     cipher = Fernet(key)
 else:
-    cipher = None
+    import typing
+    cipher: typing.Any = None
 
 # JWT & Password Hashing Configuration
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
