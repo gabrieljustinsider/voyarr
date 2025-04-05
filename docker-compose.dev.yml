@@ -1,0 +1,12 @@
+services:
+  backend:
+    build:
+      context: ./backend
+  celery_worker:
+    build:
+      context: ./backend
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8000}

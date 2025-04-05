@@ -30,3 +30,10 @@ def get_primary_root():
     """Return the primary (first) configured media root as the default fallback."""
     roots = get_media_roots()
     return roots[0] if roots else "/media/storage"
+
+def get_default_download_path():
+    """Return the default download path configured in environment or based on primary root."""
+    env_path = os.getenv("DEFAULT_DOWNLOAD_PATH")
+    if env_path:
+        return os.path.realpath(os.path.expanduser(env_path))
+    return os.path.join(get_primary_root(), "downloads")

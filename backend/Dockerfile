@@ -1,25 +1,27 @@
-FROM python:3.11-slim-bullseye
+FROM python:3.11-slim
+
+# Set environment variables for Python runtime
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
 # Install system dependencies
+# ffmpeg is strictly required for FFmpeg/Mutagen perceptual hashing (phash)
+# build-essential and libpq-dev are needed to compile psycopg2-binary
 RUN apt-get update && apt-get install -y \
-    gcc \
+    ffmpeg \
+    build-essential \
+    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
+# Install Python modules and wheels
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# Install Playwright browsers and system dependencies
-RUN python -m playwright install chromium
-RUN python -m playwright install-deps chromium
-
-# Copy the rest of the application
 COPY . .
 
-# Expose port (Documentation only, overwritten by -p or docker-compose)
+# Expose the FastAPI port and set the launch command
 EXPOSE 8000
-
-# Run the application via the port-aware wrapper
-CMD ["python3", "run.py"]
+CMD ["python", "run.py"]

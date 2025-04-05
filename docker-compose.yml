@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-voyarr_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-voyarr_password}
     volumes:
-      - voyarr_db_data:/var/lib/postgresql/data
+      - ./db/data:/var/lib/postgresql/data
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
@@ -18,24 +18,24 @@ services:
     image: redis:7-alpine
     container_name: voyarr-redis
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     networks:
       - voyarr_network
 
   backend:
     image: ghcr.io/gabrieljustinsider/voyarr-backend:latest
-    build:
-      context: ./backend
-      network: host
     container_name: voyarr-backend
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-voyarr}}
-      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
       - MEDIA_ROOT=${MEDIA_ROOT:-/media/storage}
+      - DEFAULT_DOWNLOAD_PATH=${DEFAULT_DOWNLOAD_PATH:-/media/storage/downloads}
       - MASTER_KEY=${MASTER_KEY}
       - SECRET_KEY=${SECRET_KEY}
       - HOST=${HOST:-0.0.0.0}
       - PORT=${PORT:-8000}
+      - AUTO_PORT_FALLBACK=${AUTO_PORT_FALLBACK:-false}
       - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000}
       - COOKIE_SAMESITE=${COOKIE_SAMESITE:-lax}
       - COOKIE_SECURE=${COOKIE_SECURE:-false}
@@ -45,7 +45,6 @@ services:
       - ${MEDIA_ROOT_1:-./media}:/media/storage
       - ${MEDIA_ROOT_2:-./media_alt1}:/media/storage_alt1
       - ${MEDIA_ROOT_3:-./media_alt2}:/media/storage_alt2
-      - ./backend:/app
     ports:
       - "${PORT:-8000}:${PORT:-8000}"
     depends_on:
@@ -55,21 +54,21 @@ services:
 
   celery_worker:
     image: ghcr.io/gabrieljustinsider/voyarr-backend:latest
-    build:
-      context: ./backend
-      network: host
     container_name: voyarr-celery
-    command: sh -c "mkdir -p /media/storage/logs && celery -A celery_app.celery_app worker --loglevel=info --logfile=/media/storage/logs/celery.log"
+    command: sh -c "mkdir -p /media/storage/logs && celery -A celery_app.celery_app worker --loglevel=${CELERY_LOG_LEVEL:-info} --logfile=/media/storage/logs/celery.log"
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-voyarr}}
-      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
       - MEDIA_ROOT=${MEDIA_ROOT:-/media/storage}
+      - DEFAULT_DOWNLOAD_PATH=${DEFAULT_DOWNLOAD_PATH:-/media/storage/downloads}
+      - MASTER_KEY=${MASTER_KEY}
+      - SECRET_KEY=${SECRET_KEY}
     volumes:
       - ${CONFIG_ROOT:-./config}:/app/config
       - ${MEDIA_ROOT_1:-./media}:/media/storage
       - ${MEDIA_ROOT_2:-./media_alt1}:/media/storage_alt1
       - ${MEDIA_ROOT_3:-./media_alt2}:/media/storage_alt2
-      - ./backend:/app
     depends_on:
       - db
       - redis
@@ -78,27 +77,15 @@ services:
 
   frontend:
     image: ghcr.io/gabrieljustinsider/voyarr-frontend:latest
-    build:
-      context: ./frontend
-      args:
-        - VITE_API_BASE=${API_BASE:-http://localhost:8000}
     container_name: voyarr-frontend
+    environment:
+      - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8000}
     ports:
-      - "3000:80"
+      - "${FRONTEND_PORT:-3000}:80"
     depends_on:
       - backend
     networks:
       - voyarr_network
-
-volumes:
-  voyarr_db_data:
-  # Placeholder for named volumes bound to host paths (uncomment to use)
-  # voyarr_media_1:
-  #   driver: local
-  #   driver_opts:
-  #     type: 'none'
-  #     o: 'bind'
-  #     device: '${MEDIA_ROOT_1:-/path/to/host/media1}'
 
 networks:
   voyarr_network:

@@ -1,24 +1,29 @@
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-sqlalchemy==2.0.23
-psycopg2-binary==2.9.9
-alembic==1.12.1
-pydantic==2.5.0
-python-multipart==0.0.18
-cryptography==43.0.1
-requests==2.32.3
-beautifulsoup4==4.12.2
-lxml==6.1.0
-selenium==4.15.2
-webdriver-manager==4.0.1
-ffmpeg-python==0.2.0
-mutagen==1.47.0
-python-dotenv==1.0.0
-celery==5.3.6
-redis==5.0.1
-yt-dlp==2026.02.21
-Pillow==12.2.0
-ImageHash==4.3.1
-playwright==1.40.0
-croniter==2.0.7
-PyNaCl==1.5.0
+# Web Framework & Server
+fastapi
+uvicorn[standard]
+python-multipart
+
+# Database & ORM
+sqlalchemy
+alembic
+psycopg2-binary
+
+# Task Queue
+celery
+redis
+
+# Media Processing & Hashing
+yt-dlp
+mutagen
+ffmpeg-python
+Pillow
+ImageHash
+
+# Security & Authentication
+pydantic
+pydantic-settings
+python-jose[cryptography]
+passlib[bcrypt]
+
+# Integrations & External API Requests (StashDB, 1Password, Webhooks)
+httpx

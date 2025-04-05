@@ -55,17 +55,16 @@ services:
     image: postgres:15-alpine  
     container\_name: voyarr-db  
     volumes:  
-      \- voyarr\_db\_data:/var/lib/postgresql/data  
+      \- ./db/data:/var/lib/postgresql/data  
   backend:  
-    image: voyarr-api \# Python FastAPI  
+    image: ghcr.io/gabrieljustinsider/voyarr-backend:latest
     environment:
       \- MEDIA_ROOT=/media/drive1,/media/drive2
     volumes:  
       \- /mnt/host/drive1:/media/drive1
       \- /mnt/host/drive2:/media/drive2
-      \- ./backend:/app  
   frontend:  
-    image: voyarr-ui \# PWA
+    image: ghcr.io/gabrieljustinsider/voyarr-frontend:latest
 
 ## **🛤️ Roadmap & GitHub Integration**
 
@@ -111,9 +110,9 @@ Significant feature gaps exist in the metadata synchronization layers:
 *   **Status:** Minimal implementation.
 *   **Gap:** The bot currently only supports the `/request` command. Full requirements include library searching, adding new items, and "Scrape CRUD" operations directly via Discord Slash Commands.
 
-### **4. Dashboard & Quota Visualization (#9)**
-*   **Status:** Backend tracking is active, but visual meters are missing.
-*   **Gap:** Session cookies track `downloads_used`, but there are no visual "meters" on the Dashboard or Provider list to show current usage against limits.
+### ~~**4. Dashboard & Quota Visualization (#9)**~~
+*   **Status:** Complete.
+*   **Gap:** Visual meters for quota usage are now integrated into the Dashboard and Provider list components.
 
 ### **5. WebSocket Log Streaming Enhancements (#2)**
 *   **Status:** Functional but basic.
@@ -128,5 +127,5 @@ Significant feature gaps exist in the metadata synchronization layers:
 | **AI Tagging** | ⚠️ Placeholder | Local/API Model integration |
 | **Fingerprints** | ❌ Missing | MD5/PHASH matching & submission |
 | **Discord Bot** | ⚠️ Minimal | Search/Manage library commands |
-| **Quota Meters** | ❌ Missing | Visual usage charts/meters |
+| **Quota Meters** | ✅ Complete | Visual usage charts/meters added |
 | **Biographies** | ❌ Missing | Performer profile & social sync |
