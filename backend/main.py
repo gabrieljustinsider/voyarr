@@ -28,6 +28,8 @@ from routers import (
     requests,
     discord,
     chapters,
+    deovr,
+    media,
 )
 
 # Create tables
@@ -133,6 +135,8 @@ app.include_router(webhooks.router)
 app.include_router(requests.router)
 app.include_router(discord.router)
 app.include_router(chapters.router)
+app.include_router(deovr.router)
+app.include_router(media.router)
 
 
 @app.get("/")
