@@ -1,4 +1,5 @@
 import os
+import typing
 import base64
 from cryptography.fernet import Fernet
 from dotenv import load_dotenv
@@ -9,8 +10,6 @@ from jose import jwt
 from datetime import datetime, timedelta, timezone
 
 load_dotenv()
-
-import typing
 
 MASTER_KEY = os.getenv("MASTER_KEY")
 cipher: typing.Any = None

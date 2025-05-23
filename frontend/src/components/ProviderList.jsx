@@ -4,20 +4,22 @@ import apiFetch from '../api'
 
 export default function ProviderList({ providers, onSelectProvider, searchQuery, setSearchQuery }) {
   const [cookies, setCookies] = useState([])
+  const [credentials, setCredentials] = useState([])
 
   useEffect(() => {
-    const fetchCookies = async () => {
+    const fetchData = async () => {
       try {
-        const response = await apiFetch('/cookies')
-        if (response.ok) {
-          const data = await response.json()
-          setCookies(data)
-        }
+        const [cookieRes, credRes] = await Promise.all([
+          apiFetch('/cookies'),
+          apiFetch('/credentials')
+        ])
+        if (cookieRes.ok) setCookies(await cookieRes.json())
+        if (credRes.ok) setCredentials(await credRes.json())
       } catch (error) {
-        console.error('Failed to fetch cookies for provider list:', error)
+        console.error('Failed to fetch limit data:', error)
       }
     }
-    fetchCookies()
+    fetchData()
   }, [])
 
   return (
@@ -37,7 +39,12 @@ export default function ProviderList({ providers, onSelectProvider, searchQuery,
       <Grid container spacing={3}>
         {providers.map(provider => {
           const providerCookies = cookies.filter(c => c.provider_id === provider.id)
+          const providerCred = credentials.find(c => c.provider_id === provider.id)
           
+          const accountLimit = (providerCred?.custom_limits?.daily_downloads) || (provider.automatic_limits?.daily_downloads) || 0
+          const accountUsed = providerCred?.downloads_used || 0
+          const accountPercentage = accountLimit > 0 ? Math.min((accountUsed / accountLimit) * 100, 100) : 0
+
           return (
             <Grid item xs={12} sm={6} md={4} key={provider.id}>
               <Card>
@@ -48,14 +55,26 @@ export default function ProviderList({ providers, onSelectProvider, searchQuery,
                   <Typography variant="body2" color="text.secondary" gutterBottom>
                     {provider.base_url}
                   </Typography>
-                  {provider.automatic_limits && (
-                    <Typography variant="body2" gutterBottom>
-                      Default Daily Limit: {provider.automatic_limits.daily_downloads || 'None'}
-                    </Typography>
-                  )}
+                  
+                  {/* Account Level Limit Meter */}
+                  <Box sx={{ mt: 2, mb: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                      <Typography variant="subtitle2">Account Daily Limit</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {accountLimit > 0 ? `${accountUsed} / ${accountLimit}` : `${accountUsed} / ∞`}
+                      </Typography>
+                    </Box>
+                    <LinearProgress 
+                      variant="determinate" 
+                      value={accountLimit > 0 ? accountPercentage : 100} 
+                      color={accountLimit === 0 ? 'primary' : accountPercentage >= 90 ? 'error' : accountPercentage >= 75 ? 'warning' : 'primary'}
+                      sx={{ height: 8, borderRadius: 4, ...(accountLimit === 0 && { opacity: 0.5 }) }}
+                    />
+                  </Box>
+
                   {providerCookies.length > 0 && (
                     <Box sx={{ mt: 2 }}>
-                      <Typography variant="subtitle2" gutterBottom>Active Session Quotas</Typography>
+                      <Typography variant="subtitle2" gutterBottom>Session Quotas (Cookies)</Typography>
                       {providerCookies.map(cookie => {
                         const limit = cookie.download_limit || 0;
                         const used = cookie.downloads_used || 0;
