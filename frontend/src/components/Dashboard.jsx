@@ -12,7 +12,6 @@ export default function Dashboard() {
   })
   const [cookies, setCookies] = useState([])
   const [providers, setProviders] = useState([])
-  const [credentials, setCredentials] = useState([])
 
   const fetchStats = useCallback(async () => {
     try {
@@ -22,15 +21,13 @@ export default function Dashboard() {
         setStats(data)
       }
 
-      const [cookieRes, provRes, credRes] = await Promise.all([
+      const [cookieRes, provRes] = await Promise.all([
         apiFetch('/cookies').catch(() => ({ ok: false })),
-        apiFetch('/providers').catch(() => ({ ok: false })),
-        apiFetch('/credentials').catch(() => ({ ok: false }))
+        apiFetch('/providers').catch(() => ({ ok: false }))
       ])
       
       if (cookieRes.ok) setCookies(await cookieRes.json())
       if (provRes.ok) setProviders(await provRes.json())
-      if (credRes.ok) setCredentials(await credRes.json())
     } catch (error) {
       console.error('Failed to fetch stats:', error)
     }
@@ -100,40 +97,11 @@ export default function Dashboard() {
         <Grid item xs={12}>
           <Card>
             <CardContent>
-              <Typography variant="h6" gutterBottom>Quota Usage</Typography>
-              {cookies.length === 0 && credentials.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">No quotas tracked.</Typography>
+              <Typography variant="h6" gutterBottom>Quota Usage (Session Cookies)</Typography>
+              {cookies.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">No session cookies configured.</Typography>
               ) : (
                 <Grid container spacing={3}>
-                  {/* Account Limits */}
-                  {credentials.map(cred => {
-                    const provider = providers.find(p => p.id === cred.provider_id);
-                    if (!provider) return null;
-                    const limit = (cred.custom_limits?.daily_downloads) || (provider.automatic_limits?.daily_downloads) || 0;
-                    const used = cred.downloads_used || 0;
-                    const percentage = limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
-                    const isUnlimited = limit === 0;
-
-                    return (
-                      <Grid item xs={12} md={6} key={`cred-${cred.id}`}>
-                        <Box sx={{ mb: 2 }}>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                            <Typography variant="body2">{provider.name} (Account)</Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              {isUnlimited ? `${used} / ∞` : `${used} / ${limit}`}
-                            </Typography>
-                          </Box>
-                          <LinearProgress 
-                            variant="determinate" 
-                            value={isUnlimited ? 100 : percentage} 
-                            color={isUnlimited ? 'primary' : percentage >= 90 ? 'error' : percentage >= 75 ? 'warning' : 'primary'}
-                            sx={{ height: 10, borderRadius: 5, ...(isUnlimited && { opacity: 0.5 }) }}
-                          />
-                        </Box>
-                      </Grid>
-                    )
-                  })}
-                  {/* Session Cookies */}
                   {cookies.map(cookie => {
                     const provider = providers.find(p => p.id === cookie.provider_id);
                     const limit = cookie.download_limit || 0;
@@ -142,10 +110,10 @@ export default function Dashboard() {
                     const isUnlimited = limit === 0;
                     
                     return (
-                      <Grid item xs={12} md={6} key={`cookie-${cookie.id}`}>
+                      <Grid item xs={12} md={6} key={cookie.id}>
                         <Box sx={{ mb: 2 }}>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                            <Typography variant="body2">{provider?.name || `Provider ID: ${cookie.provider_id}`} (Session)</Typography>
+                            <Typography variant="body2">{provider?.name || `Provider ID: ${cookie.provider_id}`}</Typography>
                             <Typography variant="body2" color="text.secondary">
                               {isUnlimited ? `${used} / ∞` : `${used} / ${limit}`}
                             </Typography>

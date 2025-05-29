@@ -1,6 +1,6 @@
 import os
 import asyncio
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query
 from fastapi.websockets import WebSocketState
 from dependencies import verify_api_key
 from utils import get_primary_root
@@ -9,47 +9,20 @@ router = APIRouter(
     prefix="/logs", tags=["logs"], dependencies=[Depends(verify_api_key)]
 )
 
+def _get_log_file(source: str):
+    if source not in ["celery", "fastapi"]:
+        source = "celery"
+    primary_root = get_primary_root()
+    return os.path.join(primary_root, "logs", f"{source}.log")
 
 @router.websocket("/ws")
-async def websocket_logs(websocket: WebSocket, token: str = None, api_key: str = None):
-    # Verify Authentication
-    is_authenticated = False
-    try:
-        from security import JWT_SECRET, ALGORITHM
-        from jose import jwt
-        import secrets
-
-        # 1. Check JWT Token
-        if token:
-            try:
-                jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
-                is_authenticated = True
-            except Exception:
-                pass
-
-        # 2. Check Master API Key
-        if not is_authenticated and api_key:
-            expected_key = os.getenv("MASTER_KEY")
-            if expected_key and secrets.compare_digest(api_key, expected_key):
-                is_authenticated = True
-    except Exception as e:
-        print(f"WS Auth Error: {e}")
-
-    if not is_authenticated:
-        await websocket.accept()
-        await websocket.send_text("Unauthorized: Invalid session or API key.")
-        await websocket.close(code=1008)
-        return
-
+async def websocket_logs(websocket: WebSocket, source: str = Query("celery")):
     await websocket.accept()
+    log_file = _get_log_file(source)
 
-    primary_root = get_primary_root()
-    log_file = os.path.join(
-        primary_root, "logs", "celery.log"
-    )
     if not os.path.exists(log_file):
         await websocket.send_text(
-            "Log file not found. Ensure the Celery worker has booted and generated logs.\n"
+            f"Log file not found. Ensure the {source} process has booted and generated logs.\n"
         )
         await websocket.close(code=1000)
         return
@@ -75,17 +48,13 @@ async def websocket_logs(websocket: WebSocket, token: str = None, api_key: str =
         if websocket.client_state == WebSocketState.CONNECTED:
             await websocket.close(code=1011)
 
-
 @router.get("/")
-def get_logs(lines: int = 200):
-    primary_root = get_primary_root()
-    log_file = os.path.join(
-        primary_root, "logs", "celery.log"
-    )
+def get_logs(lines: int = 200, source: str = Query("celery")):
+    log_file = _get_log_file(source)
     if not os.path.exists(log_file):
         return {
             "logs": [
-                "Log file not found. Ensure the Celery worker has booted and generated logs."
+                f"Log file not found. Ensure the {source} process has booted and generated logs."
             ]
         }
 
@@ -96,14 +65,10 @@ def get_logs(lines: int = 200):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @router.delete("/")
-def clear_logs():
-    primary_root = get_primary_root()
-    log_file = os.path.join(
-        primary_root, "logs", "celery.log"
-    )
+def clear_logs(source: str = Query("celery")):
+    log_file = _get_log_file(source)
     if os.path.exists(log_file):
         with open(log_file, "w") as f:
             f.write("")
-    return {"message": "Logs cleared"}
+    return {"message": f"{source} logs cleared"}

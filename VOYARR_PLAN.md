@@ -9,7 +9,7 @@
 * **Frontend:** React/Vue PWA (No native browser alerts; custom toasts/modals only).  
 * **Backend:** Python (FastAPI) running in Docker.  
 * **Database:** PostgreSQL (Relational metadata and history tracking).  
-* **Integration:** Stash Plugin \+ Browser Extension (Manifest v3) \+ DeoVR/XR API.  
+* **Integration:** Stash Plugin \+ Browser Extension (Manifest v3).  
 * **Security:** AES-256-GCM encryption for credentials using a RAM-only Master Key.
 
 ## **🗄️ Database Schema (PostgreSQL)**
@@ -40,7 +40,6 @@
 4. **Remote Mapping:** Browser extension "Map Mode" to visually pick CSS selectors on a live site to update Regex.  
 5. **Quality Upgrade:** Detects if a higher resolution version of a local file is available and offers redownload.  
 6. **Progress Indicators:** Inline progress bars with percentage, current size, and total size for all measurable tasks.
-7. **XR & VR Support:** Native DeoVR JSON API and metadata tags to stream 180°/360° videos directly to XR headsets.
 
 ## **🔗 Integrations**
 
@@ -48,7 +47,6 @@
 * **1Password & Bitwarden:** Securely synchronize credentials from your external password managers.
 * **Stash Plugin:** Custom scraper for Stash that uses **Voyarr** as a high-quality metadata source.  
 * **Browser Extension:** Remote control for Voyarr, progress monitor, and dynamic regex mapper.
-* **DeoVR & XR Players:** Native JSON API endpoint to serve media libraries directly to DeoVR and other compatible VR players.
 
 ## **🐳 Docker Configuration (docker-compose.yml)**
 
@@ -99,26 +97,25 @@ services:
 
 The following items represent identified feature gaps and unfinished components discovered during the v1.8.0 system audit.
 
-### **1. AI-Powered Auto-Tagging (Placeholder Only)**
-*   **Status:** Milestone 12 is marked as complete, but `backend/tasks/ai_tasks.py` contains only a functional placeholder.
-*   **Gap:** It logs "Running AI inference" and returns hardcoded tags (`["AI-Tagged", "Processed"]`). It lacks actual integration with local vision models (CLIP/LLaVA) or LLM providers for true content categorization.
+### ~~**1. AI-Powered Auto-Tagging (Placeholder Only)**~~
+*   **Status:** Complete.
+*   **Gap:** Integrated actual FFmpeg frame extraction and API calls to both local (Ollama/LLaVA) and cloud (OpenAI/GPT-4o) vision models for real-time tag generation.
 
-### **2. Deep API Integrations (ThePornDB & StashDB)**
-Significant feature gaps exist in the metadata synchronization layers:
-*   **ThePornDB (#10):** Missing rich performer biographies, actor-specific search, and support for the more efficient GraphQL endpoint.
-*   **StashDB (#11):** Lacks deterministic matching using **Fingerprints** (MD5/OSHASH/PHASH). Also missing the ability to "submit" local hashes and metadata edits back to the StashDB community via GraphQL mutations.
+### ~~**2. Deep API Integrations (ThePornDB & StashDB)**~~
+*   **Status:** Complete.
+*   **Gap:** Implemented ThePornDB GraphQL for richer performer bios/searches, and added StashDB GraphQL logic for matching and submitting fingerprints (MD5/OSHASH/PHASH).
 
-### **3. Discord Bot Expansion (#6)**
-*   **Status:** Minimal implementation.
-*   **Gap:** The bot currently only supports the `/request` command. Full requirements include library searching, adding new items, and "Scrape CRUD" operations directly via Discord Slash Commands.
+### ~~**3. Discord Bot Expansion (#6)**~~
+*   **Status:** Complete.
+*   **Gap:** Implemented `/search` to query the library, `/add` to queue approved items, and `/scrape` to trigger Celery scrape tasks via Discord Slash Commands.
 
 ### ~~**4. Dashboard & Quota Visualization (#9)**~~
 *   **Status:** Complete.
 *   **Gap:** Visual meters for quota usage are now integrated into the Dashboard and Provider list components.
 
-### **5. WebSocket Log Streaming Enhancements (#2)**
-*   **Status:** Functional but basic.
-*   **Gap:** The logic in `backend/routers/logs.py` lacks real-time filtering (log levels), keyword searching, or the ability to toggle between different log sources (Celery vs. FastAPI).
+### ~~**5. WebSocket Log Streaming Enhancements (#2)**~~
+*   **Status:** Complete.
+*   **Gap:** Real-time filtering, keyword searching, and log source toggling have been implemented.
 
 ---
 
@@ -126,8 +123,8 @@ Significant feature gaps exist in the metadata synchronization layers:
 
 | Feature | State | Missing Component |
 | :--- | :--- | :--- |
-| **AI Tagging** | ⚠️ Placeholder | Local/API Model integration |
-| **Fingerprints** | ❌ Missing | MD5/PHASH matching & submission |
-| **Discord Bot** | ⚠️ Minimal | Search/Manage library commands |
+| **AI Tagging** | ✅ Complete | Local/API Model integration added |
+| **Fingerprints** | ✅ Complete | MD5/PHASH matching & submission added |
+| **Discord Bot** | ✅ Complete | Search/Manage library commands added |
 | **Quota Meters** | ✅ Complete | Visual usage charts/meters added |
-| **Biographies** | ❌ Missing | Performer profile & social sync |
+| **Biographies** | ✅ Complete | Performer profile & social sync added via GraphQL |

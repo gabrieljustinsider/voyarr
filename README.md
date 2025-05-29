@@ -12,7 +12,7 @@ Voyarr automates the tedious parts of managing a local media library. From autom
 * **Backend:** Python (FastAPI) handling API requests.
 * **Task Queue:** Celery backed by Redis for robust, persistent download task management (using `yt-dlp`).
 * **Database:** PostgreSQL for relational metadata, local file tracking, and rule management.
-* **Integrations:** Stash Plugin + Browser Extension (Manifest V3) + DeoVR / XR Players.
+* **Integrations:** Stash Plugin + Browser Extension (Manifest V3).
 * **Credential Sync:** Native 1Password Connect and Bitwarden CLI REST integrations.
 * **Security:** AES-256-GCM encryption for credentials using a RAM-only Master Key.
 
@@ -27,7 +27,6 @@ Voyarr automates the tedious parts of managing a local media library. From autom
 7. **Multi-Drive Storage:** Spread your library across multiple hard drives seamlessly using comma-separated Docker volume mappings.
 8. **Multi-User RBAC:** Create restricted user accounts for friends and family without exposing your Master Key or admin privileges.
 9. **Remote Mapping Extension:** A Chrome browser extension with a "Map Mode" UI allowing you to click on elements on live websites to generate CSS selectors for site scraping recipes.
-10. **VR & XR Compatibility:** Native DeoVR JSON API support for streaming 180°/360° VR content directly to your headset.
 
 ## 🐳 Docker Configuration
 

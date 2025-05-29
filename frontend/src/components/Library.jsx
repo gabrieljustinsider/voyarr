@@ -9,6 +9,7 @@ import CloseIcon from '@mui/icons-material/Close'
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutlined'
 import SettingsIcon from '@mui/icons-material/Settings'
 import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted'
+import CloudUploadIcon from '@mui/icons-material/CloudUpload'
 import ChapterManager from './ChapterManager'
 import { apiFetch } from '../api'
 
@@ -34,6 +35,8 @@ export default function Library() {
   const [scanLoading, setScanLoading] = useState(false)
   const [rescanLoading, setRescanLoading] = useState(false)
   const [scanResult, setScanResult] = useState(null)
+  const [submitFingerprintLoading, setSubmitFingerprintLoading] = useState(false)
+  const [fingerprintResult, setFingerprintResult] = useState(null)
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -85,6 +88,7 @@ export default function Library() {
 
   const handleClosePlayer = () => {
     setPlayingVideo(null)
+    setFingerprintResult(null)
   }
 
   const fetchProviders = useCallback(async () => {
@@ -142,6 +146,43 @@ export default function Library() {
       window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Error: ' + e.message, severity: 'error' } }))
     }
     setRescanLoading(false)
+  }
+
+  const handleSubmitFingerprint = async () => {
+    if (!playingVideo || !playingVideo.ohash) return;
+    setSubmitFingerprintLoading(true)
+    setFingerprintResult(null)
+
+    // Using a prompt for simplicity as there isn't a global StashDB key stored in this component
+    // In a real app, this would ideally fetch the key from Settings or a dedicated Vault.
+    const key = window.prompt("Enter your StashDB API Key to submit this fingerprint:");
+    if (!key) {
+      setSubmitFingerprintLoading(false)
+      return;
+    }
+
+    try {
+      const res = await apiFetch('/external-api/stashdb/submit-fingerprint', {
+        method: 'POST',
+        headers: { 'X-API-Key': key },
+        body: JSON.stringify({
+          scene_id: playingVideo.site_id || "unknown", // assuming site_id maps to StashDB scene ID
+          hash: playingVideo.ohash,
+          algorithm: "OSHASH",
+          duration: playingVideo.duration || 0
+        })
+      })
+
+      const data = await res.json()
+      if (res.ok) {
+        setFingerprintResult({ type: 'success', message: data.message })
+      } else {
+        setFingerprintResult({ type: 'error', message: data.detail || 'Submission failed' })
+      }
+    } catch (e) {
+      setFingerprintResult({ type: 'error', message: e.message })
+    }
+    setSubmitFingerprintLoading(false)
   }
 
   const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
@@ -300,6 +341,26 @@ export default function Library() {
                 <Typography variant="body2" color="textSecondary" gutterBottom>
                   Size: {playingVideo.file_size ? (playingVideo.file_size / (1024*1024)).toFixed(1) + ' MB' : 'Unknown'}
                 </Typography>
+                {playingVideo.ohash && (
+                  <Box sx={{ mt: 2, mb: 2 }}>
+                    <Button 
+                      variant="outlined" 
+                      color="secondary" 
+                      size="small" 
+                      startIcon={<CloudUploadIcon />} 
+                      onClick={handleSubmitFingerprint}
+                      disabled={submitFingerprintLoading}
+                      fullWidth
+                    >
+                      {submitFingerprintLoading ? <CircularProgress size={20} /> : 'Submit to StashDB'}
+                    </Button>
+                    {fingerprintResult && (
+                      <Alert severity={fingerprintResult.type} sx={{ mt: 1, p: 0.5, '& .MuiAlert-message': { fontSize: '0.75rem' } }}>
+                        {fingerprintResult.message}
+                      </Alert>
+                    )}
+                  </Box>
+                )}
 
                 <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>Performers</Typography>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 2 }}>
