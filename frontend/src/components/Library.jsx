@@ -38,6 +38,13 @@ export default function Library() {
   const [submitFingerprintLoading, setSubmitFingerprintLoading] = useState(false)
   const [fingerprintResult, setFingerprintResult] = useState(null)
 
+  // Performer Profile Modal State
+  const [performerProfileOpen, setPerformerProfileOpen] = useState(false)
+  const [selectedPerformer, setSelectedPerformer] = useState('')
+  const [performerProfileLoading, setPerformerProfileLoading] = useState(false)
+  const [performerProfileError, setPerformerProfileError] = useState(null)
+  const [performerDetails, setPerformerDetails] = useState(null)
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedFilters(filters)
@@ -153,12 +160,23 @@ export default function Library() {
     setSubmitFingerprintLoading(true)
     setFingerprintResult(null)
 
-    // Using a prompt for simplicity as there isn't a global StashDB key stored in this component
-    // In a real app, this would ideally fetch the key from Settings or a dedicated Vault.
-    const key = window.prompt("Enter your StashDB API Key to submit this fingerprint:");
+    let key = '';
+    try {
+      const settingsRes = await apiFetch('/settings')
+      if (settingsRes.ok) {
+        const settingsData = await settingsRes.json()
+        key = settingsData.stashdb_api_key || ''
+      }
+    } catch (err) {
+      console.error('Failed to retrieve settings for StashDB API Key:', err)
+    }
+
     if (!key) {
-      setSubmitFingerprintLoading(false)
-      return;
+      key = window.prompt("Enter your StashDB API Key to submit this fingerprint:");
+      if (!key) {
+        setSubmitFingerprintLoading(false)
+        return;
+      }
     }
 
     try {
@@ -183,6 +201,52 @@ export default function Library() {
       setFingerprintResult({ type: 'error', message: e.message })
     }
     setSubmitFingerprintLoading(false)
+  }
+
+  const handleOpenPerformerProfile = async (name) => {
+    setSelectedPerformer(name)
+    setPerformerProfileOpen(true)
+    setPerformerProfileLoading(true)
+    setPerformerProfileError(null)
+    setPerformerDetails(null)
+
+    try {
+      const settingsRes = await apiFetch('/settings')
+      if (!settingsRes.ok) throw new Error('Failed to retrieve external API settings')
+      const settings = await settingsRes.json()
+      const apiKey = settings.tpdb_api_key
+
+      if (!apiKey) {
+        throw new Error('Missing ThePornDB API Key. Please configure it in the Settings tab.')
+      }
+
+      const res = await apiFetch('/external-api/theporndb/performer', {
+        method: 'POST',
+        headers: {
+          'X-API-Key': apiKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ name })
+      })
+
+      if (!res.ok) throw new Error('Failed to fetch performer details from ThePornDB')
+      const data = await res.json()
+      
+      if (data.results && data.results.length > 0) {
+        const exactMatch = data.results.find(p => p.name?.toLowerCase() === name.toLowerCase()) || data.results[0]
+        setPerformerDetails(exactMatch)
+      } else {
+        setPerformerDetails({
+          name: name,
+          bio: "No biography details found for this performer."
+        })
+      }
+    } catch (err) {
+      console.error(err)
+      setPerformerProfileError(err.message)
+    } finally {
+      setPerformerProfileLoading(false)
+    }
   }
 
   const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
@@ -365,7 +429,17 @@ export default function Library() {
                 <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>Performers</Typography>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 2 }}>
                   {playingVideo.performers?.length > 0 ? (
-                    playingVideo.performers.map(p => <Chip key={p} label={p} size="small" color="primary" variant="outlined" />)
+                    playingVideo.performers.map(p => (
+                      <Chip 
+                        key={p} 
+                        label={p} 
+                        size="small" 
+                        color="primary" 
+                        variant="outlined" 
+                        onClick={() => handleOpenPerformerProfile(p)}
+                        sx={{ cursor: 'pointer', '&:hover': { backgroundColor: 'rgba(255, 152, 0, 0.1)', borderColor: 'warning.main' } }}
+                      />
+                    ))
                   ) : <Typography variant="body2" color="textSecondary">None</Typography>}
                 </Box>
 
@@ -386,6 +460,134 @@ export default function Library() {
         </DialogContent>
       </Dialog>
       <ChapterManager open={!!managingChaptersFor} onClose={() => setManagingChaptersFor(null)} libraryEntry={managingChaptersFor} />
+
+      {/* Performer Profile Dialog */}
+      <Dialog 
+        open={performerProfileOpen} 
+        onClose={() => setPerformerProfileOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            backgroundColor: '#141414',
+            backgroundImage: 'radial-gradient(circle at 10% 20%, rgba(255, 152, 0, 0.05) 0%, transparent 40%)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: '16px',
+            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.5)',
+            color: '#fff'
+          }
+        }}
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1, borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
+          <Typography variant="h5" sx={{ fontWeight: '700', letterSpacing: '0.5px' }}>
+            Performer Profile: {selectedPerformer}
+          </Typography>
+          <Button onClick={() => setPerformerProfileOpen(false)} sx={{ color: 'text.secondary' }}>Close</Button>
+        </DialogTitle>
+        <DialogContent sx={{ mt: 2 }}>
+          {performerProfileLoading ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 8, gap: 2 }}>
+              <CircularProgress color="warning" />
+              <Typography variant="body2" color="textSecondary">Fetching biography & physical traits...</Typography>
+            </Box>
+          ) : performerProfileError ? (
+            <Alert severity="error" variant="outlined" sx={{ my: 2 }}>
+              {performerProfileError}
+            </Alert>
+          ) : performerDetails ? (
+            <Grid container spacing={4}>
+              {/* Left Column: Avatar & Quick Info */}
+              <Grid item xs={12} md={4} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                <Box 
+                  component="img"
+                  src={performerDetails.image || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&h=300&fit=crop&q=80"}
+                  alt={performerDetails.name}
+                  sx={{
+                    width: '100%',
+                    maxWidth: 240,
+                    aspectRatio: '1/1',
+                    objectFit: 'cover',
+                    borderRadius: '12px',
+                    border: '2px solid rgba(255, 152, 0, 0.5)',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+                    transition: 'transform 0.3s ease',
+                    '&:hover': {
+                      transform: 'scale(1.03)'
+                    }
+                  }}
+                />
+                
+                {/* Physical traits */}
+                <Paper sx={{ width: '100%', p: 2, backgroundColor: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.05)', borderRadius: '8px' }}>
+                  <Typography variant="subtitle2" sx={{ color: 'warning.main', fontWeight: '600', mb: 1.5 }}>
+                    Physical Details
+                  </Typography>
+                  <Grid container spacing={1}>
+                    <Grid item xs={6}>
+                      <Typography variant="caption" color="textSecondary">Gender</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: '500' }}>{performerDetails.gender || 'N/A'}</Typography>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Typography variant="caption" color="textSecondary">Cup Size</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: '500' }}>{performerDetails.cup_size || 'N/A'}</Typography>
+                    </Grid>
+                    <Grid item xs={12} sx={{ mt: 1 }}>
+                      <Typography variant="caption" color="textSecondary">Measurements</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: '500' }}>{performerDetails.measurements || 'N/A'}</Typography>
+                    </Grid>
+                  </Grid>
+                </Paper>
+              </Grid>
+
+              {/* Right Column: Bio & Aliases */}
+              <Grid item xs={12} md={8} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {performerDetails.aliases && performerDetails.aliases.length > 0 && (
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ color: 'warning.main', fontWeight: '600', mb: 1 }}>
+                      Aliases / Known As
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {(Array.isArray(performerDetails.aliases) ? performerDetails.aliases : [performerDetails.aliases]).map(alias => (
+                        <Chip key={alias} label={alias} size="small" variant="outlined" sx={{ borderColor: 'rgba(255, 255, 255, 0.15)', color: 'text.secondary' }} />
+                      ))}
+                    </Box>
+                  </Box>
+                )}
+
+                <Box>
+                  <Typography variant="subtitle2" sx={{ color: 'warning.main', fontWeight: '600', mb: 1 }}>
+                    Biography
+                  </Typography>
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      lineHeight: '1.6', 
+                      color: 'rgba(255,255,255,0.85)',
+                      maxHeight: '260px',
+                      overflowY: 'auto',
+                      pr: 1,
+                      whiteSpace: 'pre-line',
+                      '&::-webkit-scrollbar': {
+                        width: '6px'
+                      },
+                      '&::-webkit-scrollbar-thumb': {
+                        backgroundColor: 'rgba(255,255,255,0.1)',
+                        borderRadius: '3px'
+                      }
+                    }}
+                  >
+                    {performerDetails.bio || "No biography details available."}
+                  </Typography>
+                </Box>
+              </Grid>
+            </Grid>
+          ) : (
+            <Typography variant="body2" color="textSecondary" align="center" sx={{ py: 4 }}>
+              No profile details loaded.
+            </Typography>
+          )}
+        </DialogContent>
+      </Dialog>
     </Box>
   )
 }

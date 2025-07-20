@@ -44,7 +44,8 @@ export default function Settings() {
     yt_live_streams: 'false',
     yt_native_playlists: 'false',
     yt_custom_format: '',
-    yt_browser_cookies: ''
+    yt_browser_cookies: '',
+    discord_allowed_users: ''
   })
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
   const [apiKeys, setApiKeys] = useState([])
@@ -346,6 +347,26 @@ export default function Settings() {
           </Grid>
           <Grid item xs={12} md={2}>
             <Button fullWidth variant="contained" onClick={() => handleSave('stashdb_api_key', settings.stashdb_api_key)}>Save</Button>
+          </Grid>
+        </Grid>
+      </Paper>
+
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>Discord Webhook Security</Typography>
+        <Divider sx={{ mb: 2 }} />
+        <Grid container spacing={3} alignItems="center">
+          <Grid item xs={12} md={10}>
+            <TextField 
+              fullWidth 
+              label="Allowed Discord User IDs" 
+              name="discord_allowed_users" 
+              value={settings.discord_allowed_users || ''} 
+              onChange={handleChange} 
+              helperText="Comma-separated list of Discord user IDs allowed to run slash commands. If empty, all users are authorized." 
+            />
+          </Grid>
+          <Grid item xs={12} md={2}>
+            <Button fullWidth variant="contained" onClick={() => handleSave('discord_allowed_users', settings.discord_allowed_users)}>Save</Button>
           </Grid>
         </Grid>
       </Paper>

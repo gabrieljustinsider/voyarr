@@ -5,6 +5,7 @@ import requests
 import json
 import logging
 from celery import shared_task
+from celery.exceptions import MaxRetriesExceededError
 from models import LibraryEntry, Settings
 from services.webhook_service import WebhookService
 from db_utils import get_db_session
@@ -40,7 +41,7 @@ def extract_frame_base64(file_path: str) -> str:
         logger.error(f"Failed to extract frame from {file_path}: {e}")
         return ""
 
-def call_ollama_vision(base64_img: str, url: str) -> list[str]:
+def call_ollama_vision(base64_img: str, url: str, raise_on_error: bool = False) -> list[str]:
     """Calls a local Ollama instance with LLaVA to get tags."""
     try:
         payload = {
@@ -56,9 +57,11 @@ def call_ollama_vision(base64_img: str, url: str) -> list[str]:
         return tags[:5]
     except Exception as e:
         logger.error(f"Ollama Vision API error: {e}")
+        if raise_on_error:
+            raise
         return []
 
-def call_openai_vision(base64_img: str, api_key: str) -> list[str]:
+def call_openai_vision(base64_img: str, api_key: str, raise_on_error: bool = False) -> list[str]:
     """Calls OpenAI GPT-4o to get tags."""
     try:
         headers = {
@@ -93,13 +96,12 @@ def call_openai_vision(base64_img: str, api_key: str) -> list[str]:
         return tags[:5]
     except Exception as e:
         logger.error(f"OpenAI Vision API error: {e}")
+        if raise_on_error:
+            raise
         return []
 
 @shared_task(
     bind=True,
-    autoretry_for=(requests.exceptions.RequestException, requests.exceptions.Timeout),
-    retry_backoff=True,
-    retry_backoff_max=300,  # max 5 minutes between retries
     max_retries=5
 )
 def auto_tag_video_task(self, library_entry_id: int):
@@ -125,16 +127,29 @@ def auto_tag_video_task(self, library_entry_id: int):
             base64_frame = extract_frame_base64(entry.file_path)
             
             if base64_frame:
-                if ollama_url and ollama_url.value:
-                    logger.info("Using local Ollama Vision model (LLaVA)")
-                    detected_tags = call_ollama_vision(base64_frame, ollama_url.value)
-                elif openai_key and openai_key.value:
-                    logger.info("Using OpenAI Vision model")
-                    detected_tags = call_openai_vision(base64_frame, openai_key.value)
+                try:
+                    if ollama_url and ollama_url.value:
+                        logger.info("Using local Ollama Vision model (LLaVA)")
+                        detected_tags = call_ollama_vision(base64_frame, ollama_url.value, raise_on_error=True)
+                    elif openai_key and openai_key.value:
+                        logger.info("Using OpenAI Vision model")
+                        detected_tags = call_openai_vision(base64_frame, openai_key.value, raise_on_error=True)
+                except (requests.exceptions.RequestException, requests.exceptions.Timeout) as exc:
+                    try:
+                        # Exponential backoff countdown
+                        countdown = 2 ** self.request.retries
+                        logger.warning(
+                            f"AI service request failed: {exc}. "
+                            f"Retrying task in {countdown}s (Attempt {self.request.retries + 1}/{self.max_retries})"
+                        )
+                        raise self.retry(exc=exc, countdown=countdown)
+                    except MaxRetriesExceededError:
+                        logger.error("Max retries exceeded for AI auto-tagging. Applying fallback tags.")
+                        # Fallback is handled below because detected_tags remains empty []
 
-        # Fallback if no models are configured or extraction failed
+        # Fallback if no models are configured, extraction failed, or max retries exceeded
         if not detected_tags:
-            logger.info("No AI configuration found or inference failed. Applying fallback tags.")
+            logger.info("Applying fallback tags due to missing configuration or service error.")
             detected_tags = ["AI-Tagged", "Processed"]
 
         existing_tags = entry.tags or []
@@ -146,3 +161,4 @@ def auto_tag_video_task(self, library_entry_id: int):
             "ai_tagging.completed",
             {"library_entry_id": entry.id, "new_tags": detected_tags},
         )
+

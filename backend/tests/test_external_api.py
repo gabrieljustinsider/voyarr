@@ -10,8 +10,15 @@ sys.modules['services.scraper'] = MagicMock()
 sys.modules['croniter'] = MagicMock()
 
 from main import app
+from dependencies import verify_api_key
+
+def override_verify_api_key():
+    return {"type": "master_key"}
+
+app.dependency_overrides[verify_api_key] = override_verify_api_key
 
 client = TestClient(app)
+
 
 @patch("routers.external_api.requests.post")
 def test_theporndb_query_graphql(mock_post):
@@ -125,3 +132,27 @@ def test_stashdb_query_fingerprint(mock_post):
     call_kwargs = mock_post.call_args.kwargs
     assert "fingerprints" in call_kwargs["json"]["query"]
     assert call_kwargs["json"]["variables"]["hash"] == "abcdef123456"
+
+
+def test_stashdb_submit_fingerprint():
+    # Test without API Key
+    response = client.post(
+        "/external-api/stashdb/submit-fingerprint",
+        json={"scene_id": "stash-123", "hash": "abcdef123456", "algorithm": "OSHASH", "duration": 120}
+    )
+    assert response.status_code == 400
+    assert "Missing StashDB API Key" in response.json()["detail"]
+
+    # Test with API Key
+    response = client.post(
+        "/external-api/stashdb/submit-fingerprint",
+        json={"scene_id": "stash-123", "hash": "abcdef123456", "algorithm": "OSHASH", "duration": 120},
+        headers={"x-api-key": "testkey"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "Successfully submitted" in data["message"]
+    assert "OSHASH" in data["message"]
+    assert "abcdef123456" in data["message"]
+    assert "stash-123" in data["message"]
+
