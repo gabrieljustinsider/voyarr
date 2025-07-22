@@ -138,3 +138,9 @@ app.include_router(chapters.router)
 @app.get("/")
 async def root():
     return {"message": "Voyarr API"}
+
+
+@app.get("/health")
+async def health():
+    return {"status": "healthy"}
+
