@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from nacl.signing import VerifyKey
 from nacl.exceptions import BadSignatureError
 from database import get_db
-from models import MediaRequest, LibraryEntry, DownloadQueue, Settings
+from models import MediaRequest, LibraryEntry, Settings
 from tasks.scrape_tasks import scrape_url_task
 
 router = APIRouter(prefix="/discord", tags=["discord"])

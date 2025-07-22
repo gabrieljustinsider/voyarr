@@ -7,7 +7,7 @@ from models import DownloadQueue, LibraryEntry, SessionCookie, Vault, Settings
 from security import decrypt_data
 from services.media_tagger import MediaTagger
 from services.hash_service import HashService
-from utils import get_media_roots, get_primary_root, get_default_download_path
+from utils import get_media_roots, get_default_download_path
 from db_utils import get_db_session
 
 

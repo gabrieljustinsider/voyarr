@@ -1,17 +1,314 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Voyarr Remote</title>
+  <meta charset="utf-8">
+  <title>Voyarr Companion</title>
   <style>
-    body { width: 250px; font-family: sans-serif; padding: 10px; }
-    button { width: 100%; padding: 10px; cursor: pointer; background: #1976d2; color: white; border: none; border-radius: 4px; }
-    #result { margin-top: 10px; font-size: 12px; word-break: break-all; }
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+    
+    :root {
+      --bg-primary: #0b0f19;
+      --bg-secondary: #161c2d;
+      --accent: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+      --accent-hover: linear-gradient(135deg, #4f46e5 0%, #9333ea 100%);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-color: rgba(99, 102, 241, 0.15);
+      --success: #10b981;
+      --error: #ef4444;
+    }
+
+    body {
+      width: 320px;
+      margin: 0;
+      padding: 0;
+      font-family: 'Outfit', sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      box-sizing: border-box;
+      overflow-x: hidden;
+    }
+
+    /* Container */
+    .container {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 12px;
+    }
+
+    .header-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin: 0;
+      background: var(--accent);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 0.5px;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 500;
+      background-color: rgba(255, 255, 255, 0.05);
+      padding: 4px 8px;
+      border-radius: 9999px;
+      border: 1px solid var(--border-color);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--text-muted);
+      box-shadow: 0 0 8px var(--text-muted);
+      transition: background-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .status-dot.connected {
+      background-color: var(--success);
+      box-shadow: 0 0 8px var(--success);
+    }
+
+    .status-dot.disconnected {
+      background-color: var(--error);
+      box-shadow: 0 0 8px var(--error);
+    }
+
+    /* Navigation Tabs */
+    .tabs {
+      display: flex;
+      background-color: var(--bg-secondary);
+      border-radius: 8px;
+      padding: 2px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .tab-btn {
+      flex: 1;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      padding: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+
+    .tab-btn.active {
+      background: var(--accent);
+      color: var(--text-main);
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+    }
+
+    /* Content Area */
+    .tab-content {
+      display: none;
+      flex-direction: column;
+      gap: 14px;
+      animation: fadeIn 0.25s ease;
+    }
+
+    .tab-content.active {
+      display: flex;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Forms & Inputs */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      letter-spacing: 0.2px;
+    }
+
+    input, select {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      color: var(--text-main);
+      padding: 10px 12px;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      font-family: inherit;
+    }
+
+    input:focus, select:focus {
+      border-color: #a855f7;
+      box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.2);
+    }
+
+    /* Buttons */
+    .btn {
+      background: var(--accent);
+      border: none;
+      color: var(--text-main);
+      padding: 11px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: inherit;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+    }
+
+    .btn:hover {
+      box-shadow: 0 6px 16px rgba(99, 102, 241, 0.3);
+      transform: translateY(-1px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.08);
+      box-shadow: none;
+    }
+
+    /* Result Info Box */
+    .info-box {
+      background-color: var(--bg-secondary);
+      border-radius: 8px;
+      padding: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .info-box-title {
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 6px;
+    }
+
+    .info-box-content {
+      color: var(--text-muted);
+      word-break: break-all;
+    }
+
+    .toast-msg {
+      font-size: 11px;
+      text-align: center;
+      padding: 4px;
+      border-radius: 4px;
+      display: none;
+    }
+    
+    .toast-success {
+      background-color: rgba(16, 185, 129, 0.1);
+      color: var(--success);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+    
+    .toast-error {
+      background-color: rgba(239, 68, 68, 0.1);
+      color: var(--error);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
   </style>
 </head>
 <body>
-  <h3>Voyarr Map Mode</h3>
-  <button id="toggleBtn">Enable Map Mode</button>
-  <div id="result"></div>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <h3 class="header-title">VOYARR</h3>
+      <div class="status-badge">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">Checking...</span>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="map-tab">Remote Map</button>
+      <button class="tab-btn" data-tab="settings-tab">Settings</button>
+    </div>
+
+    <!-- Map Tab -->
+    <div class="tab-content active" id="map-tab">
+      <div class="form-group">
+        <label for="providerSelect">Target Provider</label>
+        <select id="providerSelect">
+          <option value="">-- Load Providers in Settings --</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="fieldSelect">Mapping Field</label>
+        <select id="fieldSelect">
+          <option value="title">Title Selector</option>
+          <option value="performers">Performers Selector</option>
+          <option value="tags">Tags Selector</option>
+          <option value="resolution">Resolution Selector</option>
+        </select>
+      </div>
+
+      <button id="toggleBtn" class="btn">Enable Map Mode</button>
+
+      <div class="info-box" id="selectorPreview" style="display: none;">
+        <div class="info-box-title">Selected Selector</div>
+        <div class="info-box-content" id="selectorVal">None yet</div>
+      </div>
+
+      <button id="saveBtn" class="btn btn-secondary" style="display: none;">Save to Voyarr</button>
+      <div id="mapToast" class="toast-msg"></div>
+    </div>
+
+    <!-- Settings Tab -->
+    <div class="tab-content" id="settings-tab">
+      <div class="form-group">
+        <label for="apiUrlInput">Voyarr Server URL</label>
+        <input type="text" id="apiUrlInput" placeholder="http://localhost:8000" />
+      </div>
+
+      <div class="form-group">
+        <label for="apiKeyInput">Master API Key</label>
+        <input type="password" id="apiKeyInput" placeholder="Enter API / Master Key" />
+      </div>
+
+      <button id="saveSettingsBtn" class="btn">Save & Test Connection</button>
+      <div id="settingsToast" class="toast-msg"></div>
+    </div>
+  </div>
+
   <script src="popup.js"></script>
 </body>
 </html>

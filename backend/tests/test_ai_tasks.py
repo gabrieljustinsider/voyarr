@@ -88,10 +88,6 @@ def test_auto_tag_video_task_success(mock_webhook, mock_call_ollama, mock_extrac
         mock_ollama_url,  # second call for ai_ollama_url
         mock_openai_key   # third call for ai_openai_key
     ]
-    
-    # Instantiate self mock for bind=True Celery task
-    self_mock = MagicMock()
-    
     # Run the task
     auto_tag_video_task.run(42)
     

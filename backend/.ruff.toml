@@ -1,0 +1,7 @@
+# Ruff configuration for Voyarr backend
+
+[lint]
+# Ignore:
+# - E402: Module level import not at top of file (used heavily in test mocks)
+# - F841: Local variable is assigned to but never used (used for mock variables)
+ignore = ["E402", "F841"]

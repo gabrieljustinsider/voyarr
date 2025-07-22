@@ -16,6 +16,8 @@ celery_app = Celery(
         "tasks.duplicate_tasks",
         "tasks.transcode_tasks",
         "tasks.ai_tasks",
+        "tasks.scrape_tasks",
+        "tasks.scanner_tasks",
     ],
 )
 

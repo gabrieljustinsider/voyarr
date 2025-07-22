@@ -14,7 +14,7 @@ CREATE TABLE providers (
 -- Site recipes table
 CREATE TABLE site_recipes (
     id SERIAL PRIMARY KEY,
-    provider_id INTEGER REFERENCES providers(id) ON DELETE CASCADE,
+    provider_id INTEGER NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
     css_selectors JSONB,
     xpath_selectors JSONB,
     regex_patterns JSONB,
@@ -24,7 +24,7 @@ CREATE TABLE site_recipes (
 -- Credentials table (encrypted)
 CREATE TABLE credentials (
     id SERIAL PRIMARY KEY,
-    provider_id INTEGER REFERENCES providers(id) ON DELETE CASCADE,
+    provider_id INTEGER NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
     custom_limits JSONB,
     sync_source VARCHAR(50) DEFAULT 'manual',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -33,7 +33,7 @@ CREATE TABLE credentials (
 -- Media entries table
 CREATE TABLE media_entries (
     id SERIAL PRIMARY KEY,
-    provider_id INTEGER REFERENCES providers(id) ON DELETE CASCADE,
+    provider_id INTEGER NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
     title VARCHAR(500),
     performers JSONB,
     tags JSONB,
@@ -47,7 +47,7 @@ CREATE TABLE media_entries (
 -- Local files table
 CREATE TABLE local_files (
     id SERIAL PRIMARY KEY,
-    media_entry_id INTEGER REFERENCES media_entries(id) ON DELETE CASCADE,
+    media_entry_id INTEGER NOT NULL REFERENCES media_entries(id) ON DELETE CASCADE,
     file_path TEXT NOT NULL,
     file_size BIGINT,
     resolution VARCHAR(20),
@@ -58,7 +58,7 @@ CREATE TABLE local_files (
 -- Download queue table
 CREATE TABLE download_queue (
     id SERIAL PRIMARY KEY,
-    media_entry_id INTEGER REFERENCES media_entries(id) ON DELETE CASCADE,
+    media_entry_id INTEGER NOT NULL REFERENCES media_entries(id) ON DELETE CASCADE,
     url TEXT NOT NULL,
     status VARCHAR(50) DEFAULT 'pending',
     progress_percentage DECIMAL(5,2) DEFAULT 0,
@@ -92,7 +92,7 @@ CREATE TABLE download_rules (
 -- Library entries table
 CREATE TABLE library_entries (
     id SERIAL PRIMARY KEY,
-    provider_id INTEGER REFERENCES providers(id) ON DELETE CASCADE,
+    provider_id INTEGER NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
     media_entry_id INTEGER REFERENCES media_entries(id),
     title VARCHAR(500) NOT NULL,
     performers JSONB,
@@ -112,8 +112,8 @@ CREATE TABLE library_entries (
 -- Duplicate entries table
 CREATE TABLE duplicate_entries (
     id SERIAL PRIMARY KEY,
-    library_entry_id1 INTEGER REFERENCES library_entries(id) ON DELETE CASCADE,
-    library_entry_id2 INTEGER REFERENCES library_entries(id) ON DELETE CASCADE,
+    library_entry_id1 INTEGER NOT NULL REFERENCES library_entries(id) ON DELETE CASCADE,
+    library_entry_id2 INTEGER NOT NULL REFERENCES library_entries(id) ON DELETE CASCADE,
     similarity_score DECIMAL(5,2),
     reason VARCHAR(255),
     resolved BOOLEAN DEFAULT FALSE,
@@ -123,7 +123,7 @@ CREATE TABLE duplicate_entries (
 -- Download preferences table
 CREATE TABLE download_preferences (
     id SERIAL PRIMARY KEY,
-    provider_id INTEGER REFERENCES providers(id) ON DELETE CASCADE,
+    provider_id INTEGER NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
     preferred_resolution VARCHAR(20) DEFAULT '1080p',
     naming_pattern TEXT DEFAULT '{title}_{performers}_{resolution}',
     append_metadata BOOLEAN DEFAULT TRUE,
@@ -176,7 +176,8 @@ CREATE TABLE vault (
     key VARCHAR(100) NOT NULL,
     encrypted_value TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uix_vault_entity_key UNIQUE (entity_type, entity_id, key)
 );
 
 -- Settings table
@@ -191,7 +192,7 @@ CREATE TABLE settings (
 -- Scrape schedules table
 CREATE TABLE scrape_schedules (
     id SERIAL PRIMARY KEY,
-    provider_id INTEGER REFERENCES providers(id) ON DELETE CASCADE,
+    provider_id INTEGER NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     target_url TEXT,
     cron_expression VARCHAR(100) NOT NULL,
@@ -203,6 +204,16 @@ CREATE TABLE scrape_schedules (
     next_run TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Users table
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(50) DEFAULT 'user',
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- API Keys table
@@ -227,6 +238,18 @@ CREATE TABLE transcoding_queue (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Video chapters table
+CREATE TABLE video_chapters (
+    id SERIAL PRIMARY KEY,
+    library_entry_id INTEGER NOT NULL REFERENCES library_entries(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    start_time INTEGER NOT NULL,
+    end_time INTEGER,
+    tags JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Webhooks table
 CREATE TABLE webhooks (
     id SERIAL PRIMARY KEY,
@@ -237,11 +260,52 @@ CREATE TABLE webhooks (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Media requests table
+CREATE TABLE media_requests (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(500) NOT NULL,
+    url TEXT,
+    status VARCHAR(50) DEFAULT 'pending',
+    requested_by VARCHAR(255),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Indexes for performance
+CREATE INDEX idx_users_username ON users(username);
+CREATE INDEX idx_providers_name ON providers(name);
+CREATE INDEX idx_site_recipes_provider_id ON site_recipes(provider_id);
+CREATE INDEX idx_vault_entity_type ON vault(entity_type);
+CREATE INDEX idx_vault_entity_id ON vault(entity_id);
+CREATE INDEX idx_credentials_provider_id ON credentials(provider_id);
+CREATE INDEX idx_media_requests_status ON media_requests(status);
+CREATE INDEX idx_video_chapters_library_entry_id ON video_chapters(library_entry_id);
+CREATE INDEX idx_media_entries_provider_id ON media_entries(provider_id);
 CREATE INDEX idx_media_entries_ohash ON media_entries(ohash);
 CREATE INDEX idx_media_entries_phash ON media_entries(phash);
+CREATE INDEX idx_media_entries_site_id ON media_entries(site_id);
+CREATE INDEX idx_local_files_media_entry_id ON local_files(media_entry_id);
 CREATE INDEX idx_local_files_path ON local_files(file_path);
+CREATE INDEX idx_download_queue_media_entry_id ON download_queue(media_entry_id);
 CREATE INDEX idx_download_queue_status ON download_queue(status);
+CREATE INDEX idx_library_entries_provider_id ON library_entries(provider_id);
+CREATE INDEX idx_library_entries_media_entry_id ON library_entries(media_entry_id);
+CREATE INDEX idx_library_entries_ohash ON library_entries(ohash);
+CREATE INDEX idx_library_entries_phash ON library_entries(phash);
+CREATE INDEX idx_library_entries_site_id ON library_entries(site_id);
+CREATE INDEX idx_duplicate_entries_library_entry_id1 ON duplicate_entries(library_entry_id1);
+CREATE INDEX idx_duplicate_entries_library_entry_id2 ON duplicate_entries(library_entry_id2);
+CREATE INDEX idx_duplicate_entries_resolved ON duplicate_entries(resolved);
+CREATE INDEX idx_download_preferences_provider_id ON download_preferences(provider_id);
+CREATE INDEX idx_metadata_cache_provider ON metadata_cache(provider);
+CREATE INDEX idx_scrape_schedules_provider_id ON scrape_schedules(provider_id);
+CREATE INDEX idx_scrape_schedules_is_active ON scrape_schedules(is_active);
+CREATE INDEX idx_session_cookies_provider_id ON session_cookies(provider_id);
+CREATE INDEX idx_session_cookies_site_id ON session_cookies(site_id);
+CREATE INDEX idx_session_cookies_status ON session_cookies(status);
+CREATE INDEX idx_api_keys_name ON api_keys(name);
+CREATE INDEX idx_webhooks_is_active ON webhooks(is_active);
 
 -- Trigram index for faster ILIKE text searches
 CREATE EXTENSION IF NOT EXISTS pg_trgm;

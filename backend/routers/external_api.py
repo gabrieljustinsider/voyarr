@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Header
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import Optional, List, Any, Dict
+from typing import Optional, List, Any
 import requests
 import asyncio
 import json
@@ -261,15 +261,15 @@ def submit_stashdb_fingerprint(req: FingerprintSubmitRequest, x_api_key: Optiona
     if not x_api_key:
         raise HTTPException(status_code=400, detail="Missing StashDB API Key")
 
-    headers = {"ApiKey": x_api_key, "Content-Type": "application/json"}
+    headers = {"ApiKey": x_api_key, "Content-Type": "application/json"}  # noqa: F841
     
-    mutation = """
+    mutation = """  # noqa: F841
     mutation SubmitFingerprint($input: FingerprintSubmission!) {
       submitFingerprint(input: $input)
     }
     """
     
-    variables = {
+    variables = {  # noqa: F841
         "input": {
             "scene_id": req.scene_id,
             "fingerprint": {

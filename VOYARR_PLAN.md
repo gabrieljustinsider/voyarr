@@ -14,15 +14,32 @@
 
 ## **🗄️ Database Schema (PostgreSQL)**
 
+The database consists of 22 fully-integrated relational tables handling authentication, scraper templates, credential vaults, media indexing, and job queues:
+
 | Table | Purpose |
 | :---- | :---- |
-| providers | Base URLs, Naming Patterns, Separator settings, Space replacement logic. |
-| site\_recipes | CSS/XPath/Regex selectors for dynamic site scraping and "Map Mode" data. |
-| credentials | Encrypted logins for automated authentication (AES-256-GCM). |
-| media\_entries | Metadata (Title, Performers, Tags), ohash, phash, and site IDs. |
-| local\_files | Tracks physical storage paths, file sizes, and matching resolution status. |
-| download\_queue | Real-time progress percentage, file size, speed, and retry status. |
-| filters | Multi-criteria rules (Performers, Categories, Resolution) for auto-queueing. |
+| **users** | Handles multi-user Role-Based Access Control (RBAC) credentials and system states. |
+| **providers** | Defines provider domains, scraping configurations, separators, and default download limits. |
+| **site_recipes** | Holds visual CSS, XPath, and Regex selectors mapped via the "Map Mode" browser extension. |
+| **vault** | Secure AES-256-GCM encrypted key-value store for credential secrets (passwords, session cookies). |
+| **credentials** | Maps external credential sync sources (manual, 1Password Connect, Bitwarden CLI REST) and custom limits. |
+| **media_entries** | Relational metadata index storing scraped titles, performers, tags, and original site references. |
+| **settings** | Application key-value global system variables and preferences. |
+| **local_files** | Tracks local storage paths, file sizes, resolutions, and media entry mapping status. |
+| **download_queue** | Active Celery download worker queues containing progress meters, speeds, file sizes, and retry tracking. |
+| **custom_lists** | User-defined categorized arrays of performers, categories, or tags used in rule logic. |
+| **download_rules** | Custom automated rule engines mapping visual and metadata criteria to download, skip, or queue actions. |
+| **library_entries** | Primary indices of physical files, storing titles, durations, ohash, visual phash, and comprehensive metadata. |
+| **video_chapters** | Stores time-indexed chapter boundaries, titles, and sub-tags within local library videos. |
+| **duplicate_entries** | Tracks duplicate detections by comparing perceptual visual hashes and scoring similarity percentages. |
+| **download_preferences** | Granular preferences per provider including target resolutions, auto-tagging, and multdrive paths. |
+| **metadata_cache** | Scraped entity cache for external databases (ThePornDB / StashDB) to reduce API overhead. |
+| **scrape_schedules** | Handles cron-driven automated tasks for scanning folders or running periodic site-wide channel rips. |
+| **session_cookies** | Manages browser cookie text pools, download rate metrics, and validation limits. |
+| **api_keys** | Hashed API tokens for external integrations such as third-party APIs and the Discord Bot backend. |
+| **transcoding_queue** | Tracks background FFmpeg transcoding tasks (status, target codecs e.g., H.265, progress, details). |
+| **webhooks** | Manages outbound webhooks triggered by library, transcode, and download lifecycle events. |
+| **media_requests** | Internal media requests portal allowing restricted users to submit requests for admin approval. |
 
 ## **🏷️ Naming & File Management**
 
@@ -92,39 +109,25 @@ services:
 16. ~~**Multi-Drive Storage Arrays:** Support parsing comma-separated paths for scalable libraries spanning multiple physical disks.~~
 17. ~~**Password Manager Integrations:** Support for 1Password Connect and Bitwarden CLI REST APIs.~~
 18. ~~**Hardened SSRF Defenses:** Comprehensive internal IP/hostname blocking for scraper proxies.~~
-
-## **🚀 Post-v1.8.0 Feature Backlog**
-
-The following items represent identified feature gaps and unfinished components discovered during the v1.8.0 system audit.
-
-### ~~**1. AI-Powered Auto-Tagging (Placeholder Only)**~~
-*   **Status:** Complete.
-*   **Gap:** Integrated actual FFmpeg frame extraction and API calls to both local (Ollama/LLaVA) and cloud (OpenAI/GPT-4o) vision models for real-time tag generation.
-
-### ~~**2. Deep API Integrations (ThePornDB & StashDB)**~~
-*   **Status:** Complete.
-*   **Gap:** Implemented ThePornDB GraphQL for richer performer bios/searches, and added StashDB GraphQL logic for matching and submitting fingerprints (MD5/OSHASH/PHASH).
-
-### ~~**3. Discord Bot Expansion (#6)**~~
-*   **Status:** Complete.
-*   **Gap:** Implemented `/search` to query the library, `/add` to queue approved items, and `/scrape` to trigger Celery scrape tasks via Discord Slash Commands.
-
-### ~~**4. Dashboard & Quota Visualization (#9)**~~
-*   **Status:** Complete.
-*   **Gap:** Visual meters for quota usage are now integrated into the Dashboard and Provider list components.
-
-### ~~**5. WebSocket Log Streaming Enhancements (#2)**~~
-*   **Status:** Complete.
-*   **Gap:** Real-time filtering, keyword searching, and log source toggling have been implemented.
+19. ~~**Deep API Integrations (v1.8.1):** Rich StashDB/ThePornDB GraphQL search, matching, and fingerprint (MD5/OSHASH/PHASH) submissions.~~
+20. ~~**Discord Slash Commands Bot (v1.8.2):** Integrated `/search`, `/add` to queue, and `/scrape` remote triggers.~~
+21. ~~**Visual Quota & Performance Meters (v1.8.2):** Advanced responsive charts mapping active rate limits.~~
+22. ~~**WebSocket Live Log Pipeline (v1.8.3):** Real-time logs streams with advanced searching, filtering, and channel toggling.~~
 
 ---
 
-### **Summary of Pending Work**
+## **🚀 Future Feature Roadmap (v1.9.0+)**
 
-| Feature | State | Missing Component |
-| :--- | :--- | :--- |
-| **AI Tagging** | ✅ Complete | Local/API Model integration added |
-| **Fingerprints** | ✅ Complete | MD5/PHASH matching & submission added |
-| **Discord Bot** | ✅ Complete | Search/Manage library commands added |
-| **Quota Meters** | ✅ Complete | Visual usage charts/meters added |
-| **Biographies** | ✅ Complete | Performer profile & social sync added via GraphQL |
+The following represents identified feature targets and upcoming components for subsequent releases.
+
+### **1. Performer Facial Recognition Clustering**
+*   **Description:** Implement local lightweight facial detection and grouping models to auto-identify unknown actors and cluster visually matching faces across the library.
+
+### **2. Continuous StashDB Fingerprint Syncing**
+*   **Description:** Background daemon to automatically and continuously push calculated hashes (MD5, OSHASH, PHASH) to community databases to improve global coverage.
+
+### **3. HLS Direct Streaming Support**
+*   **Description:** Add direct HLS slicing to the transcoding engine, allowing lag-free, high-bitrate video streaming inside the PWA browser environment.
+
+### **4. AI-Driven Auto-Chaptering**
+*   **Description:** Utilize automated frame-based scene change detection to logically separate longer files into distinct chapters and suggest metadata titles.

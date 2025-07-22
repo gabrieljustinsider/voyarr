@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
@@ -16,8 +16,7 @@ class CredentialResponse(BaseModel):
     custom_limits: dict | None = None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class VideoChapterBase(BaseModel):
@@ -41,8 +40,7 @@ class VideoChapterResponse(VideoChapterBase):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class LibraryEntryBase(BaseModel):
     provider_id: int
@@ -69,8 +67,7 @@ class LibraryEntryResponse(LibraryEntryBase):
     created_at: Optional[datetime] = None
     chapters: Optional[List[VideoChapterResponse]] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class LocalFileBase(BaseModel):
@@ -89,8 +86,7 @@ class LocalFileResponse(LocalFileBase):
     id: int
     created_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CustomListBase(BaseModel):
@@ -107,8 +103,7 @@ class CustomListResponse(CustomListBase):
     id: int
     created_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DownloadRuleBase(BaseModel):
@@ -127,8 +122,7 @@ class DownloadRuleResponse(DownloadRuleBase):
     id: int
     created_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ScrapeScheduleBase(BaseModel):
@@ -162,8 +156,7 @@ class ScrapeScheduleResponse(ScrapeScheduleBase):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CookieCreate(BaseModel):
@@ -180,8 +173,7 @@ class CookieResponse(BaseModel):
     download_limit: Optional[int] = None
     expires_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DuplicateAction(BaseModel):
@@ -204,5 +196,4 @@ class ProviderCreate(ProviderBase):
 class ProviderResponse(ProviderBase):
     id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

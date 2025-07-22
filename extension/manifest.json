@@ -4,6 +4,10 @@
   "version": "1.0",
   "description": "Voyarr companion extension for visual CSS mapping and remote control.",
   "permissions": ["activeTab", "storage", "scripting"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
   "action": {
     "default_popup": "popup.html"
   },

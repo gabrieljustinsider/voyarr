@@ -24,3 +24,6 @@ logs/
 # OS specific
 .DS_Store
 Thumbs.db
+
+# Tool-specific cache
+.antigravitycli/

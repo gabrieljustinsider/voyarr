@@ -1,6 +1,6 @@
 # Privacy Policy for Voyarr
 
-**Last Updated:** [Date]
+**Last Updated:** May 21, 2026
 
 This Privacy Policy describes how your personal information is handled in the Voyarr software. As Voyarr is a self-hosted application, it's important to understand that we, the developers of Voyarr, do not collect or have access to your data. Your data remains on your own server.
 
