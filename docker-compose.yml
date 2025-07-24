@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-voyarr_password}
     volumes:
       - ./db/data:/var/lib/postgresql/data
-      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     healthcheck:
@@ -34,7 +34,9 @@ services:
       - voyarr_network
 
   backend:
-    image: ghcr.io/gabrieljustinsider/voyarr-backend:latest
+    image: voyarr-backend:latest
+    build:
+      context: ./backend
     container_name: voyarr-backend
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-voyarr}}
@@ -71,7 +73,9 @@ services:
       - voyarr_network
 
   celery_worker:
-    image: ghcr.io/gabrieljustinsider/voyarr-backend:latest
+    image: voyarr-backend:latest
+    build:
+      context: ./backend
     container_name: voyarr-celery
     command: sh -c "mkdir -p /media/storage/logs && celery -A celery_app.celery_app worker --loglevel=${CELERY_LOG_LEVEL:-info} --logfile=/media/storage/logs/celery.log"
     environment:
@@ -102,7 +106,11 @@ services:
       - voyarr_network
 
   frontend:
-    image: ghcr.io/gabrieljustinsider/voyarr-frontend:latest
+    image: voyarr-frontend:latest
+    build:
+      context: ./frontend
+      args:
+        - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8000}
     container_name: voyarr-frontend
     environment:
       - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8000}
