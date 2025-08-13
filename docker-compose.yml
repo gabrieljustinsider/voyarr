@@ -7,10 +7,10 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-voyarr_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-voyarr_password}
     volumes:
-      - ./db/data:/var/lib/postgresql/data
+      - voyarr-db-data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_PORT:-}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-voyarr_user} -d $${POSTGRES_DB:-voyarr}"]
       interval: 10s
@@ -24,7 +24,7 @@ services:
     image: redis:7-alpine
     container_name: voyarr-redis
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "${REDIS_PORT:-}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -53,13 +53,13 @@ services:
       - COOKIE_SAMESITE=${COOKIE_SAMESITE:-lax}
       - COOKIE_SECURE=${COOKIE_SECURE:-false}
     volumes:
-      # Use host path bindings for flexible media storage
-      - ${CONFIG_ROOT:-./config}:/app/config
+      # Use custom volume for configuration, host path bindings for media
+      - voyarr-config:/app/config
       - ${MEDIA_ROOT_1:-./media}:/media/storage
       - ${MEDIA_ROOT_2:-./media_alt1}:/media/storage_alt1
       - ${MEDIA_ROOT_3:-./media_alt2}:/media/storage_alt2
     ports:
-      - "${PORT:-8000}:${PORT:-8000}"
+      - "${PORT:-}:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -87,7 +87,7 @@ services:
       - MASTER_KEY=${MASTER_KEY}
       - SECRET_KEY=${SECRET_KEY}
     volumes:
-      - ${CONFIG_ROOT:-./config}:/app/config
+      - voyarr-config:/app/config
       - ${MEDIA_ROOT_1:-./media}:/media/storage
       - ${MEDIA_ROOT_2:-./media_alt1}:/media/storage_alt1
       - ${MEDIA_ROOT_3:-./media_alt2}:/media/storage_alt2
@@ -115,7 +115,7 @@ services:
     environment:
       - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8000}
     ports:
-      - "${FRONTEND_PORT:-3000}:80"
+      - "${FRONTEND_PORT:-}:80"
     depends_on:
       backend:
         condition: service_healthy
@@ -131,4 +131,18 @@ services:
 networks:
   voyarr_network:
     driver: bridge
+
+volumes:
+  voyarr-db-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DB_DATA_PATH:-./db/data}
+  voyarr-config:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${CONFIG_ROOT:-./config}
 

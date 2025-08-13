@@ -46,25 +46,49 @@ Voyarr is designed to be run via Docker Compose. The stack includes:
 
 ## ⚙️ Initial Setup
 
-1. Copy the provided `.env.example` file to `.env` and fill in your values:
+Voyarr utilizes a **hybrid volume architecture** and **dynamic host port selection** to ensure conflict-free ports and permission-safe storage on self-hosted environments (like Synology NAS, Unraid, or standard Linux servers).
+
+### 1. Pre-create Host Folders (Volume Setup)
+To prevent host-side permission errors (like `root:root` locked folder conflicts) and ensure seamless container upgrades, pre-create your config and database directories on your host NAS/server:
+
+1. Create a root project directory (e.g., `/volume1/docker/voyarr/`).
+2. Inside it, create the following subdirectories:
+   - `config` (For persistent configurations, cookies, and app settings)
+   - `db-data` (For PostgreSQL database storage)
+   - `media` (For your media libraries, e.g., `/volume1/video/voyarr`)
+
+### 2. Configure Your Environment Variables
+Copy the provided `.env.example` file to `.env`:
 
 ```bash
 cp .env.example .env
 ```
 
-Update any required secrets (e.g., `MASTER_KEY`) and API keys.
+Open `.env` and configure the following parameters:
 
-2. Start the stack (using pre-built production images):
+* **Paths**: Point the path variables directly to the host folders you created in Step 1:
+  ```env
+  CONFIG_ROOT=/volume1/docker/voyarr/config
+  DB_DATA_PATH=/volume1/docker/voyarr/db-data
+  MEDIA_ROOT_1=/volume1/docker/voyarr/media
+  ```
+* **Ports**: Under *Host Ports Configuration*, you have two options:
+  - **Auto-Allocation (Recommended)**: Leave `PORT=`, `FRONTEND_PORT=`, `REDIS_PORT=`, and `POSTGRES_PORT=` **blank/empty**.
+    * *On Synology (Container Manager)*: Synology will automatically select unused ports on your NAS, **remember them permanently**, and maintain the assignment across restarts and container upgrades.
+    * *On CLI*: Docker will assign random ports. Check them via `docker compose ps` and, if desired, add them to your `.env` to lock them in.
+  - **Static Allocation**: Specify static ports (e.g., `PORT=8000`, `FRONTEND_PORT=3000`) if you already know they are free.
+
+### 3. Deploy the Stack
+Start the services:
 
 ```bash
 docker compose up -d
 ```
 
-3. Access the services:
+If you chose Auto-Allocation, run `docker compose ps` to inspect your dynamically assigned frontend and backend API host ports.
 
-- **Frontend:** `http://localhost:3000` (Installable as a PWA)
-- **Backend API:** `http://localhost:8000`
-- **FastAPI docs:** `http://localhost:8000/docs`
+### 4. Access the Services
+Navigate to your assigned frontend host port (e.g., `http://<your-ip>:<assigned-port>`). The React PWA can be installed directly onto your device.
 
 ### 🔐 User & Admin Bootstrapping
 
