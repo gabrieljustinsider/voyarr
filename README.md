@@ -61,6 +61,14 @@ Once you decide on this root directory, open **File Station** on your NAS and cr
 * 📁 **`config`** (This stores your app settings, custom recipes, and logged-in website sessions)
 * 📁 **`db-data`** (This stores the database file containing your library lists, rules, and download queues)
 
+> [!NOTE]
+> **What is the "Hybrid Volume" Setup and Why Use It?**
+> Voyarr uses a modern **hybrid volume architecture** inside `docker-compose.yml` to give you the best of both worlds:
+> 1. **Docker Named Volumes (`voyarr-config` and `voyarr-db-data`)**: Docker manages the lifecycle of these system folders safely. This guarantees that during future Voyarr upgrades or image updates, your settings and database are never deleted, corrupted, or left with incorrect file permissions.
+> 2. **Custom Host Backing Paths (`CONFIG_ROOT` and `DB_DATA_PATH`)**: Instead of Docker hiding these named volumes in system directories, they are bound directly to the physical folder paths on your NAS (e.g. `/volume1/docker/voyarr/config`) that you configure in your `.env` file. This makes it incredibly easy to back up your database and configuration files manually.
+> 
+> *⚠️ **Important Requirement**: Because Docker named volumes bind directly to your host, the target host folders (`config` and `db-data`) must be physically created on your NAS **prior** to running `docker compose up`, otherwise Docker will fail to start the containers.*
+
 ---
 
 #### 🎬 Using Your Existing Media Folders (No need to create new ones!)
