@@ -22,8 +22,14 @@ def automated_backup():
                 rows = db.execute(table.select()).mappings().all()
                 data["data"][table.name] = [dict(row) for row in rows]
                 
-            primary_root = get_primary_root()
-            backup_dir = os.path.join(primary_root, "backups")
+            # If the dedicated backup folder volume is mounted, write there.
+            # Otherwise, fallback to the backups folder inside the primary media root.
+            if os.path.exists("/app/backups"):
+                backup_dir = "/app/backups"
+            else:
+                primary_root = get_primary_root()
+                backup_dir = os.path.join(primary_root, "backups")
+                
             os.makedirs(backup_dir, exist_ok=True)
 
             filename = f"voyarr_backup_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"

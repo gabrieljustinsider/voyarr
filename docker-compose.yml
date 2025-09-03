@@ -6,8 +6,10 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-voyarr}
       POSTGRES_USER: ${POSTGRES_USER:-voyarr_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-voyarr_password}
+      TZ: ${TZ:-UTC}
     volumes:
       - voyarr-db-data:/var/lib/postgresql/data
+      - voyarr-backups:/backups
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "${POSTGRES_PORT:-}:5432"
@@ -23,6 +25,8 @@ services:
   redis:
     image: redis:7-alpine
     container_name: voyarr-redis
+    environment:
+      - TZ=${TZ:-UTC}
     ports:
       - "${REDIS_PORT:-}:6379"
     healthcheck:
@@ -38,6 +42,7 @@ services:
     build:
       context: ./backend
     container_name: voyarr-backend
+    user: "${PUID:-1000}:${PGID:-1000}"
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-voyarr}}
       - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
@@ -52,9 +57,11 @@ services:
       - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000}
       - COOKIE_SAMESITE=${COOKIE_SAMESITE:-lax}
       - COOKIE_SECURE=${COOKIE_SECURE:-false}
+      - TZ=${TZ:-UTC}
     volumes:
       # Use custom volume for configuration, host path bindings for media
       - voyarr-config:/app/config
+      - voyarr-backups:/app/backups
       - ${MEDIA_ROOT_1:-./media}:/media/storage
       - ${MEDIA_ROOT_2:-./media_alt1}:/media/storage_alt1
       - ${MEDIA_ROOT_3:-./media_alt2}:/media/storage_alt2
@@ -77,6 +84,7 @@ services:
     build:
       context: ./backend
     container_name: voyarr-celery
+    user: "${PUID:-1000}:${PGID:-1000}"
     command: sh -c "mkdir -p /media/storage/logs && celery -A celery_app.celery_app worker --loglevel=${CELERY_LOG_LEVEL:-info} --logfile=/media/storage/logs/celery.log"
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-voyarr}}
@@ -86,8 +94,10 @@ services:
       - DEFAULT_DOWNLOAD_PATH=${DEFAULT_DOWNLOAD_PATH:-/media/storage/downloads}
       - MASTER_KEY=${MASTER_KEY}
       - SECRET_KEY=${SECRET_KEY}
+      - TZ=${TZ:-UTC}
     volumes:
       - voyarr-config:/app/config
+      - voyarr-backups:/app/backups
       - ${MEDIA_ROOT_1:-./media}:/media/storage
       - ${MEDIA_ROOT_2:-./media_alt1}:/media/storage_alt1
       - ${MEDIA_ROOT_3:-./media_alt2}:/media/storage_alt2
@@ -114,6 +124,7 @@ services:
     container_name: voyarr-frontend
     environment:
       - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8000}
+      - TZ=${TZ:-UTC}
     ports:
       - "${FRONTEND_PORT:-}:80"
     depends_on:
@@ -145,4 +156,9 @@ volumes:
       type: none
       o: bind
       device: ${CONFIG_ROOT:-./config}
-
+  voyarr-backups:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${BACKUP_ROOT:-./backups}

@@ -3,6 +3,7 @@ import { Box, Typography, TextField, Button, Paper, Grid, Snackbar, Alert, Divid
 import DeleteIcon from '@mui/icons-material/Delete'
 import SyncIcon from '@mui/icons-material/Sync'
 import { apiFetch } from '../api'
+import PathPicker from './PathPicker'
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -220,28 +221,48 @@ export default function Settings() {
         <Divider sx={{ mb: 2 }} />
         <Grid container spacing={3} alignItems="center">
           <Grid item xs={12} md={10}>
-            <TextField fullWidth label="Docker Media Root Mapping(s)" name="media_root_path" value={settings.media_root_path || ''} onChange={handleChange} helperText="The physical directory path(s) where downloads will be organized inside the container. Comma-separate for multiple paths. (Note: Must match your container's MEDIA_ROOT environment variable)" />
+            <PathPicker
+              label="Docker Media Root Mapping(s)"
+              value={settings.media_root_path || ''}
+              onChange={(val) => setSettings(prev => ({ ...prev, media_root_path: val }))}
+              helperText="The physical directory path(s) where downloads will be organized inside the container. Comma-separate for multiple paths. (Note: Must match your container's MEDIA_ROOT environment variable)"
+            />
           </Grid>
           <Grid item xs={12} md={2}>
             <Button fullWidth variant="contained" onClick={() => handleSave('media_root_path', settings.media_root_path)}>Save</Button>
           </Grid>
 
           <Grid item xs={12} md={10}>
-            <TextField fullWidth label="Default Download Destination" name="download_destination" value={settings.download_destination || ''} onChange={handleChange} helperText="Sub-directory where new, unprocessed files are initially downloaded." />
+            <PathPicker
+              label="Default Download Destination"
+              value={settings.download_destination || ''}
+              onChange={(val) => setSettings(prev => ({ ...prev, download_destination: val }))}
+              helperText="Sub-directory where new, unprocessed files are initially downloaded."
+            />
           </Grid>
           <Grid item xs={12} md={2}>
             <Button fullWidth variant="contained" onClick={() => handleSave('download_destination', settings.download_destination)}>Save</Button>
           </Grid>
 
           <Grid item xs={12} md={10}>
-            <TextField fullWidth label="Permanent Library Folder" name="library_folder" value={settings.library_folder || ''} onChange={handleChange} helperText="Directory where organized and tagged media is permanently stored." />
+            <PathPicker
+              label="Permanent Library Folder"
+              value={settings.library_folder || ''}
+              onChange={(val) => setSettings(prev => ({ ...prev, library_folder: val }))}
+              helperText="Directory where organized and tagged media is permanently stored."
+            />
           </Grid>
           <Grid item xs={12} md={2}>
             <Button fullWidth variant="contained" onClick={() => handleSave('library_folder', settings.library_folder)}>Save</Button>
           </Grid>
 
           <Grid item xs={12} md={10}>
-            <TextField fullWidth label="Existing Media Scan Target" name="scan_folder" value={settings.scan_folder || ''} onChange={handleChange} helperText="Directory targeted by the Reverse Regex Engine when searching for existing local files." />
+            <PathPicker
+              label="Existing Media Scan Target"
+              value={settings.scan_folder || ''}
+              onChange={(val) => setSettings(prev => ({ ...prev, scan_folder: val }))}
+              helperText="Directory targeted by the Reverse Regex Engine when searching for existing local files."
+            />
           </Grid>
           <Grid item xs={12} md={2}>
             <Button fullWidth variant="contained" onClick={() => handleSave('scan_folder', settings.scan_folder)}>Save</Button>

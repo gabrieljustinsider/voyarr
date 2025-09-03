@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from database import get_db
 from models import Settings, Vault
 from pydantic import BaseModel
+import os
+from typing import Optional, List
 
 from dependencies import verify_api_key
 from security import encrypt_data, decrypt_data
@@ -91,3 +93,103 @@ def delete_setting(key: str, db: Session = Depends(get_db)):
     db.delete(db_item)
     db.commit()
     return {"message": "Setting deleted"}
+
+
+@router.get("/browse")
+def browse_directory(path: Optional[str] = Query(None)):
+    target_path = path if path else "/"
+    
+    try:
+        target_path = os.path.abspath(target_path)
+    except Exception:
+        target_path = "/"
+        
+    if not os.path.exists(target_path):
+        target_path = "/"
+
+    if not os.path.isdir(target_path):
+        target_path = os.path.dirname(target_path)
+
+    try:
+        parent_path = os.path.dirname(target_path)
+        if parent_path == target_path:
+            parent_path = None
+
+        folders = []
+        files = []
+
+        for item in os.listdir(target_path):
+            if item.startswith("."):
+                continue
+            
+            full_path = os.path.join(target_path, item)
+            try:
+                if os.path.isdir(full_path):
+                    folders.append({
+                        "name": item,
+                        "path": full_path
+                    })
+                else:
+                    files.append({
+                        "name": item,
+                        "path": full_path,
+                        "size": os.path.getsize(full_path)
+                    })
+            except (PermissionError, FileNotFoundError):
+                continue
+        
+        folders.sort(key=lambda x: x["name"].lower())
+        files.sort(key=lambda x: x["name"].lower())
+
+        return {
+            "current_path": target_path,
+            "parent_path": parent_path,
+            "folders": folders,
+            "files": files
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to browse directory: {str(e)}")
+
+
+@router.get("/autocomplete")
+def autocomplete_path(q: str = Query("")):
+    if not q:
+        q = "/"
+
+    # Normalize path separators, keeping track if it is just a root or directory
+    q_norm = os.path.normpath(q) if q != "/" else "/"
+    ends_with_slash = q.endswith(os.sep) or q.endswith("/")
+    
+    if os.path.isdir(q_norm) and (ends_with_slash or q_norm == "/"):
+        parent_dir = q_norm
+        prefix = ""
+    else:
+        parent_dir = os.path.dirname(q_norm)
+        prefix = os.path.basename(q_norm)
+
+    if not os.path.exists(parent_dir) or not os.path.isdir(parent_dir):
+        parent_dir = "/"
+        prefix = ""
+
+    suggestions = []
+    try:
+        for item in os.listdir(parent_dir):
+            if item.startswith("."):
+                continue
+            
+            if item.lower().startswith(prefix.lower()):
+                full_path = os.path.join(parent_dir, item)
+                try:
+                    is_dir = os.path.isdir(full_path)
+                    suggestions.append({
+                        "name": item,
+                        "path": full_path + ("/" if is_dir else ""),
+                        "is_dir": is_dir
+                    })
+                except (PermissionError, FileNotFoundError):
+                    continue
+        
+        suggestions.sort(key=lambda x: (not x["is_dir"], x["name"].lower()))
+        return {"suggestions": suggestions[:20]}
+    except Exception:
+        return {"suggestions": []}
