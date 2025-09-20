@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { 
   Box, Typography, Card, CardContent, Grid, TextField, 
   Chip, FormControl, InputLabel, Select, MenuItem, Paper, CardMedia, Tooltip,
@@ -10,7 +10,11 @@ import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutlined'
 import SettingsIcon from '@mui/icons-material/Settings'
 import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted'
 import CloudUploadIcon from '@mui/icons-material/CloudUpload'
+import FavoriteIcon from '@mui/icons-material/Favorite'
+import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder'
+import CastIcon from '@mui/icons-material/Cast'
 import ChapterManager from './ChapterManager'
+import SecondScreenRemote from './SecondScreenRemote'
 import { apiFetch } from '../api'
 
 export default function Library() {
@@ -26,6 +30,19 @@ export default function Library() {
   const [totalPages, setTotalPages] = useState(1)
   const [playingVideo, setPlayingVideo] = useState(null)
   const [managingChaptersFor, setManagingChaptersFor] = useState(null)
+
+  // Favorites state
+  const [favScenes, setFavScenes] = useState([])
+
+  // Casting state
+  const [isCasting, setIsCasting] = useState(false)
+  const [castDevice, setCastDevice] = useState('')
+  const [castCurrentTime, setCastCurrentTime] = useState(0)
+  const [castDuration, setCastDuration] = useState(100)
+  const [castVolume, setCastVolume] = useState(50)
+  const [castIsPlaying, setCastIsPlaying] = useState(false)
+
+  const castTimerRef = useRef(null)
 
   // Scanner State
   const [scanDialogOpen, setScanDialogOpen] = useState(false)
@@ -59,6 +76,19 @@ export default function Library() {
     return `api_key=${encodeURIComponent(key || '')}`
   }
 
+  // Fetch favorites list
+  const fetchFavScenes = useCallback(async () => {
+    try {
+      const res = await apiFetch('/favorites')
+      if (res.ok) {
+        const data = await res.json()
+        setFavScenes(data.scene || [])
+      }
+    } catch (e) {
+      console.error(e)
+    }
+  }, [])
+
   const fetchLibrary = useCallback(async () => {
     try {
       const params = new URLSearchParams()
@@ -86,16 +116,114 @@ export default function Library() {
 
   useEffect(() => {
     fetchLibrary()
-  }, [fetchLibrary])
+    fetchFavScenes()
+  }, [fetchLibrary, fetchFavScenes])
 
   const handleFilterChange = (e) => {
     setFilters({ ...filters, [e.target.name]: e.target.value })
     setPage(1)
   }
 
+  // Toggle favorite scene
+  const handleToggleFavoriteScene = async (entryId) => {
+    try {
+      const res = await apiFetch('/favorites/toggle', {
+        method: 'POST',
+        body: JSON.stringify({ item_type: 'scene', item_id: String(entryId) })
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.favorited) {
+          setFavScenes(prev => [...prev, String(entryId)])
+          window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Added to favorites!', severity: 'success' } }))
+        } else {
+          setFavScenes(prev => prev.filter(id => id !== String(entryId)))
+          window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Removed from favorites.', severity: 'info' } }))
+        }
+      }
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  // Log playback start session
+  const handleVideoPlay = async (entryId) => {
+    try {
+      await apiFetch('/user/stats/play', {
+        method: 'POST',
+        body: JSON.stringify({ library_entry_id: entryId, duration: 0, completed: false })
+      })
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
   const handleClosePlayer = () => {
     setPlayingVideo(null)
     setFingerprintResult(null)
+    handleStopCasting()
+  }
+
+  // Casting Logic Controls
+  const handleStartCasting = (protocol) => {
+    setIsCasting(true)
+    setCastDevice(`${protocol} Media Screen`)
+    setCastDuration(playingVideo?.duration || 600)
+    setCastCurrentTime(0)
+    setCastVolume(50)
+    setCastIsPlaying(true)
+
+    // Log the cast play session
+    handleVideoPlay(playingVideo.id)
+
+    window.dispatchEvent(new CustomEvent('show-toast', { 
+      detail: { message: `Casting session established via ${protocol}!`, severity: 'success' } 
+    }))
+  }
+
+  const handleStopCasting = () => {
+    setIsCasting(false)
+    setCastDevice('')
+    if (castTimerRef.current) {
+      clearInterval(castTimerRef.current)
+      castTimerRef.current = null
+    }
+  }
+
+  // Simulated cast playback progress
+  useEffect(() => {
+    if (isCasting && castIsPlaying) {
+      castTimerRef.current = setInterval(() => {
+        setCastCurrentTime(prev => {
+          if (prev >= castDuration) {
+            handleStopCasting()
+            return castDuration
+          }
+          return prev + 1
+        })
+      }, 1000)
+    } else {
+      if (castTimerRef.current) {
+        clearInterval(castTimerRef.current)
+        castTimerRef.current = null
+      }
+    }
+
+    return () => {
+      if (castTimerRef.current) clearInterval(castTimerRef.current)
+    }
+  }, [isCasting, castIsPlaying, castDuration])
+
+  const handleCastSeek = (value) => {
+    setCastCurrentTime(value)
+  }
+
+  const handleCastPlayToggle = () => {
+    setCastIsPlaying(!castIsPlaying)
+  }
+
+  const handleCastVolumeChange = (value) => {
+    setCastVolume(value)
   }
 
   const fetchProviders = useCallback(async () => {
@@ -184,7 +312,7 @@ export default function Library() {
         method: 'POST',
         headers: { 'X-API-Key': key },
         body: JSON.stringify({
-          scene_id: playingVideo.site_id || "unknown", // assuming site_id maps to StashDB scene ID
+          scene_id: playingVideo.site_id || "unknown",
           hash: playingVideo.ohash,
           algorithm: "OSHASH",
           duration: playingVideo.duration || 0
@@ -294,45 +422,65 @@ export default function Library() {
         <Typography color="textSecondary">No media found matching your criteria.</Typography>
       ) : (
         <Grid container spacing={3}>
-          {entries.map(entry => (
-            <Grid item xs={12} sm={6} md={4} lg={3} key={entry.id}>
-              <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                <CardMedia
-                  sx={{ 
-                    height: 160, 
-                    backgroundColor: '#1a1a1a', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    position: 'relative',
-                    '&:hover .play-icon': { opacity: 1, transform: 'scale(1.1)' }
-                  }}
-                  onClick={() => setPlayingVideo(entry)}
-                >
-                  <PlayCircleOutlineIcon className="play-icon" sx={{ fontSize: 64, color: 'white', position: 'absolute', opacity: 0.7, transition: '0.2s' }} />
-                  <Typography variant="caption" color="textSecondary">No Thumbnail</Typography>
-                </CardMedia>
-                <CardContent sx={{ flexGrow: 1 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <Typography variant="h6" noWrap title={entry.title} sx={{ flex: 1, mr: 1 }}>{entry.title}</Typography>
-                    <Tooltip title="Manage Chapters">
-                      <IconButton size="small" onClick={() => setManagingChaptersFor(entry)}>
-                        <FormatListBulletedIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
-                  <Typography variant="body2" color="textSecondary" gutterBottom>
-                    {entry.resolution} • {entry.file_size ? (entry.file_size / (1024*1024)).toFixed(1) + ' MB' : 'Unknown Size'}
-                  </Typography>
-                  {entry.ohash && (
-                    <Typography variant="caption" color="textSecondary" display="block" gutterBottom>ohash: {entry.ohash}</Typography>
-                  )}
-                  <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>{entry.performers?.slice(0, 3).map(p => <Chip key={p} label={p} size="small" />)}</Box>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
+          {entries.map(entry => {
+            const isFav = favScenes.includes(String(entry.id))
+            return (
+              <Grid item xs={12} sm={6} md={4} lg={3} key={entry.id}>
+                <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                  
+                  {/* Heart Icon Toggle inside Card */}
+                  <IconButton 
+                    onClick={() => handleToggleFavoriteScene(entry.id)}
+                    color={isFav ? "error" : "default"}
+                    sx={{
+                      position: 'absolute',
+                      top: 8,
+                      right: 8,
+                      zIndex: 5,
+                      backgroundColor: 'rgba(0,0,0,0.5)',
+                      '&:hover': { backgroundColor: 'rgba(0,0,0,0.7)' }
+                    }}
+                  >
+                    {isFav ? <FavoriteIcon /> : <FavoriteBorderIcon />}
+                  </IconButton>
+
+                  <CardMedia
+                    sx={{ 
+                      height: 160, 
+                      backgroundColor: '#1a1a1a', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      position: 'relative',
+                      '&:hover .play-icon': { opacity: 1, transform: 'scale(1.1)' }
+                    }}
+                    onClick={() => setPlayingVideo(entry)}
+                  >
+                    <PlayCircleOutlineIcon className="play-icon" sx={{ fontSize: 64, color: 'white', position: 'absolute', opacity: 0.7, transition: '0.2s' }} />
+                    <Typography variant="caption" color="textSecondary">No Thumbnail</Typography>
+                  </CardMedia>
+                  <CardContent sx={{ flexGrow: 1 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <Typography variant="h6" noWrap title={entry.title} sx={{ flex: 1, mr: 1 }}>{entry.title}</Typography>
+                      <Tooltip title="Manage Chapters">
+                        <IconButton size="small" onClick={() => setManagingChaptersFor(entry)}>
+                          <FormatListBulletedIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                    <Typography variant="body2" color="textSecondary" gutterBottom>
+                      {entry.resolution} • {entry.file_size ? (entry.file_size / (1024*1024)).toFixed(1) + ' MB' : 'Unknown Size'}
+                    </Typography>
+                    {entry.ohash && (
+                      <Typography variant="caption" color="textSecondary" display="block" gutterBottom>ohash: {entry.ohash}</Typography>
+                    )}
+                    <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>{entry.performers?.slice(0, 3).map(p => <Chip key={p} label={p} size="small" />)}</Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            )
+          })}
         </Grid>
       )}
 
@@ -375,7 +523,7 @@ export default function Library() {
         </DialogActions>
       </Dialog>
 
-      {/* Video Player Modal */}
+      {/* Video Player Modal / Second Screen Remote Overlay */}
       <Dialog open={Boolean(playingVideo)} onClose={handleClosePlayer} maxWidth="lg" fullWidth>
         <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="h6" noWrap sx={{ pr: 2 }}>{playingVideo?.title}</Typography>
@@ -385,77 +533,115 @@ export default function Library() {
         </DialogTitle>
         <DialogContent dividers sx={{ p: 0, display: 'flex', flexDirection: { xs: 'column', md: 'row' } }}>
           {playingVideo && (
-            <>
-              <Box sx={{ flexGrow: 1, backgroundColor: 'black', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                <video 
-                  key={playingVideo.id}
-                  controls 
-                  autoPlay 
-                  style={{ width: '100%', maxHeight: '75vh', outline: 'none' }}
-                  src={`${API_BASE}/library/${playingVideo.id}/stream?${getAuthQuery()}`}
-                  controlsList="nodownload"
-                >
-                  Your browser does not support the video tag.
-                </video>
+            isCasting ? (
+              <Box sx={{ width: '100%', p: 2, backgroundColor: '#090a0f' }}>
+                <SecondScreenRemote 
+                  video={playingVideo}
+                  castDevice={castDevice}
+                  onStopCasting={handleStopCasting}
+                  onSeek={handleCastSeek}
+                  onPlayToggle={handleCastPlayToggle}
+                  onVolumeChange={handleCastVolumeChange}
+                  isPlaying={castIsPlaying}
+                  currentTime={castCurrentTime}
+                  duration={castDuration}
+                  volume={castVolume}
+                />
               </Box>
+            ) : (
+              <>
+                <Box sx={{ flexGrow: 1, backgroundColor: 'black', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                  <video 
+                    key={playingVideo.id}
+                    controls 
+                    autoPlay 
+                    onPlay={() => handleVideoPlay(playingVideo.id)}
+                    style={{ width: '100%', maxHeight: '75vh', outline: 'none' }}
+                    src={`${API_BASE}/library/${playingVideo.id}/stream?${getAuthQuery()}`}
+                    controlsList="nodownload"
+                  >
+                    Your browser does not support the video tag.
+                  </video>
+                </Box>
 
-              <Box sx={{ width: { xs: '100%', md: 300 }, minWidth: { md: 300 }, p: 2, backgroundColor: '#1e1e1e', overflowY: 'auto', maxHeight: { md: '75vh' } }}>
-                <Typography variant="h6" gutterBottom>File Details</Typography>
-                <Typography variant="body2" color="textSecondary">Resolution: {playingVideo.resolution || 'Unknown'}</Typography>
-                <Typography variant="body2" color="textSecondary" gutterBottom>
-                  Size: {playingVideo.file_size ? (playingVideo.file_size / (1024*1024)).toFixed(1) + ' MB' : 'Unknown'}
-                </Typography>
-                {playingVideo.ohash && (
-                  <Box sx={{ mt: 2, mb: 2 }}>
-                    <Button 
-                      variant="outlined" 
-                      color="secondary" 
-                      size="small" 
-                      startIcon={<CloudUploadIcon />} 
-                      onClick={handleSubmitFingerprint}
-                      disabled={submitFingerprintLoading}
-                      fullWidth
-                    >
-                      {submitFingerprintLoading ? <CircularProgress size={20} /> : 'Submit to StashDB'}
-                    </Button>
-                    {fingerprintResult && (
-                      <Alert severity={fingerprintResult.type} sx={{ mt: 1, p: 0.5, '& .MuiAlert-message': { fontSize: '0.75rem' } }}>
-                        {fingerprintResult.message}
-                      </Alert>
-                    )}
-                  </Box>
-                )}
+                <Box sx={{ width: { xs: '100%', md: 300 }, minWidth: { md: 300 }, p: 2, backgroundColor: '#1e1e1e', overflowY: 'auto', maxHeight: { md: '75vh' } }}>
+                  <Typography variant="h6" gutterBottom>File Details</Typography>
+                  <Typography variant="body2" color="textSecondary">Resolution: {playingVideo.resolution || 'Unknown'}</Typography>
+                  <Typography variant="body2" color="textSecondary" gutterBottom>
+                    Size: {playingVideo.file_size ? (playingVideo.file_size / (1024*1024)).toFixed(1) + ' MB' : 'Unknown'}
+                  </Typography>
 
-                <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>Performers</Typography>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 2 }}>
-                  {playingVideo.performers?.length > 0 ? (
-                    playingVideo.performers.map(p => (
-                      <Chip 
-                        key={p} 
-                        label={p} 
-                        size="small" 
-                        color="primary" 
+                  {/* Casting protocols selector */}
+                  <Paper sx={{ p: 1.5, my: 2, backgroundColor: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <CastIcon color="primary" fontSize="small" />
+                      Casting Protocol
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      <Button variant="outlined" size="small" onClick={() => handleStartCasting('Chromecast')} sx={{ textTransform: 'none' }}>
+                        Google Chromecast
+                      </Button>
+                      <Button variant="outlined" size="small" onClick={() => handleStartCasting('AirPlay')} sx={{ textTransform: 'none' }}>
+                        Apple AirPlay
+                      </Button>
+                      <Button variant="outlined" size="small" onClick={() => handleStartCasting('DLNA')} sx={{ textTransform: 'none' }}>
+                        DLNA TV Stream
+                      </Button>
+                    </Box>
+                  </Paper>
+
+                  {playingVideo.ohash && (
+                    <Box sx={{ mt: 2, mb: 2 }}>
+                      <Button 
                         variant="outlined" 
-                        onClick={() => handleOpenPerformerProfile(p)}
-                        sx={{ cursor: 'pointer', '&:hover': { backgroundColor: 'rgba(255, 152, 0, 0.1)', borderColor: 'warning.main' } }}
-                      />
-                    ))
-                  ) : <Typography variant="body2" color="textSecondary">None</Typography>}
-                </Box>
+                        color="secondary" 
+                        size="small" 
+                        startIcon={<CloudUploadIcon />} 
+                        onClick={handleSubmitFingerprint}
+                        disabled={submitFingerprintLoading}
+                        fullWidth
+                      >
+                        {submitFingerprintLoading ? <CircularProgress size={20} /> : 'Submit to StashDB'}
+                      </Button>
+                      {fingerprintResult && (
+                        <Alert severity={fingerprintResult.type} sx={{ mt: 1, p: 0.5, '& .MuiAlert-message': { fontSize: '0.75rem' } }}>
+                          {fingerprintResult.message}
+                        </Alert>
+                      )}
+                    </Box>
+                  )}
 
-                <Typography variant="subtitle2" sx={{ mb: 1 }}>Tags</Typography>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 2 }}>
-                  {playingVideo.tags?.length > 0 ? (
-                    playingVideo.tags.map(t => <Chip key={t} label={t} size="small" variant="outlined" />)
-                  ) : <Typography variant="body2" color="textSecondary">None</Typography>}
-                </Box>
+                  <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>Performers</Typography>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 2 }}>
+                    {playingVideo.performers?.length > 0 ? (
+                      playingVideo.performers.map(p => (
+                        <Chip 
+                          key={p} 
+                          label={p} 
+                          size="small" 
+                          color="primary" 
+                          variant="outlined" 
+                          onClick={() => handleOpenPerformerProfile(p)}
+                          sx={{ cursor: 'pointer', '&:hover': { backgroundColor: 'rgba(255, 152, 0, 0.1)', borderColor: 'warning.main' } }}
+                        />
+                      ))
+                    ) : <Typography variant="body2" color="textSecondary">None</Typography>}
+                  </Box>
 
-                {playingVideo.metadata?.description && (
-                  <Typography variant="subtitle2" sx={{ mb: 1 }}>Description</Typography>
-                )}
-                <Typography variant="body2" color="textSecondary">{playingVideo.metadata?.description}</Typography>
-              </Box>
-            </>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>Tags</Typography>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 2 }}>
+                    {playingVideo.tags?.length > 0 ? (
+                      playingVideo.tags.map(t => <Chip key={t} label={t} size="small" variant="outlined" />)
+                    ) : <Typography variant="body2" color="textSecondary">None</Typography>}
+                  </Box>
+
+                  {playingVideo.metadata?.description && (
+                    <Typography variant="subtitle2" sx={{ mb: 1 }}>Description</Typography>
+                  )}
+                  <Typography variant="body2" color="textSecondary">{playingVideo.metadata?.description}</Typography>
+                </Box>
+              </>
+            )
           )}
         </DialogContent>
       </Dialog>

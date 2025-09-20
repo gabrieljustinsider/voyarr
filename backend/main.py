@@ -28,6 +28,11 @@ from routers import (
     requests,
     discord,
     chapters,
+    favorites,
+    user_stats,
+    studios,
+    analytics,
+    live_streams,
 )
 
 # Create tables
@@ -133,6 +138,11 @@ app.include_router(webhooks.router)
 app.include_router(requests.router)
 app.include_router(discord.router)
 app.include_router(chapters.router)
+app.include_router(favorites.router)
+app.include_router(user_stats.router)
+app.include_router(studios.router)
+app.include_router(analytics.router)
+app.include_router(live_streams.router)
 
 
 @app.get("/")

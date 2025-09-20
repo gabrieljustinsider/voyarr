@@ -58,10 +58,12 @@ def test_discord_interaction_unauthorized(mock_auth, mock_verify, mock_db_sessio
 
 @patch("routers.discord.verify_signature")
 @patch("routers.discord.is_user_authorized")
+@patch("routers.discord.get_user_role_from_discord")
 @patch("routers.discord.scrape_url_task.delay")
-def test_discord_interaction_scrape_authorized(mock_delay, mock_auth, mock_verify, mock_db_session):
+def test_discord_interaction_scrape_authorized(mock_delay, mock_role, mock_auth, mock_verify, mock_db_session):
     mock_verify.return_value = True
     mock_auth.return_value = True
+    mock_role.return_value = "admin"
     
     response = client.post(
         "/discord/interactions",

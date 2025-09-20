@@ -13,6 +13,7 @@ from tasks.scanner_tasks import scan_library_task
 from db_utils import get_db_session
 
 from dependencies import verify_api_key
+from routers.auth import get_current_user
 
 router = APIRouter(
     prefix="/external-api",
@@ -356,3 +357,166 @@ def search_library(title: Optional[str] = None, hash: Optional[str] = None):
 def trigger_library_scan(req: ScanRequest):
     task = scan_library_task.delay(req.directory, req.provider_id)
     return {"message": "Library scan queued", "task_id": task.id}
+
+
+class StashSyncRequest(BaseModel):
+    stash_url: str
+    stash_api_key: Optional[str] = None
+
+
+@router.post("/stash/sync-stats")
+def sync_stats_with_stash(
+    req: StashSyncRequest,
+    current_user: Any = Depends(get_current_user),
+):
+    """Two-way sync of watch counts, climax counts (O-meter), and timestamps with Stash App."""
+    from models import UserVideoStats, LibraryEntry, User
+    from db_utils import get_db_session
+    import requests
+
+    headers = {"Content-Type": "application/json"}
+    if req.stash_api_key:
+        headers["ApiKey"] = req.stash_api_key
+
+    # Query all local entries and their stats
+    with get_db_session() as db:
+        local_entries = db.query(LibraryEntry).all()
+        synced_count = 0
+        updated_local = 0
+        updated_stash = 0
+
+        for entry in local_entries:
+            # Fetch local stats for current user
+            stats = (
+                db.query(UserVideoStats)
+                .filter(
+                    UserVideoStats.user_id == current_user.id,
+                    UserVideoStats.library_entry_id == entry.id,
+                )
+                .first()
+            )
+
+            local_plays = stats.play_count if stats else 0
+            local_climaxes = stats.climax_count if stats else 0
+
+            # Match in Stash using fingerprint (ohash) first, then title
+            stash_scene = None
+            
+            # Query by fingerprint
+            if entry.ohash:
+                fp_query = """
+                query FindScene($hash: String!) {
+                  findScenes(scene_filter: { fingerprints: { value: $hash, modifier: INCLUDES } }) {
+                    scenes {
+                      id
+                      play_count
+                      o_counter
+                    }
+                  }
+                }
+                """
+                try:
+                    res = requests.post(
+                        f"{req.stash_url.rstrip('/')}/graphql",
+                        json={"query": fp_query, "variables": {"hash": entry.ohash}},
+                        headers=headers,
+                        timeout=5
+                    )
+                    if res.status_code == 200:
+                        scenes = res.json().get("data", {}).get("findScenes", {}).get("scenes", [])
+                        if scenes:
+                            stash_scene = scenes[0]
+                except Exception:
+                    pass
+
+            # Fall back to Title query if no match
+            if not stash_scene and entry.title:
+                title_query = """
+                query FindSceneByTitle($title: String!) {
+                  findScenes(scene_filter: { title: { value: $title, modifier: EQUALS } }) {
+                    scenes {
+                      id
+                      play_count
+                      o_counter
+                    }
+                  }
+                }
+                """
+                try:
+                    res = requests.post(
+                        f"{req.stash_url.rstrip('/')}/graphql",
+                        json={"query": title_query, "variables": {"title": entry.title}},
+                        headers=headers,
+                        timeout=5
+                    )
+                    if res.status_code == 200:
+                        scenes = res.json().get("data", {}).get("findScenes", {}).get("scenes", [])
+                        if scenes:
+                            stash_scene = scenes[0]
+                except Exception:
+                    pass
+
+            if not stash_scene:
+                continue
+
+            # Merge stats
+            stash_id = stash_scene.get("id")
+            stash_plays = stash_scene.get("play_count") or 0
+            stash_climaxes = stash_scene.get("o_counter") or 0
+
+            merged_plays = max(local_plays, stash_plays)
+            merged_climaxes = max(local_climaxes, stash_climaxes)
+
+            # Update Local if Stash had higher stats
+            if merged_plays > local_plays or merged_climaxes > local_climaxes:
+                if not stats:
+                    stats = UserVideoStats(
+                        user_id=current_user.id,
+                        library_entry_id=entry.id,
+                        play_count=merged_plays,
+                        climax_count=merged_climaxes
+                    )
+                    db.add(stats)
+                else:
+                    stats.play_count = merged_plays
+                    stats.climax_count = merged_climaxes
+                updated_local += 1
+
+            # Update Stash if Local had higher stats
+            if merged_plays > stash_plays or merged_climaxes > stash_climaxes:
+                update_mutation = """
+                mutation SceneUpdate($id: ID!, $play_count: Int, $o_counter: Int) {
+                  sceneUpdate(input: { id: $id, play_count: $play_count, o_counter: $o_counter }) {
+                    id
+                  }
+                }
+                """
+                try:
+                    requests.post(
+                        f"{req.stash_url.rstrip('/')}/graphql",
+                        json={
+                            "query": update_mutation,
+                            "variables": {
+                                "id": stash_id,
+                                "play_count": merged_plays,
+                                "o_counter": merged_climaxes
+                            }
+                        },
+                        headers=headers,
+                        timeout=5
+                    )
+                    updated_stash += 1
+                except Exception:
+                    pass
+
+            synced_count += 1
+
+        db.commit()
+
+    return {
+        "status": "success",
+        "synced_count": synced_count,
+        "updated_local": updated_local,
+        "updated_stash": updated_stash,
+    }
+

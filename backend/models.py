@@ -373,3 +373,89 @@ class MediaRequest(Base):
     updated_at = Column(
         TIMESTAMP, default=func.current_timestamp(), onupdate=func.current_timestamp()
     )
+
+
+class Favorite(Base):
+    __tablename__ = "favorites"
+    __table_args__ = (UniqueConstraint('user_id', 'item_type', 'item_id', name='uix_user_favorite_item'),)
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    item_type = Column(String(50), nullable=False)  # 'scene', 'video', 'performer', 'movie', 'category', 'tag', 'studio'
+    item_id = Column(String(255), nullable=False)  # Site ID or name
+    created_at = Column(TIMESTAMP, default=func.current_timestamp())
+
+    user = relationship("User")
+
+
+class UserHistory(Base):
+    __tablename__ = "user_history"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    library_entry_id = Column(Integer, ForeignKey("library_entries.id", ondelete="CASCADE"), nullable=False, index=True)
+    watched_at = Column(TIMESTAMP, default=func.current_timestamp())
+    duration = Column(Integer, default=0)
+    completed = Column(Boolean, default=False)
+
+    user = relationship("User")
+    library_entry = relationship("LibraryEntry")
+
+
+class UserVideoStats(Base):
+    __tablename__ = "user_video_stats"
+    __table_args__ = (UniqueConstraint('user_id', 'library_entry_id', name='uix_user_video_stats'),)
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    library_entry_id = Column(Integer, ForeignKey("library_entries.id", ondelete="CASCADE"), nullable=False, index=True)
+    play_count = Column(Integer, default=0)
+    climax_count = Column(Integer, default=0)
+    last_played = Column(TIMESTAMP, default=func.current_timestamp(), onupdate=func.current_timestamp())
+
+    user = relationship("User")
+    library_entry = relationship("LibraryEntry")
+
+
+class UserPreference(Base):
+    __tablename__ = "user_preferences"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    theme = Column(String(50), default="dark")
+    ui_config = Column(JSON, default=dict)
+    created_at = Column(TIMESTAMP, default=func.current_timestamp())
+
+    user = relationship("User")
+
+
+class Studio(Base):
+    __tablename__ = "studios"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), nullable=False, unique=True, index=True)
+    logo_url = Column(Text, nullable=True)
+    url = Column(String(500), nullable=True)
+    details = Column(Text, nullable=True)
+    tags = Column(JSON, default=list)
+    is_network = Column(Boolean, default=False)
+    parent_id = Column(Integer, ForeignKey("studios.id", ondelete="SET NULL"), nullable=True, index=True)
+    created_at = Column(TIMESTAMP, default=func.current_timestamp())
+
+    parent = relationship("Studio", remote_side=[id], backref="sub_studios")
+
+
+class LiveStream(Base):
+    __tablename__ = "live_streams"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), nullable=False, unique=True, index=True)
+    url = Column(Text, nullable=False)
+    status = Column(String(50), default="idle")  # 'idle', 'recording', 'failed'
+    current_task_id = Column(String(255), nullable=True)
+    current_output_path = Column(Text, nullable=True)
+    written_size = Column(BIGINT, default=0)
+    elapsed_seconds = Column(Integer, default=0)
+    created_at = Column(TIMESTAMP, default=func.current_timestamp())
+    updated_at = Column(TIMESTAMP, default=func.current_timestamp())
+

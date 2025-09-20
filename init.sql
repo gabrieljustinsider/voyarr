@@ -312,3 +312,81 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE INDEX idx_library_entries_title_trgm ON library_entries USING gin (title gin_trgm_ops);
 CREATE INDEX idx_transcoding_queue_status ON transcoding_queue(status);
 CREATE UNIQUE INDEX uq_active_transcode_per_entry ON transcoding_queue(library_entry_id) WHERE status IN ('pending', 'running');
+
+-- Favorites table
+CREATE TABLE favorites (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    item_type VARCHAR(50) NOT NULL,
+    item_id VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uix_user_favorite_item UNIQUE (user_id, item_type, item_id)
+);
+CREATE INDEX idx_favorites_user_id ON favorites(user_id);
+CREATE INDEX idx_favorites_item_type_id ON favorites(item_type, item_id);
+
+-- User history table
+CREATE TABLE user_history (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    library_entry_id INTEGER NOT NULL REFERENCES library_entries(id) ON DELETE CASCADE,
+    watched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    duration INTEGER DEFAULT 0,
+    completed BOOLEAN DEFAULT FALSE
+);
+CREATE INDEX idx_user_history_user_id ON user_history(user_id);
+CREATE INDEX idx_user_history_entry_id ON user_history(library_entry_id);
+
+-- User video stats table
+CREATE TABLE user_video_stats (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    library_entry_id INTEGER NOT NULL REFERENCES library_entries(id) ON DELETE CASCADE,
+    play_count INTEGER DEFAULT 0,
+    climax_count INTEGER DEFAULT 0,
+    last_played TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uix_user_video_stats UNIQUE (user_id, library_entry_id)
+);
+CREATE INDEX idx_user_video_stats_user_id ON user_video_stats(user_id);
+CREATE INDEX idx_user_video_stats_entry_id ON user_video_stats(library_entry_id);
+
+-- User preferences table
+CREATE TABLE user_preferences (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE UNIQUE,
+    theme VARCHAR(50) DEFAULT 'dark',
+    ui_config JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_user_preferences_user_id ON user_preferences(user_id);
+
+-- Studios table
+CREATE TABLE studios (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    logo_url TEXT,
+    url VARCHAR(500),
+    details TEXT,
+    tags JSONB,
+    is_network BOOLEAN DEFAULT FALSE,
+    parent_id INTEGER REFERENCES studios(id) ON DELETE SET NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_studios_name ON studios(name);
+CREATE INDEX idx_studios_parent_id ON studios(parent_id);
+
+-- Live streams table
+CREATE TABLE live_streams (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    url TEXT NOT NULL,
+    status VARCHAR(50) DEFAULT 'idle',
+    current_task_id VARCHAR(255),
+    current_output_path TEXT,
+    written_size BIGINT DEFAULT 0,
+    elapsed_seconds INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_live_streams_name ON live_streams(name);
+CREATE INDEX idx_live_streams_status ON live_streams(status);
