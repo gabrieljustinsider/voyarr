@@ -1,5 +1,5 @@
+import os
 import requests
-import urllib.parse
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 from celery import shared_task
 from models import SiteRecipe
@@ -12,46 +12,12 @@ def scrape_url_task(url: str, recipe_id: int):
     """
     Fetches HTML from a URL and uses the DynamicScraper to extract metadata.
     """
-    if not url.lower().startswith(("http://", "https://")):
-        print(f"Error: Invalid URL scheme for {url}")
-        return None
-
     try:
-        parsed = urllib.parse.urlparse(url)
-        hostname = parsed.hostname.lower() if parsed.hostname else ""
-
-        try:
-            import ipaddress
-
-            if hostname.startswith("0x"):
-                ip_int = int(hostname, 16)
-            elif hostname.startswith("0") and hostname.isdigit():
-                ip_int = int(hostname, 8)
-            elif hostname.isdigit():
-                ip_int = int(hostname)
-            else:
-                ip_int = None
-            if ip_int is not None and (
-                ipaddress.ip_address(ip_int).is_loopback
-                or ipaddress.ip_address(ip_int).is_private
-            ):
-                print(f"Error: Disallowed internal numeric IP {hostname}")
-                return None
-        except ValueError:
-            pass
-
-        if hostname in [
-            "localhost",
-            "127.0.0.1",
-            "0.0.0.0",  # nosec B104
-            "169.254.169.254",
-            "::1",
-            "[::1]",
-        ] or hostname.endswith((".internal", ".nip.io", ".xip.io", ".sslip.io")):
-            print(f"Error: Disallowed internal hostname {hostname}")
-            return None
-    except Exception as url_err:
-        print(f"Error parsing or validating URL: {url_err}")
+        from routers.download import validate_url_ssrf
+        validate_url_ssrf(url)
+    except Exception as e:
+        print(f"SSRF validation failed for {url}: {e}")
+        return None
 
     with get_db_session() as db:
         try:
@@ -63,7 +29,17 @@ def scrape_url_task(url: str, recipe_id: int):
 
             # Use Playwright to launch a headless browser and wait for JS to render
             with sync_playwright() as p:
-                browser = p.chromium.launch(headless=True)
+                browserless_url = os.getenv("BROWSERLESS_URL")
+                browserless_token = os.getenv("BROWSERLESS_TOKEN")
+                if browserless_url:
+                    # Append token for authentication if provided
+                    if browserless_token:
+                        sep = "&" if "?" in browserless_url else "?"
+                        browserless_url = f"{browserless_url}{sep}token={browserless_token}"
+                    browser = p.chromium.connect_over_cdp(browserless_url)
+                else:
+                    browser = p.chromium.launch(headless=True)
+                    
                 try:
                     context = browser.new_context(
                         user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"

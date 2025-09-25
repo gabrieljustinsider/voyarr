@@ -34,6 +34,8 @@ import Favorites from './components/Favorites'
 import Studios from './components/Studios'
 import Analytics from './components/Analytics'
 import LiveStreams from './components/LiveStreams'
+import NotificationSettings from './components/NotificationSettings'
+import TranscodeQueue from './components/TranscodeQueue'
 
 import { apiFetch, getAuthHeaders } from './api'
 import './App.css'
@@ -139,6 +141,7 @@ function App() {
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
   const [searchQuery, setSearchQuery] = useState('')
   const [confirmModal, setConfirmModal] = useState({ open: false, message: '', onConfirm: null, onCancel: null })
+  const [promptModal, setPromptModal] = useState({ open: false, message: '', value: '', onConfirm: null, onCancel: null })
 
   // Custom Preferences state
   const [themeName, setThemeName] = useState('dark')
@@ -324,6 +327,53 @@ function App() {
     return () => abortController.abort()
   }, [isLoggedIn, fetchProviders, fetchQueue, loadPreferences])
 
+  // Notifications SSE stream to trigger global MUI Snackbars
+  useEffect(() => {
+    if (!isLoggedIn) return
+
+    const abortController = new AbortController()
+    const startNotificationsSSE = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/notifications/stream`, {
+          headers: getAuthHeaders(),
+          signal: abortController.signal
+        })
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder('utf-8')
+        let buffer = ''
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n\n')
+          buffer = lines.pop()
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const notif = JSON.parse(line.substring(6))
+                window.dispatchEvent(new CustomEvent('show-toast', { 
+                  detail: { 
+                    message: `${notif.title}: ${notif.message}`, 
+                    severity: notif.event_type === 'favorite_updated' ? 'success' : 'info' 
+                  } 
+                }))
+              } catch (e) {
+                console.debug('JSON Parse error for notifications SSE:', e)
+              }
+            }
+          }
+        }
+      } catch (e) {
+        if (e.name !== 'AbortError') {
+          setTimeout(startNotificationsSSE, 5000)
+        }
+      }
+    }
+    startNotificationsSSE()
+
+    return () => abortController.abort()
+  }, [isLoggedIn])
+
   const filteredProviders = useMemo(() => providers.filter(provider =>
     provider.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     provider.base_url.toLowerCase().includes(searchQuery.toLowerCase())
@@ -343,12 +393,16 @@ function App() {
       setConfirmModal({ open: true, message, onConfirm: () => resolve(true), onCancel: () => resolve(false) })
     })
 
+    window.appPrompt = (message, defaultValue = '') => new Promise((resolve) => {
+      setPromptModal({ open: true, message, value: defaultValue, onConfirm: (val) => resolve(val), onCancel: () => resolve(null) })
+    })
+
     window.confirm = (message) => {
       window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: `Use await window.appConfirm() for async dialogs: ${message}`, severity: 'warning' } }))
       return false
     }
     window.prompt = (message) => {
-      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: `Prompt blocked: ${message}`, severity: 'error' } }))
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: `Use await window.appPrompt() for async prompts: ${message}`, severity: 'warning' } }))
       return null
     }
 
@@ -446,6 +500,8 @@ function App() {
     { label: "Metadata", component: <MetadataManager />, visible: true },
     { label: "External APIs", component: <ExternalAPIs />, visible: true },
     { label: "Settings", component: <Settings />, visible: true },
+    { label: "Notification Settings", component: <NotificationSettings />, visible: true },
+    { label: "Transcode Queue", component: <TranscodeQueue />, visible: true },
     { label: "Backup", component: <BackupManager />, visible: true },
     { label: "Logs", component: <LogsViewer />, visible: true },
     { label: "Scraper Tester", component: <ScraperTester />, visible: true },
@@ -618,6 +674,36 @@ function App() {
             Cancel
           </Button>
           <Button color="error" variant="contained" onClick={() => { confirmModal.onConfirm?.(); setConfirmModal({ ...confirmModal, open: false }) }}>
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={promptModal.open} onClose={() => { promptModal.onCancel?.(); setPromptModal({ ...promptModal, open: false }) }} maxWidth="xs" fullWidth>
+        <DialogTitle>Input Required</DialogTitle>
+        <DialogContent dividers>
+          <Typography sx={{ mb: 2 }}>{promptModal.message}</Typography>
+          <TextField
+            autoFocus
+            margin="dense"
+            label={promptModal.message}
+            fullWidth
+            variant="outlined"
+            value={promptModal.value}
+            onChange={(e) => setPromptModal({ ...promptModal, value: e.target.value })}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                promptModal.onConfirm?.(promptModal.value);
+                setPromptModal({ ...promptModal, open: false });
+              }
+            }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { promptModal.onCancel?.(); setPromptModal({ ...promptModal, open: false }) }}>
+            Cancel
+          </Button>
+          <Button variant="contained" color="primary" onClick={() => { promptModal.onConfirm?.(promptModal.value); setPromptModal({ ...promptModal, open: false }) }}>
             Confirm
           </Button>
         </DialogActions>

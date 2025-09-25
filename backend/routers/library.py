@@ -1,13 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, defer
+from sqlalchemy.orm.attributes import flag_modified
 from database import get_db
 from models import LibraryEntry, DownloadPreference
 from typing import Optional
+from pydantic import BaseModel
 import os
 from services.reverse_regex import ReverseRegexMatcher
-from services.hash_service import HashService
-from db_utils import get_db_session
+from tasks.transcode_tasks import generate_hls_task
+from tasks.scanner_tasks import process_missing_hashes_task
 
 from dependencies import verify_api_key
 from utils import get_media_roots
@@ -89,7 +91,7 @@ def get_library_entries(
     limit: int = 50,
     db: Session = Depends(get_db),
 ):
-    query = db.query(LibraryEntry)
+    query = db.query(LibraryEntry).options(defer(LibraryEntry.entry_metadata))
     if provider_id:
         query = query.filter(LibraryEntry.provider_id == provider_id)
     if resolution:
@@ -112,43 +114,154 @@ def get_library_entries(
 
 @router.get("/{entry_id}/stream")
 def stream_video(entry_id: int, db: Session = Depends(get_db)):
-    entry = db.query(LibraryEntry).filter(LibraryEntry.id == entry_id).first()
-    if not entry:
+    file_path = db.query(LibraryEntry.file_path).filter(LibraryEntry.id == entry_id).scalar()
+    if not file_path:
         raise HTTPException(status_code=404, detail="Media not found")
-    if not os.path.exists(entry.file_path):
+    if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found on disk")
 
     return FileResponse(
-        entry.file_path, media_type="video/mp4", headers={"Accept-Ranges": "bytes"}
+        file_path, media_type="video/mp4", headers={"Accept-Ranges": "bytes"}
     )
-
-
-def process_missing_hashes_task():
-    with get_db_session() as db:
-        entry_ids = [
-            row[0] for row in db.query(LibraryEntry.id)
-            .filter((LibraryEntry.phash.is_(None)) | (LibraryEntry.phash == ""))
-            .all()
-        ]
-        for eid in entry_ids:
-            try:
-                entry = db.query(LibraryEntry).get(eid)
-                if not entry:
-                    continue
-                if os.path.exists(entry.file_path):
-                    if not entry.ohash or entry.ohash == "0000000000000000":
-                        entry.ohash = HashService.generate_ohash(entry.file_path)
-                    entry.phash = HashService.generate_phash(entry.file_path)
-                    db.commit()
-            except Exception as e:
-                db.rollback()
-                print(f"Error rescanning hashes for entry {eid}: {str(e)}")
 
 
 @router.post(
     "/rescan-hashes",
     dependencies=[Depends(rate_limit(max_requests=2, window_seconds=60))],
 )
-def rescan_hashes(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    background_tasks.add_task(process_missing_hashes_task)
-    return {"message": "Hash rescan started in the background. This may take a while."}
+def rescan_hashes(db: Session = Depends(get_db)):
+    task = process_missing_hashes_task.delay()
+    return {"message": "Hash rescan started in the background. This may take a while.", "task_id": task.id}
+
+
+@router.post("/{entry_id}/cluster-faces")
+def trigger_facial_clustering(entry_id: int, db: Session = Depends(get_db)):
+    entry = db.query(LibraryEntry).filter(LibraryEntry.id == entry_id).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Library entry not found")
+    
+    try:
+        from tasks.ml_tasks import cluster_faces_task
+    except ImportError:
+        raise HTTPException(
+            status_code=501,
+            detail="Facial recognition dependencies (face_recognition, opencv, sklearn) are not installed on this server."
+        )
+    
+    task = cluster_faces_task.delay(entry.id)
+    return {"message": "Facial clustering task queued", "task_id": task.id}
+
+
+@router.get("/{entry_id}/facial-clusters")
+def get_facial_clusters(entry_id: int, db: Session = Depends(get_db)):
+    entry = db.query(LibraryEntry).filter(LibraryEntry.id == entry_id).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Library entry not found")
+    
+    return (entry.entry_metadata or {}).get("facial_clusters", {})
+
+
+@router.get("/{entry_id}/facial-clusters/{person_name}/thumbnail")
+def get_facial_cluster_thumbnail(entry_id: int, person_name: str, db: Session = Depends(get_db)):
+    file_path = db.query(LibraryEntry.file_path).filter(LibraryEntry.id == entry_id).scalar()
+    if not file_path:
+        raise HTTPException(status_code=404, detail="Library entry not found")
+    
+    faces_dir = os.path.join(os.path.dirname(file_path), f".faces_{entry_id}")
+    safe_person_name = os.path.basename(person_name)
+    thumb_path = os.path.join(faces_dir, f"{safe_person_name}.jpg")
+    
+    if not os.path.exists(thumb_path):
+        raise HTTPException(status_code=404, detail="Thumbnail not found")
+        
+    return FileResponse(thumb_path, media_type="image/jpeg")
+
+
+class RenameClusterRequest(BaseModel):
+    new_name: str
+
+
+@router.post("/{entry_id}/facial-clusters/{person_name}/rename")
+def rename_facial_cluster(entry_id: int, person_name: str, req: RenameClusterRequest, db: Session = Depends(get_db)):
+    entry = db.query(LibraryEntry).filter(LibraryEntry.id == entry_id).first()
+    if not entry or not entry.file_path:
+        raise HTTPException(status_code=404, detail="Library entry not found")
+
+    meta = (entry.entry_metadata or {}).copy()
+    clusters = meta.get("facial_clusters", {})
+
+    if person_name not in clusters:
+        raise HTTPException(status_code=404, detail=f"Cluster {person_name} not found")
+
+    safe_new_name = os.path.basename(req.new_name)
+    if not safe_new_name or req.new_name != safe_new_name:
+        raise HTTPException(status_code=400, detail="Invalid new name: cannot contain path separators.")
+
+    # Update JSON metadata
+    clusters[safe_new_name] = clusters.pop(person_name)
+    meta["facial_clusters"] = clusters
+    entry.entry_metadata = meta
+
+    # Also add the new performer name to the global performers list if not already there
+    performers = entry.performers or []
+    if safe_new_name not in performers:
+        entry.performers = performers + [safe_new_name]
+
+    flag_modified(entry, "entry_metadata")
+    db.commit()
+
+    # Rename physical thumbnail
+    faces_dir = os.path.join(os.path.dirname(entry.file_path), f".faces_{entry.id}")
+    safe_old_name = os.path.basename(person_name)
+    old_thumb = os.path.join(faces_dir, f"{safe_old_name}.jpg")
+    new_thumb = os.path.join(faces_dir, f"{safe_new_name}.jpg")
+
+    if os.path.exists(old_thumb):
+        os.rename(old_thumb, new_thumb)
+
+    return {"message": "Cluster renamed successfully", "new_name": safe_new_name}
+
+
+@router.delete("/{entry_id}")
+def delete_library_entry(entry_id: int, db: Session = Depends(get_db)):
+    entry = db.query(LibraryEntry).filter(LibraryEntry.id == entry_id).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Library entry not found")
+
+    # Attempt to delete the physical media file
+    if entry.file_path and os.path.exists(entry.file_path):
+        os.remove(entry.file_path)
+
+    db.delete(entry)
+    db.commit()
+    return {"message": "Library entry and physical media deleted successfully"}
+
+
+@router.post("/{entry_id}/hls/generate")
+def trigger_hls_generation(entry_id: int, db: Session = Depends(get_db)):
+    exists = db.query(LibraryEntry.id).filter(LibraryEntry.id == entry_id).scalar()
+    if not exists:
+        raise HTTPException(status_code=404, detail="Library entry not found")
+    
+    task = generate_hls_task.delay(entry_id)
+    return {"message": "HLS generation task queued", "task_id": task.id}
+
+
+@router.get("/{entry_id}/hls/{filename}")
+def serve_hls_file(entry_id: int, filename: str, db: Session = Depends(get_db)):
+    file_path = db.query(LibraryEntry.file_path).filter(LibraryEntry.id == entry_id).scalar()
+    if not file_path:
+        raise HTTPException(status_code=404, detail="Library entry not found")
+    
+    safe_filename = os.path.basename(filename)
+    if not safe_filename.endswith(".m3u8") and not safe_filename.endswith(".ts"):
+        raise HTTPException(status_code=400, detail="Invalid file type")
+
+    hls_dir = f"{file_path}.hls"
+    file_path = os.path.join(hls_dir, safe_filename)
+    
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="HLS file not found. Ensure generation is complete.")
+        
+    media_type = "application/vnd.apple.mpegurl" if safe_filename.endswith(".m3u8") else "video/MP2T"
+    return FileResponse(file_path, media_type=media_type)

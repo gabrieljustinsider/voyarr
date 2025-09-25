@@ -137,6 +137,8 @@ class DownloadQueue(Base):
     file_size = Column(BIGINT)
     speed = Column(String(20))
     retry_count = Column(Integer, default=0)
+    priority = Column(Integer, default=0)
+    celery_task_id = Column(String(255), nullable=True)
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
     updated_at = Column(TIMESTAMP, default=func.current_timestamp())
 
@@ -338,6 +340,9 @@ class TranscodingQueue(Base):
     target_codec = Column(String(20), default="h265")
     target_resolution = Column(String(20), nullable=True)
     progress_percentage = Column(DECIMAL(5, 2), default=0.0)
+    priority = Column(Integer, default=0)
+    celery_task_id = Column(String(255), nullable=True)
+    pid = Column(Integer, nullable=True)
     details = Column(Text, nullable=True)
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
     updated_at = Column(
@@ -456,6 +461,45 @@ class LiveStream(Base):
     current_output_path = Column(Text, nullable=True)
     written_size = Column(BIGINT, default=0)
     elapsed_seconds = Column(Integer, default=0)
+    pid = Column(Integer, nullable=True)
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
     updated_at = Column(TIMESTAMP, default=func.current_timestamp())
+
+
+class NotificationPreference(Base):
+    __tablename__ = "notification_preferences"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    event_type = Column(String(50), nullable=False)
+    dispatch_method = Column(String(50), nullable=False)
+    enabled = Column(Boolean, default=True)
+    created_at = Column(TIMESTAMP, default=func.current_timestamp())
+
+    user = relationship("User")
+
+
+class NotificationRule(Base):
+    __tablename__ = "notification_rules"
+
+    id = Column(Integer, primary_key=True)
+    event_type = Column(String(50), nullable=False)
+    discord_channel_id = Column(String(255), nullable=True)
+    webhook_url = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(TIMESTAMP, default=func.current_timestamp())
+
+
+class NotificationLog(Base):
+    __tablename__ = "notification_logs"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    event_type = Column(String(50), nullable=False)
+    title = Column(String(255), nullable=False)
+    message = Column(Text, nullable=False)
+    read = Column(Boolean, default=False, index=True)
+    created_at = Column(TIMESTAMP, default=func.current_timestamp())
+
+    user = relationship("User")
 

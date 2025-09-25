@@ -62,3 +62,14 @@ def delete_chapter(chapter_id: int, db: Session = Depends(get_db)):
     db.delete(db_chapter)
     db.commit()
     return {"message": "Chapter deleted successfully"}
+
+
+@router.post("/library/{library_entry_id}/auto-chapter")
+def trigger_auto_chaptering(library_entry_id: int, db: Session = Depends(get_db)):
+    entry = db.query(LibraryEntry).filter(LibraryEntry.id == library_entry_id).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Library entry not found")
+
+    from tasks.ai_tasks import generate_video_chapters_task
+    task = generate_video_chapters_task.delay(entry.id)
+    return {"message": "Auto-chaptering task queued", "task_id": task.id}

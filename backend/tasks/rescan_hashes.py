@@ -15,12 +15,18 @@ def rescan_missing_hashes():
     Scans the database for LibraryEntries missing either an ohash or phash
     and attempts to regenerate them based on the local file.
     """
+    from sqlalchemy.orm import defer
     with get_db_session() as db:
         print("Scanning for library entries with missing hashes...")
 
-        # Find entries missing either ohash or phash
-        entry_ids = (
-            db.query(LibraryEntry.id)
+        # OPTIMIZATION: Use yield_per and defer to prevent N+1 queries and memory bloat
+        entries = (
+            db.query(LibraryEntry)
+            .options(
+                defer(LibraryEntry.entry_metadata),
+                defer(LibraryEntry.performers),
+                defer(LibraryEntry.tags)
+            )
             .filter(
                 or_(
                     LibraryEntry.ohash.is_(None),
@@ -29,15 +35,12 @@ def rescan_missing_hashes():
                     LibraryEntry.phash == "",
                 )
             )
-            .all()
+            .yield_per(50)
         )
 
-        if not entry_ids:
-            print("No entries with missing hashes found. Your library is fully hashed!")
-            return
-
-        for (entry_id,) in entry_ids:
-            entry = db.query(LibraryEntry).get(entry_id)
+        found_any = False
+        for entry in entries:
+            found_any = True
             if not os.path.exists(entry.file_path):
                 print(
                     f"File missing on disk for entry #{entry.id} ({entry.title}), skipping."
@@ -65,6 +68,9 @@ def rescan_missing_hashes():
             if updated:
                 db.commit()
                 print(f"Successfully updated hashes for entry #{entry.id}.")
+
+        if not found_any:
+            print("No entries with missing hashes found. Your library is fully hashed!")
 
     print("Finished rescanning hashes.")
 

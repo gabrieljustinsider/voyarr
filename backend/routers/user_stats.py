@@ -4,7 +4,7 @@ from database import get_db
 from models import User, UserHistory, UserVideoStats, UserPreference, LibraryEntry
 from routers.auth import get_current_user
 from pydantic import BaseModel
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 router = APIRouter(prefix="/user/stats", tags=["user_stats"])
 

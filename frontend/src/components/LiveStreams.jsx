@@ -10,6 +10,7 @@ import EditIcon from '@mui/icons-material/Edit'
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord'
 import StopIcon from '@mui/icons-material/Stop'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
+import PauseIcon from '@mui/icons-material/Pause'
 import KeyIcon from '@mui/icons-material/Key'
 import StreamIcon from '@mui/icons-material/Stream'
 import CloseIcon from '@mui/icons-material/Close'
@@ -190,6 +191,34 @@ export default function LiveStreams() {
     }
   }
 
+  const handlePauseRecord = async (id) => {
+    try {
+      const res = await apiFetch(`/live-streams/${id}/pause`, { method: 'POST' })
+      if (res.ok) {
+        window.dispatchEvent(new CustomEvent('show-toast', { 
+          detail: { message: 'Recording paused successfully.', severity: 'warning' } 
+        }))
+        fetchStreams()
+      }
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const handleResumeRecord = async (id) => {
+    try {
+      const res = await apiFetch(`/live-streams/${id}/resume`, { method: 'POST' })
+      if (res.ok) {
+        window.dispatchEvent(new CustomEvent('show-toast', { 
+          detail: { message: 'Recording resumed successfully.', severity: 'success' } 
+        }))
+        fetchStreams()
+      }
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setSubmitting(true)
@@ -352,7 +381,7 @@ export default function LiveStreams() {
                         {stream.name}
                       </Typography>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        {isRecording ? (
+                        {stream.status === 'recording' ? (
                           <Chip 
                             icon={<FiberManualRecordIcon color="error" sx={{ animation: 'pulse 1.5s infinite' }} />} 
                             label="Recording" 
@@ -360,6 +389,8 @@ export default function LiveStreams() {
                             size="small" 
                             sx={{ fontWeight: 'bold', fontSize: '0.7rem' }}
                           />
+                        ) : stream.status === 'paused' ? (
+                          <Chip label="Paused" color="warning" size="small" sx={{ fontWeight: 'bold', fontSize: '0.7rem' }} />
                         ) : isFailed ? (
                           <Chip label="Failed" color="warning" size="small" sx={{ fontWeight: 'bold', fontSize: '0.7rem' }} />
                         ) : (
@@ -372,7 +403,7 @@ export default function LiveStreams() {
                       URL: {stream.url}
                     </Typography>
 
-                    {isRecording && (
+                    {(stream.status === 'recording' || stream.status === 'paused') && (
                       <Paper sx={{ p: 1.5, mb: 2, backgroundColor: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)' }}>
                         <Grid container spacing={1}>
                           <Grid item xs={6}>
@@ -381,7 +412,7 @@ export default function LiveStreams() {
                           </Grid>
                           <Grid item xs={6}>
                             <Typography variant="caption" color="textSecondary">Elapsed Time</Typography>
-                            <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'error.main' }}>{formatTime(stream.elapsed_seconds)}</Typography>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: stream.status === 'paused' ? 'warning.main' : 'error.main' }}>{formatTime(stream.elapsed_seconds)}</Typography>
                           </Grid>
                         </Grid>
                       </Paper>
@@ -396,12 +427,27 @@ export default function LiveStreams() {
 
                       {isAdmin && (
                         <>
-                          {isRecording ? (
-                            <Tooltip title="Stop Capture">
-                              <IconButton color="error" size="medium" onClick={() => handleStopRecord(stream.id)}>
-                                <StopIcon />
-                              </IconButton>
-                            </Tooltip>
+                          {(stream.status === 'recording' || stream.status === 'paused') ? (
+                            <Box sx={{ display: 'inline-flex', gap: 1 }}>
+                              <Tooltip title="Stop Capture">
+                                <IconButton color="error" size="medium" onClick={() => handleStopRecord(stream.id)}>
+                                  <StopIcon />
+                                </IconButton>
+                              </Tooltip>
+                              {stream.status === 'recording' ? (
+                                <Tooltip title="Pause Capture">
+                                  <IconButton color="warning" size="medium" onClick={() => handlePauseRecord(stream.id)}>
+                                    <PauseIcon />
+                                  </IconButton>
+                                </Tooltip>
+                              ) : (
+                                <Tooltip title="Resume Capture">
+                                  <IconButton color="success" size="medium" onClick={() => handleResumeRecord(stream.id)}>
+                                    <PlayArrowIcon />
+                                  </IconButton>
+                                </Tooltip>
+                              )}
+                            </Box>
                           ) : (
                             <Tooltip title="Start Capturing (Celery + streamlink)">
                               <IconButton color="error" size="medium" onClick={() => handleStartRecord(stream.id)}>

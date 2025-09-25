@@ -12,7 +12,7 @@ import hashlib
 import hmac
 import base64
 import os
-from typing import Optional, List
+from typing import Optional
 from decimal import Decimal
 from dependencies import verify_api_key
 from rate_limiter import rate_limit
@@ -454,8 +454,11 @@ def verify_local_backup(
     abs_backup_dir = os.path.abspath(backup_dir)
     abs_filepath = os.path.abspath(filepath)
     
-    if not abs_filepath.startswith(abs_backup_dir):
-        raise HTTPException(status_code=403, detail="Access denied: path lies outside backups folder boundary")
+    try:
+        if os.path.commonpath([abs_backup_dir, abs_filepath]) != abs_backup_dir:
+            raise HTTPException(status_code=403, detail="Access denied: path lies outside backups folder boundary")
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Access denied: invalid path")
 
     if not os.path.exists(abs_filepath):
         raise HTTPException(status_code=404, detail="Local backup file not found")
@@ -480,8 +483,11 @@ def restore_local_backup(
     abs_backup_dir = os.path.abspath(backup_dir)
     abs_filepath = os.path.abspath(filepath)
     
-    if not abs_filepath.startswith(abs_backup_dir):
-        raise HTTPException(status_code=403, detail="Access denied: path lies outside backups folder boundary")
+    try:
+        if os.path.commonpath([abs_backup_dir, abs_filepath]) != abs_backup_dir:
+            raise HTTPException(status_code=403, detail="Access denied: path lies outside backups folder boundary")
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Access denied: invalid path")
 
     if not os.path.exists(abs_filepath):
         raise HTTPException(status_code=404, detail="Local backup file not found")

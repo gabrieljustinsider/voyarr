@@ -19,6 +19,7 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
             return
 
         task.status = "running"
+        task.celery_task_id = self.request.id
         db.commit()
 
         # Fetch advanced yt-dlp integrations
@@ -187,6 +188,18 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
                 task.status = "completed"
                 db.commit()
 
+                try:
+                    from services.notification_service import NotificationService
+                    NotificationService.check_and_notify_favorites(db, new_entry)
+                    NotificationService.notify_global(
+                        db,
+                        "task_completed",
+                        "Download Completed",
+                        f"Successfully downloaded '{new_entry.title}'."
+                    )
+                except Exception as notif_err:
+                    print(f"Error sending notifications for download completion: {notif_err}")
+
         except Exception as e:
             if "Task paused by user" in str(e) or "Task cancelled by user" in str(e):
                 print(f"Download manually stopped: {str(e)}")
@@ -216,6 +229,17 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
                         task.status = "failed"
                         db.commit()
                         print(f"Download failed permanently after {max_retries} retries: {str(e)}")
+
+                        try:
+                            from services.notification_service import NotificationService
+                            NotificationService.notify_global(
+                                db,
+                                "task_completed",
+                                "Download Failed",
+                                f"Download failed permanently for '{task.url}': {str(e)}"
+                            )
+                        except Exception as notif_err:
+                            print(f"Error sending download failure notification: {notif_err}")
             except Exception as inner_e:
                 print(f"Failed to update task status during error handling: {str(inner_e)}")
                 

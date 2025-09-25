@@ -19,8 +19,9 @@ def scan_for_duplicates():
         return
 
     with get_db_session() as db:
+        # OPTIMIZATION: Fetch only the scalar columns needed to bypass JSON overhead and save massive amounts of RAM
         entries = (
-            db.query(LibraryEntry)
+            db.query(LibraryEntry.id, LibraryEntry.phash)
             .filter(LibraryEntry.phash.isnot(None), LibraryEntry.phash != "")
             .all()
         )

@@ -34,6 +34,9 @@ Voyarr automates the tedious parts of managing a local media library. From autom
 14. **System Backup & Recovery:** Export complete PostgreSQL schema records and media metadata configurations.
 15. **Media Requests Portal:** Allow standard or guest users to request downloads via a centralized portal with admin approval queues.
 16. **Video Chapters:** Generate, browse, and edit time-indexed chapter boundaries with sub-tag descriptors directly in the local library.
+17. **Performer Facial Recognition Clustering:** Group visually matching faces using DBSCAN clustering, auto-identifying unknown actors and extracting face portrait thumbnails.
+18. **AI-Driven Auto-Chaptering:** Utilize frame-based scene change detection combined with AI Vision models (Ollama/Llava or OpenAI GPT-4o) to automatically segment videos into logical chapters with descriptive titles.
+19. **Granular Queue Priority & Controls:** Adjust priorities, pause, resume, or cancel active tasks inside Celery-managed download, transcoding, and recording streams in real-time.
 
 ## 🐳 Docker Configuration
 

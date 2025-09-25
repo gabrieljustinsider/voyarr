@@ -228,7 +228,7 @@ def evaluate_duplicate_quality(
             title.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         )
         existing = (
-            db.query(LibraryEntry)
+            db.query(LibraryEntry.id, LibraryEntry.resolution)
             .filter(LibraryEntry.title.ilike(f"%{escaped_title}%", escape="\\"))
             .first()
         )
@@ -321,10 +321,7 @@ def start_download(req: DownloadRequest, db: Session = Depends(get_db)):
 
     provider = db.query(Provider).filter(Provider.id == req.provider_id).first()
     if not provider:
-        # Fallback for testing
-        pass
-    else:
-        pass
+        raise HTTPException(status_code=404, detail=f"Provider with ID {req.provider_id} not found.")
 
     # 1. Fetch Preferences
     prefs = (
@@ -378,7 +375,7 @@ def start_download(req: DownloadRequest, db: Session = Depends(get_db)):
 
     # 3.2 Check Active Download Queue for Duplicates
     existing_queue = (
-        db.query(DownloadQueue)
+        db.query(DownloadQueue.id, DownloadQueue.media_entry_id)
         .filter(
             DownloadQueue.url == str(req.url),
             DownloadQueue.status.in_(["pending", "running", "queued"]),
@@ -466,7 +463,11 @@ def get_download_queue(
     query = (
         db.query(DownloadQueue)
         .join(DownloadQueue.media_entry)
-        .options(contains_eager(DownloadQueue.media_entry))
+        .options(
+            contains_eager(DownloadQueue.media_entry).defer(MediaEntry.media_metadata),
+            contains_eager(DownloadQueue.media_entry).defer(MediaEntry.performers),
+            contains_eager(DownloadQueue.media_entry).defer(MediaEntry.tags)
+        )
     )
 
     if provider_id:
@@ -493,7 +494,11 @@ def stream_download_queue(request: Request):
                 # Only push active tasks to the client to save bandwidth and memory
                 tasks = (
                     db.query(DownloadQueue)
-                    .options(joinedload(DownloadQueue.media_entry))
+                    .options(
+                        joinedload(DownloadQueue.media_entry).defer(MediaEntry.media_metadata),
+                        joinedload(DownloadQueue.media_entry).defer(MediaEntry.performers),
+                        joinedload(DownloadQueue.media_entry).defer(MediaEntry.tags)
+                    )
                     .filter(DownloadQueue.status.in_(["pending", "running", "queued"]))
                     .all()
                 )
@@ -534,7 +539,6 @@ class MassRipRequest(BaseModel):
 def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
     """
     Parses a channel/performer page, evaluates rules, and queues videos.
-    (Mocked URL extraction for now)
     """
     # SECURITY: Prevent SSRF via the download engine
     url_str = str(req.url)
@@ -638,6 +642,13 @@ def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
         if not video["url"]:
             continue
         meta = video["metadata"]
+        
+        # SECURITY: Prevent SSRF via extracted URLs
+        try:
+            validate_url_ssrf(video["url"])
+        except HTTPException:
+            skipped_count += 1
+            continue
 
         title_raw = meta.get("title")
         title = (
@@ -660,7 +671,7 @@ def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
 
         # 2.2 Check Active Download Queue for Duplicates
         existing_queue = (
-            db.query(DownloadQueue)
+            db.query(DownloadQueue.id)
             .filter(
                 DownloadQueue.url == video["url"],
                 DownloadQueue.status.in_(["pending", "running", "queued"]),

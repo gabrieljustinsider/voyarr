@@ -5,6 +5,7 @@ from typing import Optional, List, Any
 import requests
 import asyncio
 import json
+import os
 from celery.result import AsyncResult
 
 from models import LibraryEntry
@@ -14,6 +15,8 @@ from db_utils import get_db_session
 
 from dependencies import verify_api_key
 from routers.auth import get_current_user
+from routers.download import validate_url_ssrf
+from utils import get_media_roots
 
 router = APIRouter(
     prefix="/external-api",
@@ -304,6 +307,7 @@ def update_stashdb(req: SyncRequest, x_api_key: Optional[str] = Header(None)):
 
 @router.post("/scrape")
 def trigger_scrape(req: ScrapeRequest):
+    validate_url_ssrf(req.url)
     task = scrape_url_task.delay(req.url, req.recipe_id)
     return {"message": "Scraping task queued", "task_id": task.id}
 
@@ -342,8 +346,8 @@ def search_library(title: Optional[str] = None, hash: Optional[str] = None):
             results.append(
                 {
                     "title": entry.title,
-                    "details": entry.metadata.get("description", "")
-                    if entry.metadata
+                        "details": entry.entry_metadata.get("description", "")
+                        if entry.entry_metadata
                     else "",
                     "url": entry.file_path,
                     "tags": [{"name": t} for t in (entry.tags or [])],
@@ -355,7 +359,22 @@ def search_library(title: Optional[str] = None, hash: Optional[str] = None):
 
 @router.post("/library/scan")
 def trigger_library_scan(req: ScanRequest):
-    task = scan_library_task.delay(req.directory, req.provider_id)
+    # SECURITY: Prevent path traversal in background scan tasks
+    target_dir = os.path.realpath(req.directory)
+    media_roots = get_media_roots()
+    is_valid_dir = False
+    for root in media_roots:
+        try:
+            if os.path.commonpath([root, target_dir]) == root:
+                is_valid_dir = True
+                break
+        except ValueError:
+            continue
+            
+    if not is_valid_dir:
+        raise HTTPException(status_code=403, detail="Forbidden: Directory is outside configured media roots.")
+
+    task = scan_library_task.delay(target_dir, req.provider_id)
     return {"message": "Library scan queued", "task_id": task.id}
 
 
@@ -370,11 +389,13 @@ def sync_stats_with_stash(
     current_user: Any = Depends(get_current_user),
 ):
     """Two-way sync of watch counts, climax counts (O-meter), and timestamps with Stash App."""
-    from models import UserVideoStats, LibraryEntry, User
+    from models import UserVideoStats, LibraryEntry
     from db_utils import get_db_session
     import requests
 
     headers = {"Content-Type": "application/json"}
+    
+    validate_url_ssrf(req.stash_url)
     if req.stash_api_key:
         headers["ApiKey"] = req.stash_api_key
 
@@ -519,4 +540,3 @@ def sync_stats_with_stash(
         "updated_local": updated_local,
         "updated_stash": updated_stash,
     }
-

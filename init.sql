@@ -65,6 +65,8 @@ CREATE TABLE download_queue (
     file_size BIGINT,
     speed VARCHAR(20),
     retry_count INTEGER DEFAULT 0,
+    priority INTEGER DEFAULT 0,
+    celery_task_id VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -233,6 +235,9 @@ CREATE TABLE transcoding_queue (
     target_codec VARCHAR(20) DEFAULT 'h265',
     target_resolution VARCHAR(20),
     progress_percentage DECIMAL(5,2) DEFAULT 0,
+    priority INTEGER DEFAULT 0,
+    celery_task_id VARCHAR(255),
+    pid INTEGER,
     details TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -385,8 +390,43 @@ CREATE TABLE live_streams (
     current_output_path TEXT,
     written_size BIGINT DEFAULT 0,
     elapsed_seconds INTEGER DEFAULT 0,
+    pid INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX idx_live_streams_name ON live_streams(name);
 CREATE INDEX idx_live_streams_status ON live_streams(status);
+
+-- Notification Preferences table
+CREATE TABLE notification_preferences (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    event_type VARCHAR(50) NOT NULL,
+    dispatch_method VARCHAR(50) NOT NULL,
+    enabled BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_notification_preferences_user_id ON notification_preferences(user_id);
+
+-- Notification Rules table
+CREATE TABLE notification_rules (
+    id SERIAL PRIMARY KEY,
+    event_type VARCHAR(50) NOT NULL,
+    discord_channel_id VARCHAR(255),
+    webhook_url TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Notification Logs table
+CREATE TABLE notification_logs (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    event_type VARCHAR(50) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_notification_logs_user_id ON notification_logs(user_id);
+CREATE INDEX idx_notification_logs_read ON notification_logs(read);

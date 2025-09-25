@@ -2,14 +2,21 @@ from unittest.mock import MagicMock, patch
 import sys
 
 # Mock database and other complex submodules before importing main
-sys.modules['database'] = MagicMock()
-sys.modules['db_utils'] = MagicMock()
-sys.modules['services.scraper'] = MagicMock()
-sys.modules['croniter'] = MagicMock()
+orig_modules = {}
+for name in ['database', 'db_utils', 'services.scraper', 'croniter']:
+    orig_modules[name] = sys.modules.get(name)
+    sys.modules[name] = MagicMock()
 
 from fastapi.testclient import TestClient
 from main import app
 from dependencies import verify_api_key
+
+# Restore original modules
+for name, orig in orig_modules.items():
+    if orig is None:
+        sys.modules.pop(name, None)
+    else:
+        sys.modules[name] = orig
 
 # Override auth dependency to allow testing router directly
 app.dependency_overrides[verify_api_key] = lambda: {"type": "mock", "user": "admin"}

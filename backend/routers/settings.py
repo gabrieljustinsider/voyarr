@@ -4,7 +4,7 @@ from database import get_db
 from models import Settings, Vault
 from pydantic import BaseModel
 import os
-from typing import Optional, List
+from typing import Optional
 
 from dependencies import verify_api_key
 from security import encrypt_data, decrypt_data
@@ -100,12 +100,18 @@ def browse_directory(path: Optional[str] = Query(None)):
     target_path = path if path else "/"
     
     try:
-        target_path = os.path.abspath(target_path)
+        # SECURITY: Use realpath to resolve symlinks and prevent bypasses
+        target_path = os.path.realpath(target_path)
     except Exception:
         target_path = "/"
         
     if not os.path.exists(target_path):
         target_path = "/"
+        
+    # SECURITY: Prevent access to sensitive system directories
+    forbidden_prefixes = ["/etc", "/proc", "/sys", "/root", "/var", "/dev"]
+    if any(target_path.startswith(fp) for fp in forbidden_prefixes):
+        raise HTTPException(status_code=403, detail="Access to sensitive system directories is forbidden.")
 
     if not os.path.isdir(target_path):
         target_path = os.path.dirname(target_path)
@@ -156,8 +162,11 @@ def autocomplete_path(q: str = Query("")):
     if not q:
         q = "/"
 
+    if not q.startswith("/"):
+        q = "/" + q
     # Normalize path separators, keeping track if it is just a root or directory
     q_norm = os.path.normpath(q) if q != "/" else "/"
+    
     ends_with_slash = q.endswith(os.sep) or q.endswith("/")
     
     if os.path.isdir(q_norm) and (ends_with_slash or q_norm == "/"):
@@ -166,6 +175,17 @@ def autocomplete_path(q: str = Query("")):
     else:
         parent_dir = os.path.dirname(q_norm)
         prefix = os.path.basename(q_norm)
+
+    try:
+        # SECURITY: Resolve symlinks to prevent bypasses
+        parent_dir = os.path.realpath(parent_dir)
+    except Exception:
+        parent_dir = "/"
+
+    # SECURITY: Prevent access to sensitive system directories
+    forbidden_prefixes = ["/etc", "/proc", "/sys", "/root", "/var", "/dev"]
+    if any(parent_dir.startswith(fp) for fp in forbidden_prefixes):
+        return {"suggestions": []}
 
     if not os.path.exists(parent_dir) or not os.path.isdir(parent_dir):
         parent_dir = "/"

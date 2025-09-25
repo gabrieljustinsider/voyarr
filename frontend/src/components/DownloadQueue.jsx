@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react'
 import { 
   Typography, LinearProgress, List, ListItem, Box, Button, Chip, 
-  TextField, Select, MenuItem, FormControl, InputLabel, Paper, Grid, CircularProgress 
+  TextField, Select, MenuItem, FormControl, InputLabel, Paper, Grid, CircularProgress,
+  IconButton
 } from '@mui/material'
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward'
 import apiFetch from '../api'
 
 export default function DownloadQueue({ queue, onRefresh }) {
@@ -29,7 +32,7 @@ export default function DownloadQueue({ queue, onRefresh }) {
       const data = await res.json()
       
       if (data.requires_confirmation) {
-        const confirmed = window.appConfirm ? await window.appConfirm(data.message) : window.confirm(data.message)
+        const confirmed = await window.appConfirm(data.message)
         if (confirmed) {
           await handleAddDownload(true)
         }
@@ -49,7 +52,7 @@ export default function DownloadQueue({ queue, onRefresh }) {
 
   const handleAction = async (taskId, action) => {
     try {
-      const response = await apiFetch(`/download/${taskId}/${action}`, { 
+      const response = await apiFetch(`/progress/${taskId}/${action}`, { 
         method: 'POST'
       })
       if (response.ok) {
@@ -134,21 +137,37 @@ export default function DownloadQueue({ queue, onRefresh }) {
                   {(task.progress_percentage || 0).toFixed(1)}% complete
                 </Typography>
               </Box>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                {(task.status === 'running' || task.status === 'pending' || task.status === 'queued') && (
-                  <Button size="small" variant="outlined" onClick={() => handleAction(task.id, 'pause')}>
-                    Pause
-                  </Button>
-                )}
-                {task.status === 'paused' && (
-                  <Button size="small" variant="outlined" onClick={() => handleAction(task.id, 'resume')}>
-                    Resume
-                  </Button>
-                )}
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', width: '100%' }}>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  {(task.status === 'running' || task.status === 'pending' || task.status === 'queued') && (
+                    <Button size="small" variant="outlined" onClick={() => handleAction(task.id, 'pause')}>
+                      Pause
+                    </Button>
+                  )}
+                  {task.status === 'paused' && (
+                    <Button size="small" variant="outlined" onClick={() => handleAction(task.id, 'resume')}>
+                      Resume
+                    </Button>
+                  )}
+                  {task.status !== 'completed' && task.status !== 'failed' && task.status !== 'cancelled' && (
+                    <Button size="small" variant="outlined" color="error" onClick={() => handleAction(task.id, 'cancel')}>
+                      Cancel
+                    </Button>
+                  )}
+                </Box>
+
                 {task.status !== 'completed' && task.status !== 'failed' && task.status !== 'cancelled' && (
-                  <Button size="small" variant="outlined" color="error" onClick={() => handleAction(task.id, 'cancel')}>
-                  Cancel
-                </Button>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 'auto' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                      Priority: {task.priority || 0}
+                    </Typography>
+                    <IconButton size="small" onClick={() => handleAction(task.id, 'priority/up')} color="primary">
+                      <ArrowUpwardIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton size="small" onClick={() => handleAction(task.id, 'priority/down')} color="primary">
+                      <ArrowDownwardIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
                 )}
               </Box>
             </ListItem>

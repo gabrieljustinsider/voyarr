@@ -37,6 +37,19 @@ services:
     networks:
       - voyarr_network
 
+  browserless:
+    image: browserless/chrome:latest
+    container_name: voyarr-browserless
+    environment:
+      - TIMEOUT=60000
+      - MAX_CONCURRENT_SESSIONS=10
+      - TOKEN=${BROWSERLESS_TOKEN:-voyarr-secure-browserless-token}
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    networks:
+      - voyarr_network
+
   backend:
     image: voyarr-backend:latest
     build:
@@ -46,6 +59,8 @@ services:
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-voyarr}}
       - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
+      - BROWSERLESS_URL=${BROWSERLESS_URL:-ws://browserless:3000}
+      - BROWSERLESS_TOKEN=${BROWSERLESS_TOKEN:-voyarr-secure-browserless-token}
       - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
       - MEDIA_ROOT=${MEDIA_ROOT:-/media/storage}
       - DEFAULT_DOWNLOAD_PATH=${DEFAULT_DOWNLOAD_PATH:-/media/storage/downloads}
@@ -89,6 +104,8 @@ services:
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-voyarr}}
       - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
+      - BROWSERLESS_URL=${BROWSERLESS_URL:-ws://browserless:3000}
+      - BROWSERLESS_TOKEN=${BROWSERLESS_TOKEN:-voyarr-secure-browserless-token}
       - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
       - MEDIA_ROOT=${MEDIA_ROOT:-/media/storage}
       - DEFAULT_DOWNLOAD_PATH=${DEFAULT_DOWNLOAD_PATH:-/media/storage/downloads}

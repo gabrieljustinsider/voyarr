@@ -18,6 +18,9 @@ celery_app = Celery(
         "tasks.ai_tasks",
         "tasks.scrape_tasks",
         "tasks.scanner_tasks",
+        "tasks.ml_tasks",
+        "tasks.sync_tasks",
+        "tasks.live_tasks",
     ],
 )
 
@@ -33,6 +36,7 @@ celery_app.conf.update(
         "tasks.transcode_tasks.*": {"queue": "transcodes"},
         "tasks.scrape_tasks.*": {"queue": "scraping"},
         "tasks.ai_tasks.*": {"queue": "ai_inference"},
+        "tasks.ml_tasks.*": {"queue": "ai_inference"},
         "*": {"queue": "celery"},  # Default queue
     },
 )

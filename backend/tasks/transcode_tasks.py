@@ -1,19 +1,19 @@
 import os
-import ffmpeg
 import subprocess  # nosec B404
-import re
-from celery import shared_task
-from models import TranscodingQueue, LibraryEntry
 import logging
+import re
+import ffmpeg
 from datetime import datetime, timezone
+from celery_app import celery_app
+from db_utils import get_db_session
+from models import TranscodingQueue, LibraryEntry
 from services.webhook_service import WebhookService
 from services.off_peak_service import OffPeakService
-from db_utils import get_db_session
 
 logger = logging.getLogger(__name__)
 
 
-@shared_task(bind=True)
+@celery_app.task(bind=True, name="tasks.transcode_tasks.transcode_video_task")
 def transcode_video_task(self, transcode_job_id: int):
     """
     Celery task to transcode a video file to a more efficient codec.
@@ -46,6 +46,7 @@ def transcode_video_task(self, transcode_job_id: int):
 
         job.status = "running"
         job.progress_percentage = 0.0
+        job.celery_task_id = self.request.id
         job.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
         db.commit()
 
@@ -87,6 +88,10 @@ def transcode_video_task(self, transcode_job_id: int):
                 args, stderr=subprocess.PIPE, universal_newlines=True
             )
 
+            # Save the process ID to allow pause/resume/cancel
+            job.pid = process.pid
+            db.commit()
+
             time_regex = re.compile(r"time=(\d+):(\d+):(\d+\.\d+)")
             last_progress = 0.0
             error_log = []
@@ -111,6 +116,13 @@ def transcode_video_task(self, transcode_job_id: int):
 
                     # Update database every 5% to prevent database locking/spamming
                     if progress - last_progress >= 5.0:
+                        # Re-fetch job to check if cancelled or paused
+                        db.refresh(job)
+                        if job.status == "cancelled":
+                            logger.info(f"Transcode job {transcode_job_id} cancelled by user.")
+                            process.terminate()
+                            return
+
                         job.progress_percentage = progress
                         job.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
                         db.commit()
@@ -150,7 +162,6 @@ def transcode_video_task(self, transcode_job_id: int):
             job.status = "completed"
             job.progress_percentage = 100.0
             job.details = f"Transcoded successfully. New size: {new_file_size} bytes."
-
             db.commit()
 
             # Clean up old file
@@ -166,6 +177,18 @@ def transcode_video_task(self, transcode_job_id: int):
                     "new_size": new_file_size,
                 },
             )
+
+            # Trigger Notification
+            try:
+                from services.notification_service import NotificationService
+                NotificationService.notify_global(
+                    db,
+                    "task_completed",
+                    "Transcoding Completed",
+                    f"Successfully transcoded '{library_entry.title}' to {job.target_codec}."
+                )
+            except Exception as notif_err:
+                print(f"Error sending transcode completion notification: {notif_err}")
 
         except Exception as e:
             if process and process.poll() is None:
@@ -187,5 +210,60 @@ def transcode_video_task(self, transcode_job_id: int):
                 job.details = str(e)
                 db.commit()
             logger.error(f"FFmpeg error for {input_path}: {job.details}")
+            
+            # Clean up temp file on failure
             if os.path.exists(temp_output_path):
-                os.remove(temp_output_path)  # Clean up temp file on failure
+                os.remove(temp_output_path)
+
+            try:
+                from services.notification_service import NotificationService
+                NotificationService.notify_global(
+                    db,
+                    "task_completed",
+                    "Transcoding Failed",
+                    f"Failed to transcode '{library_entry.title if library_entry else 'unknown'}': {str(e)}"
+                )
+            except Exception as notif_err:
+                print(f"Error sending transcode failure notification: {notif_err}")
+
+
+@celery_app.task(bind=True, name="tasks.transcode_tasks.generate_hls_task")
+def generate_hls_task(self, library_entry_id: int):
+    """
+    Generates an HLS playlist and transport stream segments for direct web streaming.
+    """
+    with get_db_session() as db:
+        entry = db.query(LibraryEntry).filter(LibraryEntry.id == library_entry_id).first()
+        if not entry or not entry.file_path or not os.path.exists(entry.file_path):
+            logger.error(f"Entry {library_entry_id} not found or missing file path.")
+            return
+
+        # SECURITY: Use absolute path to prevent FFmpeg option injection if file starts with "-"
+        video_path = os.path.abspath(entry.file_path)
+
+    hls_dir = f"{video_path}.hls"
+    os.makedirs(hls_dir, exist_ok=True)
+    playlist_path = os.path.join(hls_dir, "master.m3u8")
+
+    if os.path.exists(playlist_path):
+        logger.info(f"HLS playlist already exists for {video_path}")
+        return "Already generated"
+
+    logger.info(f"Starting HLS generation for {video_path}")
+    
+    try:
+        cmd = [
+            "ffmpeg", "-y", "-i", video_path,
+            "-profile:v", "main", "-crf", "20", "-g", "48", "-keyint_min", "48", "-sc_threshold", "0",
+            "-c:a", "aac", "-b:a", "128k",
+            "-hls_time", "10", "-hls_playlist_type", "vod",
+            "-hls_segment_filename", os.path.join(hls_dir, "segment_%03d.ts"),
+            playlist_path
+        ]
+        # Execute FFmpeg without a timeout since transcode operations on large files are lengthy
+        subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)  # nosec B603
+        logger.info(f"Successfully generated HLS for {video_path}")
+        return "HLS Generated successfully"
+    except Exception as e:
+        logger.error(f"Failed to generate HLS for {video_path}: {e}")
+        return "Failed to generate HLS"

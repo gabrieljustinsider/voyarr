@@ -38,5 +38,26 @@ def automated_backup():
             with open(filepath, "w") as f:
                 json.dump(data, f, cls=CustomJSONEncoder)
 
+            try:
+                from services.notification_service import NotificationService
+                NotificationService.notify_global(
+                    db,
+                    "task_completed",
+                    "Automated Backup Successful",
+                    f"Successfully created automated backup file '{filename}'."
+                )
+            except Exception as notif_err:
+                print(f"Error sending backup completion notification: {notif_err}")
+
         except Exception as e:
             print(f"Automated backup failed: {str(e)}")
+            try:
+                from services.notification_service import NotificationService
+                NotificationService.notify_global(
+                    db,
+                    "task_completed",
+                    "Automated Backup Failed",
+                    f"Automated backup task failed: {str(e)}"
+                )
+            except Exception as notif_err:
+                print(f"Error sending backup failure notification: {notif_err}")

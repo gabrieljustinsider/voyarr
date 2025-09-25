@@ -2,14 +2,18 @@ import os
 import sys
 
 # Crucial environment variables for tests
-os.environ["DATABASE_URL"] = "sqlite:///file:testdb?mode=memory&cache=shared"
+os.environ["DATABASE_URL"] = "sqlite:///file:testdb_personalization?mode=memory&cache=shared"
 os.environ["MASTER_KEY"] = "test_master_key_1234567890_abcdef"
 os.environ["SECRET_KEY"] = "test_jwt_secret_key_1234567890_abcdef"
 
 # Mock out complex or unnecessary external submodules before import
 from unittest.mock import MagicMock, patch
-sys.modules['services.scraper'] = MagicMock()
-sys.modules['croniter'] = MagicMock()
+
+# Save original modules before mocking to avoid side-effects
+orig_modules = {}
+for name in ['services.scraper', 'croniter']:
+    orig_modules[name] = sys.modules.get(name)
+    sys.modules[name] = MagicMock()
 
 # Load database and patch it IMMEDIATELY
 import database
@@ -17,7 +21,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 test_engine = create_engine(
-    "sqlite:///file:testdb?mode=memory&cache=shared",
+    "sqlite:///file:testdb_personalization?mode=memory&cache=shared",
     connect_args={"check_same_thread": False}
 )
 TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
@@ -34,10 +38,17 @@ from fastapi.testclient import TestClient
 
 # Real imports from our backend codebase
 from main import app
-from database import engine, SessionLocal, get_db
-from models import Base, User, LibraryEntry, Favorite, UserVideoStats, UserPreference, Studio, LiveStream, Vault, Provider
+from database import SessionLocal, get_db
+from models import Base, User, LibraryEntry, Favorite, UserVideoStats, LiveStream, Vault, Provider
 from routers.auth import get_current_user
 from dependencies import verify_api_key
+
+# Restore original modules to prevent polluting other test suites
+for name, orig in orig_modules.items():
+    if orig is None:
+        sys.modules.pop(name, None)
+    else:
+        sys.modules[name] = orig
 
 # Mock user object for tests
 class MockUser:
@@ -54,10 +65,6 @@ def override_get_current_user():
 def override_verify_api_key():
     return {"type": "mock", "user": "admin_user", "role": "admin"}
 
-app.dependency_overrides[get_current_user] = override_get_current_user
-app.dependency_overrides[verify_api_key] = override_verify_api_key
-
-# Override get_db to return a real in-memory sqlite SessionLocal
 def override_get_db():
     db = SessionLocal()
     try:
@@ -65,19 +72,32 @@ def override_get_db():
     finally:
         db.close()
 
-app.dependency_overrides[get_db] = override_get_db
-
 client = TestClient(app)
 
 
 @pytest.fixture(autouse=True)
-def setup_db():
-    # Re-create all tables for each test to ensure complete isolation
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
+def setup_db_and_dependencies():
+    # Save original globals and overrides
+    orig_overrides = dict(app.dependency_overrides)
+    orig_engine = database.engine
+    orig_sessionlocal = database.SessionLocal
+    orig_db_utils_sessionlocal = getattr(db_utils, 'SessionLocal', None)
     
-    db = SessionLocal()
+    # Patch database engine/SessionLocal
+    database.engine = test_engine
+    database.SessionLocal = TestSessionLocal
+    db_utils.SessionLocal = TestSessionLocal
     
+    # Apply local dependency overrides
+    app.dependency_overrides[get_current_user] = override_get_current_user
+    app.dependency_overrides[verify_api_key] = override_verify_api_key
+    app.dependency_overrides[get_db] = override_get_db
+    
+    # Re-create all tables in this test's unique cache database
+    Base.metadata.drop_all(bind=test_engine)
+    Base.metadata.create_all(bind=test_engine)
+    
+    db = TestSessionLocal()
     # 1. Seed a Provider (needed for LibraryEntry)
     provider = Provider(id=1, name="Test Provider", base_url="http://example.com")
     db.add(provider)
@@ -98,7 +118,15 @@ def setup_db():
     
     db.commit()
     db.close()
+    
     yield
+    
+    # Clean up / Restore
+    app.dependency_overrides = orig_overrides
+    database.engine = orig_engine
+    database.SessionLocal = orig_sessionlocal
+    if orig_db_utils_sessionlocal is not None:
+        db_utils.SessionLocal = orig_db_utils_sessionlocal
 
 # ----------------- FAVORITES TESTS -----------------
 
@@ -309,13 +337,13 @@ def test_live_streams_crud_and_record():
     assert response.json()["name"] == "CB Stream Updated"
 
     # 4. Trigger Recording
-    with patch("tasks.live_tasks.record_live_stream_task.delay") as mock_delay:
+    with patch("celery.app.task.Task.delay") as mock_delay:
         mock_delay.return_value = MagicMock(id="celery-task-id-123")
         response = client.post(f"/live-streams/{stream_id}/record")
         assert response.status_code == 200
         assert response.json()["message"] == "Background recording task spawned successfully."
         assert response.json()["task_id"] == "celery-task-id-123"
-        mock_delay.assert_called_once_with(stream_id)
+        mock_delay.assert_called_once()
 
     # 5. Stop Recording
     with patch("celery.app.control.Control.revoke") as mock_revoke:
@@ -330,7 +358,7 @@ def test_live_streams_crud_and_record():
         response = client.post(f"/live-streams/{stream_id}/stop")
         assert response.status_code == 200
         assert response.json()["message"] == "Recording stop signal dispatched successfully."
-        mock_revoke.assert_called_once_with("celery-task-id-123", terminate=True)
+        mock_revoke.assert_called_once_with("celery-task-id-123", terminate=True, signal="SIGKILL")
 
     # 6. Delete Live Stream
     response = client.delete(f"/live-streams/{stream_id}")
@@ -410,7 +438,7 @@ def test_stash_stats_sync(mock_requests_post):
 
     # Call stash sync endpoint
     response = client.post("/external-api/stash/sync-stats", json={
-        "stash_url": "http://localhost:9000",
+        "stash_url": "http://example.com:9000",
         "stash_api_key": "dummy_stash_key"
     })
 

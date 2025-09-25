@@ -4,7 +4,6 @@ import logging
 from fastapi import APIRouter, Request, HTTPException, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 from nacl.signing import VerifyKey
 from nacl.exceptions import BadSignatureError
 from database import get_db
@@ -12,14 +11,10 @@ from models import (
     MediaRequest,
     LibraryEntry,
     Settings,
-    User,
-    Favorite,
-    UserVideoStats,
-    UserHistory,
-    LiveStream,
-    Studio
+    User
 )
 from tasks.scrape_tasks import scrape_url_task
+from routers.download import validate_url_ssrf
 
 router = APIRouter(prefix="/discord", tags=["discord"])
 logger = logging.getLogger(__name__)
@@ -28,8 +23,8 @@ logger = logging.getLogger(__name__)
 def verify_signature(request: Request, body: bytes):
     public_key = os.getenv("DISCORD_PUBLIC_KEY")
     if not public_key:
-        logger.warning("DISCORD_PUBLIC_KEY is not set. Discord signature verification is BYPASSED.")
-        return True
+        logger.error("DISCORD_PUBLIC_KEY is not set. Cannot verify Discord requests.")
+        raise HTTPException(status_code=401, detail="Discord integration is not configured properly.")
 
     signature = request.headers.get("X-Signature-Ed25519")
     timestamp = request.headers.get("X-Signature-Timestamp")
@@ -167,173 +162,37 @@ async def discord_interactions(request: Request, db: Session = Depends(get_db)):
                     url = opt.get("value")
                 elif opt.get("name") == "title":
                     title = opt.get("value")
-            
-            if not url:
-                return JSONResponse({"type": 4, "data": {"content": "Please provide a URL to add."}})
-                
-            db_req = MediaRequest(title=title, url=url, status="approved", requested_by=f"Discord: {username}")
-            db.add(db_req)
-            db.commit()
-            
-            return JSONResponse({"type": 4, "data": {"content": f"📥 Added and approved **{title}** to the queue."}})
 
-        # Command: /scrape (Access: Admin)
+            if not url:
+                return JSONResponse({"type": 4, "data": {"content": "❌ Failed to add item: missing URL."}})
+
+            try:
+                validate_url_ssrf(url)
+            except HTTPException:
+                return JSONResponse({"type": 4, "data": {"content": "❌ Failed to add item: URL is invalid or points to an internal network."}})
+
+            scrape_url_task.delay(url)
+            return JSONResponse({"type": 4, "data": {"content": f"✅ Added **{title}** to the download queue."}})
+
+        # Command: /scrape (Access: Admin/User)
         elif command_name == "scrape":
-            if user_role != "admin":
-                return JSONResponse({"type": 4, "data": {"content": "❌ Forbidden: Only Voyarr Administrators can trigger scraping tasks."}})
+            if user_role not in ["admin", "user"]:
+                return JSONResponse({"type": 4, "data": {"content": "❌ Forbidden: You do not have permission to trigger scrapes."}})
 
             url = None
-            recipe_id = 1
             for opt in options:
                 if opt.get("name") == "url":
                     url = opt.get("value")
-                elif opt.get("name") == "recipe_id":
-                    recipe_id = int(opt.get("value"))
-                    
-            if not url:
-                return JSONResponse({"type": 4, "data": {"content": "Please provide a URL to scrape."}})
-                
-            scrape_url_task.delay(url, recipe_id)
-            
-            return JSONResponse({"type": 4, "data": {"content": f"🕸️ Triggered scrape job for **{url}** using recipe ID {recipe_id}."}})
-
-        # Command: /stats (Access: Admin/User)
-        elif command_name == "stats":
-            if user_role not in ["admin", "user"]:
-                return JSONResponse({"type": 4, "data": {"content": "❌ Forbidden: Insufficient local user role."}})
-
-            total_watch_seconds = db.query(func.sum(UserHistory.duration)).scalar() or 0
-            total_plays = db.query(func.sum(UserVideoStats.play_count)).scalar() or 0
-            total_climaxes = db.query(func.sum(UserVideoStats.climax_count)).scalar() or 0
-
-            response_text = (
-                "📊 **Voyarr Personalization Stats:**\n"
-                f"- **Total Watch Hours:** {round(total_watch_seconds / 3600.0, 2)} hrs\n"
-                f"- **Total Playbacks:** {total_plays}\n"
-                f"- **Total O-Meter Climax tally:** {total_climaxes} 🚀"
-            )
-            return JSONResponse({"type": 4, "data": {"content": response_text}})
-
-        # Command: /favorites (Access: Admin/User)
-        elif command_name == "favorites":
-            if user_role not in ["admin", "user"]:
-                return JSONResponse({"type": 4, "data": {"content": "❌ Forbidden: Insufficient local user role."}})
-
-            # Find matching Voyarr user to pull their custom favorites
-            local_user = db.query(User).filter(User.username.ilike(username)).first()
-            if not local_user:
-                # Try via mappings
-                mapping_setting = db.query(Settings).filter(Settings.key == "discord_user_mappings").first()
-                if mapping_setting and mapping_setting.value:
-                    try:
-                        mapping = json.loads(mapping_setting.value)
-                        local_uname = mapping.get(user_id)
-                        if local_uname:
-                            local_user = db.query(User).filter(User.username == local_uname).first()
-                    except Exception:
-                        pass
-
-            if not local_user:
-                return JSONResponse({"type": 4, "data": {"content": "❌ No matching local Voyarr user profile linked to your Discord account."}})
-
-            favs = db.query(Favorite).filter(Favorite.user_id == local_user.id).all()
-            if not favs:
-                return JSONResponse({"type": 4, "data": {"content": "❤️ **Your Favorites list is currently empty.**"}})
-
-            performers = [f.item_id for f in favs if f.item_type == "performer"]
-            scenes = [f.item_id for f in favs if f.item_type == "scene"]
-            studios = [f.item_id for f in favs if f.item_type == "studio"]
-
-            response_text = "❤️ **Your Favorited Items Summary:**\n"
-            if performers:
-                response_text += f"- **Performers:** {', '.join(performers[:10])}\n"
-            if scenes:
-                response_text += f"- **Scenes:** {len(scenes)} scenes\n"
-            if studios:
-                response_text += f"- **Studios:** {', '.join(studios[:10])}\n"
-
-            return JSONResponse({"type": 4, "data": {"content": response_text}})
-
-        # Command: /livestreams (Access: Admin/User)
-        elif command_name == "livestreams":
-            if user_role not in ["admin", "user"]:
-                return JSONResponse({"type": 4, "data": {"content": "❌ Forbidden: Insufficient local user role."}})
-
-            streams = db.query(LiveStream).all()
-            if not streams:
-                return JSONResponse({"type": 4, "data": {"content": "🎥 **No live streams configured in Voyarr.**"}})
-
-            response_text = "🎥 **Monitored Live Streams:**\n"
-            for s in streams:
-                size_mb = round(s.written_size / (1024.0 * 1024.0), 2)
-                response_text += f"- **{s.name}**: status={s.status} | elapsed={s.elapsed_seconds}s | written={size_mb} MB\n"
-
-            return JSONResponse({"type": 4, "data": {"content": response_text}})
-
-        # Command: /record (Access: Admin)
-        elif command_name == "record":
-            if user_role != "admin":
-                return JSONResponse({"type": 4, "data": {"content": "❌ Forbidden: Only Voyarr Administrators can trigger recordings."}})
-
-            url = None
-            name = None
-            for opt in options:
-                if opt.get("name") == "url":
-                    url = opt.get("value")
-                elif opt.get("name") == "name":
-                    name = opt.get("value")
 
             if not url:
-                return JSONResponse({"type": 4, "data": {"content": "Please provide a stream URL to record."}})
+                return JSONResponse({"type": 4, "data": {"content": "❌ Please provide a URL to scrape."}})
 
-            if not name:
-                name = f"Discord Recording {datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+            try:
+                validate_url_ssrf(url)
+            except HTTPException:
+                return JSONResponse({"type": 4, "data": {"content": "❌ Failed to trigger scrape: URL is invalid or points to an internal network."}})
 
-            # Check if exists or create
-            stream = db.query(LiveStream).filter(LiveStream.url == url).first()
-            if not stream:
-                stream = LiveStream(name=name, url=url, status="idle")
-                db.add(stream)
-                db.flush()
+            scrape_url_task.delay(url)
+            return JSONResponse({"type": 4, "data": {"content": f"✅ Scrape job initiated for {url}."}})
 
-            if stream.status == "recording":
-                return JSONResponse({"type": 4, "data": {"content": f"⚠️ **{stream.name}** is already recording."}})
-
-            stream.status = "recording"
-            stream.written_size = 0
-            stream.elapsed_seconds = 0
-            db.commit()
-
-            # Trigger Celery Task
-            from tasks.live_tasks import record_live_stream_task
-            record_live_stream_task.delay(stream.id)
-
-            return JSONResponse({"type": 4, "data": {"content": f"🔴 **Started background recording:** capture of **{stream.name}** is in progress."}})
-
-        # Command: /studios (Access: Admin/User/Viewer)
-        elif command_name == "studios":
-            query = None
-            for opt in options:
-                if opt.get("name") == "query":
-                    query = opt.get("value")
-
-            if not query:
-                return JSONResponse({"type": 4, "data": {"content": "Please provide a query to search studios."}})
-
-            results = db.query(Studio).filter(Studio.name.ilike(f"%{query}%")).limit(5).all()
-            if not results:
-                return JSONResponse({"type": 4, "data": {"content": f"🏢 No studios found matching **{query}**."}})
-
-            response_text = f"🏢 **Studio Search results for '{query}':**\n"
-            for s in results:
-                parent_name = None
-                if s.parent_id:
-                    parent = db.query(Studio).filter(Studio.id == s.parent_id).first()
-                    if parent:
-                        parent_name = parent.name
-                network_str = f" | Network={parent_name}" if parent_name else (" | Network=Parent" if s.is_network else "")
-                response_text += f"- **{s.name}**{network_str} | URL={s.url or 'N/A'}\n"
-
-            return JSONResponse({"type": 4, "data": {"content": response_text}})
-
-    return JSONResponse({"type": 4, "data": {"content": "Unknown command"}})
+    return JSONResponse({"type": 4, "data": {"content": "Unknown command."}})

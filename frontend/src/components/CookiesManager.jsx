@@ -61,7 +61,7 @@ export default function CookiesManager() {
   };
 
   const handleDelete = async (id) => {
-    const confirmed = window.appConfirm ? await window.appConfirm('Are you sure you want to delete this session cookie?') : window.confirm('Are you sure you want to delete this session cookie?');
+    const confirmed = await window.appConfirm('Are you sure you want to delete this session cookie?');
     if (!confirmed) return;
     
     try {

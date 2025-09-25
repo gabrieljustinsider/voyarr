@@ -5,12 +5,11 @@ from datetime import datetime
 from celery import shared_task
 from models import LiveStream, Vault, LibraryEntry, Provider
 from security import decrypt_data
-from utils import get_primary_root
 from db_utils import get_db_session
 import shutil
 
-@shared_task
-def record_live_stream_task(stream_id: int):
+@shared_task(bind=True)
+def record_live_stream_task(self, stream_id: int):
     """Background task to record live HLS streams using streamlink with Vault-secured credentials."""
     with get_db_session() as db:
         stream = db.query(LiveStream).filter(LiveStream.id == stream_id).first()
@@ -72,6 +71,12 @@ def record_live_stream_task(stream_id: int):
     start_time = time.time()
     try:
         proc = subprocess.Popen(cmd) # nosec B603
+        with get_db_session() as db:
+            stream = db.query(LiveStream).filter(LiveStream.id == stream_id).first()
+            if stream:
+                stream.pid = proc.pid
+                stream.celery_task_id = self.request.id
+                db.commit()
     except Exception as e:
         with get_db_session() as db:
             stream = db.query(LiveStream).filter(LiveStream.id == stream_id).first()
@@ -93,25 +98,34 @@ def record_live_stream_task(stream_id: int):
             # Read stream state from DB to check if STOP was requested
             with get_db_session() as db:
                 stream = db.query(LiveStream).filter(LiveStream.id == stream_id).first()
-                if not stream or stream.status != "recording":
-                    print("Stop requested or live stream deleted. Terminating process.")
+                if not stream:
+                    print("Live stream configuration deleted. Terminating process.")
+                    proc.terminate()
+                    proc.wait()
+                    break
+
+                if stream.status == "paused":
+                    # Suspended by SIGSTOP, wait without updating elapsed
+                    pass
+                elif stream.status != "recording":
+                    print(f"Stop requested, status is {stream.status}. Terminating process.")
                     proc.terminate()
                     try:
                         proc.wait(timeout=5)
                     except subprocess.TimeoutExpired:
                         proc.kill()
                     break
+                else:
+                    # Update live statistics
+                    file_size = 0
+                    if os.path.exists(out_path):
+                        file_size = os.path.getsize(out_path)
 
-                # Update live statistics
-                file_size = 0
-                if os.path.exists(out_path):
-                    file_size = os.path.getsize(out_path)
+                    elapsed = int(time.time() - start_time)
 
-                elapsed = int(time.time() - start_time)
-
-                stream.written_size = file_size
-                stream.elapsed_seconds = elapsed
-                db.commit()
+                    stream.written_size = file_size
+                    stream.elapsed_seconds = elapsed
+                    db.commit()
 
             time.sleep(5)
     except Exception as e:
@@ -154,12 +168,37 @@ def record_live_stream_task(stream_id: int):
                 entry_metadata={"stream_id": stream.id, "recorded_at": datetime.now().isoformat()}
             )
             db.add(new_entry)
+            db.commit()
+
+            try:
+                from services.notification_service import NotificationService
+                NotificationService.check_and_notify_favorites(db, new_entry)
+                NotificationService.notify_global(
+                    db,
+                    "task_completed",
+                    "Live Recording Completed",
+                    f"Successfully recorded and indexed live stream '{new_entry.title}'."
+                )
+            except Exception as notif_err:
+                print(f"Error sending live recording completion notification: {notif_err}")
+
             stream.status = "idle"
             print(f"Successfully finished recording and indexed: {new_entry.title}")
         else:
             # Empty or invalid
             stream.status = "failed"
             print(f"Recording finished but output file was too small or missing ({final_size} bytes).")
+
+            try:
+                from services.notification_service import NotificationService
+                NotificationService.notify_global(
+                    db,
+                    "task_completed",
+                    "Live Recording Failed",
+                    f"Recording finished but output file for live stream '{stream.name}' was too small or missing."
+                )
+            except Exception as notif_err:
+                print(f"Error sending live recording failure notification: {notif_err}")
 
         db.commit()
 

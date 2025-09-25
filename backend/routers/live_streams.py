@@ -5,7 +5,7 @@ from models import LiveStream, Vault, User
 from routers.auth import get_current_user
 from security import encrypt_data, decrypt_data
 from pydantic import BaseModel
-from typing import Optional, Dict
+from typing import Optional
 import subprocess # nosec B404
 import os
 import shutil
@@ -272,14 +272,94 @@ def stop_live_stream_recording(
     # Set status to idle - our recording task will check this and terminate
     stream.status = "idle"
     
+    # 1. Kill active streamlink process
+    if stream.pid:
+        try:
+            import signal
+            os.kill(stream.pid, signal.SIGKILL)
+        except Exception:
+            pass
+        stream.pid = None
+
+    # 2. Revoke active Celery task
     if stream.current_task_id:
         from celery_app import celery_app
-        celery_app.control.revoke(stream.current_task_id, terminate=True)
+        celery_app.control.revoke(stream.current_task_id, terminate=True, signal="SIGKILL")
         stream.current_task_id = None
         
     db.commit()
 
     return {"status": "idle", "message": "Recording stop signal dispatched successfully."}
+
+
+@router.post("/{stream_id}/pause")
+def pause_live_stream_recording(
+    stream_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Pause background live stream recording (Admin only)."""
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can pause live stream recordings.",
+        )
+
+    stream = db.query(LiveStream).filter(LiveStream.id == stream_id).first()
+    if not stream:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Live stream not found"
+        )
+
+    if stream.status != "recording":
+        raise HTTPException(status_code=400, detail="Only active recordings can be paused")
+
+    stream.status = "paused"
+    db.commit()
+
+    if stream.pid:
+        try:
+            import signal
+            os.kill(stream.pid, signal.SIGSTOP)
+        except Exception as e:
+            print(f"Failed to pause streamlink process {stream.pid}: {e}")
+
+    return {"status": "paused", "message": "Recording paused successfully."}
+
+
+@router.post("/{stream_id}/resume")
+def resume_live_stream_recording(
+    stream_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Resume background live stream recording (Admin only)."""
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can resume live stream recordings.",
+        )
+
+    stream = db.query(LiveStream).filter(LiveStream.id == stream_id).first()
+    if not stream:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Live stream not found"
+        )
+
+    if stream.status != "paused":
+        raise HTTPException(status_code=400, detail="Only paused recordings can be resumed")
+
+    stream.status = "recording"
+    db.commit()
+
+    if stream.pid:
+        try:
+            import signal
+            os.kill(stream.pid, signal.SIGCONT)
+        except Exception as e:
+            print(f"Failed to resume streamlink process {stream.pid}: {e}")
+
+    return {"status": "recording", "message": "Recording resumed successfully."}
 
 
 @router.get("/{stream_id}/stream")

@@ -104,11 +104,63 @@ def scan_library_task(directory: Optional[str], provider_id: int):
                             )
                             db.add(entry)
                             db.commit()
+
+                            try:
+                                from services.notification_service import NotificationService
+                                NotificationService.check_and_notify_favorites(db, entry)
+                            except Exception as fav_err:
+                                print(f"Error checking favorites during scan: {fav_err}")
+
                             processed += 1
                         except Exception as e:
                             db.rollback()
                             print(f"Error processing file {file_path}: {str(e)}")
 
+            try:
+                from services.notification_service import NotificationService
+                NotificationService.notify_global(
+                    db,
+                    "task_completed",
+                    "Library Scan Completed",
+                    f"Library scan completed. Found and processed {processed} new file(s)."
+                )
+            except Exception as notif_err:
+                print(f"Error sending scan completion notification: {notif_err}")
+
             return {"status": "success", "processed_files": processed}
         except Exception as e:
             return {"error": str(e)}
+
+
+@shared_task
+def process_missing_hashes_task():
+    """
+    Scans the database for LibraryEntries missing either an ohash or phash
+    and attempts to regenerate them based on the local file.
+    """
+    from sqlalchemy.orm import defer
+    with get_db_session() as db:
+        entries = (
+            db.query(LibraryEntry)
+            .options(
+                defer(LibraryEntry.entry_metadata),
+                defer(LibraryEntry.performers),
+                defer(LibraryEntry.tags)
+            )
+            .filter((LibraryEntry.phash.is_(None)) | (LibraryEntry.phash == ""))
+            .yield_per(50)
+        )
+        
+        processed = 0
+        for entry in entries:
+            try:
+                if os.path.exists(entry.file_path):
+                    if not entry.ohash or entry.ohash == "0000000000000000":
+                        entry.ohash = HashService.generate_ohash(entry.file_path)
+                    entry.phash = HashService.generate_phash(entry.file_path)
+                    db.commit()
+                    processed += 1
+            except Exception as e:
+                db.rollback()
+                print(f"Error rescanning hashes for entry {entry.id}: {str(e)}")
+        return {"processed": processed}

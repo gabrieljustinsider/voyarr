@@ -3,12 +3,19 @@ from unittest.mock import patch, MagicMock
 
 # Mock out modules before import
 import sys
-sys.modules['models'] = MagicMock()
-sys.modules['services.webhook_service'] = MagicMock()
-sys.modules['db_utils'] = MagicMock()
-sys.modules['database'] = MagicMock()
+orig_modules = {}
+for name in ['models', 'services.webhook_service', 'db_utils', 'database']:
+    orig_modules[name] = sys.modules.get(name)
+    sys.modules[name] = MagicMock()
 
 from tasks.ai_tasks import auto_tag_video_task, extract_frame_base64, call_ollama_vision, call_openai_vision
+
+# Restore original modules
+for name, orig in orig_modules.items():
+    if orig is None:
+        sys.modules.pop(name, None)
+    else:
+        sys.modules[name] = orig
 
 @patch("tasks.ai_tasks.subprocess.check_output")
 @patch("tasks.ai_tasks.subprocess.run")

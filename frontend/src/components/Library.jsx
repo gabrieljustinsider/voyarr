@@ -300,7 +300,7 @@ export default function Library() {
     }
 
     if (!key) {
-      key = window.prompt("Enter your StashDB API Key to submit this fingerprint:");
+      key = window.appPrompt ? await window.appPrompt("Enter your StashDB API Key to submit this fingerprint:") : window.prompt("Enter your StashDB API Key to submit this fingerprint:");
       if (!key) {
         setSubmitFingerprintLoading(false)
         return;

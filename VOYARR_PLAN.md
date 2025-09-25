@@ -113,21 +113,19 @@ services:
 20. ~~**Discord Slash Commands Bot (v1.8.2):** Integrated `/search`, `/add` to queue, and `/scrape` remote triggers.~~
 21. ~~**Visual Quota & Performance Meters (v1.8.2):** Advanced responsive charts mapping active rate limits.~~
 22. ~~**WebSocket Live Log Pipeline (v1.8.3):** Real-time logs streams with advanced searching, filtering, and channel toggling.~~
+23. ~~**Performer Facial Recognition Clustering (v1.11.0):** Implement DBSCAN-based local lightweight facial recognition & groupings to auto-identify unknown actors across the library.~~
+24. ~~**Continuous StashDB Fingerprint Syncing (v1.11.0):** Automated background daemon to continuously push calculated hashes (OSHASH/PHASH) to community databases to improve global coverage.~~
+25. ~~**AI-Driven Auto-Chaptering (v1.11.0):** Frame-based scene change detection paired with LLM/Ollama or OpenAI GPT-4o Vision to auto-slice and title video segments.~~
+26. ~~**Granular Queue Priority & Controls (v1.11.0):** Integrated full pause, resume, cancel, and priority level adjustments for download, transcoding, and live recording queues.~~
 
 ---
 
-## **🚀 Future Feature Roadmap (v1.9.0+)**
+## **🚀 Future Feature Roadmap (v1.12.0+)**
 
 The following represents identified feature targets and upcoming components for subsequent releases.
 
-### **1. Performer Facial Recognition Clustering**
-*   **Description:** Implement local lightweight facial detection and grouping models to auto-identify unknown actors and cluster visually matching faces across the library.
-
-### **2. Continuous StashDB Fingerprint Syncing**
-*   **Description:** Background daemon to automatically and continuously push calculated hashes (MD5, OSHASH, PHASH) to community databases to improve global coverage.
-
-### **3. HLS Direct Streaming Support**
+### **1. HLS Direct Streaming Support**
 *   **Description:** Add direct HLS slicing to the transcoding engine, allowing lag-free, high-bitrate video streaming inside the PWA browser environment.
 
-### **4. AI-Driven Auto-Chaptering**
-*   **Description:** Utilize automated frame-based scene change detection to logically separate longer files into distinct chapters and suggest metadata titles.
+### **2. Peer-to-Peer (P2P) Library Syncing**
+*   **Description:** Support decentralized syncing of scraper recipes and library metadata lists directly with trusted peer nodes over secure tunnels.

@@ -7,6 +7,7 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import api from '../api';
+import InlineTextField from './InlineTextField';
 
 const ChapterManager = ({ open, onClose, libraryEntry }) => {
   const [chapters, setChapters] = useState([]);
@@ -56,7 +57,7 @@ const ChapterManager = ({ open, onClose, libraryEntry }) => {
       loadChapters();
     } catch (err) {
       console.error('Failed to save chapter', err);
-      alert('Failed to save chapter');
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Failed to save chapter', severity: 'error' } }));
     }
   };
 
@@ -71,7 +72,8 @@ const ChapterManager = ({ open, onClose, libraryEntry }) => {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Delete this chapter?')) return;
+    const confirm = await window.appConfirm('Are you sure you want to delete this chapter?');
+    if (!confirm) return;
     try {
       await api.delete(`/chapters/${id}`);
       loadChapters();
@@ -144,7 +146,23 @@ const ChapterManager = ({ open, onClose, libraryEntry }) => {
                   primary={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Typography fontWeight="bold">{formatTime(ch.start_time)}</Typography>
-                      <Typography>{ch.title}</Typography>
+                      <InlineTextField
+                        value={ch.title}
+                        onSave={async (newValue) => {
+                          try {
+                            const payload = {
+                              title: newValue,
+                              start_time: ch.start_time,
+                              end_time: ch.end_time,
+                              tags: ch.tags || []
+                            };
+                            await api.put(`/chapters/${ch.id}`, payload);
+                            loadChapters();
+                          } catch (err) {
+                            console.error('Failed to update chapter title inline', err);
+                          }
+                        }}
+                      />
                       {ch.end_time && <Typography variant="caption" color="textSecondary">to {formatTime(ch.end_time)}</Typography>}
                     </Box>
                   }

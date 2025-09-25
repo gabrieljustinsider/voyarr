@@ -38,7 +38,7 @@ from routers import (
 # Create tables
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Voyarr API", version="1.2.0")
+app = FastAPI(title="Voyarr API", version="1.11.0")
 
 # CORS
 app.add_middleware(

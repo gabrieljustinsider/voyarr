@@ -42,7 +42,7 @@ export default function RequestManager() {
   }
 
   const handleDelete = async (id) => {
-    const confirmed = window.appConfirm ? await window.appConfirm('Are you sure you want to delete this request?') : window.confirm('Are you sure you want to delete this request?');
+    const confirmed = await window.appConfirm('Are you sure you want to delete this request?');
     if (confirmed) {
       try {
         await apiFetch(`/requests/${id}`, {
