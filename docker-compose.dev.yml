@@ -5,6 +5,9 @@ services:
   celery_worker:
     build:
       context: ./backend
+  celery_beat:
+    build:
+      context: ./backend
   frontend:
     build:
       context: ./frontend

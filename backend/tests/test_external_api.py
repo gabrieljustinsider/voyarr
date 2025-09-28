@@ -1,18 +1,20 @@
+import os
+
+os.environ["DATABASE_URL"] = "sqlite:///file:testdb_temp?mode=memory&cache=shared"
+os.environ["MASTER_KEY"] = "test_master_key"
+os.environ["SECRET_KEY"] = "test_jwt_secret_key"
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 
 # Mock the database dependency before importing main
-import sys
-sys.modules['database'] = MagicMock()
-sys.modules['db_utils'] = MagicMock()
-sys.modules['services.scraper'] = MagicMock()
-sys.modules['croniter'] = MagicMock()
 
 from main import app
 from dependencies import verify_api_key
 
+
 def override_verify_api_key():
     return {"type": "master_key"}
+
 
 app.dependency_overrides[verify_api_key] = override_verify_api_key
 
@@ -33,7 +35,7 @@ def test_theporndb_query_graphql(mock_post):
                         "date": "2023-01-01",
                         "tags": [{"name": "tag1"}],
                         "performers": [{"performer": {"name": "Actor 1"}}],
-                        "studio": {"name": "Test Studio"}
+                        "studio": {"name": "Test Studio"},
                     }
                 ]
             }
@@ -45,7 +47,7 @@ def test_theporndb_query_graphql(mock_post):
     response = client.post(
         "/external-api/theporndb/query",
         json={"query": "Test Scene"},
-        headers={"x-api-key": "testkey"}
+        headers={"x-api-key": "testkey"},
     )
     if response.status_code != 200:
         print("ERROR 500:", response.text)
@@ -73,7 +75,7 @@ def test_theporndb_performer_graphql(mock_post):
                         "gender": "Female",
                         "cup_size": "C",
                         "measurements": "34C-24-34",
-                        "image": "url"
+                        "image": "url",
                     }
                 ]
             }
@@ -85,7 +87,7 @@ def test_theporndb_performer_graphql(mock_post):
     response = client.post(
         "/external-api/theporndb/performer",
         json={"name": "Actor 1"},
-        headers={"x-api-key": "testkey"}
+        headers={"x-api-key": "testkey"},
     )
 
     assert response.status_code == 200
@@ -107,7 +109,7 @@ def test_stashdb_query_fingerprint(mock_post):
                         "title": "Stash Scene",
                         "details": "Details",
                         "date": "2023-01-01",
-                        "performers": [{"performer": {"name": "Stash Actor"}}]
+                        "performers": [{"performer": {"name": "Stash Actor"}}],
                     }
                 ]
             }
@@ -119,7 +121,7 @@ def test_stashdb_query_fingerprint(mock_post):
     response = client.post(
         "/external-api/stashdb/query",
         json={"hash": "abcdef123456"},
-        headers={"x-api-key": "testkey"}
+        headers={"x-api-key": "testkey"},
     )
 
     assert response.status_code == 200
@@ -137,7 +139,12 @@ def test_stashdb_submit_fingerprint():
     # Test without API Key
     response = client.post(
         "/external-api/stashdb/submit-fingerprint",
-        json={"scene_id": "stash-123", "hash": "abcdef123456", "algorithm": "OSHASH", "duration": 120}
+        json={
+            "scene_id": "stash-123",
+            "hash": "abcdef123456",
+            "algorithm": "OSHASH",
+            "duration": 120,
+        },
     )
     assert response.status_code == 400
     assert "Missing StashDB API Key" in response.json()["detail"]
@@ -145,8 +152,13 @@ def test_stashdb_submit_fingerprint():
     # Test with API Key
     response = client.post(
         "/external-api/stashdb/submit-fingerprint",
-        json={"scene_id": "stash-123", "hash": "abcdef123456", "algorithm": "OSHASH", "duration": 120},
-        headers={"x-api-key": "testkey"}
+        json={
+            "scene_id": "stash-123",
+            "hash": "abcdef123456",
+            "algorithm": "OSHASH",
+            "duration": 120,
+        },
+        headers={"x-api-key": "testkey"},
     )
     assert response.status_code == 200
     data = response.json()
@@ -155,3 +167,41 @@ def test_stashdb_submit_fingerprint():
     assert "abcdef123456" in data["message"]
     assert "stash-123" in data["message"]
 
+
+def test_extract_with_xpath():
+    from bs4 import BeautifulSoup
+    from providers.base import ProviderBase
+
+    class DummyProvider(ProviderBase):
+        def login(self) -> bool:
+            return True
+
+        def scrape_metadata(self, url: str) -> dict:
+            return {}
+
+        def get_download_url(self, media_id: str) -> str:
+            return ""
+
+    provider = DummyProvider("http://example.com")
+    html_content = """
+    <html>
+        <body>
+            <div class="test-class">Hello World</div>
+            <a href="http://link1.com">Link 1</a>
+            <a href="http://link2.com">Link 2</a>
+        </body>
+    </html>
+    """
+    soup = BeautifulSoup(html_content, "html.parser")
+
+    # Test tag extraction
+    res = provider.extract_with_xpath(soup, "//div[@class='test-class']")
+    assert res == ["Hello World"]
+
+    # Test attribute extraction
+    res_attrs = provider.extract_with_xpath(soup, "//a/@href")
+    assert res_attrs == ["http://link1.com", "http://link2.com"]
+
+    # Test text() extraction
+    res_texts = provider.extract_with_xpath(soup, "//a/text()")
+    assert res_texts == ["Link 1", "Link 2"]

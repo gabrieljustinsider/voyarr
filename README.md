@@ -37,14 +37,18 @@ Voyarr automates the tedious parts of managing a local media library. From autom
 17. **Performer Facial Recognition Clustering:** Group visually matching faces using DBSCAN clustering, auto-identifying unknown actors and extracting face portrait thumbnails.
 18. **AI-Driven Auto-Chaptering:** Utilize frame-based scene change detection combined with AI Vision models (Ollama/Llava or OpenAI GPT-4o) to automatically segment videos into logical chapters with descriptive titles.
 19. **Granular Queue Priority & Controls:** Adjust priorities, pause, resume, or cancel active tasks inside Celery-managed download, transcoding, and recording streams in real-time.
+20. **Peer-to-Peer (P2P) Syncing & Reconciling:** Exchange CSS scraper recipes and reconcile library watch status/tags securely between remote Voyarr nodes over HTTP/HTTPS tunnels.
+21. **Relational Studio Database Modeling:** Organized flat text studio names into a fully normalized PostgreSQL `studios` model, providing robust metadata structures and tag relations.
+22. **Bulk Duplicate Merging Engine:** Resolve multiple visual duplicates programmatically using similarity-based algorithms (`KEEP_HIGHEST_QUALITY`, `KEEP_OLDEST`, `KEEP_NEWEST`).
 
 ## 🐳 Docker Configuration
 
 Voyarr is designed to be run via Docker Compose. The stack includes:
 * `db`: PostgreSQL 15 database.
-* `redis`: Redis 7 for the Celery message broker.
+* `redis`: Redis 7 for the Celery message broker and cache.
 * `backend`: FastAPI Python application.
-* `celery_worker`: Background task worker for downloads and heavy processing.
+* `celery_worker`: Background task worker for downloads, phash calculation, and transcoding tasks.
+* `celery_beat`: Cron scheduler executing periodic system events (e.g. database backups, scheduled P2P synchronizations).
 * `frontend`: Vite-powered React PWA served on port 3000.
 
 ## ⚙️ Initial Setup
@@ -333,6 +337,32 @@ Voyarr features a secure, multi-user environment with Role-Based Access Control 
 3. **Registering Subsequent Users**: To register a new user after the admin is configured, the registration request must be:
    - Approved and triggered by an existing Admin (sent from within the authenticated Admin dashboard/client).
    - Alternatively, authorized by including the `MASTER_KEY` secret (configured in your `.env` file) as an HTTP header: `X-Voyarr-Api-Key: <your_master_key>`.
+
+## 🔒 Customizable Network Proxies & VPN Integration
+
+Voyarr provides dual-layer network protection to allow secure scraping, geo-restricted stream acquisition, and complete host masking:
+
+### 1. Application-Level Network Customization (Web Settings Dashboard)
+Within the **Settings** screen in the frontend, administrators can toggle and configure outbound proxy routing:
+*   **Protocol Support**: Full routing via `HTTP`, `HTTPS`, and `SOCKS5` outbound connections.
+*   **Vault Security**: Proxy URLs featuring sensitive embedded credentials (e.g., `socks5://user:pass@1.2.3.4:1080`) are **never stored as plain-text**. They are intercepted and encrypted using AES-256-GCM in the secure database `Vault` table.
+*   **Custom User-Agent Overrides**: Set a custom HTTP User-Agent string globally to easily masquerade outbound scraper requests.
+*   **Dynamic Hot-Reloading**: Applying settings instantly updates environment contexts inside FastAPI and background Celery task daemons without needing any container restarts.
+*   **Live Routing Diagnostics**: Click **Run Routing Diagnostics** to sequentially check exit node IP addresses, latency speeds, and active proxy validity scorecards.
+
+---
+
+### 2. Infrastructure-Level Routing (Docker VPN Sidecar via Gluetun)
+For complete, leakproof VPN routing across all scraper backend engines, headless Playwright browsers, and downloaders without container overhead:
+1.  Verify host support for tun interfaces (`/dev/net/tun` or `NET_ADMIN` capabilities).
+2.  Configure your credentials (e.g. Wireguard private keys or OpenVPN logins) inside the newly provided [docker-compose.vpn.yml](docker-compose.vpn.yml) file.
+3.  Deploy using the vpn composition profile:
+    ```bash
+    docker compose -f docker-compose.vpn.yml up -d
+    ```
+This hooks all scraper network traffic through a **Gluetun sidecar namespace**, completely locking down metadata requests, headless chromium Playwright contexts, and `yt-dlp` downloaders behind the VPN exit node.
+
+---
 
 ## 🧩 Browser Extension Setup
 

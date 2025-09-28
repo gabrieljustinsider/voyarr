@@ -21,6 +21,7 @@ export default function Favorites() {
   const [activeTab, setActiveTab] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [studiosMap, setStudiosMap] = useState({})
 
   const fetchFavorites = useCallback(async () => {
     setLoading(true)
@@ -40,6 +41,15 @@ export default function Favorites() {
         })
       } else {
         setError('Failed to fetch favorites from server.')
+      }
+
+      // Fetch studios to map IDs back to names
+      const studiosRes = await apiFetch('/studios?limit=1000')
+      if (studiosRes.ok) {
+        const studios = await studiosRes.json()
+        const map = {}
+        studios.forEach(s => { map[String(s.id)] = s.name })
+        setStudiosMap(map)
       }
     } catch (e) {
       console.error(e)
@@ -140,7 +150,12 @@ export default function Favorites() {
         </Paper>
       ) : (
         <Grid container spacing={3}>
-          {currentItems.map(item => (
+          {currentItems.map(item => {
+            let displayName = item;
+            if (currentType === 'studio') {
+              displayName = studiosMap[item] || `Studio ID: ${item}`;
+            }
+            return (
             <Grid item xs={12} sm={6} md={4} lg={3} key={item}>
               <Card sx={{ 
                 height: '100%', 
@@ -159,8 +174,8 @@ export default function Favorites() {
                 }
               }}>
                 <CardContent sx={{ flexGrow: 1, pt: 3, pb: 2 }}>
-                  <Typography variant="h6" sx={{ fontWeight: '600', mb: 1, pr: 4 }} noWrap title={item}>
-                    {item}
+                  <Typography variant="h6" sx={{ fontWeight: '600', mb: 1, pr: 4 }} noWrap title={displayName}>
+                    {displayName}
                   </Typography>
                   <Typography variant="caption" color="textSecondary" display="block" sx={{ mb: 2 }}>
                     ID: {item}
@@ -187,7 +202,8 @@ export default function Favorites() {
                 </CardContent>
               </Card>
             </Grid>
-          ))}
+            )
+          })}
         </Grid>
       )}
     </Box>

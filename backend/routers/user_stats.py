@@ -8,13 +8,16 @@ from typing import Dict, Any
 
 router = APIRouter(prefix="/user/stats", tags=["user_stats"])
 
+
 class PlayLogRequest(BaseModel):
     library_entry_id: int
     duration: int = 0
     completed: bool = False
 
+
 class ClimaxRequest(BaseModel):
     library_entry_id: int
+
 
 class PreferencesRequest(BaseModel):
     theme: str
@@ -28,7 +31,9 @@ def log_play(
     current_user: User = Depends(get_current_user),
 ):
     """Log a playback session and increment play count."""
-    entry = db.query(LibraryEntry).filter(LibraryEntry.id == req.library_entry_id).first()
+    entry = (
+        db.query(LibraryEntry).filter(LibraryEntry.id == req.library_entry_id).first()
+    )
     if not entry:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Library entry not found"
@@ -39,7 +44,7 @@ def log_play(
         user_id=current_user.id,
         library_entry_id=req.library_entry_id,
         duration=req.duration,
-        completed=req.completed
+        completed=req.completed,
     )
     db.add(hist)
 
@@ -60,7 +65,7 @@ def log_play(
             user_id=current_user.id,
             library_entry_id=req.library_entry_id,
             play_count=1,
-            climax_count=0
+            climax_count=0,
         )
         db.add(stats)
 
@@ -79,7 +84,9 @@ def log_climax(
     current_user: User = Depends(get_current_user),
 ):
     """Log a climax/orgasm (O-Meter) click, incrementing the counter."""
-    entry = db.query(LibraryEntry).filter(LibraryEntry.id == req.library_entry_id).first()
+    entry = (
+        db.query(LibraryEntry).filter(LibraryEntry.id == req.library_entry_id).first()
+    )
     if not entry:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Library entry not found"
@@ -101,7 +108,7 @@ def log_climax(
             user_id=current_user.id,
             library_entry_id=req.library_entry_id,
             play_count=0,
-            climax_count=1
+            climax_count=1,
         )
         db.add(stats)
 
@@ -160,7 +167,11 @@ def get_preferences(
     current_user: User = Depends(get_current_user),
 ):
     """Retrieve theme and interface preferences for the current user."""
-    pref = db.query(UserPreference).filter(UserPreference.user_id == current_user.id).first()
+    pref = (
+        db.query(UserPreference)
+        .filter(UserPreference.user_id == current_user.id)
+        .first()
+    )
     if not pref:
         # Default preferences
         return {
@@ -182,7 +193,11 @@ def update_preferences(
     current_user: User = Depends(get_current_user),
 ):
     """Update custom theme and show/hide layout items config for the user."""
-    pref = db.query(UserPreference).filter(UserPreference.user_id == current_user.id).first()
+    pref = (
+        db.query(UserPreference)
+        .filter(UserPreference.user_id == current_user.id)
+        .first()
+    )
     if pref:
         pref.theme = req.theme
         pref.ui_config = req.ui_config
@@ -193,4 +208,8 @@ def update_preferences(
         db.add(pref)
 
     db.commit()
-    return {"theme": pref.theme, "ui_config": pref.ui_config, "message": "Preferences updated successfully."}
+    return {
+        "theme": pref.theme,
+        "ui_config": pref.ui_config,
+        "message": "Preferences updated successfully.",
+    }

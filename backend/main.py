@@ -33,12 +33,20 @@ from routers import (
     studios,
     analytics,
     live_streams,
+    p2p,
 )
 
 # Create tables
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Voyarr API", version="1.11.0")
+# Initialize global network configurations (proxies and user-agents)
+from utils import initialize_network_settings
+
+initialize_network_settings()
+
+app = FastAPI(
+    title="Voyarr API", version="1.12.0", root_path=os.getenv("ROOT_PATH", "")
+)
 
 # CORS
 app.add_middleware(
@@ -143,6 +151,7 @@ app.include_router(user_stats.router)
 app.include_router(studios.router)
 app.include_router(analytics.router)
 app.include_router(live_streams.router)
+app.include_router(p2p.router)
 
 
 @app.get("/")
@@ -153,4 +162,3 @@ async def root():
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
-

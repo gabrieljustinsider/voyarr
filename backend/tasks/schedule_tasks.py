@@ -79,7 +79,9 @@ def auto_sync_credentials():
             from models import Settings
 
             interval_setting = (
-                db.query(Settings).filter(Settings.key == "pm_auto_sync_interval").first()
+                db.query(Settings)
+                .filter(Settings.key == "pm_auto_sync_interval")
+                .first()
             )
             direction_setting = (
                 db.query(Settings).filter(Settings.key == "pm_sync_direction").first()

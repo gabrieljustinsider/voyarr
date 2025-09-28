@@ -5,6 +5,7 @@ from database import get_db
 from models import DuplicateEntry
 from schemas import DuplicateAction
 from dependencies import verify_api_key
+from tasks.duplicate_tasks import merge_duplicate_pair
 
 router = APIRouter(
     prefix="/duplicates", tags=["duplicates"], dependencies=[Depends(verify_api_key)]
@@ -32,6 +33,7 @@ def resolve_duplicate(
 
     if req.action == "keep_both":
         dupe.resolved = True
+        db.commit()
     elif req.action in ["keep_1", "keep_2"]:
         entry_to_delete = dupe.entry2 if req.action == "keep_1" else dupe.entry1
 
@@ -45,10 +47,29 @@ def resolve_duplicate(
 
         db.delete(entry_to_delete)
         dupe.resolved = True
-    else:
-        raise HTTPException(
-            status_code=400, detail="Invalid action. Use keep_1, keep_2, or keep_both"
+        db.commit()
+    elif req.action in ["merge_1", "merge_2"]:
+        keep_id = (
+            dupe.library_entry_id1
+            if req.action == "merge_1"
+            else dupe.library_entry_id2
+        )
+        delete_id = (
+            dupe.library_entry_id2
+            if req.action == "merge_1"
+            else dupe.library_entry_id1
         )
 
-    db.commit()
+        try:
+            merge_duplicate_pair(db, keep_id, delete_id)
+            dupe.resolved = True
+            db.commit()
+        except ValueError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid action. Use keep_1, keep_2, keep_both, merge_1, or merge_2",
+        )
+
     return {"message": "Duplicate resolved successfully"}

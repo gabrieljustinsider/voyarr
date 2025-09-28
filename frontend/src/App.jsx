@@ -36,6 +36,7 @@ import Analytics from './components/Analytics'
 import LiveStreams from './components/LiveStreams'
 import NotificationSettings from './components/NotificationSettings'
 import TranscodeQueue from './components/TranscodeQueue'
+import P2PSync from './components/P2PSync'
 
 import { apiFetch, getAuthHeaders } from './api'
 import './App.css'
@@ -409,7 +410,7 @@ function App() {
     return () => window.removeEventListener('show-toast', handleToast)
   }, [])
 
-  const handleCredentialSubmit = async (e) => {
+  const handleCredentialSubmit = useCallback(async (e) => {
     e.preventDefault()
     
     const payload = {
@@ -437,7 +438,7 @@ function App() {
       console.error('Error submitting credentials:', error)
       setSnackbar({ open: true, message: 'Error saving credentials.', severity: 'error' })
     }
-  }
+  }, [selectedProvider, credentials])
 
   const handleLogout = () => {
     localStorage.removeItem('voyarr_jwt')
@@ -471,9 +472,13 @@ function App() {
         providers={filteredProviders} 
         onSelectProvider={(id) => {
           setSelectedProvider(id)
-          // Find credentials index dynamically
-          const credsIndex = visibleTabs.findIndex(t => t.label === "Credentials")
-          if (credsIndex !== -1) setTabValue(credsIndex)
+          // Find credentials index dynamically based on visible tabs before it
+          let credsIndex = 3
+          if (uiConfig.showFavorites) credsIndex++
+          if (uiConfig.showStudios) credsIndex++
+          if (uiConfig.showLive) credsIndex++
+          if (uiConfig.showAnalytics) credsIndex++
+          setTabValue(credsIndex)
         }}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
@@ -500,13 +505,14 @@ function App() {
     { label: "Metadata", component: <MetadataManager />, visible: true },
     { label: "External APIs", component: <ExternalAPIs />, visible: true },
     { label: "Settings", component: <Settings />, visible: true },
+    { label: "P2P Sync", component: <P2PSync />, visible: true },
     { label: "Notification Settings", component: <NotificationSettings />, visible: true },
     { label: "Transcode Queue", component: <TranscodeQueue />, visible: true },
     { label: "Backup", component: <BackupManager />, visible: true },
     { label: "Logs", component: <LogsViewer />, visible: true },
     { label: "Scraper Tester", component: <ScraperTester />, visible: true },
     { label: "Request Manager", component: <RequestManager />, visible: true },
-  ], [uiConfig, filteredProviders, selectedProvider, credentials, queue, fetchQueue, searchQuery])
+  ], [uiConfig, filteredProviders, selectedProvider, credentials, queue, fetchQueue, searchQuery, handleCredentialSubmit])
 
   const visibleTabs = useMemo(() => allTabs.filter(t => t.visible), [allTabs])
 

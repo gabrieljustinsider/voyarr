@@ -11,7 +11,12 @@ class ProviderBase(ABC):
     def __init__(self, base_url: str, credentials: Optional[Dict[str, str]] = None):
         self.base_url = base_url.rstrip("/")
         self.credentials = credentials or {}
+        import os
+
         self.session = requests.Session()
+        global_ua = os.getenv("DEFAULT_USER_AGENT")
+        if global_ua:
+            self.session.headers.update({"User-Agent": global_ua})
 
     @abstractmethod
     def login(self) -> bool:
@@ -41,8 +46,21 @@ class ProviderBase(ABC):
 
     def extract_with_xpath(self, soup: BeautifulSoup, xpath: str) -> List[str]:
         """Extract text using XPath (requires lxml)."""
-        # Note: BeautifulSoup with lxml parser supports xpath
-        return soup.xpath(xpath)
+        from lxml import html
+
+        tree = html.fromstring(str(soup))
+        elements = tree.xpath(xpath)
+        results = []
+        for elem in elements:
+            if isinstance(elem, str):
+                results.append(elem.strip())
+            elif hasattr(elem, "text_content"):
+                results.append(elem.text_content().strip())
+            elif hasattr(elem, "text") and elem.text:
+                results.append(elem.text.strip())
+            else:
+                results.append(str(elem).strip())
+        return results
 
     def extract_with_regex(self, text: str, pattern: str) -> List[str]:
         """Extract data using regex."""

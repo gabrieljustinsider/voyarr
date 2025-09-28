@@ -47,7 +47,7 @@ def start_transcode(
         library_entry_id=library_entry_id,
         target_codec=req.target_codec,
         priority=req.priority or 0,
-        status="pending"
+        status="pending",
     )
     db.add(new_job)
 
@@ -66,7 +66,11 @@ def start_transcode(
     new_job.celery_task_id = celery_task.id
     db.commit()
 
-    return {"message": "Transcoding job started", "job_id": new_job.id, "celery_task_id": celery_task.id}
+    return {
+        "message": "Transcoding job started",
+        "job_id": new_job.id,
+        "celery_task_id": celery_task.id,
+    }
 
 
 @router.get("/")
@@ -74,7 +78,9 @@ def get_transcode_jobs(status: Optional[str] = None, db: Session = Depends(get_d
     """
     Retrieves all transcoding jobs, optionally filtered by status.
     """
-    query = db.query(TranscodingQueue).order_by(TranscodingQueue.priority.desc(), TranscodingQueue.created_at.asc())
+    query = db.query(TranscodingQueue).order_by(
+        TranscodingQueue.priority.desc(), TranscodingQueue.created_at.asc()
+    )
     if status:
         query = query.filter(TranscodingQueue.status == status)
     return query.all()
@@ -85,6 +91,7 @@ def stream_transcode_queue(request: Request):
     """
     SSE stream for active transcoding tasks.
     """
+
     async def event_generator():
         while True:
             if await request.is_disconnected():
@@ -92,20 +99,30 @@ def stream_transcode_queue(request: Request):
             with get_db_session() as db:
                 jobs = (
                     db.query(TranscodingQueue)
-                    .filter(TranscodingQueue.status.in_(["pending", "running", "paused"]))
-                    .order_by(TranscodingQueue.priority.desc(), TranscodingQueue.created_at.asc())
+                    .filter(
+                        TranscodingQueue.status.in_(["pending", "running", "paused"])
+                    )
+                    .order_by(
+                        TranscodingQueue.priority.desc(),
+                        TranscodingQueue.created_at.asc(),
+                    )
                     .all()
                 )
-                data = [{
-                    "id": j.id,
-                    "library_entry_id": j.library_entry_id,
-                    "title": j.library_entry.title if j.library_entry else f"Entry {j.library_entry_id}",
-                    "status": j.status,
-                    "progress_percentage": float(j.progress_percentage or 0.0),
-                    "priority": j.priority,
-                    "target_codec": j.target_codec,
-                    "details": j.details
-                } for j in jobs]
+                data = [
+                    {
+                        "id": j.id,
+                        "library_entry_id": j.library_entry_id,
+                        "title": j.library_entry.title
+                        if j.library_entry
+                        else f"Entry {j.library_entry_id}",
+                        "status": j.status,
+                        "progress_percentage": float(j.progress_percentage or 0.0),
+                        "priority": j.priority,
+                        "target_codec": j.target_codec,
+                        "details": j.details,
+                    }
+                    for j in jobs
+                ]
                 yield f"data: {json.dumps(data)}\n\n"
             await asyncio.sleep(2.0)
 
@@ -168,7 +185,7 @@ def cancel_transcode(job_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Transcoding job not found")
 
     job.status = "cancelled"
-    
+
     # 1. Kill active ffmpeg process
     if job.pid:
         try:
@@ -179,13 +196,15 @@ def cancel_transcode(job_id: int, db: Session = Depends(get_db)):
     # 2. Revoke active Celery task
     if job.celery_task_id:
         try:
-            celery_app.control.revoke(job.celery_task_id, terminate=True, signal="SIGKILL")
+            celery_app.control.revoke(
+                job.celery_task_id, terminate=True, signal="SIGKILL"
+            )
         except Exception as e:
             print(f"Error revoking transcoding celery task: {e}")
 
     db.commit()
-    
-    # Temp file cleanup is done in the transcode_video_task's try/except/finally block, 
+
+    # Temp file cleanup is done in the transcode_video_task's try/except/finally block,
     # but we can do a fallback here if the entry path exists
     try:
         if job.library_entry and job.library_entry.file_path:
@@ -209,7 +228,10 @@ def transcode_priority_up(job_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Job not found")
     job.priority += 1
     db.commit()
-    return {"message": f"Job priority bumped to {job.priority}", "priority": job.priority}
+    return {
+        "message": f"Job priority bumped to {job.priority}",
+        "priority": job.priority,
+    }
 
 
 @router.post("/{job_id}/priority/down")
@@ -219,7 +241,10 @@ def transcode_priority_down(job_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Job not found")
     job.priority -= 1
     db.commit()
-    return {"message": f"Job priority reduced to {job.priority}", "priority": job.priority}
+    return {
+        "message": f"Job priority reduced to {job.priority}",
+        "priority": job.priority,
+    }
 
 
 @router.delete("/{job_id}")

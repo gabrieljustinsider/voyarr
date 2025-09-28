@@ -16,6 +16,7 @@ def rescan_missing_hashes():
     and attempts to regenerate them based on the local file.
     """
     from sqlalchemy.orm import defer
+
     with get_db_session() as db:
         print("Scanning for library entries with missing hashes...")
 
@@ -25,7 +26,7 @@ def rescan_missing_hashes():
             .options(
                 defer(LibraryEntry.entry_metadata),
                 defer(LibraryEntry.performers),
-                defer(LibraryEntry.tags)
+                defer(LibraryEntry.tags),
             )
             .filter(
                 or_(

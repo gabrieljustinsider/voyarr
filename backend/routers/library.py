@@ -1,13 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session, defer
-from sqlalchemy.orm.attributes import flag_modified
 from database import get_db
 from models import LibraryEntry, DownloadPreference
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel
 import os
 from services.reverse_regex import ReverseRegexMatcher
+from tasks.ml_tasks import cluster_faces_task
+from tasks.ai_tasks import auto_tag_video_task
 from tasks.transcode_tasks import generate_hls_task
 from tasks.scanner_tasks import process_missing_hashes_task
 
@@ -45,7 +46,7 @@ def scan_library(
             except ValueError:
                 # Occurs on Windows when comparing paths across different drives
                 continue
-                
+
         if not is_valid_dir:
             raise HTTPException(
                 status_code=403,
@@ -64,7 +65,12 @@ def scan_library(
 
     matcher = ReverseRegexMatcher(db)
     import typing
-    aggregated_result: typing.Dict[str, typing.Any] = {"added": 0, "matched": 0, "errors": []}
+
+    aggregated_result: typing.Dict[str, typing.Any] = {
+        "added": 0,
+        "matched": 0,
+        "errors": [],
+    }
 
     for d in target_dirs:
         if not os.path.exists(d):
@@ -72,7 +78,7 @@ def scan_library(
         result = matcher.scan_directory(d, provider_id, pattern)
         if "error" in result:
             raise HTTPException(status_code=400, detail=result["error"])
-        
+
         aggregated_result["added"] += result.get("added", 0)
         aggregated_result["matched"] += result.get("matched", 0)
         aggregated_result["errors"].extend(result.get("errors", []))
@@ -102,19 +108,21 @@ def get_library_entries(
         query = query.filter(LibraryEntry.performers.contains([performer]))
     if ohash:
         query = query.filter(LibraryEntry.ohash == ohash)
-        
+
     total = query.count()
     items = query.offset((page - 1) * limit).limit(limit).all()
     return {
         "items": items,
         "total": total,
-        "pages": (total + limit - 1) // limit if limit > 0 else 1
+        "pages": (total + limit - 1) // limit if limit > 0 else 1,
     }
 
 
 @router.get("/{entry_id}/stream")
 def stream_video(entry_id: int, db: Session = Depends(get_db)):
-    file_path = db.query(LibraryEntry.file_path).filter(LibraryEntry.id == entry_id).scalar()
+    file_path = (
+        db.query(LibraryEntry.file_path).filter(LibraryEntry.id == entry_id).scalar()
+    )
     if not file_path:
         raise HTTPException(status_code=404, detail="Media not found")
     if not os.path.exists(file_path):
@@ -131,7 +139,10 @@ def stream_video(entry_id: int, db: Session = Depends(get_db)):
 )
 def rescan_hashes(db: Session = Depends(get_db)):
     task = process_missing_hashes_task.delay()
-    return {"message": "Hash rescan started in the background. This may take a while.", "task_id": task.id}
+    return {
+        "message": "Hash rescan started in the background. This may take a while.",
+        "task_id": task.id,
+    }
 
 
 @router.post("/{entry_id}/cluster-faces")
@@ -139,15 +150,7 @@ def trigger_facial_clustering(entry_id: int, db: Session = Depends(get_db)):
     entry = db.query(LibraryEntry).filter(LibraryEntry.id == entry_id).first()
     if not entry:
         raise HTTPException(status_code=404, detail="Library entry not found")
-    
-    try:
-        from tasks.ml_tasks import cluster_faces_task
-    except ImportError:
-        raise HTTPException(
-            status_code=501,
-            detail="Facial recognition dependencies (face_recognition, opencv, sklearn) are not installed on this server."
-        )
-    
+
     task = cluster_faces_task.delay(entry.id)
     return {"message": "Facial clustering task queued", "task_id": task.id}
 
@@ -157,23 +160,27 @@ def get_facial_clusters(entry_id: int, db: Session = Depends(get_db)):
     entry = db.query(LibraryEntry).filter(LibraryEntry.id == entry_id).first()
     if not entry:
         raise HTTPException(status_code=404, detail="Library entry not found")
-    
+
     return (entry.entry_metadata or {}).get("facial_clusters", {})
 
 
 @router.get("/{entry_id}/facial-clusters/{person_name}/thumbnail")
-def get_facial_cluster_thumbnail(entry_id: int, person_name: str, db: Session = Depends(get_db)):
-    file_path = db.query(LibraryEntry.file_path).filter(LibraryEntry.id == entry_id).scalar()
+def get_facial_cluster_thumbnail(
+    entry_id: int, person_name: str, db: Session = Depends(get_db)
+):
+    file_path = (
+        db.query(LibraryEntry.file_path).filter(LibraryEntry.id == entry_id).scalar()
+    )
     if not file_path:
         raise HTTPException(status_code=404, detail="Library entry not found")
-    
+
     faces_dir = os.path.join(os.path.dirname(file_path), f".faces_{entry_id}")
     safe_person_name = os.path.basename(person_name)
     thumb_path = os.path.join(faces_dir, f"{safe_person_name}.jpg")
-    
+
     if not os.path.exists(thumb_path):
         raise HTTPException(status_code=404, detail="Thumbnail not found")
-        
+
     return FileResponse(thumb_path, media_type="image/jpeg")
 
 
@@ -182,7 +189,12 @@ class RenameClusterRequest(BaseModel):
 
 
 @router.post("/{entry_id}/facial-clusters/{person_name}/rename")
-def rename_facial_cluster(entry_id: int, person_name: str, req: RenameClusterRequest, db: Session = Depends(get_db)):
+def rename_facial_cluster(
+    entry_id: int,
+    person_name: str,
+    req: RenameClusterRequest,
+    db: Session = Depends(get_db),
+):
     entry = db.query(LibraryEntry).filter(LibraryEntry.id == entry_id).first()
     if not entry or not entry.file_path:
         raise HTTPException(status_code=404, detail="Library entry not found")
@@ -195,19 +207,23 @@ def rename_facial_cluster(entry_id: int, person_name: str, req: RenameClusterReq
 
     safe_new_name = os.path.basename(req.new_name)
     if not safe_new_name or req.new_name != safe_new_name:
-        raise HTTPException(status_code=400, detail="Invalid new name: cannot contain path separators.")
+        raise HTTPException(
+            status_code=400, detail="Invalid new name: cannot contain path separators."
+        )
+
+    from sqlalchemy.orm.attributes import flag_modified
 
     # Update JSON metadata
     clusters[safe_new_name] = clusters.pop(person_name)
     meta["facial_clusters"] = clusters
     entry.entry_metadata = meta
+    flag_modified(entry, "entry_metadata")
 
     # Also add the new performer name to the global performers list if not already there
     performers = entry.performers or []
     if safe_new_name not in performers:
         entry.performers = performers + [safe_new_name]
 
-    flag_modified(entry, "entry_metadata")
     db.commit()
 
     # Rename physical thumbnail
@@ -242,26 +258,109 @@ def trigger_hls_generation(entry_id: int, db: Session = Depends(get_db)):
     exists = db.query(LibraryEntry.id).filter(LibraryEntry.id == entry_id).scalar()
     if not exists:
         raise HTTPException(status_code=404, detail="Library entry not found")
-    
+
     task = generate_hls_task.delay(entry_id)
     return {"message": "HLS generation task queued", "task_id": task.id}
 
 
 @router.get("/{entry_id}/hls/{filename}")
 def serve_hls_file(entry_id: int, filename: str, db: Session = Depends(get_db)):
-    file_path = db.query(LibraryEntry.file_path).filter(LibraryEntry.id == entry_id).scalar()
+    file_path = (
+        db.query(LibraryEntry.file_path).filter(LibraryEntry.id == entry_id).scalar()
+    )
     if not file_path:
         raise HTTPException(status_code=404, detail="Library entry not found")
-    
+
     safe_filename = os.path.basename(filename)
     if not safe_filename.endswith(".m3u8") and not safe_filename.endswith(".ts"):
         raise HTTPException(status_code=400, detail="Invalid file type")
 
     hls_dir = f"{file_path}.hls"
     file_path = os.path.join(hls_dir, safe_filename)
-    
+
     if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="HLS file not found. Ensure generation is complete.")
-        
-    media_type = "application/vnd.apple.mpegurl" if safe_filename.endswith(".m3u8") else "video/MP2T"
+        raise HTTPException(
+            status_code=404, detail="HLS file not found. Ensure generation is complete."
+        )
+
+    media_type = (
+        "application/vnd.apple.mpegurl"
+        if safe_filename.endswith(".m3u8")
+        else "video/MP2T"
+    )
     return FileResponse(file_path, media_type=media_type)
+
+
+class ManualBulkEditRequest(BaseModel):
+    entry_ids: List[int]
+    tags_to_add: List[str] = []
+    tags_to_remove: List[str] = []
+    performers_to_add: List[str] = []
+    performers_to_remove: List[str] = []
+    studio_id: Optional[int] = None
+    resolution: Optional[str] = None
+
+
+@router.post("/bulk-edit/manual")
+def manual_bulk_edit(req: ManualBulkEditRequest, db: Session = Depends(get_db)):
+    """Instantly add or remove tags, performers, and update studio or resolution across multiple videos."""
+    entries = (
+        db.query(LibraryEntry)
+        .options(defer(LibraryEntry.entry_metadata))
+        .filter(LibraryEntry.id.in_(req.entry_ids))
+        .all()
+    )
+    if not entries:
+        raise HTTPException(
+            status_code=404, detail="No entries found for the provided IDs."
+        )
+
+    add_tags = set(req.tags_to_add)
+    rem_tags = set(req.tags_to_remove)
+    add_perfs = set(req.performers_to_add)
+    rem_perfs = set(req.performers_to_remove)
+
+    for entry in entries:
+        if add_tags or rem_tags:
+            current_tags = set(entry.tags or [])
+            current_tags.update(add_tags)
+            current_tags.difference_update(rem_tags)
+            entry.tags = list(current_tags)
+
+        if add_perfs or rem_perfs:
+            current_perfs = set(entry.performers or [])
+            current_perfs.update(add_perfs)
+            current_perfs.difference_update(rem_perfs)
+            entry.performers = list(current_perfs)
+
+        if req.resolution is not None:
+            entry.resolution = req.resolution
+
+        if req.studio_id is not None:
+            entry.studio_id = req.studio_id
+
+    db.commit()
+    return {"message": f"Successfully updated {len(entries)} entries."}
+
+
+class AIBulkTagRequest(BaseModel):
+    entry_ids: List[int]
+
+
+@router.post("/bulk-tag/ai")
+def ai_bulk_tag(req: AIBulkTagRequest, db: Session = Depends(get_db)):
+    """Queue up multiple videos for automated AI tagging via the vision models."""
+    entry_ids = (
+        db.query(LibraryEntry.id).filter(LibraryEntry.id.in_(req.entry_ids)).all()
+    )
+    if not entry_ids:
+        raise HTTPException(
+            status_code=404, detail="No entries found for the provided IDs."
+        )
+
+    for (eid,) in entry_ids:
+        auto_tag_video_task.delay(eid)
+
+    return {
+        "message": f"Successfully queued AI auto-tagging for {len(entry_ids)} entries."
+    }

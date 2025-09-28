@@ -1,6 +1,6 @@
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from celery import shared_task
 from models import Base
 from routers.backup import CustomJSONEncoder
@@ -14,14 +14,14 @@ def automated_backup():
         try:
             data = {
                 "type": "full",
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "version": "1.0",
                 "data": {},
             }
             for table in Base.metadata.sorted_tables:
                 rows = db.execute(table.select()).mappings().all()
                 data["data"][table.name] = [dict(row) for row in rows]
-                
+
             # If the dedicated backup folder volume is mounted, write there.
             # Otherwise, fallback to the backups folder inside the primary media root.
             if os.path.exists("/app/backups"):
@@ -29,10 +29,10 @@ def automated_backup():
             else:
                 primary_root = get_primary_root()
                 backup_dir = os.path.join(primary_root, "backups")
-                
+
             os.makedirs(backup_dir, exist_ok=True)
 
-            filename = f"voyarr_backup_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+            filename = f"voyarr_backup_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.json"
             filepath = os.path.join(backup_dir, filename)
 
             with open(filepath, "w") as f:
@@ -40,11 +40,12 @@ def automated_backup():
 
             try:
                 from services.notification_service import NotificationService
+
                 NotificationService.notify_global(
                     db,
                     "task_completed",
                     "Automated Backup Successful",
-                    f"Successfully created automated backup file '{filename}'."
+                    f"Successfully created automated backup file '{filename}'.",
                 )
             except Exception as notif_err:
                 print(f"Error sending backup completion notification: {notif_err}")
@@ -53,11 +54,12 @@ def automated_backup():
             print(f"Automated backup failed: {str(e)}")
             try:
                 from services.notification_service import NotificationService
+
                 NotificationService.notify_global(
                     db,
                     "task_completed",
                     "Automated Backup Failed",
-                    f"Automated backup task failed: {str(e)}"
+                    f"Automated backup task failed: {str(e)}",
                 )
             except Exception as notif_err:
                 print(f"Error sending backup failure notification: {notif_err}")

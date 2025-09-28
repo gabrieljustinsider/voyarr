@@ -23,17 +23,29 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
         db.commit()
 
         # Fetch advanced yt-dlp integrations
-        global_settings = {s.key: s.value for s in db.query(Settings).filter(
-            Settings.key.in_([
-                "yt_write_subs", "yt_write_thumbs", "yt_sponsorblock", 
-                "yt_live_streams", "yt_native_playlists", 
-                "yt_browser_cookies", "yt_custom_format", "download_destination"
-            ])
-        ).all()}
+        global_settings = {
+            s.key: s.value
+            for s in db.query(Settings)
+            .filter(
+                Settings.key.in_(
+                    [
+                        "yt_write_subs",
+                        "yt_write_thumbs",
+                        "yt_sponsorblock",
+                        "yt_live_streams",
+                        "yt_native_playlists",
+                        "yt_browser_cookies",
+                        "yt_custom_format",
+                        "download_destination",
+                    ]
+                )
+            )
+            .all()
+        }
 
         # Respect the custom_base_path from provider preferences, or fallback to default
         base_path = prefs_dict.get("custom_base_path")
-        
+
         # SECURITY: Prevent path traversal and arbitrary file writes in custom_base_path
         if base_path:
             is_valid_base = False
@@ -46,9 +58,11 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
                         break
                 except ValueError:
                     continue
-            
+
             if not is_valid_base:
-                print(f"Warning: custom_base_path '{base_path}' is outside configured media roots. Falling back to default.")
+                print(
+                    f"Warning: custom_base_path '{base_path}' is outside configured media roots. Falling back to default."
+                )
                 base_path = None
 
         if not base_path:
@@ -85,9 +99,13 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
                 task.progress_percentage = 100.0
                 db.commit()
 
-        resolution_pref = prefs_dict.get("preferred_resolution", "1080p").replace(
-            "p", ""
-        ).replace("4K", "2160").replace("8K", "4320").replace("2K", "1440")
+        resolution_pref = (
+            prefs_dict.get("preferred_resolution", "1080p")
+            .replace("p", "")
+            .replace("4K", "2160")
+            .replace("8K", "4320")
+            .replace("2K", "1440")
+        )
 
         format_str = f"bestvideo[height<={resolution_pref}]+bestaudio/best"
         if global_settings.get("yt_custom_format"):
@@ -104,18 +122,20 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
         if global_settings.get("yt_write_subs") == "true":
             ydl_opts["writesubtitles"] = True
             ydl_opts["writeautomaticsub"] = True
-            
+
         if global_settings.get("yt_write_thumbs") == "true":
             ydl_opts["writethumbnail"] = True
-            
+
         if global_settings.get("yt_sponsorblock") == "true":
             ydl_opts["sponsorblock_remove"] = ["all"]
-            
+
         if global_settings.get("yt_live_streams") == "true":
             ydl_opts["live_from_start"] = True
-            
+
         if global_settings.get("yt_browser_cookies"):
-            ydl_opts["cookiesfrombrowser"] = (global_settings.get("yt_browser_cookies"),)
+            ydl_opts["cookiesfrombrowser"] = (
+                global_settings.get("yt_browser_cookies"),
+            )
 
         cookie_temp_path = None
         active_cookie = (
@@ -145,6 +165,14 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(task.url, download=True)
+
+                extractor = info.get("extractor", "generic")
+                method_used = f"yt-dlp ({extractor})"
+                if cookie_temp_path:
+                    method_used += " [Cookies]"
+                task.extraction_method = method_used
+                db.commit()
+
                 filename = ydl.prepare_filename(info)
 
                 # Handle yt-dlp post-processing extension changes (e.g., merging into .mkv)
@@ -162,21 +190,25 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
                 # Save to Library
                 new_entry = LibraryEntry(
                     provider_id=task.media_entry.provider_id,
-                    title=info.get("title", metadata.get("title", f"Download_{task_id}")),
+                    title=info.get(
+                        "title", metadata.get("title", f"Download_{task_id}")
+                    ),
                     performers=metadata.get("performers", []),
                     tags=metadata.get("tags", []),
                     file_path=filename,
                     resolution=prefs_dict.get("preferred_resolution", "1080p"),
-                    file_size=os.path.getsize(filename) if os.path.exists(filename) else 0,
+                    file_size=os.path.getsize(filename)
+                    if os.path.exists(filename)
+                    else 0,
                     ohash=ohash,
                     metadata=metadata,
                 )
-                
+
                 try:
                     new_entry.phash = HashService.generate_phash(filename)
                 except Exception as e:
                     print(f"Warning: Failed to generate phash for {filename}: {str(e)}")
-                    
+
                 db.add(new_entry)
 
                 if prefs_dict.get("append_metadata"):
@@ -190,15 +222,18 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
 
                 try:
                     from services.notification_service import NotificationService
+
                     NotificationService.check_and_notify_favorites(db, new_entry)
                     NotificationService.notify_global(
                         db,
                         "task_completed",
                         "Download Completed",
-                        f"Successfully downloaded '{new_entry.title}'."
+                        f"Successfully downloaded '{new_entry.title}'.",
                     )
                 except Exception as notif_err:
-                    print(f"Error sending notifications for download completion: {notif_err}")
+                    print(
+                        f"Error sending notifications for download completion: {notif_err}"
+                    )
 
         except Exception as e:
             if "Task paused by user" in str(e) or "Task cancelled by user" in str(e):
@@ -217,32 +252,45 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
 
             try:
                 should_retry = False
-                task = db.query(DownloadQueue).filter(DownloadQueue.id == task_id).first()
+                task = (
+                    db.query(DownloadQueue).filter(DownloadQueue.id == task_id).first()
+                )
                 if task:
                     max_retries = prefs_dict.get("max_retries", 3)
                     if self.request.retries < max_retries:
                         task.status = "pending"
                         db.commit()
-                        print(f"Download failed, retrying ({self.request.retries + 1}/{max_retries})...")
+                        print(
+                            f"Download failed, retrying ({self.request.retries + 1}/{max_retries})..."
+                        )
                         should_retry = True
                     else:
                         task.status = "failed"
                         db.commit()
-                        print(f"Download failed permanently after {max_retries} retries: {str(e)}")
+                        print(
+                            f"Download failed permanently after {max_retries} retries: {str(e)}"
+                        )
 
                         try:
-                            from services.notification_service import NotificationService
+                            from services.notification_service import (
+                                NotificationService,
+                            )
+
                             NotificationService.notify_global(
                                 db,
                                 "task_completed",
                                 "Download Failed",
-                                f"Download failed permanently for '{task.url}': {str(e)}"
+                                f"Download failed permanently for '{task.url}': {str(e)}",
                             )
                         except Exception as notif_err:
-                            print(f"Error sending download failure notification: {notif_err}")
+                            print(
+                                f"Error sending download failure notification: {notif_err}"
+                            )
             except Exception as inner_e:
-                print(f"Failed to update task status during error handling: {str(inner_e)}")
-                
+                print(
+                    f"Failed to update task status during error handling: {str(inner_e)}"
+                )
+
             if should_retry:
                 if (
                     "cookie_temp_path" in locals()

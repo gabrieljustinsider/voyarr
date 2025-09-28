@@ -1,6 +1,23 @@
+/* global process, __dirname */
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import fs from 'fs';
+import path from 'path';
+
+// Helper to load SSL certificates if they exist
+const getHttpsConfig = () => {
+  const keyPath = process.env.SSL_KEY_PATH || path.resolve(__dirname, '../certs/key.pem');
+  const certPath = process.env.SSL_CERT_PATH || path.resolve(__dirname, '../certs/cert.pem');
+  
+  if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
+    return {
+      key: fs.readFileSync(keyPath),
+      cert: fs.readFileSync(certPath),
+    };
+  }
+  return false; // Fallback to standard HTTP if no certificates are found
+};
 
 export default defineConfig({
   plugins: [
@@ -22,6 +39,15 @@ export default defineConfig({
   ],
   server: {
     port: 3000,
-    host: true
+    host: true,
+    https: getHttpsConfig(),
+    proxy: {
+      '/api': {
+        target: process.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000',
+        changeOrigin: true,
+        secure: false, // Bypass SSL validation if backend is using self-signed certs
+        rewrite: (path) => path.replace(/^\/api/, '')
+      }
+    }
   }
 });

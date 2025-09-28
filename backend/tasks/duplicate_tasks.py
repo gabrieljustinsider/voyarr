@@ -1,4 +1,5 @@
 from celery import shared_task
+import os
 from models import LibraryEntry, DuplicateEntry
 from db_utils import get_db_session
 
@@ -6,6 +7,54 @@ try:
     import imagehash
 except ImportError:
     imagehash = None
+
+
+def merge_duplicate_pair(db, keep_id: int, delete_id: int):
+    """
+    Merges metadata from delete_id into keep_id, deletes the physical file of delete_id,
+    and removes the delete_id from the database.
+    """
+    keep_entry = db.query(LibraryEntry).filter(LibraryEntry.id == keep_id).first()
+    delete_entry = db.query(LibraryEntry).filter(LibraryEntry.id == delete_id).first()
+
+    if not keep_entry or not delete_entry:
+        raise ValueError("One or both entries not found")
+
+    # Merge metadata
+    # 1. Tags
+    keep_tags = set(keep_entry.tags or [])
+    delete_tags = set(delete_entry.tags or [])
+    keep_entry.tags = list(keep_tags.union(delete_tags))
+
+    # 2. Performers
+    keep_performers = set(keep_entry.performers or [])
+    delete_performers = set(delete_entry.performers or [])
+    keep_entry.performers = list(keep_performers.union(delete_performers))
+
+    # 3. Studio
+    if not keep_entry.studio_id and delete_entry.studio_id:
+        keep_entry.studio_id = delete_entry.studio_id
+
+    # 4. JSON metadata (shallow merge)
+    keep_meta = dict(keep_entry.entry_metadata or {})
+    delete_meta = delete_entry.entry_metadata or {}
+    for k, v in delete_meta.items():
+        if k not in keep_meta or keep_meta[k] is None:
+            keep_meta[k] = v
+    keep_entry.entry_metadata = keep_meta
+
+    # Delete physical file
+    if delete_entry.file_path and os.path.exists(delete_entry.file_path):
+        try:
+            os.remove(delete_entry.file_path)
+        except Exception as e:
+            print(f"Warning: could not delete file {delete_entry.file_path}: {e}")
+
+    # Delete database record
+    db.delete(delete_entry)
+    db.commit()
+
+    return True
 
 
 @shared_task
@@ -67,7 +116,9 @@ def scan_for_duplicates():
                         db.add(dupe)
                         new_dupes += 1
                 except Exception as e:
-                    print(f"Error comparing hashes for entries {entry1.id} and {entry2.id}: {e}")
+                    print(
+                        f"Error comparing hashes for entries {entry1.id} and {entry2.id}: {e}"
+                    )
                     continue
 
         print(f"Duplicate scan complete. Found {new_dupes} potential duplicates.")

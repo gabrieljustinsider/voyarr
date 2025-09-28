@@ -1,6 +1,13 @@
 import os
 import asyncio
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    WebSocket,
+    WebSocketDisconnect,
+    Query,
+)
 from fastapi.websockets import WebSocketState
 from dependencies import verify_api_key
 from utils import get_primary_root
@@ -9,11 +16,13 @@ router = APIRouter(
     prefix="/logs", tags=["logs"], dependencies=[Depends(verify_api_key)]
 )
 
+
 def _get_log_file(source: str):
     if source not in ["celery", "fastapi"]:
         source = "celery"
     primary_root = get_primary_root()
     return os.path.join(primary_root, "logs", f"{source}.log")
+
 
 @router.websocket("/ws")
 async def websocket_logs(websocket: WebSocket, source: str = Query("celery")):
@@ -29,6 +38,7 @@ async def websocket_logs(websocket: WebSocket, source: str = Query("celery")):
 
     try:
         from collections import deque
+
         with open(log_file, "r") as f:
             # Send the last 200 lines first
             lines = list(deque(f, maxlen=200))
@@ -48,6 +58,7 @@ async def websocket_logs(websocket: WebSocket, source: str = Query("celery")):
         if websocket.client_state == WebSocketState.CONNECTED:
             await websocket.close(code=1011)
 
+
 @router.get("/")
 def get_logs(lines: int = 200, source: str = Query("celery")):
     log_file = _get_log_file(source)
@@ -60,10 +71,12 @@ def get_logs(lines: int = 200, source: str = Query("celery")):
 
     try:
         from collections import deque
+
         with open(log_file, "r") as f:
             return {"logs": list(deque(f, maxlen=lines))}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.delete("/")
 def clear_logs(source: str = Query("celery")):

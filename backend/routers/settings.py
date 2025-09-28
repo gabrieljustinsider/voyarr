@@ -20,6 +20,7 @@ SECURE_SETTINGS = [
     "extension_secret",
     "op_connect_token",
     "bw_session_token",
+    "global_proxy_url",
 ]
 
 
@@ -73,6 +74,13 @@ def update_setting(setting: SettingUpdate, db: Session = Depends(get_db)):
             db.add(db_setting)
 
     db.commit()
+
+    # Trigger dynamic hot-reload if a networking configuration is updated
+    if setting.key in ["global_proxy_enabled", "global_proxy_url", "global_user_agent"]:
+        from utils import initialize_network_settings
+
+        initialize_network_settings()
+
     return {"message": "Setting updated"}
 
 
@@ -92,26 +100,123 @@ def delete_setting(key: str, db: Session = Depends(get_db)):
 
     db.delete(db_item)
     db.commit()
+
+    # Trigger dynamic hot-reload if a networking configuration is deleted
+    if key in ["global_proxy_enabled", "global_proxy_url", "global_user_agent"]:
+        from utils import initialize_network_settings
+
+        initialize_network_settings()
+
     return {"message": "Setting deleted"}
+
+
+@router.get("/network/diagnostic")
+def run_network_diagnostic(db: Session = Depends(get_db)):
+    """
+    Test outbound connection: latency, active external public IP, proxy configuration, and general status.
+    """
+    import time
+    import requests
+
+    result = {
+        "status": "offline",
+        "proxy_configured": False,
+        "proxy_working": False,
+        "public_ip": "Unknown",
+        "latency_ms": 0,
+        "error": None,
+    }
+
+    # Check if proxy is configured
+    proxy_enabled = False
+    proxy_url = None
+
+    db_enabled = (
+        db.query(Settings).filter(Settings.key == "global_proxy_enabled").first()
+    )
+    if db_enabled and db_enabled.value == "true":
+        proxy_enabled = True
+
+    db_vault = (
+        db.query(Vault)
+        .filter(Vault.entity_type == "global_setting", Vault.key == "global_proxy_url")
+        .first()
+    )
+    if db_vault and db_vault.encrypted_value:
+        try:
+            proxy_url = decrypt_data(db_vault.encrypted_value)
+        except Exception:
+            pass
+
+    if not proxy_url:
+        db_url = db.query(Settings).filter(Settings.key == "global_proxy_url").first()
+        if db_url:
+            proxy_url = db_url.value
+
+    if proxy_enabled and proxy_url:
+        result["proxy_configured"] = True
+
+    # Run connection test
+    test_urls = ["https://api.ipify.org?format=json", "https://httpbin.org/ip"]
+    response = None
+    latency = 0
+
+    ua = os.environ.get("DEFAULT_USER_AGENT", "Voyarr-Network-Diagnostic/1.0")
+    headers = {"User-Agent": ua}
+
+    for url in test_urls:
+        start_time = time.time()
+        try:
+            session = requests.Session()
+            response = session.get(url, headers=headers, timeout=5)
+            latency = int((time.time() - start_time) * 1000)
+            if response.status_code == 200:
+                break
+        except Exception as e:
+            result["error"] = str(e)
+            continue
+
+    if response and response.status_code == 200:
+        try:
+            data = response.json()
+            ip = data.get("ip") or data.get("origin") or "Unknown"
+            result["public_ip"] = ip.split(",")[0].strip()
+            result["status"] = "online"
+            result["latency_ms"] = latency
+            if proxy_enabled:
+                result["proxy_working"] = True
+        except Exception as parse_err:
+            result["status"] = "degraded"
+            result["error"] = f"Failed to parse IP response: {parse_err}"
+    else:
+        if not result["error"]:
+            result["error"] = (
+                "Outbound connection timed out or returned non-200 status."
+            )
+
+    return result
 
 
 @router.get("/browse")
 def browse_directory(path: Optional[str] = Query(None)):
     target_path = path if path else "/"
-    
+
     try:
         # SECURITY: Use realpath to resolve symlinks and prevent bypasses
         target_path = os.path.realpath(target_path)
     except Exception:
         target_path = "/"
-        
+
     if not os.path.exists(target_path):
         target_path = "/"
-        
+
     # SECURITY: Prevent access to sensitive system directories
     forbidden_prefixes = ["/etc", "/proc", "/sys", "/root", "/var", "/dev"]
     if any(target_path.startswith(fp) for fp in forbidden_prefixes):
-        raise HTTPException(status_code=403, detail="Access to sensitive system directories is forbidden.")
+        raise HTTPException(
+            status_code=403,
+            detail="Access to sensitive system directories is forbidden.",
+        )
 
     if not os.path.isdir(target_path):
         target_path = os.path.dirname(target_path)
@@ -127,23 +232,22 @@ def browse_directory(path: Optional[str] = Query(None)):
         for item in os.listdir(target_path):
             if item.startswith("."):
                 continue
-            
+
             full_path = os.path.join(target_path, item)
             try:
                 if os.path.isdir(full_path):
-                    folders.append({
-                        "name": item,
-                        "path": full_path
-                    })
+                    folders.append({"name": item, "path": full_path})
                 else:
-                    files.append({
-                        "name": item,
-                        "path": full_path,
-                        "size": os.path.getsize(full_path)
-                    })
+                    files.append(
+                        {
+                            "name": item,
+                            "path": full_path,
+                            "size": os.path.getsize(full_path),
+                        }
+                    )
             except (PermissionError, FileNotFoundError):
                 continue
-        
+
         folders.sort(key=lambda x: x["name"].lower())
         files.sort(key=lambda x: x["name"].lower())
 
@@ -151,10 +255,12 @@ def browse_directory(path: Optional[str] = Query(None)):
             "current_path": target_path,
             "parent_path": parent_path,
             "folders": folders,
-            "files": files
+            "files": files,
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to browse directory: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to browse directory: {str(e)}"
+        )
 
 
 @router.get("/autocomplete")
@@ -166,9 +272,9 @@ def autocomplete_path(q: str = Query("")):
         q = "/" + q
     # Normalize path separators, keeping track if it is just a root or directory
     q_norm = os.path.normpath(q) if q != "/" else "/"
-    
+
     ends_with_slash = q.endswith(os.sep) or q.endswith("/")
-    
+
     if os.path.isdir(q_norm) and (ends_with_slash or q_norm == "/"):
         parent_dir = q_norm
         prefix = ""
@@ -196,19 +302,21 @@ def autocomplete_path(q: str = Query("")):
         for item in os.listdir(parent_dir):
             if item.startswith("."):
                 continue
-            
+
             if item.lower().startswith(prefix.lower()):
                 full_path = os.path.join(parent_dir, item)
                 try:
                     is_dir = os.path.isdir(full_path)
-                    suggestions.append({
-                        "name": item,
-                        "path": full_path + ("/" if is_dir else ""),
-                        "is_dir": is_dir
-                    })
+                    suggestions.append(
+                        {
+                            "name": item,
+                            "path": full_path + ("/" if is_dir else ""),
+                            "is_dir": is_dir,
+                        }
+                    )
                 except (PermissionError, FileNotFoundError):
                     continue
-        
+
         suggestions.sort(key=lambda x: (not x["is_dir"], x["name"].lower()))
         return {"suggestions": suggestions[:20]}
     except Exception:

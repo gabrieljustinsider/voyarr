@@ -91,21 +91,22 @@ export default function Studios() {
     fetchStudios()
   }, [fetchStudios, fetchUserRole])
 
-  const handleToggleFavorite = async (studioName) => {
+  const handleToggleFavorite = async (studioId, studioName) => {
+    const stringId = String(studioId)
     try {
       const res = await apiFetch('/favorites/toggle', {
         method: 'POST',
-        body: JSON.stringify({ item_type: 'studio', item_id: studioName })
+        body: JSON.stringify({ item_type: 'studio', item_id: stringId })
       })
       if (res.ok) {
         const data = await res.json()
         if (data.favorited) {
-          setFavStudios(prev => [...prev, studioName])
+          setFavStudios(prev => [...prev, stringId])
           window.dispatchEvent(new CustomEvent('show-toast', { 
             detail: { message: `Favorited ${studioName}!`, severity: 'success' } 
           }))
         } else {
-          setFavStudios(prev => prev.filter(x => x !== studioName))
+          setFavStudios(prev => prev.filter(x => x !== stringId))
           window.dispatchEvent(new CustomEvent('show-toast', { 
             detail: { message: `Unfavorited ${studioName}.`, severity: 'info' } 
           }))
@@ -252,7 +253,8 @@ export default function Studios() {
       ) : (
         <Grid container spacing={3}>
           {studios.map(studio => {
-            const isFavorited = favStudios.includes(studio.name)
+            const stringId = String(studio.id)
+            const isFavorited = favStudios.includes(stringId)
             return (
               <Grid item xs={12} sm={6} md={4} key={studio.id}>
                 <Card sx={{ 
@@ -293,7 +295,7 @@ export default function Studios() {
                   {/* Favorite Button top right */}
                   <IconButton 
                     sx={{ position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.4)', '&:hover': { backgroundColor: 'rgba(0,0,0,0.6)' } }}
-                    onClick={() => handleToggleFavorite(studio.name)}
+                    onClick={() => handleToggleFavorite(studio.id, studio.name)}
                     color={isFavorited ? "error" : "default"}
                   >
                     {isFavorited ? <FavoriteIcon /> : <FavoriteBorderIcon />}

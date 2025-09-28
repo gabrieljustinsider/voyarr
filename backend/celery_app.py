@@ -1,6 +1,23 @@
 import os
 from celery import Celery
 from celery.schedules import crontab
+from utils import initialize_network_settings
+from celery.signals import task_prerun
+
+# Initialize global network configurations (proxies and user-agents) for workers
+initialize_network_settings()
+
+
+@task_prerun.connect
+def on_task_prerun(sender=None, task_id=None, task=None, *args, **kwargs):
+    """
+    Ensure network configurations are fresh before executing any background task.
+    """
+    try:
+        initialize_network_settings()
+    except Exception as e:
+        print(f"Error re-initializing network settings for task: {e}")
+
 
 redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
 
@@ -21,6 +38,7 @@ celery_app = Celery(
         "tasks.ml_tasks",
         "tasks.sync_tasks",
         "tasks.live_tasks",
+        "tasks.p2p_tasks",
     ],
 )
 
@@ -61,5 +79,9 @@ celery_app.conf.beat_schedule = {
     "auto-sync-credentials": {
         "task": "tasks.schedule_tasks.auto_sync_credentials",
         "schedule": crontab(minute=0),
+    },
+    "p2p-sync-scheduler": {
+        "task": "tasks.p2p_tasks.p2p_sync_scheduler",
+        "schedule": crontab(minute="*"),
     },
 }

@@ -12,6 +12,11 @@ export default function DownloadQueue({ queue, onRefresh }) {
   const [providers, setProviders] = useState([])
   const [newDownload, setNewDownload] = useState({ provider_id: '', url: '' })
   const [loading, setLoading] = useState(false)
+  
+  const [streamUrlInput, setStreamUrlInput] = useState('')
+  const [extractedStream, setExtractedStream] = useState(null)
+  const [extracting, setExtracting] = useState(false)
+
   const [filters, setFilters] = useState({ status: '', url_contains: '', provider_id: '' })
 
   useEffect(() => {
@@ -64,6 +69,44 @@ export default function DownloadQueue({ queue, onRefresh }) {
     }
   }
 
+  const handleExtractStream = async () => {
+    if (!streamUrlInput) return
+    setExtracting(true)
+    setExtractedStream(null)
+    try {
+      const res = await apiFetch('/download/extract-stream', {
+        method: 'POST',
+        body: JSON.stringify({ url: streamUrlInput })
+      })
+      const data = await res.json()
+      if (res.ok) setExtractedStream(data)
+      else window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: data.detail || 'Extraction failed', severity: 'error' } }))
+    } catch (error) {
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: error.message, severity: 'error' } }))
+    }
+    setExtracting(false)
+  }
+
+  const handleCopyStreamUrl = () => {
+    if (extractedStream?.stream_url) {
+      navigator.clipboard.writeText(extractedStream.stream_url)
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Stream URL copied to clipboard!', severity: 'success' } }))
+    }
+  }
+
+  const handleSaveStream = async () => {
+    if (!extractedStream) return
+    try {
+      const res = await apiFetch('/download/save-stream', {
+        method: 'POST',
+        body: JSON.stringify({ title: extractedStream.title, url: extractedStream.stream_url })
+      })
+      const data = await res.json()
+      if (res.ok) window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Live stream saved successfully!', severity: 'success' } }))
+      else window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: data.detail || 'Failed to save stream', severity: 'error' } }))
+    } catch (error) { window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: error.message, severity: 'error' } })) }
+  }
+
   const filteredQueue = queue.filter(task => {
     if (filters.status && task.status !== filters.status) return false
     if (filters.url_contains && !task.url.toLowerCase().includes(filters.url_contains.toLowerCase())) return false
@@ -97,6 +140,36 @@ export default function DownloadQueue({ queue, onRefresh }) {
             </Button>
           </Grid>
         </Grid>
+      </Paper>
+
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>Live Stream Extractor</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Extract direct .m3u8 or .mp4 stream URLs from supported sites (like Chaturbate) to copy or save.
+        </Typography>
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} md={9}>
+            <TextField fullWidth size="small" label="Page URL (e.g., https://chaturbate.com/username)" value={streamUrlInput} onChange={e => setStreamUrlInput(e.target.value)} />
+          </Grid>
+          <Grid item xs={12} md={3}>
+            <Button fullWidth variant="outlined" onClick={handleExtractStream} disabled={extracting || !streamUrlInput}>
+              {extracting ? <CircularProgress size={24} /> : 'Extract Stream URL'}
+            </Button>
+          </Grid>
+        </Grid>
+
+        {extractedStream && (
+          <Box sx={{ mt: 2, p: 2, backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 1 }}>
+            <Typography variant="subtitle2" color="primary" gutterBottom>{extractedStream.title}</Typography>
+            <Typography variant="body2" sx={{ wordBreak: 'break-all', mb: 2, fontFamily: 'monospace', p: 1, backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 1 }}>
+              {extractedStream.stream_url}
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Button size="small" variant="contained" onClick={handleCopyStreamUrl}>Copy Link</Button>
+              <Button size="small" variant="contained" color="secondary" onClick={handleSaveStream}>Save to Live Streams</Button>
+            </Box>
+          </Box>
+        )}
       </Paper>
 
       <Grid container spacing={2} sx={{ mb: 2 }}>

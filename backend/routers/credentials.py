@@ -94,6 +94,7 @@ def sync_credential_manager(
     manager: str, direction: str, db: Session = Depends(get_db)
 ):
     import typing
+
     if manager == "1password":
         from services.onepassword_service import OnePasswordService
 

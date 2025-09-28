@@ -27,3 +27,6 @@ passlib[bcrypt]
 
 # Integrations & External API Requests (StashDB, 1Password, Webhooks)
 httpx
+beautifulsoup4
+croniter
+lxml

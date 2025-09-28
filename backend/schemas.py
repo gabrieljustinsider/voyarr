@@ -25,14 +25,17 @@ class VideoChapterBase(BaseModel):
     end_time: Optional[int] = None
     tags: Optional[List[str]] = None
 
+
 class VideoChapterCreate(VideoChapterBase):
     pass
+
 
 class VideoChapterUpdate(BaseModel):
     title: Optional[str] = None
     start_time: Optional[int] = None
     end_time: Optional[int] = None
     tags: Optional[List[str]] = None
+
 
 class VideoChapterResponse(VideoChapterBase):
     id: int
@@ -41,6 +44,7 @@ class VideoChapterResponse(VideoChapterBase):
     updated_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class LibraryEntryBase(BaseModel):
     provider_id: int
@@ -195,5 +199,59 @@ class ProviderCreate(ProviderBase):
 
 class ProviderResponse(ProviderBase):
     id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PeerNodeCreate(BaseModel):
+    name: str
+    peer_url: str
+    outbound_key: str
+    inbound_token: str
+    recipe_sync_mode: Optional[str] = "auto_merge"
+    sync_schedule: Optional[str] = "manual"
+    library_scope: Optional[str] = "all_entries"
+    allowed_providers: Optional[List[int]] = None
+
+
+class PeerNodeUpdate(BaseModel):
+    name: Optional[str] = None
+    peer_url: Optional[str] = None
+    outbound_key: Optional[str] = None
+    inbound_token: Optional[str] = None
+    status: Optional[str] = None
+    recipe_sync_mode: Optional[str] = None
+    sync_schedule: Optional[str] = None
+    library_scope: Optional[str] = None
+    allowed_providers: Optional[List[int]] = None
+
+
+class PeerNodeResponse(BaseModel):
+    id: int
+    name: str
+    peer_url: str
+    outbound_key: str
+    inbound_token: str
+    status: str
+    recipe_sync_mode: str
+    sync_schedule: str
+    library_scope: str
+    allowed_providers: List[int]
+    last_sync_at: Optional[datetime] = None
+    next_run: Optional[datetime] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PeerSyncLogResponse(BaseModel):
+    id: int
+    peer_id: int
+    direction: str
+    recipes_synced: int
+    media_synced: int
+    status: str
+    error_message: Optional[str] = None
+    created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

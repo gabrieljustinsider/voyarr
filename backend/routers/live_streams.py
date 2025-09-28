@@ -6,15 +6,17 @@ from routers.auth import get_current_user
 from security import encrypt_data, decrypt_data
 from pydantic import BaseModel
 from typing import Optional
-import subprocess # nosec B404
+import subprocess  # nosec B404
 import os
 import shutil
 
 router = APIRouter(prefix="/live-streams", tags=["live_streams"])
 
+
 class LiveStreamCreateUpdate(BaseModel):
     name: str
     url: str
+
 
 class LiveStreamAuth(BaseModel):
     cookies: Optional[str] = None
@@ -56,14 +58,10 @@ def create_live_stream(
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"A live stream config named '{req.name}' already exists."
+            detail=f"A live stream config named '{req.name}' already exists.",
         )
 
-    stream = LiveStream(
-        name=req.name,
-        url=req.url,
-        status="idle"
-    )
+    stream = LiveStream(name=req.name, url=req.url, status="idle")
     db.add(stream)
     db.commit()
     db.refresh(stream)
@@ -117,7 +115,9 @@ def delete_live_stream(
         )
 
     # Clean up any associated secure Vault settings
-    db.query(Vault).filter_by(entity_type="live_stream_auth", entity_id=stream_id).delete()
+    db.query(Vault).filter_by(
+        entity_type="live_stream_auth", entity_id=stream_id
+    ).delete()
     db.delete(stream)
     db.commit()
     return {"message": "Live stream monitor config deleted successfully."}
@@ -136,16 +136,20 @@ def get_live_stream_auth(
             detail="Unauthorized auth lookup.",
         )
 
-    cookie_entry = db.query(Vault).filter_by(
-        entity_type="live_stream_auth", entity_id=stream_id, key="cookies"
-    ).first()
-    header_entry = db.query(Vault).filter_by(
-        entity_type="live_stream_auth", entity_id=stream_id, key="headers"
-    ).first()
+    cookie_entry = (
+        db.query(Vault)
+        .filter_by(entity_type="live_stream_auth", entity_id=stream_id, key="cookies")
+        .first()
+    )
+    header_entry = (
+        db.query(Vault)
+        .filter_by(entity_type="live_stream_auth", entity_id=stream_id, key="headers")
+        .first()
+    )
 
     return {
         "has_cookies": cookie_entry is not None,
-        "has_headers": header_entry is not None
+        "has_headers": header_entry is not None,
     }
 
 
@@ -172,9 +176,13 @@ def save_live_stream_auth(
 
     # Save cookies
     if req.cookies is not None:
-        cookie_entry = db.query(Vault).filter_by(
-            entity_type="live_stream_auth", entity_id=stream_id, key="cookies"
-        ).first()
+        cookie_entry = (
+            db.query(Vault)
+            .filter_by(
+                entity_type="live_stream_auth", entity_id=stream_id, key="cookies"
+            )
+            .first()
+        )
         if cookie_entry:
             if req.cookies.strip() == "":
                 db.delete(cookie_entry)
@@ -185,15 +193,19 @@ def save_live_stream_auth(
                 entity_type="live_stream_auth",
                 entity_id=stream_id,
                 key="cookies",
-                encrypted_value=encrypt_data(req.cookies)
+                encrypted_value=encrypt_data(req.cookies),
             )
             db.add(cookie_entry)
 
     # Save headers
     if req.headers is not None:
-        header_entry = db.query(Vault).filter_by(
-            entity_type="live_stream_auth", entity_id=stream_id, key="headers"
-        ).first()
+        header_entry = (
+            db.query(Vault)
+            .filter_by(
+                entity_type="live_stream_auth", entity_id=stream_id, key="headers"
+            )
+            .first()
+        )
         if header_entry:
             if req.headers.strip() == "":
                 db.delete(header_entry)
@@ -204,7 +216,7 @@ def save_live_stream_auth(
                 entity_type="live_stream_auth",
                 entity_id=stream_id,
                 key="headers",
-                encrypted_value=encrypt_data(req.headers)
+                encrypted_value=encrypt_data(req.headers),
             )
             db.add(header_entry)
 
@@ -242,12 +254,17 @@ def record_live_stream(
 
     # Import and queue the background Celery task
     from tasks.live_tasks import record_live_stream_task
+
     task = record_live_stream_task.delay(stream_id)
 
     stream.current_task_id = task.id
     db.commit()
 
-    return {"status": "recording", "message": "Background recording task spawned successfully.", "task_id": task.id}
+    return {
+        "status": "recording",
+        "message": "Background recording task spawned successfully.",
+        "task_id": task.id,
+    }
 
 
 @router.post("/{stream_id}/stop")
@@ -271,11 +288,12 @@ def stop_live_stream_recording(
 
     # Set status to idle - our recording task will check this and terminate
     stream.status = "idle"
-    
+
     # 1. Kill active streamlink process
     if stream.pid:
         try:
             import signal
+
             os.kill(stream.pid, signal.SIGKILL)
         except Exception:
             pass
@@ -284,12 +302,18 @@ def stop_live_stream_recording(
     # 2. Revoke active Celery task
     if stream.current_task_id:
         from celery_app import celery_app
-        celery_app.control.revoke(stream.current_task_id, terminate=True, signal="SIGKILL")
+
+        celery_app.control.revoke(
+            stream.current_task_id, terminate=True, signal="SIGKILL"
+        )
         stream.current_task_id = None
-        
+
     db.commit()
 
-    return {"status": "idle", "message": "Recording stop signal dispatched successfully."}
+    return {
+        "status": "idle",
+        "message": "Recording stop signal dispatched successfully.",
+    }
 
 
 @router.post("/{stream_id}/pause")
@@ -312,7 +336,9 @@ def pause_live_stream_recording(
         )
 
     if stream.status != "recording":
-        raise HTTPException(status_code=400, detail="Only active recordings can be paused")
+        raise HTTPException(
+            status_code=400, detail="Only active recordings can be paused"
+        )
 
     stream.status = "paused"
     db.commit()
@@ -320,6 +346,7 @@ def pause_live_stream_recording(
     if stream.pid:
         try:
             import signal
+
             os.kill(stream.pid, signal.SIGSTOP)
         except Exception as e:
             print(f"Failed to pause streamlink process {stream.pid}: {e}")
@@ -347,7 +374,9 @@ def resume_live_stream_recording(
         )
 
     if stream.status != "paused":
-        raise HTTPException(status_code=400, detail="Only paused recordings can be resumed")
+        raise HTTPException(
+            status_code=400, detail="Only paused recordings can be resumed"
+        )
 
     stream.status = "recording"
     db.commit()
@@ -355,6 +384,7 @@ def resume_live_stream_recording(
     if stream.pid:
         try:
             import signal
+
             os.kill(stream.pid, signal.SIGCONT)
         except Exception as e:
             print(f"Failed to resume streamlink process {stream.pid}: {e}")
@@ -376,12 +406,16 @@ def proxy_live_stream_url(
         )
 
     # Fetch cookies and headers from Vault if they exist
-    cookie_entry = db.query(Vault).filter_by(
-        entity_type="live_stream_auth", entity_id=stream_id, key="cookies"
-    ).first()
-    header_entry = db.query(Vault).filter_by(
-        entity_type="live_stream_auth", entity_id=stream_id, key="headers"
-    ).first()
+    cookie_entry = (
+        db.query(Vault)
+        .filter_by(entity_type="live_stream_auth", entity_id=stream_id, key="cookies")
+        .first()
+    )
+    header_entry = (
+        db.query(Vault)
+        .filter_by(entity_type="live_stream_auth", entity_id=stream_id, key="headers")
+        .first()
+    )
 
     cmd = ["streamlink", "--stream-url", stream.url, "best"]
 
@@ -407,17 +441,14 @@ def proxy_live_stream_url(
     try:
         # Run streamlink command synchronously to fetch the HLS m3u8 playlist URL
         # B603 is suppressed as parameters are fully list-based and safe.
-        res = subprocess.run( # nosec B603
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=10
+        res = subprocess.run(  # nosec B603
+            cmd, capture_output=True, text=True, timeout=10
         )
         if res.returncode == 0:
             resolved_url = res.stdout.strip()
             if resolved_url.startswith("http"):
                 return {"stream_url": resolved_url, "resolved": True}
-        
+
         # If streamlink fails, fall back to the raw monitor url
         return {"stream_url": stream.url, "resolved": False, "error": res.stderr}
     except Exception as e:

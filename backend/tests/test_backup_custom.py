@@ -1,37 +1,30 @@
-from unittest.mock import MagicMock
-import sys
-import json
+import os
 
-# Mock database and other complex submodules before importing main
-orig_modules = {}
-for name in ['database', 'db_utils', 'services.scraper', 'croniter']:
-    orig_modules[name] = sys.modules.get(name)
-    sys.modules[name] = MagicMock()
+os.environ["DATABASE_URL"] = "sqlite:///file:testdb_temp?mode=memory&cache=shared"
+os.environ["MASTER_KEY"] = "test_master_key"
+os.environ["SECRET_KEY"] = "test_jwt_secret_key"
+from unittest.mock import MagicMock
+import json
 
 from fastapi.testclient import TestClient
 from main import app
 from dependencies import verify_api_key
 from database import get_db
 
-# Restore original modules
-for name, orig in orig_modules.items():
-    if orig is None:
-        sys.modules.pop(name, None)
-    else:
-        sys.modules[name] = orig
 
 # Override auth dependency
 app.dependency_overrides[verify_api_key] = lambda: {"type": "mock", "user": "admin"}
 
 client = TestClient(app)
 
+
 def test_backup_export_and_verify_cycle():
     # Mock database session
     mock_db = MagicMock()
-    
+
     mock_mappings = MagicMock()
     mock_mappings.all.return_value = [{"id": 1, "key": "test_key", "value": "test_val"}]
-    
+
     mock_execute = MagicMock()
     mock_execute.mappings.return_value = mock_mappings
     mock_db.execute.return_value = mock_execute
@@ -49,7 +42,9 @@ def test_backup_export_and_verify_cycle():
 
     # 2. Verify plaintext backup
     # Simulate uploading the exported file
-    file_payload = {"file": ("backup.json", json.dumps(export_json), "application/json")}
+    file_payload = {
+        "file": ("backup.json", json.dumps(export_json), "application/json")
+    }
     verify_response = client.post("/backup/verify", files=file_payload)
     assert verify_response.status_code == 200
     verify_json = verify_response.json()
@@ -65,7 +60,9 @@ def test_backup_export_and_verify_cycle():
     assert "salt" in export_enc_json
 
     # 4. Verify encrypted backup (fails without password)
-    file_enc_payload = {"file": ("backup_enc.json", json.dumps(export_enc_json), "application/json")}
+    file_enc_payload = {
+        "file": ("backup_enc.json", json.dumps(export_enc_json), "application/json")
+    }
     verify_enc_response = client.post("/backup/verify", files=file_enc_payload)
     assert verify_enc_response.status_code == 200
     verify_enc_json = verify_enc_response.json()
@@ -74,7 +71,9 @@ def test_backup_export_and_verify_cycle():
     assert "passphrase required" in verify_enc_json["message"].lower()
 
     # 5. Verify encrypted backup (succeeds with password)
-    verify_enc_pw_response = client.post("/backup/verify?password=mypassword123", files=file_enc_payload)
+    verify_enc_pw_response = client.post(
+        "/backup/verify?password=mypassword123", files=file_enc_payload
+    )
     assert verify_enc_pw_response.status_code == 200
     verify_enc_pw_json = verify_enc_pw_response.json()
     assert verify_enc_pw_json["valid"] is True

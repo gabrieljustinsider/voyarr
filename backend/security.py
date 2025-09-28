@@ -19,6 +19,7 @@ if MASTER_KEY:
     cipher = Fernet(key)
 else:
     import typing
+
     cipher: typing.Any = None
 
 # JWT & Password Hashing Configuration

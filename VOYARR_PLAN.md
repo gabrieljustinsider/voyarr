@@ -117,15 +117,82 @@ services:
 24. ~~**Continuous StashDB Fingerprint Syncing (v1.11.0):** Automated background daemon to continuously push calculated hashes (OSHASH/PHASH) to community databases to improve global coverage.~~
 25. ~~**AI-Driven Auto-Chaptering (v1.11.0):** Frame-based scene change detection paired with LLM/Ollama or OpenAI GPT-4o Vision to auto-slice and title video segments.~~
 26. ~~**Granular Queue Priority & Controls (v1.11.0):** Integrated full pause, resume, cancel, and priority level adjustments for download, transcoding, and live recording queues.~~
+27. ~~**HLS Direct Streaming Support (v1.12.0):** Added direct HLS slicing to the transcoding engine, allowing lag-free, high-bitrate video streaming inside the PWA browser environment.~~
+28. ~~**Peer-to-Peer (P2P) Library & Recipe Syncing (v1.12.0+):** Full peer-to-peer sync engine enabling decentralized recipe and metadata sharing with trusted instances.~~
+29. ~~**Relational Studio Database Schema (v1.12.0+):** Replaced flat text studio names with a robust normalized, relational table `studios` mapped across all media index types.~~
+30. ~~**Bulk Duplicate Detection & Resolution (v1.12.0+):** Batch perceptual hash merge manager with automated resolution algorithms (highest quality, oldest, newest).~~
+31. ~~**Customizable Network Settings & VPN Sidecar Integration (v1.12.0+):** Full support for global HTTP/HTTPS/SOCKS5 proxies, custom outbound User-Agents, active diagnostic scorecards, secure Vault credential storage, and turnkey Gluetun VPN container definitions.~~
 
 ---
 
-## **🚀 Future Feature Roadmap (v1.12.0+)**
+## **⚙️ Specialized System Specifications (v1.12.0+)**
+
+### **1. Peer-to-Peer (P2P) Syncing Engine Architecture**
+
+The P2P Synchronization System enables multiple remote instances of Voyarr to exchange scraper recipes and library metadata lists securely without any centralized cloud database.
+
+#### **A. Database Models & Schema**
+- **`peer_nodes`**: Defines peer connections.
+  - `name`: Unique name identifier.
+  - `peer_url`: Endpoint of the remote host.
+  - `inbound_token`: Token that the remote peer must supply to call this node's API.
+  - `outbound_key`: Token that this node transmits to authorize requests sent to the remote peer.
+  - `recipe_sync_mode`: `auto_merge` (directly merges new selectors) or `manual_review` (stages recipes in manual approval queue).
+  - `sync_schedule`: Cron schedule configuration (e.g., `*/30 * * * *` or `manual`).
+  - `library_scope`: `all_entries` or `specific_providers`.
+  - `allowed_providers`: JSON array of provider IDs permitted to sync.
+- **`peer_sync_logs`**: Tracks histories, statuses, directions, and volume of data synced.
+
+#### **B. API Gateway & Inbound Authentication Router (`/p2p`)**
+All inbound requests are handled securely under the `/p2p` prefix using a custom FastAPI dependency:
+- **Authentication**: Checks the request headers for `x-api-key` or `X-P2P-Token`. Validates headers against registered `inbound_token` hashes in the `peer_nodes` registry.
+- **Endpoints**:
+  - `GET /p2p/ping`: Verifies connection and returns online status and peer configuration.
+  - `GET /p2p/recipes/pull`: Returns local site recipe JSON payloads to the caller.
+  - `POST /p2p/recipes/push`: Accepts incoming site recipes. If configured in `manual_review` mode, stores incoming recipes inside the `p2p_proposed_recipes` setting registry for approval.
+  - `POST /p2p/library/reconcile`: Reconciles remote media entries. Updates watched status, actor metadata, ratings, and tag classifications based on matched perceptual hashes (`phash`) or OSHASH values.
+
+#### **C. Celery Background Tasks & Schedulers**
+- **`tasks.p2p_tasks.sync_with_peer_task(peer_id)`**: Runs a full two-way sync loop (ping remote, pull recipes, auto-merge or stage proposed recipes, push local recipes, and reconcile libraries).
+- **`tasks.p2p_tasks.p2p_sync_scheduler`**: Triggered every minute via Celery Beat. It evaluates cron schedules for all active peer nodes and dispatches background synchronization workers automatically.
+
+---
+
+### **2. Relational Studio Model**
+
+To support normalized analytics, search mappings, and prevent typo corruption, flat `studio` text columns have been fully normalized into a relational structure:
+- **`studios`**: Relational lookup table storing unique studios, descriptions, metadata urls, and parent associations.
+- **Foreign Key Integration**: `studio_id` mapping column introduced across:
+  - `media_entries`
+  - `library_entries`
+  - `custom_lists`
+- **Integrity**: Cascades set to `SET NULL` on deletion to ensure media assets remain intact.
+
+---
+
+### **3. Bulk Duplicate Resolution Engine**
+
+Perceptual video hashes (`phash`) are processed by Celery using FFmpeg. When matching files exhibit visual similarity scores exceeding a user-defined threshold, they are flagged in `duplicate_entries`.
+The **Bulk Duplicate Resolver** reconciles multiple duplicate conflicts programmatically:
+- **Conflict Resolution Algorithms**:
+  - `KEEP_HIGHEST_QUALITY`: Identifies and keeps the file with the highest resolution/bitrate. Merges all metadata, performer tags, custom list associations, and viewing metrics to the preserved file before deleting the lower-quality copy from disk.
+  - `KEEP_OLDEST`: Retains the first indexed file and disposes of subsequent copies.
+  - `KEEP_NEWEST`: Retains the most recently indexed file.
+
+---
+
+### **4. Customizable Network & VPN Integration Engine**
+
+To prevent scraper blocks, protect local hosts from ISP inspection, and bypass geo-restrictions, Voyarr implements a hot-reloadable network proxy, user-agent manager, and off-the-shelf containerized VPN sidecar:
+- **Hot-Reloadable Core Loader**: Resolves global proxy switches, retrieves and decrypts sensitive SOCKS5/HTTP credentials from the secure `Vault`, and dynamically maps variables inside the FastAPI and Celery processes without container restarts.
+- **Interactive Routing Diagnostics**: A live, multi-service routing check sequentially verifying exit node latencies, public outbound exit IPs, and active proxy health scores to provide instant scorecard feedback in the Settings UI.
+- **Turnkey VPN Sidecars**: Integrates with Gluetun, routing all scraping requests (Python and Playwright Chromium contexts) and download daemons through an isolated VPN namespace.
+
+---
+
+## **🚀 Future Feature Roadmap (v1.13.0+)**
 
 The following represents identified feature targets and upcoming components for subsequent releases.
 
-### **1. HLS Direct Streaming Support**
-*   **Description:** Add direct HLS slicing to the transcoding engine, allowing lag-free, high-bitrate video streaming inside the PWA browser environment.
-
-### **2. Peer-to-Peer (P2P) Library Syncing**
-*   **Description:** Support decentralized syncing of scraper recipes and library metadata lists directly with trusted peer nodes over secure tunnels.
+### **1. Real-time Multi-Instance Clustering**
+*   **Description:** Allow remote instances to act as hot-failover mirrors, sharing storage allocations and active Celery task queues in real-time.

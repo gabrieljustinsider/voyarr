@@ -15,17 +15,21 @@ def rate_limit(max_requests: int = 10, window_seconds: int = 60):
             forwarded = request.headers.get("X-Forwarded-For")
             if forwarded:
                 # SECURITY: Take the last IP in the chain to prevent client spoofing.
-                # A malicious client can send "X-Forwarded-For: spoofed_ip", which the proxy 
+                # A malicious client can send "X-Forwarded-For: spoofed_ip", which the proxy
                 # will append to, resulting in "spoofed_ip, real_ip".
                 client_ip = forwarded.split(",")[-1].strip()
 
         # SECURITY: Rate limit on the route pattern (e.g. /api/{id}) instead of the raw URL path.
         # This prevents an attacker from exhausting Redis memory by spraying random path parameters.
-        route_path = request.scope.get("route").path if request.scope.get("route") else request.url.path
+        route_path = (
+            request.scope.get("route").path
+            if request.scope.get("route")
+            else request.url.path
+        )
         key = f"rate_limit:{client_ip}:{route_path}"
 
         try:
-            # SECURITY: Use a transaction block and nx=True to ensure key creation and expiration 
+            # SECURITY: Use a transaction block and nx=True to ensure key creation and expiration
             # are completely atomic, eliminating race conditions and permanent orphaned keys.
             pipe = redis_client.pipeline(transaction=True)
             pipe.incr(key)

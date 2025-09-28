@@ -45,7 +45,9 @@ class HashService:
                 "default=noprint_wrappers=1:nokey=1",
                 file_path,
             ]
-            duration = float(subprocess.check_output(duration_cmd).decode("utf-8").strip())  # nosec B603 B607
+            duration = float(
+                subprocess.check_output(duration_cmd).decode("utf-8").strip()
+            )  # nosec B603 B607
             mid_time = duration / 2.0
 
             # Extract frame using ffmpeg

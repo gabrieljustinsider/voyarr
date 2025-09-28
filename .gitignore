@@ -27,3 +27,7 @@ Thumbs.db
 
 # Tool-specific cache
 .antigravitycli/
+
+# SQLite test databases
+*testdb_*
+file:testdb_*

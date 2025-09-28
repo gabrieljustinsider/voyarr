@@ -8,6 +8,7 @@ from typing import List, Optional
 
 router = APIRouter(prefix="/studios", tags=["studios"])
 
+
 class StudioCreateUpdate(BaseModel):
     name: str
     logo_url: Optional[str] = None
@@ -34,17 +35,19 @@ def list_studios(q: Optional[str] = None, db: Session = Depends(get_db)):
             if parent:
                 parent_name = parent.name
 
-        result.append({
-            "id": s.id,
-            "name": s.name,
-            "logo_url": s.logo_url,
-            "url": s.url,
-            "details": s.details,
-            "tags": s.tags or [],
-            "is_network": s.is_network,
-            "parent_id": s.parent_id,
-            "parent_name": parent_name
-        })
+        result.append(
+            {
+                "id": s.id,
+                "name": s.name,
+                "logo_url": s.logo_url,
+                "url": s.url,
+                "details": s.details,
+                "tags": s.tags or [],
+                "is_network": s.is_network,
+                "parent_id": s.parent_id,
+                "parent_name": parent_name,
+            }
+        )
     return result
 
 
@@ -72,7 +75,7 @@ def get_studio(studio_id: int, db: Session = Depends(get_db)):
         "tags": s.tags or [],
         "is_network": s.is_network,
         "parent_id": s.parent_id,
-        "parent_name": parent_name
+        "parent_name": parent_name,
     }
 
 
@@ -94,7 +97,7 @@ def create_studio(
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"A studio named '{req.name}' already exists."
+            detail=f"A studio named '{req.name}' already exists.",
         )
 
     if req.parent_id:
@@ -102,7 +105,7 @@ def create_studio(
         if not parent:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="The specified parent studio does not exist."
+                detail="The specified parent studio does not exist.",
             )
 
     s = Studio(
@@ -112,7 +115,7 @@ def create_studio(
         details=req.details,
         tags=req.tags,
         is_network=req.is_network,
-        parent_id=req.parent_id
+        parent_id=req.parent_id,
     )
     db.add(s)
     db.commit()
@@ -146,14 +149,14 @@ def update_studio(
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"A studio named '{req.name}' already exists."
+                detail=f"A studio named '{req.name}' already exists.",
             )
 
     # Prevent self-referential parent loops
     if req.parent_id == studio_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="A studio cannot be its own parent network."
+            detail="A studio cannot be its own parent network.",
         )
 
     if req.parent_id:
@@ -161,7 +164,7 @@ def update_studio(
         if not parent:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="The specified parent studio does not exist."
+                detail="The specified parent studio does not exist.",
             )
 
     s.name = req.name

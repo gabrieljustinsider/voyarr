@@ -43,7 +43,11 @@ def register_user(user: UserCreate, request: Request, db: Session = Depends(get_
 
         is_authorized = False
         master_key_env = os.getenv("MASTER_KEY")
-        if api_key and master_key_env and secrets.compare_digest(api_key, master_key_env):
+        if (
+            api_key
+            and master_key_env
+            and secrets.compare_digest(api_key, master_key_env)
+        ):
             is_authorized = True
         elif auth_header and auth_header.startswith("Bearer "):
             token = auth_header.split(" ")[1]
@@ -90,7 +94,7 @@ def register_user(user: UserCreate, request: Request, db: Session = Depends(get_
 def login_for_access_token(
     response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     user = db.query(User).filter(User.username == form_data.username).first()
     if not user or not verify_password(form_data.password, user.password_hash):
@@ -113,7 +117,7 @@ def login_for_access_token(
     # Read environment settings for cookie hardening
     samesite = os.getenv("COOKIE_SAMESITE", "lax").lower()
     secure = os.getenv("COOKIE_SECURE", "false").lower() == "true"
-    
+
     response.set_cookie(
         key="access_token",
         value=access_token,
@@ -121,7 +125,7 @@ def login_for_access_token(
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         expires=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         samesite=samesite,
-        secure=secure
+        secure=secure,
     )
 
     return {"access_token": access_token, "token_type": "bearer", "role": user.role}  # nosec B105
@@ -132,12 +136,9 @@ def logout(response: Response):
     """Clears the session cookie."""
     samesite = os.getenv("COOKIE_SAMESITE", "lax").lower()
     secure = os.getenv("COOKIE_SECURE", "false").lower() == "true"
-    
+
     response.delete_cookie(
-        key="access_token",
-        httponly=True,
-        samesite=samesite,
-        secure=secure
+        key="access_token", httponly=True, samesite=samesite, secure=secure
     )
     return {"message": "Logged out successfully"}
 

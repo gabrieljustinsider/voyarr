@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
-import { Box, Typography, TextField, Button, Paper, Grid, Snackbar, Alert, Divider, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Select, MenuItem, FormControl, InputLabel, Tabs, Tab } from '@mui/material'
+import { Box, Typography, TextField, Button, Paper, Grid, Snackbar, Alert, Divider, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Select, MenuItem, FormControl, InputLabel, Tabs, Tab, Switch, FormControlLabel, InputAdornment } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
 import SyncIcon from '@mui/icons-material/Sync'
+import Visibility from '@mui/icons-material/Visibility'
+import VisibilityOff from '@mui/icons-material/VisibilityOff'
 import { apiFetch } from '../api'
 import PathPicker from './PathPicker'
 
@@ -46,7 +48,10 @@ export default function Settings() {
     yt_native_playlists: 'false',
     yt_custom_format: '',
     yt_browser_cookies: '',
-    discord_allowed_users: ''
+    discord_allowed_users: '',
+    global_proxy_enabled: 'false',
+    global_proxy_url: '',
+    global_user_agent: ''
   })
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
   const [apiKeys, setApiKeys] = useState([])
@@ -54,9 +59,35 @@ export default function Settings() {
   const [generatedKey, setGeneratedKey] = useState(null)
   const [masterKeyInput, setMasterKeyInput] = useState(localStorage.getItem('voyarr_api_key') || '')
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, keyId: null })
-  
+  const [diagnosticLoading, setDiagnosticLoading] = useState(false)
+  const [diagnosticResult, setDiagnosticResult] = useState(null)
+  const [showProxyUrl, setShowProxyUrl] = useState(false)
 
   const [newUser, setNewUser] = useState({ username: '', password: '', role: 'user' })
+
+  const handleRunDiagnostic = async () => {
+    setDiagnosticLoading(true)
+    setDiagnosticResult(null)
+    try {
+      const res = await apiFetch('/settings/network/diagnostic')
+      if (res.ok) {
+        const data = await res.json()
+        setDiagnosticResult(data)
+        if (data.status === 'online') {
+          setSnackbar({ open: true, message: 'Network diagnostic completed successfully!', severity: 'success' })
+        } else {
+          setSnackbar({ open: true, message: `Network degraded or offline: ${data.error || 'Unknown error'}`, severity: 'warning' })
+        }
+      } else {
+        setSnackbar({ open: true, message: 'Failed to run network diagnostic test.', severity: 'error' })
+      }
+    } catch (err) {
+      console.error(err)
+      setSnackbar({ open: true, message: 'Network error running diagnostic.', severity: 'error' })
+    } finally {
+      setDiagnosticLoading(false)
+    }
+  }
 
   const fetchApiKeys = async () => {
     try {
@@ -267,6 +298,155 @@ export default function Settings() {
           <Grid item xs={12} md={2}>
             <Button fullWidth variant="contained" onClick={() => handleSave('scan_folder', settings.scan_folder)}>Save</Button>
           </Grid>
+        </Grid>
+      </Paper>
+
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>Network & Proxy Configuration</Typography>
+        <Typography variant="body2" sx={{ mb: 2 }} color="textSecondary">
+          Configure a global proxy or custom User-Agent to bypass provider scrapers, download streams geo-restricted in your region, or mask outbound metadata requests.
+        </Typography>
+        <Divider sx={{ mb: 2 }} />
+        <Grid container spacing={3} alignItems="center">
+          <Grid item xs={12}>
+            <FormControlLabel 
+              control={
+                <Switch 
+                  checked={settings.global_proxy_enabled === 'true'} 
+                  onChange={e => handleToggleSetting('global_proxy_enabled', e.target.checked)} 
+                />
+              } 
+              label="Route Outbound Traffic via Proxy" 
+            />
+          </Grid>
+
+          {settings.global_proxy_enabled === 'true' && (
+            <Grid item xs={12} md={10}>
+              <TextField 
+                fullWidth 
+                size="small" 
+                type={showProxyUrl ? 'text' : 'password'}
+                label="Global Proxy Connection URL" 
+                name="global_proxy_url" 
+                value={settings.global_proxy_url || ''} 
+                onChange={handleChange} 
+                helperText="Supports SOCKS5, HTTP, and HTTPS protocols. Example: socks5://username:password@12.34.56.78:1080" 
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        aria-label="toggle proxy url visibility"
+                        onClick={() => setShowProxyUrl(!showProxyUrl)}
+                        edge="end"
+                      >
+                        {showProxyUrl ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  )
+                }}
+              />
+            </Grid>
+          )}
+          {settings.global_proxy_enabled === 'true' && (
+            <Grid item xs={12} md={2}>
+              <Button fullWidth variant="contained" onClick={() => handleSave('global_proxy_url', settings.global_proxy_url)}>Save URL</Button>
+            </Grid>
+          )}
+
+          <Grid item xs={12} md={10}>
+            <TextField 
+              fullWidth 
+              size="small" 
+              label="Custom Outbound User-Agent String" 
+              name="global_user_agent" 
+              value={settings.global_user_agent || ''} 
+              onChange={handleChange} 
+              helperText="Overrides the default Python requests and Playwright browser headers. Leave blank for default browser signature." 
+            />
+          </Grid>
+          <Grid item xs={12} md={2}>
+            <Button fullWidth variant="contained" onClick={() => handleSave('global_user_agent', settings.global_user_agent)}>Save Agent</Button>
+          </Grid>
+
+          <Grid item xs={12}>
+            <Divider sx={{ my: 1 }} />
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 1 }}>
+              <Typography variant="subtitle1">Outbound Network Diagnostics</Typography>
+              <Button 
+                variant="outlined" 
+                color="secondary" 
+                startIcon={<SyncIcon className={diagnosticLoading ? 'spin-animation' : ''} />} 
+                onClick={handleRunDiagnostic}
+                disabled={diagnosticLoading}
+              >
+                {diagnosticLoading ? 'Testing Connections...' : 'Run Routing Diagnostics'}
+              </Button>
+            </Box>
+          </Grid>
+
+          {diagnosticResult && (
+            <Grid item xs={12}>
+              <Paper variant="outlined" sx={{ p: 2, backgroundColor: 'rgba(255, 255, 255, 0.02)', borderColor: 'rgba(255, 255, 255, 0.12)' }}>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={4}>
+                    <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Outbound Health Status</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+                      <Box 
+                        sx={{ 
+                          width: 10, 
+                          height: 10, 
+                          borderRadius: '50%', 
+                          mr: 1, 
+                          backgroundColor: 
+                            diagnosticResult.status === 'online' ? '#4caf50' : 
+                            diagnosticResult.status === 'degraded' ? '#ff9800' : '#f44336'
+                        }} 
+                      />
+                      <Typography variant="body2" sx={{ fontWeight: 'bold', textTransform: 'capitalize' }}>
+                        {diagnosticResult.status}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Public Exit IP</Typography>
+                    <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 'bold', mt: 0.5 }}>
+                      {diagnosticResult.public_ip}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Response Latency</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold', mt: 0.5 }}>
+                      {diagnosticResult.latency_ms > 0 ? `${diagnosticResult.latency_ms} ms` : 'N/A'}
+                    </Typography>
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Outbound Traffic Routing</Typography>
+                    <Typography variant="body2" sx={{ mt: 0.5 }}>
+                      {diagnosticResult.proxy_configured ? (
+                        diagnosticResult.proxy_working ? (
+                          <span style={{ color: '#4caf50' }}>✓ Securely routed via external proxy Exit Node</span>
+                        ) : (
+                          <span style={{ color: '#f44336' }}>✗ Proxy configured but connection failed! (Bypassed or offline)</span>
+                        )
+                      ) : (
+                        <span style={{ color: '#ff9800' }}>⚠ Routing directly via standard local network (Bypassing proxies)</span>
+                      )}
+                    </Typography>
+                  </Grid>
+
+                  {diagnosticResult.error && (
+                    <Grid item xs={12}>
+                      <Typography variant="caption" color="error" sx={{ display: 'block' }}>Connection Error Details</Typography>
+                      <Typography variant="body2" color="error" sx={{ fontFamily: 'monospace', mt: 0.5 }}>
+                        {diagnosticResult.error}
+                      </Typography>
+                    </Grid>
+                  )}
+                </Grid>
+              </Paper>
+            </Grid>
+          )}
         </Grid>
       </Paper>
 

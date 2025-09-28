@@ -24,6 +24,8 @@ import asyncio
 import requests
 import re
 import urllib.parse
+import os
+import tempfile
 
 from dependencies import verify_api_key
 
@@ -37,6 +39,20 @@ class DownloadRequest(BaseModel):
     url: HttpUrl
     metadata: Optional[Dict[str, Any]] = None
     force_duplicate: bool = False
+
+
+class ExtractStreamRequest(BaseModel):
+    url: HttpUrl
+
+
+class SaveStreamRequest(BaseModel):
+    title: str
+    url: HttpUrl
+
+
+class AnalyzeUrlRequest(BaseModel):
+    url: HttpUrl
+    provider_id: Optional[int] = None
 
 
 def validate_url_ssrf(url_str: str):
@@ -53,12 +69,16 @@ def validate_url_ssrf(url_str: str):
 
             def is_disallowed_ip(ip_str_or_obj):
                 try:
-                    ip_obj = ipaddress.ip_address(ip_str_or_obj) if isinstance(ip_str_or_obj, str) else ip_str_or_obj
-                    
+                    ip_obj = (
+                        ipaddress.ip_address(ip_str_or_obj)
+                        if isinstance(ip_str_or_obj, str)
+                        else ip_str_or_obj
+                    )
+
                     # Unwrap IPv4-mapped IPv6 addresses to correctly evaluate their underlying IPv4 properties
                     if isinstance(ip_obj, ipaddress.IPv6Address) and ip_obj.ipv4_mapped:
                         ip_obj = ip_obj.ipv4_mapped
-                        
+
                     return (
                         ip_obj.is_loopback
                         or ip_obj.is_private
@@ -73,19 +93,24 @@ def validate_url_ssrf(url_str: str):
             try:
                 ip_obj = ipaddress.ip_address(hostname.strip("[]"))
                 if is_disallowed_ip(ip_obj):
-                    raise HTTPException(status_code=400, detail="Disallowed internal IP")
+                    raise HTTPException(
+                        status_code=400, detail="Disallowed internal IP"
+                    )
             except ValueError:
                 pass
-                
+
             # Resolve hostname to catch custom domains pointing to internal IPs
             try:
                 addr_info = socket.getaddrinfo(hostname, None)
                 for addr in addr_info:
                     ip_str = addr[4][0]
                     if is_disallowed_ip(ip_str):
-                        raise HTTPException(status_code=400, detail="Disallowed internal IP (resolved via DNS)")
+                        raise HTTPException(
+                            status_code=400,
+                            detail="Disallowed internal IP (resolved via DNS)",
+                        )
             except socket.gaierror:
-                pass # Unresolvable hostnames will fail naturally downstream
+                pass  # Unresolvable hostnames will fail naturally downstream
 
             if hostname.startswith("0x"):
                 ip_int = int(hostname, 16)
@@ -321,7 +346,9 @@ def start_download(req: DownloadRequest, db: Session = Depends(get_db)):
 
     provider = db.query(Provider).filter(Provider.id == req.provider_id).first()
     if not provider:
-        raise HTTPException(status_code=404, detail=f"Provider with ID {req.provider_id} not found.")
+        raise HTTPException(
+            status_code=404, detail=f"Provider with ID {req.provider_id} not found."
+        )
 
     # 1. Fetch Preferences
     prefs = (
@@ -408,6 +435,7 @@ def start_download(req: DownloadRequest, db: Session = Depends(get_db)):
         url=str(req.url),
         status="pending" if action != "queue" else "queued",
         progress_percentage=0.0,
+        extraction_method="pending_analysis",
     )
     queue.media_entry = media
     db.add(queue)
@@ -428,12 +456,39 @@ def start_download(req: DownloadRequest, db: Session = Depends(get_db)):
 
     # 5. Start Background Task (if not strictly just queued to wait)
     if action != "queue":
+        cookie_obj = (
+            db.query(SessionCookie)
+            .filter(
+                SessionCookie.provider_id == req.provider_id,
+                SessionCookie.status == "active",
+            )
+            .first()
+        )
+        cookie_text = cookie_obj.cookie_text if cookie_obj else None
+
         prefs_dict = {
             "preferred_resolution": prefs.preferred_resolution if prefs else "1080p",
             "append_metadata": prefs.append_metadata if prefs else False,
             "custom_base_path": getattr(prefs, "custom_base_path", None)
             if prefs
             else None,
+            "proxy_url": getattr(prefs, "proxy_url", None) if prefs else None,
+            "download_subtitles": getattr(prefs, "download_subtitles", True)
+            if prefs
+            else True,
+            "download_thumbnails": getattr(prefs, "download_thumbnails", True)
+            if prefs
+            else True,
+            "concurrent_fragments": getattr(prefs, "concurrent_fragments", 5)
+            if prefs
+            else 5,
+            "min_sleep_interval": float(getattr(prefs, "min_sleep_interval", 2.0))
+            if prefs
+            else 2.0,
+            "max_sleep_interval": float(getattr(prefs, "max_sleep_interval", 5.0))
+            if prefs
+            else 5.0,
+            "cookie_text": cookie_text,
         }
 
         real_download_task.delay(queue.id, prefs_dict, meta)
@@ -466,7 +521,7 @@ def get_download_queue(
         .options(
             contains_eager(DownloadQueue.media_entry).defer(MediaEntry.media_metadata),
             contains_eager(DownloadQueue.media_entry).defer(MediaEntry.performers),
-            contains_eager(DownloadQueue.media_entry).defer(MediaEntry.tags)
+            contains_eager(DownloadQueue.media_entry).defer(MediaEntry.tags),
         )
     )
 
@@ -495,9 +550,13 @@ def stream_download_queue(request: Request):
                 tasks = (
                     db.query(DownloadQueue)
                     .options(
-                        joinedload(DownloadQueue.media_entry).defer(MediaEntry.media_metadata),
-                        joinedload(DownloadQueue.media_entry).defer(MediaEntry.performers),
-                        joinedload(DownloadQueue.media_entry).defer(MediaEntry.tags)
+                        joinedload(DownloadQueue.media_entry).defer(
+                            MediaEntry.media_metadata
+                        ),
+                        joinedload(DownloadQueue.media_entry).defer(
+                            MediaEntry.performers
+                        ),
+                        joinedload(DownloadQueue.media_entry).defer(MediaEntry.tags),
                     )
                     .filter(DownloadQueue.status.in_(["pending", "running", "queued"]))
                     .all()
@@ -514,6 +573,7 @@ def stream_download_queue(request: Request):
                             "progress_percentage": float(t.progress_percentage)
                             if t.progress_percentage is not None
                             else 0.0,
+                            "extraction_method": t.extraction_method,
                             "media_entry": {
                                 "id": media.id,
                                 "title": media.title,
@@ -549,14 +609,46 @@ def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
 
+    prefs = (
+        db.query(DownloadPreference)
+        .filter(DownloadPreference.provider_id == req.provider_id)
+        .first()
+    )
+
     # Extract URLs and metadata using yt-dlp's flat extraction
     ydl_opts = {"extract_flat": True, "quiet": True}
+    if prefs:
+        if getattr(prefs, "proxy_url", None):
+            ydl_opts["proxy"] = prefs.proxy_url
+        if getattr(prefs, "sleep_requests", None):
+            ydl_opts["sleep_requests"] = float(prefs.sleep_requests)
+
+    cookie_obj = (
+        db.query(SessionCookie)
+        .filter(
+            SessionCookie.provider_id == req.provider_id,
+            SessionCookie.status == "active",
+        )
+        .first()
+    )
+    cookie_text = cookie_obj.cookie_text if cookie_obj else None
+
+    cookie_file_path = None
+    if cookie_text:
+        fd, cookie_file_path = tempfile.mkstemp(suffix=".txt")
+        with os.fdopen(fd, "w") as f:
+            f.write(cookie_text)
+        ydl_opts["cookiefile"] = cookie_file_path
+
+    used_method = "yt-dlp"
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url_str, download=False)
 
         extracted_videos = []
         if info and "entries" in info:
+            extractor = info.get("extractor", "generic")
+            used_method = f"yt-dlp ({extractor})"
             for entry in info["entries"]:
                 if not entry:
                     continue
@@ -569,6 +661,8 @@ def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
                         }
                     )
         elif info:
+            extractor = info.get("extractor", "generic")
+            used_method = f"yt-dlp ({extractor})"
             extracted_videos.append(
                 {
                     "url": info.get("url") or info.get("webpage_url") or url_str,
@@ -578,6 +672,7 @@ def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
 
         # Hardened Fallback: If yt-dlp returns nothing, try a naive HTML scrape
         if not extracted_videos:
+            used_method = "html_scrape"
             resp = requests.get(url_str, timeout=15, allow_redirects=False)
             hrefs = re.findall(r'href=[\'"]?([^\'" >]+)', resp.text)
             for href in set(hrefs):
@@ -597,12 +692,10 @@ def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to extract URLs: {str(e)}")
+    finally:
+        if cookie_file_path and os.path.exists(cookie_file_path):
+            os.remove(cookie_file_path)
 
-    prefs = (
-        db.query(DownloadPreference)
-        .filter(DownloadPreference.provider_id == req.provider_id)
-        .first()
-    )
     queued_count = 0
     skipped_count = 0
     tasks_to_fire = []
@@ -612,6 +705,23 @@ def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
         "preferred_resolution": prefs.preferred_resolution if prefs else "1080p",
         "append_metadata": prefs.append_metadata if prefs else False,
         "custom_base_path": getattr(prefs, "custom_base_path", None) if prefs else None,
+        "proxy_url": getattr(prefs, "proxy_url", None) if prefs else None,
+        "download_subtitles": getattr(prefs, "download_subtitles", True)
+        if prefs
+        else True,
+        "download_thumbnails": getattr(prefs, "download_thumbnails", True)
+        if prefs
+        else True,
+        "concurrent_fragments": getattr(prefs, "concurrent_fragments", 5)
+        if prefs
+        else 5,
+        "min_sleep_interval": float(getattr(prefs, "min_sleep_interval", 2.0))
+        if prefs
+        else 2.0,
+        "max_sleep_interval": float(getattr(prefs, "max_sleep_interval", 5.0))
+        if prefs
+        else 5.0,
+        "cookie_text": cookie_text,
     }
 
     rules = (
@@ -642,7 +752,7 @@ def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
         if not video["url"]:
             continue
         meta = video["metadata"]
-        
+
         # SECURITY: Prevent SSRF via extracted URLs
         try:
             validate_url_ssrf(video["url"])
@@ -701,6 +811,7 @@ def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
                 url=video["url"],
                 status="pending" if action != "queue" else "queued",
                 progress_percentage=0.0,
+                extraction_method=used_method,
             )
             queue.media_entry = media
             db.add(queue)
@@ -733,3 +844,100 @@ def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
         "queued": queued_count,
         "skipped": skipped_count,
     }
+
+
+@router.post("/extract-stream")
+def extract_stream_url(req: ExtractStreamRequest):
+    """Uses yt-dlp to dynamically resolve a page URL to its raw live video stream URL."""
+    url_str = str(req.url)
+    validate_url_ssrf(url_str)
+
+    ydl_opts = {"quiet": True, "no_warnings": True, "format": "best"}
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url_str, download=False)
+
+            if info and "entries" in info and len(info["entries"]) > 0:
+                first_entry = info["entries"][0]
+                stream_url = first_entry.get("url")
+                title = first_entry.get("title", "Live Stream")
+            else:
+                stream_url = info.get("url")
+                title = info.get("title", "Live Stream")
+
+            if not stream_url:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Could not detect a stream URL. The streamer might be offline.",
+                )
+
+            return {"stream_url": stream_url, "title": title}
+    except Exception as e:
+        raise HTTPException(
+            status_code=400, detail=f"Failed to extract stream: {str(e)}"
+        )
+
+
+@router.post("/save-stream")
+def save_live_stream(req: SaveStreamRequest, db: Session = Depends(get_db)):
+    """Saves a resolved live stream to the database."""
+    from models import LiveStream
+
+    validate_url_ssrf(str(req.url))
+
+    base_name = req.title
+    name = base_name
+    counter = 1
+
+    # Ensure unique name constraint is satisfied
+    while db.query(LiveStream).filter(LiveStream.name == name).first():
+        name = f"{base_name} ({counter})"
+        counter += 1
+
+    stream = LiveStream(name=name, url=str(req.url), status="idle")
+    db.add(stream)
+    db.commit()
+    return {"message": "Live stream saved successfully", "id": stream.id}
+
+
+@router.post("/analyze-url")
+def analyze_url(req: AnalyzeUrlRequest, db: Session = Depends(get_db)):
+    """Analyzes a URL to detect the best scraping/downloading method."""
+    url_str = str(req.url)
+    validate_url_ssrf(url_str)
+
+    methods = []
+    extractor = None
+
+    # 1. Test yt-dlp compatibility
+    ydl_opts = {"extract_flat": True, "quiet": True}
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url_str, download=False)
+            if info:
+                extractor = info.get("extractor") or info.get("extractor_key")
+                methods.append(f"yt-dlp ({extractor})")
+    except yt_dlp.utils.DownloadError as e:
+        err_msg = str(e).lower()
+        if (
+            "cookie" in err_msg
+            or "login" in err_msg
+            or "password" in err_msg
+            or "unauthorized" in err_msg
+        ):
+            methods.append("authentication_required (cookies)")
+
+    # 2. Test direct HTTP protocols
+    try:
+        resp = requests.head(url_str, timeout=5, allow_redirects=True)
+        content_type = resp.headers.get("Content-Type", "").lower()
+        if "video" in content_type or "mpegurl" in content_type:
+            methods.append("direct_media_link")
+        elif "json" in content_type:
+            methods.append("json_api")
+        elif "html" in content_type:
+            methods.append("html_scrape")
+    except Exception:
+        pass
+
+    return {"url": url_str, "extractor": extractor, "detected_methods": methods}

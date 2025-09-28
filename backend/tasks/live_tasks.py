@@ -1,12 +1,13 @@
 import os
 import time
-import subprocess # nosec B404
-from datetime import datetime
+import subprocess  # nosec B404
+from datetime import datetime, timezone
 from celery import shared_task
 from models import LiveStream, Vault, LibraryEntry, Provider
 from security import decrypt_data
 from db_utils import get_db_session
 import shutil
+
 
 @shared_task(bind=True)
 def record_live_stream_task(self, stream_id: int):
@@ -23,24 +24,36 @@ def record_live_stream_task(self, stream_id: int):
             db.commit()
 
         # Set up directories
-        live_dir = os.path.join(get_media_roots_fallback(), "downloads", "live_recordings")
+        live_dir = os.path.join(
+            get_media_roots_fallback(), "downloads", "live_recordings"
+        )
         os.makedirs(live_dir, exist_ok=True)
 
         # Generate filename
         safe_name = "".join([c if c.isalnum() else "_" for c in stream.name])
-        filename = f"{safe_name}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.mp4"
+        filename = (
+            f"{safe_name}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.mp4"
+        )
         out_path = os.path.realpath(os.path.join(live_dir, filename))
 
         stream.current_output_path = out_path
         db.commit()
 
         # Gather authentication from Vault
-        cookie_entry = db.query(Vault).filter_by(
-            entity_type="live_stream_auth", entity_id=stream_id, key="cookies"
-        ).first()
-        header_entry = db.query(Vault).filter_by(
-            entity_type="live_stream_auth", entity_id=stream_id, key="headers"
-        ).first()
+        cookie_entry = (
+            db.query(Vault)
+            .filter_by(
+                entity_type="live_stream_auth", entity_id=stream_id, key="cookies"
+            )
+            .first()
+        )
+        header_entry = (
+            db.query(Vault)
+            .filter_by(
+                entity_type="live_stream_auth", entity_id=stream_id, key="headers"
+            )
+            .first()
+        )
 
         # Build streamlink command
         cmd = ["streamlink", "--hls-live-restart", stream.url, "best", "-o", out_path]
@@ -70,7 +83,7 @@ def record_live_stream_task(self, stream_id: int):
     # Start streamlink subprocess (parameters are safe array, no shell expansion - nosec B603)
     start_time = time.time()
     try:
-        proc = subprocess.Popen(cmd) # nosec B603
+        proc = subprocess.Popen(cmd)  # nosec B603
         with get_db_session() as db:
             stream = db.query(LiveStream).filter(LiveStream.id == stream_id).first()
             if stream:
@@ -108,7 +121,9 @@ def record_live_stream_task(self, stream_id: int):
                     # Suspended by SIGSTOP, wait without updating elapsed
                     pass
                 elif stream.status != "recording":
-                    print(f"Stop requested, status is {stream.status}. Terminating process.")
+                    print(
+                        f"Stop requested, status is {stream.status}. Terminating process."
+                    )
                     proc.terminate()
                     try:
                         proc.wait(timeout=5)
@@ -151,7 +166,7 @@ def record_live_stream_task(self, stream_id: int):
                     name="LiveStream",
                     base_url="http://localhost",
                     naming_pattern="{title}",
-                    separator="_"
+                    separator="_",
                 )
                 db.add(provider)
                 db.flush()
@@ -165,37 +180,46 @@ def record_live_stream_task(self, stream_id: int):
                 resolution="1080p",
                 duration=elapsed_seconds,
                 tags=["Live Recording", stream.name],
-                entry_metadata={"stream_id": stream.id, "recorded_at": datetime.now().isoformat()}
+                entry_metadata={
+                    "stream_id": stream.id,
+                    "recorded_at": datetime.now().isoformat(),
+                },
             )
             db.add(new_entry)
             db.commit()
 
             try:
                 from services.notification_service import NotificationService
+
                 NotificationService.check_and_notify_favorites(db, new_entry)
                 NotificationService.notify_global(
                     db,
                     "task_completed",
                     "Live Recording Completed",
-                    f"Successfully recorded and indexed live stream '{new_entry.title}'."
+                    f"Successfully recorded and indexed live stream '{new_entry.title}'.",
                 )
             except Exception as notif_err:
-                print(f"Error sending live recording completion notification: {notif_err}")
+                print(
+                    f"Error sending live recording completion notification: {notif_err}"
+                )
 
             stream.status = "idle"
             print(f"Successfully finished recording and indexed: {new_entry.title}")
         else:
             # Empty or invalid
             stream.status = "failed"
-            print(f"Recording finished but output file was too small or missing ({final_size} bytes).")
+            print(
+                f"Recording finished but output file was too small or missing ({final_size} bytes)."
+            )
 
             try:
                 from services.notification_service import NotificationService
+
                 NotificationService.notify_global(
                     db,
                     "task_completed",
                     "Live Recording Failed",
-                    f"Recording finished but output file for live stream '{stream.name}' was too small or missing."
+                    f"Recording finished but output file for live stream '{stream.name}' was too small or missing.",
                 )
             except Exception as notif_err:
                 print(f"Error sending live recording failure notification: {notif_err}")
@@ -207,12 +231,17 @@ def get_media_roots_fallback():
     """Parse media roots helper similar to utils."""
     try:
         from models import Settings
+
         with get_db_session() as db:
-            setting = db.query(Settings).filter(Settings.key == "media_root_path").first()
+            setting = (
+                db.query(Settings).filter(Settings.key == "media_root_path").first()
+            )
             if setting and setting.value:
                 paths = [p.strip() for p in setting.value.split(",") if p.strip()]
                 if paths:
                     return os.path.realpath(os.path.expanduser(paths[0]))
     except Exception:
         pass
-    return os.path.realpath(os.path.expanduser(os.getenv("MEDIA_ROOT", "/media/storage")))
+    return os.path.realpath(
+        os.path.expanduser(os.getenv("MEDIA_ROOT", "/media/storage"))
+    )

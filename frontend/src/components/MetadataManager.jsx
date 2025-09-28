@@ -52,11 +52,13 @@ export default function MetadataManager() {
     try {
       const response = await apiFetch(`/metadata/entry/${entryId}/update`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: metadata.title,
           performers: metadata.performers,
           tags: metadata.tags,
-          description: metadata.metadata?.description
+          studio: metadata.studio_name,
+          description: metadata.entry_metadata?.description
         })
       })
       if (response.ok) {
@@ -111,7 +113,7 @@ export default function MetadataManager() {
 
       const res = await apiFetch(`/external-api/${source}/query`, {
         method: 'POST',
-        headers: { 'X-API-Key': apiKey },
+        headers: { 'X-API-Key': apiKey, 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: metadata.title })
       })
       const data = await res.json()
@@ -122,7 +124,8 @@ export default function MetadataManager() {
           title: topResult.title || prev.title,
           performers: topResult.performers || prev.performers,
           tags: topResult.tags || prev.tags,
-          metadata: { ...prev.metadata, description: topResult.description || prev.metadata?.description }
+          studio_name: topResult.studio?.name || prev.studio_name,
+          entry_metadata: { ...prev.entry_metadata, description: topResult.description || prev.entry_metadata?.description }
         }))
         setMessage(`Loaded top match from ${source}! Click 'Update Metadata' to save it.`)
       } else {
@@ -177,6 +180,13 @@ export default function MetadataManager() {
               />
               <TextField
                 fullWidth
+                label="Studio"
+                value={metadata.studio_name || ''}
+                onChange={(e) => setMetadata({...metadata, studio_name: e.target.value})}
+                margin="normal"
+              />
+              <TextField
+                fullWidth
                 label="Performers (comma-separated)"
                 value={metadata.performers?.join(', ')}
                 onChange={(e) => setMetadata({
@@ -198,10 +208,10 @@ export default function MetadataManager() {
               <TextField
                 fullWidth
                 label="Description"
-                value={metadata.metadata?.description || ''}
+                value={metadata.entry_metadata?.description || ''}
                 onChange={(e) => setMetadata({
                   ...metadata,
-                  metadata: {...metadata.metadata, description: e.target.value}
+                  entry_metadata: {...metadata.entry_metadata, description: e.target.value}
                 })}
                 margin="normal"
                 multiline
@@ -236,3 +246,4 @@ export default function MetadataManager() {
     </Box>
   )
 }
+

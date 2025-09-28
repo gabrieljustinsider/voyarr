@@ -7,8 +7,11 @@ from pydantic import BaseModel
 
 router = APIRouter(prefix="/favorites", tags=["favorites"])
 
+
 class ToggleFavoriteRequest(BaseModel):
-    item_type: str  # 'scene', 'video', 'performer', 'movie', 'category', 'tag', 'studio'
+    item_type: (
+        str  # 'scene', 'video', 'performer', 'movie', 'category', 'tag', 'studio'
+    )
     item_id: str
 
 
@@ -21,7 +24,15 @@ def toggle_favorite(
     """Toggle a favorite item for the current authenticated user."""
     # Normalize item_type
     item_type = req.item_type.lower().strip()
-    if item_type not in ["scene", "video", "performer", "movie", "category", "tag", "studio"]:
+    if item_type not in [
+        "scene",
+        "video",
+        "performer",
+        "movie",
+        "category",
+        "tag",
+        "studio",
+    ]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid favorite item_type: {req.item_type}",
@@ -58,7 +69,7 @@ def get_favorites(
 ):
     """Retrieve all favorites for the current user, grouped by type."""
     favs = db.query(Favorite).filter(Favorite.user_id == current_user.id).all()
-    
+
     result = {
         "scene": [],
         "video": [],
@@ -66,11 +77,11 @@ def get_favorites(
         "movie": [],
         "category": [],
         "tag": [],
-        "studio": []
+        "studio": [],
     }
-    
+
     for f in favs:
         if f.item_type in result:
             result[f.item_type].append(f.item_id)
-            
+
     return result

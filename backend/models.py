@@ -10,7 +10,9 @@ from sqlalchemy import (
     Boolean,
     ForeignKey,
     UniqueConstraint,
+    Index,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -39,24 +41,36 @@ class Provider(Base):
     separator = Column(String(10), default="_")
     space_replacement = Column(String(10), default="_")
     automatic_limits = Column(
-        JSON
+        JSON().with_variant(JSONB, "postgresql")
     )  # Default limits for the provider (e.g., {"daily_downloads": 50, "concurrent_downloads": 2})
+    supported_methods = Column(
+        JSON().with_variant(JSONB, "postgresql"), default=list
+    )  # e.g., ["yt-dlp", "cookies", "direct", "api"]
 
 
 class SiteRecipe(Base):
     __tablename__ = "site_recipes"
 
     id = Column(Integer, primary_key=True)
-    provider_id = Column(Integer, ForeignKey("providers.id", ondelete="CASCADE"), nullable=False, index=True)
-    css_selectors = Column(JSON)
-    xpath_selectors = Column(JSON)
-    regex_patterns = Column(JSON)
-    map_mode_data = Column(JSON)
+    provider_id = Column(
+        Integer,
+        ForeignKey("providers.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    css_selectors = Column(JSON().with_variant(JSONB, "postgresql"))
+    xpath_selectors = Column(JSON().with_variant(JSONB, "postgresql"))
+    regex_patterns = Column(JSON().with_variant(JSONB, "postgresql"))
+    map_mode_data = Column(JSON().with_variant(JSONB, "postgresql"))
 
 
 class Vault(Base):
     __tablename__ = "vault"
-    __table_args__ = (UniqueConstraint('entity_type', 'entity_id', 'key', name='uix_vault_entity_key'),)
+    __table_args__ = (
+        UniqueConstraint(
+            "entity_type", "entity_id", "key", name="uix_vault_entity_key"
+        ),
+    )
 
     id = Column(Integer, primary_key=True)
     entity_type = Column(
@@ -77,9 +91,14 @@ class Credential(Base):
     __tablename__ = "credentials"
 
     id = Column(Integer, primary_key=True)
-    provider_id = Column(Integer, ForeignKey("providers.id", ondelete="CASCADE"), nullable=False, index=True)
+    provider_id = Column(
+        Integer,
+        ForeignKey("providers.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     custom_limits = Column(
-        JSON
+        JSON().with_variant(JSONB, "postgresql")
     )  # Account-level custom provider limits (overrides automatic_limits)
     sync_source = Column(
         String(50), default="manual"
@@ -89,17 +108,34 @@ class Credential(Base):
 
 class MediaEntry(Base):
     __tablename__ = "media_entries"
+    __table_args__ = (
+        Index("ix_media_entries_tags", "tags", postgresql_using="gin"),
+        Index("ix_media_entries_performers", "performers", postgresql_using="gin"),
+    )
 
     id = Column(Integer, primary_key=True)
-    provider_id = Column(Integer, ForeignKey("providers.id", ondelete="CASCADE"), nullable=False, index=True)
+    provider_id = Column(
+        Integer,
+        ForeignKey("providers.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    studio_id = Column(
+        Integer,
+        ForeignKey("studios.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     title = Column(String(500))
-    performers = Column(JSON)  # Array of strings
-    tags = Column(JSON)  # Array of strings
+    performers = Column(JSON().with_variant(JSONB, "postgresql"))  # Array of strings
+    tags = Column(JSON().with_variant(JSONB, "postgresql"))  # Array of strings
     ohash = Column(String(16), unique=True, index=True)
     phash = Column(String(16), index=True)
     site_id = Column(String(100), index=True)
-    media_metadata = Column(JSON)
+    media_metadata = Column(JSON().with_variant(JSONB, "postgresql"))
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
+
+    studio = relationship("Studio")
 
 
 class Settings(Base):
@@ -118,7 +154,12 @@ class LocalFile(Base):
     __tablename__ = "local_files"
 
     id = Column(Integer, primary_key=True)
-    media_entry_id = Column(Integer, ForeignKey("media_entries.id", ondelete="CASCADE"), nullable=False, index=True)
+    media_entry_id = Column(
+        Integer,
+        ForeignKey("media_entries.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     file_path = Column(Text, nullable=False)
     file_size = Column(BIGINT)
     resolution = Column(String(20))
@@ -130,15 +171,23 @@ class DownloadQueue(Base):
     __tablename__ = "download_queue"
 
     id = Column(Integer, primary_key=True)
-    media_entry_id = Column(Integer, ForeignKey("media_entries.id", ondelete="CASCADE"), nullable=False, index=True)
+    media_entry_id = Column(
+        Integer,
+        ForeignKey("media_entries.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     url = Column(Text, nullable=False)
     status = Column(String(50), default="pending", index=True)
     progress_percentage = Column(DECIMAL(5, 2), default=0)
     file_size = Column(BIGINT)
     speed = Column(String(20))
     retry_count = Column(Integer, default=0)
-    priority = Column(Integer, default=0)
+    priority = Column(Integer, default=0, index=True)
     celery_task_id = Column(String(255), nullable=True)
+    extraction_method = Column(
+        String(100), nullable=True
+    )  # e.g. "yt-dlp", "html_scrape"
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
     updated_at = Column(TIMESTAMP, default=func.current_timestamp())
 
@@ -147,11 +196,12 @@ class DownloadQueue(Base):
 
 class CustomList(Base):
     __tablename__ = "custom_lists"
+    __table_args__ = (Index("ix_custom_lists_items", "items", postgresql_using="gin"),)
 
     id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=False)
     item_type = Column(String(50))  # e.g., "performers", "tags", "categories", "series"
-    items = Column(JSON)  # Array of strings
+    items = Column(JSON().with_variant(JSONB, "postgresql"))  # Array of strings
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
 
 
@@ -161,7 +211,7 @@ class DownloadRule(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=False)
     criteria = Column(
-        JSON
+        JSON().with_variant(JSONB, "postgresql")
     )  # Logic for the rule e.g. {"resolution": "1080p", "performers": {"in_list": 1}}
     action = Column(String(50), default="download")  # e.g., 'download', 'skip', 'queue'
     scope = Column(String(50), default="global")  # 'global', 'session', 'provider:<id>'
@@ -171,13 +221,35 @@ class DownloadRule(Base):
 
 class LibraryEntry(Base):
     __tablename__ = "library_entries"
+    __table_args__ = (
+        Index("ix_library_entries_tags", "tags", postgresql_using="gin"),
+        Index("ix_library_entries_performers", "performers", postgresql_using="gin"),
+    )
 
     id = Column(Integer, primary_key=True)
-    provider_id = Column(Integer, ForeignKey("providers.id", ondelete="CASCADE"), nullable=False, index=True)
-    media_entry_id = Column(Integer, ForeignKey("media_entries.id", ondelete="SET NULL"), nullable=True, index=True)
+    provider_id = Column(
+        Integer,
+        ForeignKey("providers.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    media_entry_id = Column(
+        Integer,
+        ForeignKey("media_entries.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    studio_id = Column(
+        Integer,
+        ForeignKey("studios.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     title = Column(String(500), nullable=False)
-    performers = Column(JSON)  # Array of performer names
-    tags = Column(JSON)  # Array of tags/categories
+    performers = Column(
+        JSON().with_variant(JSONB, "postgresql")
+    )  # Array of performer names
+    tags = Column(JSON().with_variant(JSONB, "postgresql"))  # Array of tags/categories
     file_path = Column(Text, nullable=False)
     file_size = Column(BIGINT)
     resolution = Column(String(20))  # e.g., "1080p", "720p", "4K"
@@ -185,24 +257,33 @@ class LibraryEntry(Base):
     ohash = Column(String(16), index=True)  # Perceptual hash for duplicate detection
     phash = Column(String(16), index=True)  # Perceptual hash
     site_id = Column(String(100), index=True)  # Original source site ID
-    entry_metadata = Column(JSON)  # Full metadata from scraping
+    entry_metadata = Column(
+        JSON().with_variant(JSONB, "postgresql")
+    )  # Full metadata from scraping
     last_updated = Column(TIMESTAMP, default=func.current_timestamp())
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
 
-    chapters = relationship("VideoChapter", back_populates="library_entry", cascade="all, delete-orphan")
+    chapters = relationship(
+        "VideoChapter", back_populates="library_entry", cascade="all, delete-orphan"
+    )
+    studio = relationship("Studio")
 
 
 class VideoChapter(Base):
     __tablename__ = "video_chapters"
+    __table_args__ = (Index("ix_video_chapters_tags", "tags", postgresql_using="gin"),)
 
     id = Column(Integer, primary_key=True)
     library_entry_id = Column(
-        Integer, ForeignKey("library_entries.id", ondelete="CASCADE"), nullable=False, index=True
+        Integer,
+        ForeignKey("library_entries.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     title = Column(String(255), nullable=False)
     start_time = Column(Integer, nullable=False)  # in seconds
     end_time = Column(Integer, nullable=True)  # in seconds
-    tags = Column(JSON)  # Array of strings
+    tags = Column(JSON().with_variant(JSONB, "postgresql"))  # Array of strings
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
     updated_at = Column(
         TIMESTAMP, default=func.current_timestamp(), onupdate=func.current_timestamp()
@@ -216,10 +297,16 @@ class DuplicateEntry(Base):
 
     id = Column(Integer, primary_key=True)
     library_entry_id1 = Column(
-        Integer, ForeignKey("library_entries.id", ondelete="CASCADE"), nullable=False, index=True
+        Integer,
+        ForeignKey("library_entries.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     library_entry_id2 = Column(
-        Integer, ForeignKey("library_entries.id", ondelete="CASCADE"), nullable=False, index=True
+        Integer,
+        ForeignKey("library_entries.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     similarity_score = Column(DECIMAL(5, 2))  # 0-100% similarity
     reason = Column(
@@ -236,7 +323,12 @@ class DownloadPreference(Base):
     __tablename__ = "download_preferences"
 
     id = Column(Integer, primary_key=True)
-    provider_id = Column(Integer, ForeignKey("providers.id", ondelete="CASCADE"), nullable=False, index=True)
+    provider_id = Column(
+        Integer,
+        ForeignKey("providers.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     preferred_resolution = Column(
         String(20), default="1080p"
     )  # e.g., "1080p", "720p", "auto"
@@ -263,11 +355,11 @@ class MetadataCache(Base):
     site_id = Column(String(100), nullable=False, unique=True, index=True)
     provider = Column(String(50), index=True)  # "theporndb", "stashdb", etc.
     title = Column(String(500))
-    performers = Column(JSON)
-    tags = Column(JSON)
+    performers = Column(JSON().with_variant(JSONB, "postgresql"))
+    tags = Column(JSON().with_variant(JSONB, "postgresql"))
     description = Column(Text)
     thumbnail_url = Column(Text)
-    raw_metadata = Column(JSON)  # Full API response
+    raw_metadata = Column(JSON().with_variant(JSONB, "postgresql"))  # Full API response
     synced_to_stashdb = Column(Boolean, default=False)
     synced_to_theporndb = Column(Boolean, default=False)
     last_synced = Column(TIMESTAMP)
@@ -281,7 +373,12 @@ class ScrapeSchedule(Base):
     __tablename__ = "scrape_schedules"
 
     id = Column(Integer, primary_key=True)
-    provider_id = Column(Integer, ForeignKey("providers.id", ondelete="CASCADE"), nullable=False, index=True)
+    provider_id = Column(
+        Integer,
+        ForeignKey("providers.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     name = Column(String(255), nullable=False)
     target_url = Column(
         Text, nullable=True
@@ -305,7 +402,12 @@ class SessionCookie(Base):
     __tablename__ = "session_cookies"
 
     id = Column(Integer, primary_key=True)
-    provider_id = Column(Integer, ForeignKey("providers.id", ondelete="CASCADE"), nullable=True, index=True)
+    provider_id = Column(
+        Integer,
+        ForeignKey("providers.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
     site_id = Column(String(100), nullable=True, index=True)
     cookie_text = Column(Text, nullable=True)
     status = Column(String(50), default="active", index=True)
@@ -340,7 +442,7 @@ class TranscodingQueue(Base):
     target_codec = Column(String(20), default="h265")
     target_resolution = Column(String(20), nullable=True)
     progress_percentage = Column(DECIMAL(5, 2), default=0.0)
-    priority = Column(Integer, default=0)
+    priority = Column(Integer, default=0, index=True)
     celery_task_id = Column(String(255), nullable=True)
     pid = Column(Integer, nullable=True)
     details = Column(Text, nullable=True)
@@ -358,7 +460,9 @@ class Webhook(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=False)
     url = Column(Text, nullable=False)
-    events = Column(JSON)  # Array of event strings (e.g., 'transcode.completed')
+    events = Column(
+        JSON().with_variant(JSONB, "postgresql")
+    )  # Array of event strings (e.g., 'transcode.completed')
     is_active = Column(Boolean, default=True, index=True)
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
 
@@ -372,82 +476,68 @@ class MediaRequest(Base):
     status = Column(
         String(50), default="pending", index=True
     )  # 'pending', 'approved', 'rejected', 'downloaded'
-    requested_by = Column(String(255), nullable=True)
-    notes = Column(Text, nullable=True)
+    requested_by = Column(String(255))
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
-    updated_at = Column(
+
+
+class UserVideoStats(Base):
+    __tablename__ = "user_video_stats"
+    __table_args__ = (
+        UniqueConstraint("user_id", "library_entry_id", name="uix_user_library_stat"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    library_entry_id = Column(
+        Integer,
+        ForeignKey("library_entries.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    play_count = Column(Integer, default=0)
+    climax_count = Column(Integer, default=0)
+    last_played = Column(
         TIMESTAMP, default=func.current_timestamp(), onupdate=func.current_timestamp()
     )
 
 
 class Favorite(Base):
     __tablename__ = "favorites"
-    __table_args__ = (UniqueConstraint('user_id', 'item_type', 'item_id', name='uix_user_favorite_item'),)
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id", "item_type", "item_id", name="uix_user_favorite_item"
+        ),
+    )
 
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    item_type = Column(String(50), nullable=False)  # 'scene', 'video', 'performer', 'movie', 'category', 'tag', 'studio'
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    item_type = Column(
+        String(50), nullable=False
+    )  # 'scene', 'video', 'performer', 'movie', 'category', 'tag', 'studio'
     item_id = Column(String(255), nullable=False)  # Site ID or name
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
-
-    user = relationship("User")
 
 
 class UserHistory(Base):
     __tablename__ = "user_history"
 
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    library_entry_id = Column(Integer, ForeignKey("library_entries.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    library_entry_id = Column(
+        Integer,
+        ForeignKey("library_entries.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     watched_at = Column(TIMESTAMP, default=func.current_timestamp())
     duration = Column(Integer, default=0)
     completed = Column(Boolean, default=False)
-
-    user = relationship("User")
-    library_entry = relationship("LibraryEntry")
-
-
-class UserVideoStats(Base):
-    __tablename__ = "user_video_stats"
-    __table_args__ = (UniqueConstraint('user_id', 'library_entry_id', name='uix_user_video_stats'),)
-
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    library_entry_id = Column(Integer, ForeignKey("library_entries.id", ondelete="CASCADE"), nullable=False, index=True)
-    play_count = Column(Integer, default=0)
-    climax_count = Column(Integer, default=0)
-    last_played = Column(TIMESTAMP, default=func.current_timestamp(), onupdate=func.current_timestamp())
-
-    user = relationship("User")
-    library_entry = relationship("LibraryEntry")
-
-
-class UserPreference(Base):
-    __tablename__ = "user_preferences"
-
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
-    theme = Column(String(50), default="dark")
-    ui_config = Column(JSON, default=dict)
-    created_at = Column(TIMESTAMP, default=func.current_timestamp())
-
-    user = relationship("User")
-
-
-class Studio(Base):
-    __tablename__ = "studios"
-
-    id = Column(Integer, primary_key=True)
-    name = Column(String(255), nullable=False, unique=True, index=True)
-    logo_url = Column(Text, nullable=True)
-    url = Column(String(500), nullable=True)
-    details = Column(Text, nullable=True)
-    tags = Column(JSON, default=list)
-    is_network = Column(Boolean, default=False)
-    parent_id = Column(Integer, ForeignKey("studios.id", ondelete="SET NULL"), nullable=True, index=True)
-    created_at = Column(TIMESTAMP, default=func.current_timestamp())
-
-    parent = relationship("Studio", remote_side=[id], backref="sub_studios")
 
 
 class LiveStream(Base):
@@ -456,27 +546,50 @@ class LiveStream(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=False, unique=True, index=True)
     url = Column(Text, nullable=False)
-    status = Column(String(50), default="idle")  # 'idle', 'recording', 'failed'
+    status = Column(
+        String(50), default="idle", index=True
+    )  # 'idle', 'recording', 'failed'
     current_task_id = Column(String(255), nullable=True)
     current_output_path = Column(Text, nullable=True)
     written_size = Column(BIGINT, default=0)
     elapsed_seconds = Column(Integer, default=0)
     pid = Column(Integer, nullable=True)
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
-    updated_at = Column(TIMESTAMP, default=func.current_timestamp())
+    updated_at = Column(
+        TIMESTAMP, default=func.current_timestamp(), onupdate=func.current_timestamp()
+    )
+
+
+class Studio(Base):
+    __tablename__ = "studios"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), unique=True, nullable=False, index=True)
+    logo_url = Column(Text, nullable=True)
+    url = Column(String(500), nullable=True)
+    details = Column(Text, nullable=True)
+    tags = Column(JSON().with_variant(JSONB, "postgresql"), nullable=True)
+    is_network = Column(Boolean, default=False)
+    parent_id = Column(
+        Integer,
+        ForeignKey("studios.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    created_at = Column(TIMESTAMP, default=func.current_timestamp())
 
 
 class NotificationPreference(Base):
     __tablename__ = "notification_preferences"
 
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     event_type = Column(String(50), nullable=False)
     dispatch_method = Column(String(50), nullable=False)
     enabled = Column(Boolean, default=True)
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
-
-    user = relationship("User")
 
 
 class NotificationRule(Base):
@@ -494,12 +607,82 @@ class NotificationLog(Base):
     __tablename__ = "notification_logs"
 
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     event_type = Column(String(50), nullable=False)
     title = Column(String(255), nullable=False)
     message = Column(Text, nullable=False)
     read = Column(Boolean, default=False, index=True)
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
 
-    user = relationship("User")
 
+class UserPreference(Base):
+    __tablename__ = "user_preferences"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    theme = Column(String(50), default="dark")
+    ui_config = Column(JSON().with_variant(JSONB, "postgresql"), nullable=True)
+    created_at = Column(TIMESTAMP, default=func.current_timestamp())
+
+
+class PeerNode(Base):
+    __tablename__ = "peer_nodes"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), unique=True, nullable=False, index=True)
+    peer_url = Column(String(500), nullable=False)
+    outbound_key = Column(String(500), nullable=False)
+    inbound_token = Column(String(500), nullable=False)
+    status = Column(
+        String(50), default="inactive", index=True
+    )  # active, inactive, error, syncing
+
+    # Configurable Behaviors
+    recipe_sync_mode = Column(
+        String(50), default="auto_merge"
+    )  # auto_merge, manual_review
+    sync_schedule = Column(
+        String(100), default="manual"
+    )  # manual, daily, weekly, custom-cron
+    library_scope = Column(
+        String(50), default="all_entries"
+    )  # all_entries, specific_providers
+    allowed_providers = Column(
+        JSON().with_variant(JSONB, "postgresql"), default=list
+    )  # list of provider IDs
+
+    last_sync_at = Column(TIMESTAMP, nullable=True)
+    next_run = Column(TIMESTAMP, nullable=True)
+    created_at = Column(TIMESTAMP, default=func.current_timestamp())
+
+    sync_logs = relationship(
+        "PeerSyncLog", back_populates="peer", cascade="all, delete-orphan"
+    )
+
+
+class PeerSyncLog(Base):
+    __tablename__ = "peer_sync_logs"
+
+    id = Column(Integer, primary_key=True)
+    peer_id = Column(
+        Integer,
+        ForeignKey("peer_nodes.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    direction = Column(String(10), nullable=False)  # push, pull, sync
+    recipes_synced = Column(Integer, default=0)
+    media_synced = Column(Integer, default=0)
+    status = Column(String(50), nullable=False)  # success, failed
+    error_message = Column(Text, nullable=True)
+    created_at = Column(TIMESTAMP, default=func.current_timestamp())
+
+    peer = relationship("PeerNode", back_populates="sync_logs")

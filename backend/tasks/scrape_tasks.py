@@ -14,6 +14,7 @@ def scrape_url_task(url: str, recipe_id: int):
     """
     try:
         from routers.download import validate_url_ssrf
+
         validate_url_ssrf(url)
     except Exception as e:
         print(f"SSRF validation failed for {url}: {e}")
@@ -35,15 +36,26 @@ def scrape_url_task(url: str, recipe_id: int):
                     # Append token for authentication if provided
                     if browserless_token:
                         sep = "&" if "?" in browserless_url else "?"
-                        browserless_url = f"{browserless_url}{sep}token={browserless_token}"
+                        browserless_url = (
+                            f"{browserless_url}{sep}token={browserless_token}"
+                        )
                     browser = p.chromium.connect_over_cdp(browserless_url)
                 else:
-                    browser = p.chromium.launch(headless=True)
-                    
+                    proxy_url = os.getenv("GLOBAL_PROXY_URL")
+                    proxy_enabled = os.getenv("GLOBAL_PROXY_ENABLED") == "true"
+                    launch_kwargs = {"headless": True}
+                    if proxy_enabled and proxy_url:
+                        launch_kwargs["proxy"] = {"server": proxy_url}
+                    browser = p.chromium.launch(**launch_kwargs)
+
                 try:
-                    context = browser.new_context(
-                        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                    global_ua = os.getenv("DEFAULT_USER_AGENT")
+                    ua = (
+                        global_ua
+                        if global_ua
+                        else "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
                     )
+                    context = browser.new_context(user_agent=ua)
                     page = context.new_page()
 
                     # networkidle ensures dynamic scripts have finished fetching data
@@ -63,9 +75,13 @@ def scrape_url_task(url: str, recipe_id: int):
             print(f"Timeout waiting for JS to render on {url}: {str(e)}")
             print("Falling back to standard requests scraper...")
             try:
-                headers = {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-                }
+                global_ua = os.getenv("DEFAULT_USER_AGENT")
+                ua = (
+                    global_ua
+                    if global_ua
+                    else "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                )
+                headers = {"User-Agent": ua}
                 response = requests.get(url, headers=headers, timeout=15)
                 response.raise_for_status()
 

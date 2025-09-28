@@ -13,11 +13,13 @@ from dependencies import verify_api_key
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
+
 # --- Pydantic Schemas ---
 class PreferenceUpdate(BaseModel):
     event_type: str
     dispatch_method: str
     enabled: bool
+
 
 class RuleCreate(BaseModel):
     event_type: str
@@ -25,11 +27,13 @@ class RuleCreate(BaseModel):
     webhook_url: Optional[str] = None
     is_active: Optional[bool] = True
 
+
 class MarkReadRequest(BaseModel):
     notification_ids: Optional[List[int]] = None  # If None, marks all as read
 
 
 # --- Endpoints ---
+
 
 async def event_generator(request: Request):
     redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
@@ -62,24 +66,28 @@ async def stream_notifications(
 
 @router.get("/preferences")
 def get_preferences(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """Retrieve delivery preferences for the current authenticated user."""
-    prefs = db.query(NotificationPreference).filter(
-        NotificationPreference.user_id == current_user.id
-    ).all()
+    prefs = (
+        db.query(NotificationPreference)
+        .filter(NotificationPreference.user_id == current_user.id)
+        .all()
+    )
 
     # If no preferences exist, return reasonable defaults
     if not prefs:
         default_prefs = []
         for etype in ["task_completed", "favorite_updated"]:
             for method in ["toast", "discord_dm"]:
-                default_prefs.append({
-                    "event_type": etype,
-                    "dispatch_method": method,
-                    "enabled": method == "toast"  # toast enabled by default, discord_dm disabled by default
-                })
+                default_prefs.append(
+                    {
+                        "event_type": etype,
+                        "dispatch_method": method,
+                        "enabled": method
+                        == "toast",  # toast enabled by default, discord_dm disabled by default
+                    }
+                )
         return default_prefs
 
     return prefs
@@ -89,15 +97,19 @@ def get_preferences(
 def update_preferences(
     reqs: List[PreferenceUpdate],
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Bulk update or create preferences for the current user."""
     for update in reqs:
-        pref = db.query(NotificationPreference).filter(
-            NotificationPreference.user_id == current_user.id,
-            NotificationPreference.event_type == update.event_type,
-            NotificationPreference.dispatch_method == update.dispatch_method
-        ).first()
+        pref = (
+            db.query(NotificationPreference)
+            .filter(
+                NotificationPreference.user_id == current_user.id,
+                NotificationPreference.event_type == update.event_type,
+                NotificationPreference.dispatch_method == update.dispatch_method,
+            )
+            .first()
+        )
 
         if pref:
             pref.enabled = update.enabled
@@ -106,7 +118,7 @@ def update_preferences(
                 user_id=current_user.id,
                 event_type=update.event_type,
                 dispatch_method=update.dispatch_method,
-                enabled=update.enabled
+                enabled=update.enabled,
             )
             db.add(new_pref)
     db.commit()
@@ -115,14 +127,13 @@ def update_preferences(
 
 @router.get("/rules")
 def get_rules(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """Get all admin notification routing rules. Admins only."""
     if current_user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="RBAC Forbidden: Only administrators can view routing rules."
+            detail="RBAC Forbidden: Only administrators can view routing rules.",
         )
     return db.query(NotificationRule).all()
 
@@ -131,21 +142,25 @@ def get_rules(
 def create_rule(
     req: RuleCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Create or update a notification routing rule. Admins only."""
     if current_user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="RBAC Forbidden: Only administrators can manage routing rules."
+            detail="RBAC Forbidden: Only administrators can manage routing rules.",
         )
 
     # Check if a rule for this combo already exists to avoid duplicates
-    rule = db.query(NotificationRule).filter(
-        NotificationRule.event_type == req.event_type,
-        NotificationRule.discord_channel_id == req.discord_channel_id,
-        NotificationRule.webhook_url == req.webhook_url
-    ).first()
+    rule = (
+        db.query(NotificationRule)
+        .filter(
+            NotificationRule.event_type == req.event_type,
+            NotificationRule.discord_channel_id == req.discord_channel_id,
+            NotificationRule.webhook_url == req.webhook_url,
+        )
+        .first()
+    )
 
     if rule:
         rule.is_active = req.is_active
@@ -154,7 +169,7 @@ def create_rule(
             event_type=req.event_type,
             discord_channel_id=req.discord_channel_id,
             webhook_url=req.webhook_url,
-            is_active=req.is_active
+            is_active=req.is_active,
         )
         db.add(rule)
 
@@ -167,13 +182,13 @@ def create_rule(
 def delete_rule(
     rule_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Delete a custom notification rule. Admins only."""
     if current_user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="RBAC Forbidden: Only administrators can manage routing rules."
+            detail="RBAC Forbidden: Only administrators can manage routing rules.",
         )
     rule = db.query(NotificationRule).filter(NotificationRule.id == rule_id).first()
     if not rule:
@@ -185,13 +200,16 @@ def delete_rule(
 
 @router.get("/history")
 def get_history(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """Get the recent notification logs for the current user."""
-    logs = db.query(NotificationLog).filter(
-        NotificationLog.user_id == current_user.id
-    ).order_by(NotificationLog.created_at.desc()).limit(50).all()
+    logs = (
+        db.query(NotificationLog)
+        .filter(NotificationLog.user_id == current_user.id)
+        .order_by(NotificationLog.created_at.desc())
+        .limit(50)
+        .all()
+    )
     return logs
 
 
@@ -199,7 +217,7 @@ def get_history(
 def mark_as_read(
     req: MarkReadRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Mark specific notification logs as read, or all if none specified."""
     query = db.query(NotificationLog).filter(NotificationLog.user_id == current_user.id)

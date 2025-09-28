@@ -6,7 +6,7 @@ from services.hash_service import HashService
 from services.media_tagger import MediaTagger
 from typing import Optional
 from utils import get_media_roots
-from db_utils import get_db_session
+from db_utils import get_db_session, get_or_create_studio_by_name
 
 
 @shared_task
@@ -21,18 +21,20 @@ def scan_library_task(directory: Optional[str], provider_id: int):
             if not provider or not provider.naming_pattern:
                 return {"error": "Provider or naming pattern not found"}
 
+            cached_studio_id = get_or_create_studio_by_name(db, provider.name)
+
             # Transform the Voyarr naming pattern (e.g., {title}_{performers}) into a Regex pattern
             pattern = provider.naming_pattern
             pattern = pattern.replace("{title}", "(?P<title>.*?)")
             pattern = pattern.replace("{performers}", "(?P<performers>.*?)")
             pattern = pattern.replace("{resolution}", "(?P<resolution>.*?)")
-            
+
             cached_provider_id = provider.id
             cached_separator = provider.separator
 
             regex = re.compile(pattern)
             processed = 0
-            
+
             media_roots = get_media_roots()
             target_dirs = []
             if directory:
@@ -44,10 +46,8 @@ def scan_library_task(directory: Optional[str], provider_id: int):
                     target_dirs.append(real_dir)
             if not target_dirs:
                 target_dirs = media_roots
-            
-            existing_paths = {
-                row[0] for row in db.query(LibraryEntry.file_path).all()
-            }
+
+            existing_paths = {row[0] for row in db.query(LibraryEntry.file_path).all()}
 
             for d in target_dirs:
                 if not os.path.exists(d):
@@ -72,21 +72,28 @@ def scan_library_task(directory: Optional[str], provider_id: int):
 
                             if match:
                                 data = match.groupdict()
-                                title = data.get("title", file).replace(cached_separator, " ")
+                                title = data.get("title", file).replace(
+                                    cached_separator, " "
+                                )
                                 if "performers" in data and data["performers"]:
                                     performers = [
                                         p.strip()
-                                        for p in data["performers"].split(cached_separator)
+                                        for p in data["performers"].split(
+                                            cached_separator
+                                        )
                                     ]
                                 resolution = data.get("resolution")
 
                                 # Embed metadata into the physical file using Mutagen
                                 try:
                                     MediaTagger.tag_file(
-                                        file_path, {"title": title, "performers": performers}
+                                        file_path,
+                                        {"title": title, "performers": performers},
                                     )
                                 except Exception as e:
-                                    print(f"Warning: Failed to tag file {file_path}: {str(e)}")
+                                    print(
+                                        f"Warning: Failed to tag file {file_path}: {str(e)}"
+                                    )
 
                             # Generate Hashes for Duplicate Detection / Stash Matching
                             ohash = HashService.generate_ohash(file_path)
@@ -94,6 +101,7 @@ def scan_library_task(directory: Optional[str], provider_id: int):
 
                             entry = LibraryEntry(
                                 provider_id=cached_provider_id,
+                                studio_id=cached_studio_id,
                                 title=title,
                                 performers=performers,
                                 file_path=file_path,
@@ -106,10 +114,17 @@ def scan_library_task(directory: Optional[str], provider_id: int):
                             db.commit()
 
                             try:
-                                from services.notification_service import NotificationService
-                                NotificationService.check_and_notify_favorites(db, entry)
+                                from services.notification_service import (
+                                    NotificationService,
+                                )
+
+                                NotificationService.check_and_notify_favorites(
+                                    db, entry
+                                )
                             except Exception as fav_err:
-                                print(f"Error checking favorites during scan: {fav_err}")
+                                print(
+                                    f"Error checking favorites during scan: {fav_err}"
+                                )
 
                             processed += 1
                         except Exception as e:
@@ -118,11 +133,12 @@ def scan_library_task(directory: Optional[str], provider_id: int):
 
             try:
                 from services.notification_service import NotificationService
+
                 NotificationService.notify_global(
                     db,
                     "task_completed",
                     "Library Scan Completed",
-                    f"Library scan completed. Found and processed {processed} new file(s)."
+                    f"Library scan completed. Found and processed {processed} new file(s).",
                 )
             except Exception as notif_err:
                 print(f"Error sending scan completion notification: {notif_err}")
@@ -139,18 +155,19 @@ def process_missing_hashes_task():
     and attempts to regenerate them based on the local file.
     """
     from sqlalchemy.orm import defer
+
     with get_db_session() as db:
         entries = (
             db.query(LibraryEntry)
             .options(
                 defer(LibraryEntry.entry_metadata),
                 defer(LibraryEntry.performers),
-                defer(LibraryEntry.tags)
+                defer(LibraryEntry.tags),
             )
             .filter((LibraryEntry.phash.is_(None)) | (LibraryEntry.phash == ""))
             .yield_per(50)
         )
-        
+
         processed = 0
         for entry in entries:
             try:

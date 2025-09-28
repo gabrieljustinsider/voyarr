@@ -68,17 +68,19 @@ async def pause_download(task_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Task not found")
     if task.status not in ["running", "pending", "queued"]:
         raise HTTPException(status_code=400, detail="Task cannot be paused")
-    
+
     # Set status
     task.status = "paused"
-    
+
     # Revoke active Celery worker task if running
     if task.celery_task_id:
         try:
-            celery_app.control.revoke(task.celery_task_id, terminate=True, signal="SIGTERM")
+            celery_app.control.revoke(
+                task.celery_task_id, terminate=True, signal="SIGTERM"
+            )
         except Exception as e:
             print(f"Error revoking celery task: {e}")
-            
+
     db.commit()
     return {"message": "Download paused"}
 
@@ -120,16 +122,18 @@ async def cancel_download(task_id: int, db: Session = Depends(get_db)):
     task = db.query(DownloadQueue).filter(DownloadQueue.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
     task.status = "cancelled"
-    
+
     # Revoke active Celery task
     if task.celery_task_id:
         try:
-            celery_app.control.revoke(task.celery_task_id, terminate=True, signal="SIGTERM")
+            celery_app.control.revoke(
+                task.celery_task_id, terminate=True, signal="SIGTERM"
+            )
         except Exception as e:
             print(f"Error revoking celery task: {e}")
-            
+
     db.commit()
     return {"message": "Download cancelled"}
 
@@ -141,7 +145,10 @@ async def priority_up(task_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Task not found")
     task.priority += 1
     db.commit()
-    return {"message": f"Task priority bumped to {task.priority}", "priority": task.priority}
+    return {
+        "message": f"Task priority bumped to {task.priority}",
+        "priority": task.priority,
+    }
 
 
 @router.post("/{task_id}/priority/down")
@@ -151,4 +158,7 @@ async def priority_down(task_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Task not found")
     task.priority -= 1
     db.commit()
-    return {"message": f"Task priority reduced to {task.priority}", "priority": task.priority}
+    return {
+        "message": f"Task priority reduced to {task.priority}",
+        "priority": task.priority,
+    }

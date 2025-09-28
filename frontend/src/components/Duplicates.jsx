@@ -80,6 +80,9 @@ export default function Duplicates() {
                     <Button variant="contained" color="primary" fullWidth onClick={() => handleResolve(dupe.id, `keep_${idx + 1}`)}>
                       Keep This & Delete Other
                     </Button>
+                    <Button variant="contained" color="secondary" fullWidth sx={{ mt: 1 }} onClick={() => handleResolve(dupe.id, `merge_${idx + 1}`)}>
+                      Merge & Combine
+                    </Button>
                   </Box>
                 </Grid>
               ))}

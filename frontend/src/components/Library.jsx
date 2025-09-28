@@ -3,7 +3,7 @@ import {
   Box, Typography, Card, CardContent, Grid, TextField, 
   Chip, FormControl, InputLabel, Select, MenuItem, Paper, CardMedia, Tooltip,
   Dialog, DialogTitle, DialogContent, IconButton, Button, DialogActions,
-  CircularProgress, Alert, Pagination
+  CircularProgress, Alert, Pagination, Checkbox, Slide
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutlined'
@@ -13,6 +13,9 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload'
 import FavoriteIcon from '@mui/icons-material/Favorite'
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder'
 import CastIcon from '@mui/icons-material/Cast'
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
+import EditIcon from '@mui/icons-material/Edit'
+import ClearIcon from '@mui/icons-material/Clear'
 import ChapterManager from './ChapterManager'
 import SecondScreenRemote from './SecondScreenRemote'
 import { apiFetch } from '../api'
@@ -62,6 +65,24 @@ export default function Library() {
   const [performerProfileError, setPerformerProfileError] = useState(null)
   const [performerDetails, setPerformerDetails] = useState(null)
 
+  // Facial Clustering State
+  const [facialClusters, setFacialClusters] = useState(null)
+  const [clusteringLoading, setClusteringLoading] = useState(false)
+
+  // Bulk Operations State
+  const [selectedEntries, setSelectedEntries] = useState(new Set())
+  const [studios, setStudios] = useState([])
+  const [bulkEditOpen, setBulkEditOpen] = useState(false)
+  const [bulkEditData, setBulkEditData] = useState({
+    resolution: '',
+    studio_id: '',
+    tags_to_add: '',
+    tags_to_remove: '',
+    performers_to_add: '',
+    performers_to_remove: ''
+  })
+  const [bulkSubmitting, setBulkSubmitting] = useState(false)
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedFilters(filters)
@@ -84,6 +105,15 @@ export default function Library() {
         const data = await res.json()
         setFavScenes(data.scene || [])
       }
+    } catch (e) {
+      console.error(e)
+    }
+  }, [])
+
+  const fetchStudios = useCallback(async () => {
+    try {
+      const res = await apiFetch('/studios?limit=1000')
+      if (res.ok) setStudios(await res.json())
     } catch (e) {
       console.error(e)
     }
@@ -117,7 +147,8 @@ export default function Library() {
   useEffect(() => {
     fetchLibrary()
     fetchFavScenes()
-  }, [fetchLibrary, fetchFavScenes])
+    fetchStudios()
+  }, [fetchLibrary, fetchFavScenes, fetchStudios])
 
   const handleFilterChange = (e) => {
     setFilters({ ...filters, [e.target.name]: e.target.value })
@@ -161,6 +192,7 @@ export default function Library() {
   const handleClosePlayer = () => {
     setPlayingVideo(null)
     setFingerprintResult(null)
+    setFacialClusters(null)
     handleStopCasting()
   }
 
@@ -377,6 +409,112 @@ export default function Library() {
     }
   }
 
+  // Facial Clustering Logic
+  const fetchFacialClusters = useCallback(async (id) => {
+    try {
+      const res = await apiFetch(`/library/${id}/facial-clusters`)
+      if (res.ok) setFacialClusters(await res.json())
+    } catch (e) { console.error(e) }
+  }, [])
+
+  useEffect(() => {
+    if (playingVideo) fetchFacialClusters(playingVideo.id)
+  }, [playingVideo, fetchFacialClusters])
+
+  const handleTriggerClustering = async () => {
+    setClusteringLoading(true)
+    try {
+      const res = await apiFetch(`/library/${playingVideo.id}/cluster-faces`, { method: 'POST' })
+      if (res.ok) {
+        window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Facial scanning started in background', severity: 'success' } }))
+      }
+    } catch (e) { console.error(e) }
+    setClusteringLoading(false)
+  }
+
+  const handleRenameCluster = async (oldName) => {
+    const newName = window.prompt(`Enter real performer name for ${oldName}:`)
+    if (!newName) return
+    try {
+      const res = await apiFetch(`/library/${playingVideo.id}/facial-clusters/${oldName}/rename`, {
+        method: 'POST',
+        body: JSON.stringify({ new_name: newName })
+      })
+      if (res.ok) {
+        fetchFacialClusters(playingVideo.id)
+        fetchLibrary() // Refresh library to update global performer lists
+      }
+    } catch (e) { console.error(e) }
+  }
+
+  const handleToggleSelect = (id) => {
+    const newSet = new Set(selectedEntries)
+    if (newSet.has(id)) newSet.delete(id)
+    else newSet.add(id)
+    setSelectedEntries(newSet)
+  }
+
+  const handleClearSelection = () => {
+    setSelectedEntries(new Set())
+  }
+
+  const handleBulkAI = async () => {
+    if (selectedEntries.size === 0) return
+    const confirm = window.appConfirm ? await window.appConfirm(`Queue ${selectedEntries.size} items for AI Auto-Tagging?`) : window.confirm(`Queue ${selectedEntries.size} items for AI Auto-Tagging?`)
+    if (!confirm) return
+
+    try {
+      const res = await apiFetch('/library/bulk-tag/ai', {
+        method: 'POST',
+        body: JSON.stringify({ entry_ids: Array.from(selectedEntries) })
+      })
+      if (res.ok) {
+        window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: `Queued ${selectedEntries.size} items for AI tagging!`, severity: 'success' } }))
+        handleClearSelection()
+      } else {
+        const data = await res.json()
+        window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: data.detail || 'Bulk action failed', severity: 'error' } }))
+      }
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const handleBulkEditSubmit = async (e) => {
+    e.preventDefault()
+    setBulkSubmitting(true)
+
+    const payload = {
+      entry_ids: Array.from(selectedEntries),
+      tags_to_add: bulkEditData.tags_to_add ? bulkEditData.tags_to_add.split(',').map(t => t.trim()).filter(Boolean) : [],
+      tags_to_remove: bulkEditData.tags_to_remove ? bulkEditData.tags_to_remove.split(',').map(t => t.trim()).filter(Boolean) : [],
+      performers_to_add: bulkEditData.performers_to_add ? bulkEditData.performers_to_add.split(',').map(p => p.trim()).filter(Boolean) : [],
+      performers_to_remove: bulkEditData.performers_to_remove ? bulkEditData.performers_to_remove.split(',').map(p => p.trim()).filter(Boolean) : [],
+      studio_id: bulkEditData.studio_id ? parseInt(bulkEditData.studio_id, 10) : null,
+      resolution: bulkEditData.resolution || null
+    }
+
+    try {
+      const res = await apiFetch('/library/bulk-edit/manual', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      })
+      if (res.ok) {
+        window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: `Successfully updated ${selectedEntries.size} items!`, severity: 'success' } }))
+        setBulkEditOpen(false)
+        handleClearSelection()
+        fetchLibrary()
+      } else {
+        const data = await res.json()
+        window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: data.detail || 'Bulk edit failed', severity: 'error' } }))
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setBulkSubmitting(false)
+    }
+  }
+
   const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
 
   return (
@@ -426,7 +564,35 @@ export default function Library() {
             const isFav = favScenes.includes(String(entry.id))
             return (
               <Grid item xs={12} sm={6} md={4} lg={3} key={entry.id}>
-                <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                <Card sx={{ 
+                  height: '100%', 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  position: 'relative',
+                  outline: selectedEntries.has(entry.id) ? '2px solid #90caf9' : 'none',
+                  boxShadow: selectedEntries.has(entry.id) ? '0 0 15px rgba(144, 202, 249, 0.4)' : 'none',
+                  transition: 'outline 0.15s, box-shadow 0.15s'
+                }}>
+                  
+                  {/* Selection Checkbox */}
+                  <Checkbox 
+                    checked={selectedEntries.has(entry.id)}
+                    onChange={() => handleToggleSelect(entry.id)}
+                    sx={{
+                      position: 'absolute',
+                      top: 8,
+                      left: 8,
+                      zIndex: 5,
+                      color: 'rgba(255,255,255,0.7)',
+                      '&.Mui-checked': {
+                        color: 'primary.main',
+                      },
+                      backgroundColor: 'rgba(0,0,0,0.5)',
+                      borderRadius: 1,
+                      p: 0.5,
+                      '&:hover': { backgroundColor: 'rgba(0,0,0,0.7)' }
+                    }}
+                  />
                   
                   {/* Heart Icon Toggle inside Card */}
                   <IconButton 
@@ -590,6 +756,34 @@ export default function Library() {
                     </Box>
                   </Paper>
 
+                  <Box sx={{ mt: 2, mb: 2, p: 1.5, backgroundColor: 'rgba(255, 152, 0, 0.05)', border: '1px solid rgba(255, 152, 0, 0.2)', borderRadius: 1 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                      <Typography variant="subtitle2" color="warning.main">Detected Faces</Typography>
+                      <Button size="small" variant="outlined" color="warning" onClick={handleTriggerClustering} disabled={clusteringLoading} sx={{ textTransform: 'none', py: 0 }}>
+                        {clusteringLoading ? <CircularProgress size={16} color="warning" /> : 'Scan Faces'}
+                      </Button>
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 1.5, overflowX: 'auto', pb: 1, '&::-webkit-scrollbar': { height: 6 }, '&::-webkit-scrollbar-thumb': { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 3 } }}>
+                      {facialClusters && Object.keys(facialClusters).length > 0 ? (
+                        Object.keys(facialClusters).map(person => (
+                          <Box key={person} sx={{ textAlign: 'center', minWidth: 60 }}>
+                            <img 
+                              src={`${API_BASE}/library/${playingVideo.id}/facial-clusters/${person}/thumbnail?${getAuthQuery()}`} 
+                              alt={person} 
+                              loading="lazy" 
+                              style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover', cursor: 'pointer', border: '2px solid rgba(255, 255, 255, 0.2)' }}
+                              onClick={() => handleRenameCluster(person)}
+                              title={`Rename ${person}`}
+                            />
+                            <Typography variant="caption" display="block" noWrap sx={{ maxWidth: 60, fontSize: '0.65rem' }}>{person}</Typography>
+                          </Box>
+                        ))
+                      ) : (
+                        <Typography variant="body2" color="textSecondary" sx={{ fontStyle: 'italic', fontSize: '0.8rem' }}>No faces scanned yet.</Typography>
+                      )}
+                    </Box>
+                  </Box>
+
                   {playingVideo.ohash && (
                     <Box sx={{ mt: 2, mb: 2 }}>
                       <Button 
@@ -688,6 +882,7 @@ export default function Library() {
                   component="img"
                   src={performerDetails.image || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&h=300&fit=crop&q=80"}
                   alt={performerDetails.name}
+                  loading="lazy"
                   sx={{
                     width: '100%',
                     maxWidth: 240,
@@ -772,6 +967,161 @@ export default function Library() {
               No profile details loaded.
             </Typography>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Floating Glassmorphic Bulk Operations Toolbar */}
+      <Slide direction="up" in={selectedEntries.size > 0} mountOnEnter unmountOnExit>
+        <Paper 
+          sx={{ 
+            position: 'fixed', 
+            bottom: 24, 
+            left: '50%', 
+            transform: 'translateX(-50%)', 
+            zIndex: 1000, 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 2, 
+            px: 3, 
+            py: 1.5, 
+            borderRadius: '20px', 
+            backdropFilter: 'blur(20px)', 
+            backgroundColor: 'rgba(18, 18, 18, 0.75)', 
+            border: '1px solid rgba(255, 255, 255, 0.1)', 
+            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.5)'
+          }}
+        >
+          <Typography variant="body1" sx={{ color: 'white', fontWeight: 'bold' }}>
+            {selectedEntries.size} Selected
+          </Typography>
+          <Box sx={{ width: '1px', height: '24px', backgroundColor: 'rgba(255, 255, 255, 0.15)' }} />
+          <Button 
+            variant="contained" 
+            color="primary" 
+            size="small" 
+            startIcon={<EditIcon />} 
+            onClick={() => setBulkEditOpen(true)}
+            sx={{ borderRadius: '10px' }}
+          >
+            Bulk Edit
+          </Button>
+          <Button 
+            variant="outlined" 
+            color="info" 
+            size="small" 
+            startIcon={<AutoAwesomeIcon />} 
+            onClick={handleBulkAI}
+            sx={{ borderRadius: '10px' }}
+          >
+            AI Auto-Tag
+          </Button>
+          <IconButton onClick={handleClearSelection} sx={{ color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } }}>
+            <ClearIcon />
+          </IconButton>
+        </Paper>
+      </Slide>
+
+      {/* Bulk Edit Modal */}
+      <Dialog 
+        open={bulkEditOpen} 
+        onClose={() => setBulkEditOpen(false)}
+        PaperProps={{
+          sx: {
+            borderRadius: '16px',
+            backdropFilter: 'blur(20px)',
+            backgroundColor: 'rgba(30, 30, 30, 0.9)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.5)',
+            color: 'white',
+            width: '100%',
+            maxWidth: '500px'
+          }
+        }}
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          Bulk Edit {selectedEntries.size} Videos
+          <IconButton onClick={() => setBulkEditOpen(false)} sx={{ color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } }}>
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers sx={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
+          <Box component="form" onSubmit={handleBulkEditSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 1 }}>
+            <FormControl fullWidth>
+              <InputLabel id="bulk-studio-label" sx={{ color: 'rgba(255,255,255,0.7)' }}>Assign Studio</InputLabel>
+              <Select
+                labelId="bulk-studio-label"
+                value={bulkEditData.studio_id}
+                label="Assign Studio"
+                onChange={(e) => setBulkEditData(prev => ({ ...prev, studio_id: e.target.value }))}
+                sx={{ color: 'white', '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.1)' } }}
+              >
+                <MenuItem value=""><em>None / Clear</em></MenuItem>
+                {studios.map(s => (
+                  <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <TextField
+              fullWidth
+              label="Set Resolution (e.g. 1080p, 4K)"
+              value={bulkEditData.resolution}
+              onChange={(e) => setBulkEditData(prev => ({ ...prev, resolution: e.target.value }))}
+              InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
+              inputProps={{ style: { color: 'white' } }}
+            />
+
+            <TextField
+              fullWidth
+              label="Tags to Add (comma-separated)"
+              value={bulkEditData.tags_to_add}
+              onChange={(e) => setBulkEditData(prev => ({ ...prev, tags_to_add: e.target.value }))}
+              InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
+              inputProps={{ style: { color: 'white' } }}
+            />
+
+            <TextField
+              fullWidth
+              label="Tags to Remove (comma-separated)"
+              value={bulkEditData.tags_to_remove}
+              onChange={(e) => setBulkEditData(prev => ({ ...prev, tags_to_remove: e.target.value }))}
+              InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
+              inputProps={{ style: { color: 'white' } }}
+            />
+
+            <TextField
+              fullWidth
+              label="Performers to Add (comma-separated)"
+              value={bulkEditData.performers_to_add}
+              onChange={(e) => setBulkEditData(prev => ({ ...prev, performers_to_add: e.target.value }))}
+              InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
+              inputProps={{ style: { color: 'white' } }}
+            />
+
+            <TextField
+              fullWidth
+              label="Performers to Remove (comma-separated)"
+              value={bulkEditData.performers_to_remove}
+              onChange={(e) => setBulkEditData(prev => ({ ...prev, performers_to_remove: e.target.value }))}
+              InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
+              inputProps={{ style: { color: 'white' } }}
+            />
+
+            <DialogActions sx={{ px: 0, pb: 0, pt: 2 }}>
+              <Button onClick={() => setBulkEditOpen(false)} sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                Cancel
+              </Button>
+              <Button 
+                type="submit" 
+                variant="contained" 
+                color="primary"
+                disabled={bulkSubmitting}
+                startIcon={bulkSubmitting && <CircularProgress size={20} />}
+              >
+                Apply Changes
+              </Button>
+            </DialogActions>
+          </Box>
         </DialogContent>
       </Dialog>
     </Box>

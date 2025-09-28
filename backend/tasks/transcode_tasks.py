@@ -36,7 +36,9 @@ def transcode_video_task(self, transcode_job_id: int):
             return
 
         library_entry = (
-            db.query(LibraryEntry).filter(LibraryEntry.id == job.library_entry_id).first()
+            db.query(LibraryEntry)
+            .filter(LibraryEntry.id == job.library_entry_id)
+            .first()
         )
         if not library_entry or not os.path.exists(library_entry.file_path):
             job.status = "failed"
@@ -96,7 +98,7 @@ def transcode_video_task(self, transcode_job_id: int):
             last_progress = 0.0
             error_log = []
 
-            for line in (process.stderr or []):
+            for line in process.stderr or []:
                 error_log.append(line)
                 if len(error_log) > 20:
                     error_log.pop(0)  # Keep only the last 20 lines to save memory
@@ -119,7 +121,9 @@ def transcode_video_task(self, transcode_job_id: int):
                         # Re-fetch job to check if cancelled or paused
                         db.refresh(job)
                         if job.status == "cancelled":
-                            logger.info(f"Transcode job {transcode_job_id} cancelled by user.")
+                            logger.info(
+                                f"Transcode job {transcode_job_id} cancelled by user."
+                            )
                             process.terminate()
                             return
 
@@ -181,11 +185,12 @@ def transcode_video_task(self, transcode_job_id: int):
             # Trigger Notification
             try:
                 from services.notification_service import NotificationService
+
                 NotificationService.notify_global(
                     db,
                     "task_completed",
                     "Transcoding Completed",
-                    f"Successfully transcoded '{library_entry.title}' to {job.target_codec}."
+                    f"Successfully transcoded '{library_entry.title}' to {job.target_codec}.",
                 )
             except Exception as notif_err:
                 print(f"Error sending transcode completion notification: {notif_err}")
@@ -210,18 +215,19 @@ def transcode_video_task(self, transcode_job_id: int):
                 job.details = str(e)
                 db.commit()
             logger.error(f"FFmpeg error for {input_path}: {job.details}")
-            
+
             # Clean up temp file on failure
             if os.path.exists(temp_output_path):
                 os.remove(temp_output_path)
 
             try:
                 from services.notification_service import NotificationService
+
                 NotificationService.notify_global(
                     db,
                     "task_completed",
                     "Transcoding Failed",
-                    f"Failed to transcode '{library_entry.title if library_entry else 'unknown'}': {str(e)}"
+                    f"Failed to transcode '{library_entry.title if library_entry else 'unknown'}': {str(e)}",
                 )
             except Exception as notif_err:
                 print(f"Error sending transcode failure notification: {notif_err}")
@@ -233,7 +239,9 @@ def generate_hls_task(self, library_entry_id: int):
     Generates an HLS playlist and transport stream segments for direct web streaming.
     """
     with get_db_session() as db:
-        entry = db.query(LibraryEntry).filter(LibraryEntry.id == library_entry_id).first()
+        entry = (
+            db.query(LibraryEntry).filter(LibraryEntry.id == library_entry_id).first()
+        )
         if not entry or not entry.file_path or not os.path.exists(entry.file_path):
             logger.error(f"Entry {library_entry_id} not found or missing file path.")
             return
@@ -250,18 +258,39 @@ def generate_hls_task(self, library_entry_id: int):
         return "Already generated"
 
     logger.info(f"Starting HLS generation for {video_path}")
-    
+
     try:
         cmd = [
-            "ffmpeg", "-y", "-i", video_path,
-            "-profile:v", "main", "-crf", "20", "-g", "48", "-keyint_min", "48", "-sc_threshold", "0",
-            "-c:a", "aac", "-b:a", "128k",
-            "-hls_time", "10", "-hls_playlist_type", "vod",
-            "-hls_segment_filename", os.path.join(hls_dir, "segment_%03d.ts"),
-            playlist_path
+            "ffmpeg",
+            "-y",
+            "-i",
+            video_path,
+            "-profile:v",
+            "main",
+            "-crf",
+            "20",
+            "-g",
+            "48",
+            "-keyint_min",
+            "48",
+            "-sc_threshold",
+            "0",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "128k",
+            "-hls_time",
+            "10",
+            "-hls_playlist_type",
+            "vod",
+            "-hls_segment_filename",
+            os.path.join(hls_dir, "segment_%03d.ts"),
+            playlist_path,
         ]
         # Execute FFmpeg without a timeout since transcode operations on large files are lengthy
-        subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)  # nosec B603
+        subprocess.run(
+            cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True
+        )  # nosec B603
         logger.info(f"Successfully generated HLS for {video_path}")
         return "HLS Generated successfully"
     except Exception as e:

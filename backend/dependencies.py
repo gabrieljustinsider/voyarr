@@ -23,13 +23,13 @@ async def verify_api_key(
     3. A Master API Key (X-Voyarr-Api-Key header or api_key query param)
     4. A Scoped API Key (from the database)
     """
-    
+
     token = None
 
     # 1. Check for JWT in Authorization header
     if authorization and authorization.startswith("Bearer "):
         token = authorization.split(" ")[1]
-    
+
     # 2. Check for JWT in cookie (Fallback for session persistence)
     if not token:
         token = request.cookies.get("access_token")
@@ -41,7 +41,7 @@ async def verify_api_key(
             if username:
                 return {"type": "jwt", "user": username, "role": payload.get("role")}
         except JWTError:
-            pass # Fallback to API Key check if JWT is invalid/expired
+            pass  # Fallback to API Key check if JWT is invalid/expired
 
     # 3. Check for Master API Key
     expected_key = os.getenv("MASTER_KEY")

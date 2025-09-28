@@ -64,8 +64,11 @@ def query_theporndb(req: QueryRequest, x_api_key: Optional[str] = Header(None)):
     if not x_api_key:
         raise HTTPException(status_code=400, detail="Missing ThePornDB API Key")
 
-    headers = {"Authorization": f"Bearer {x_api_key}", "Content-Type": "application/json"}
-    
+    headers = {
+        "Authorization": f"Bearer {x_api_key}",
+        "Content-Type": "application/json",
+    }
+
     # Transitioned to GraphQL endpoint
     query = """
     query SearchScenes($q: String) {
@@ -82,30 +85,43 @@ def query_theporndb(req: QueryRequest, x_api_key: Optional[str] = Header(None)):
       }
     }
     """
-    
+
     try:
         if req.hash:
             # Hash matching via REST endpoint (TPDB GraphQL fingerprinting is limited)
             res = requests.get(
                 f"https://api.theporndb.net/scenes?hash={req.hash}",
-                headers={"Authorization": f"Bearer {x_api_key}", "Accept": "application/json"},
+                headers={
+                    "Authorization": f"Bearer {x_api_key}",
+                    "Accept": "application/json",
+                },
                 timeout=10,
             )
             res.raise_for_status()
             data = res.json()
             results = []
             for item in data.get("data", []):
-                results.append({
-                    "id": item.get("id"),
-                    "title": item.get("title"),
-                    "details": item.get("details"),
-                    "date": item.get("date"),
-                    "tags": [t.get("name") for t in item.get("tags", [])] if item.get("tags") else [],
-                    "performers": [p.get("name") for p in item.get("performers", [])] if item.get("performers") else [],
-                    "studio": item.get("site", {}).get("name") if item.get("site") else None,
-                })
+                results.append(
+                    {
+                        "id": item.get("id"),
+                        "title": item.get("title"),
+                        "details": item.get("details"),
+                        "date": item.get("date"),
+                        "tags": [t.get("name") for t in item.get("tags", [])]
+                        if item.get("tags")
+                        else [],
+                        "performers": [
+                            p.get("name") for p in item.get("performers", [])
+                        ]
+                        if item.get("performers")
+                        else [],
+                        "studio": item.get("site", {}).get("name")
+                        if item.get("site")
+                        else None,
+                    }
+                )
             return {"results": results}
-            
+
         else:
             # Standard search via GraphQL
             variables = {"q": req.query or ""}
@@ -120,15 +136,26 @@ def query_theporndb(req: QueryRequest, x_api_key: Optional[str] = Header(None)):
             results = []
             scenes = data.get("data", {}).get("searchScenes", {}).get("data", [])
             for item in scenes:
-                results.append({
-                    "id": item.get("id"),
-                    "title": item.get("title"),
-                    "details": item.get("details"),
-                    "date": item.get("date"),
-                    "tags": [t.get("name") for t in item.get("tags", [])] if item.get("tags") else [],
-                    "performers": [p.get("performer", {}).get("name") for p in item.get("performers", [])] if item.get("performers") else [],
-                    "studio": item.get("studio", {}).get("name") if item.get("studio") else None,
-                })
+                results.append(
+                    {
+                        "id": item.get("id"),
+                        "title": item.get("title"),
+                        "details": item.get("details"),
+                        "date": item.get("date"),
+                        "tags": [t.get("name") for t in item.get("tags", [])]
+                        if item.get("tags")
+                        else [],
+                        "performers": [
+                            p.get("performer", {}).get("name")
+                            for p in item.get("performers", [])
+                        ]
+                        if item.get("performers")
+                        else [],
+                        "studio": item.get("studio", {}).get("name")
+                        if item.get("studio")
+                        else None,
+                    }
+                )
             return {"results": results}
     except Exception:
         return {
@@ -143,13 +170,18 @@ def query_theporndb(req: QueryRequest, x_api_key: Optional[str] = Header(None)):
 
 
 @router.post("/theporndb/performer")
-def get_theporndb_performer(req: PerformerQueryRequest, x_api_key: Optional[str] = Header(None)):
+def get_theporndb_performer(
+    req: PerformerQueryRequest, x_api_key: Optional[str] = Header(None)
+):
     """Fetch rich performer biographies via GraphQL"""
     if not x_api_key:
         raise HTTPException(status_code=400, detail="Missing ThePornDB API Key")
 
-    headers = {"Authorization": f"Bearer {x_api_key}", "Content-Type": "application/json"}
-    
+    headers = {
+        "Authorization": f"Bearer {x_api_key}",
+        "Content-Type": "application/json",
+    }
+
     query = """
     query SearchPerformers($q: String!) {
       searchPerformers(input: { name: $q }) {
@@ -179,7 +211,9 @@ def get_theporndb_performer(req: PerformerQueryRequest, x_api_key: Optional[str]
         performers = data.get("data", {}).get("searchPerformers", {}).get("data", [])
         return {"results": performers}
     except Exception:
-        return {"results": [{"name": req.name, "bio": "Biography placeholder fallback."}]}
+        return {
+            "results": [{"name": req.name, "bio": "Biography placeholder fallback."}]
+        }
 
 
 @router.post("/stashdb/query")
@@ -260,35 +294,39 @@ def query_stashdb(req: QueryRequest, x_api_key: Optional[str] = Header(None)):
 
 
 @router.post("/stashdb/submit-fingerprint")
-def submit_stashdb_fingerprint(req: FingerprintSubmitRequest, x_api_key: Optional[str] = Header(None)):
+def submit_stashdb_fingerprint(
+    req: FingerprintSubmitRequest, x_api_key: Optional[str] = Header(None)
+):
     """Submit local hash (MD5/OSHASH/PHASH) back to StashDB using GraphQL mutations"""
     if not x_api_key:
         raise HTTPException(status_code=400, detail="Missing StashDB API Key")
 
     headers = {"ApiKey": x_api_key, "Content-Type": "application/json"}  # noqa: F841
-    
+
     mutation = """  # noqa: F841
     mutation SubmitFingerprint($input: FingerprintSubmission!) {
       submitFingerprint(input: $input)
     }
     """
-    
+
     variables = {  # noqa: F841
         "input": {
             "scene_id": req.scene_id,
             "fingerprint": {
                 "hash": req.hash,
                 "algorithm": req.algorithm,
-                "duration": req.duration or 0
-            }
+                "duration": req.duration or 0,
+            },
         }
     }
 
     # Simulate submission response since we don't want to actually push dummy data to prod StashDB
     # In a real scenario, this would be uncommented:
     # res = requests.post("https://stashdb.org/graphql", json={"query": mutation, "variables": variables}, headers=headers)
-    
-    return {"message": f"Successfully submitted {req.algorithm} fingerprint {req.hash} to StashDB scene {req.scene_id}"}
+
+    return {
+        "message": f"Successfully submitted {req.algorithm} fingerprint {req.hash} to StashDB scene {req.scene_id}"
+    }
 
 
 @router.post("/theporndb/update")
@@ -346,8 +384,8 @@ def search_library(title: Optional[str] = None, hash: Optional[str] = None):
             results.append(
                 {
                     "title": entry.title,
-                        "details": entry.entry_metadata.get("description", "")
-                        if entry.entry_metadata
+                    "details": entry.entry_metadata.get("description", "")
+                    if entry.entry_metadata
                     else "",
                     "url": entry.file_path,
                     "tags": [{"name": t} for t in (entry.tags or [])],
@@ -370,9 +408,12 @@ def trigger_library_scan(req: ScanRequest):
                 break
         except ValueError:
             continue
-            
+
     if not is_valid_dir:
-        raise HTTPException(status_code=403, detail="Forbidden: Directory is outside configured media roots.")
+        raise HTTPException(
+            status_code=403,
+            detail="Forbidden: Directory is outside configured media roots.",
+        )
 
     task = scan_library_task.delay(target_dir, req.provider_id)
     return {"message": "Library scan queued", "task_id": task.id}
@@ -391,17 +432,21 @@ def sync_stats_with_stash(
     """Two-way sync of watch counts, climax counts (O-meter), and timestamps with Stash App."""
     from models import UserVideoStats, LibraryEntry
     from db_utils import get_db_session
-    import requests
 
     headers = {"Content-Type": "application/json"}
-    
+
     validate_url_ssrf(req.stash_url)
     if req.stash_api_key:
         headers["ApiKey"] = req.stash_api_key
 
-    # Query all local entries and their stats
     with get_db_session() as db:
+        import db_utils
+
+        print(
+            f"DEBUG SYNC - db_utils.SessionLocal inside endpoint: {db_utils.SessionLocal}"
+        )
         local_entries = db.query(LibraryEntry).all()
+        print(f"DEBUG SYNC - local_entries count: {len(local_entries)}")
         synced_count = 0
         updated_local = 0
         updated_stash = 0
@@ -422,7 +467,7 @@ def sync_stats_with_stash(
 
             # Match in Stash using fingerprint (ohash) first, then title
             stash_scene = None
-            
+
             # Query by fingerprint
             if entry.ohash:
                 fp_query = """
@@ -441,10 +486,15 @@ def sync_stats_with_stash(
                         f"{req.stash_url.rstrip('/')}/graphql",
                         json={"query": fp_query, "variables": {"hash": entry.ohash}},
                         headers=headers,
-                        timeout=5
+                        timeout=5,
                     )
                     if res.status_code == 200:
-                        scenes = res.json().get("data", {}).get("findScenes", {}).get("scenes", [])
+                        scenes = (
+                            res.json()
+                            .get("data", {})
+                            .get("findScenes", {})
+                            .get("scenes", [])
+                        )
                         if scenes:
                             stash_scene = scenes[0]
                 except Exception:
@@ -466,12 +516,20 @@ def sync_stats_with_stash(
                 try:
                     res = requests.post(
                         f"{req.stash_url.rstrip('/')}/graphql",
-                        json={"query": title_query, "variables": {"title": entry.title}},
+                        json={
+                            "query": title_query,
+                            "variables": {"title": entry.title},
+                        },
                         headers=headers,
-                        timeout=5
+                        timeout=5,
                     )
                     if res.status_code == 200:
-                        scenes = res.json().get("data", {}).get("findScenes", {}).get("scenes", [])
+                        scenes = (
+                            res.json()
+                            .get("data", {})
+                            .get("findScenes", {})
+                            .get("scenes", [])
+                        )
                         if scenes:
                             stash_scene = scenes[0]
                 except Exception:
@@ -495,7 +553,7 @@ def sync_stats_with_stash(
                         user_id=current_user.id,
                         library_entry_id=entry.id,
                         play_count=merged_plays,
-                        climax_count=merged_climaxes
+                        climax_count=merged_climaxes,
                     )
                     db.add(stats)
                 else:
@@ -520,11 +578,11 @@ def sync_stats_with_stash(
                             "variables": {
                                 "id": stash_id,
                                 "play_count": merged_plays,
-                                "o_counter": merged_climaxes
-                            }
+                                "o_counter": merged_climaxes,
+                            },
                         },
                         headers=headers,
-                        timeout=5
+                        timeout=5,
                     )
                     updated_stash += 1
                 except Exception:

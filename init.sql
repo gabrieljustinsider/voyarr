@@ -11,6 +11,21 @@ CREATE TABLE providers (
     automatic_limits JSONB
 );
 
+-- Studios table
+CREATE TABLE studios (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    logo_url TEXT,
+    url VARCHAR(500),
+    details TEXT,
+    tags JSONB,
+    is_network BOOLEAN DEFAULT FALSE,
+    parent_id INTEGER REFERENCES studios(id) ON DELETE SET NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_studios_name ON studios(name);
+CREATE INDEX idx_studios_parent_id ON studios(parent_id);
+
 -- Site recipes table
 CREATE TABLE site_recipes (
     id SERIAL PRIMARY KEY,
@@ -34,6 +49,7 @@ CREATE TABLE credentials (
 CREATE TABLE media_entries (
     id SERIAL PRIMARY KEY,
     provider_id INTEGER NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+    studio_id INTEGER REFERENCES studios(id) ON DELETE SET NULL,
     title VARCHAR(500),
     performers JSONB,
     tags JSONB,
@@ -43,6 +59,7 @@ CREATE TABLE media_entries (
     media_metadata JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+CREATE INDEX idx_media_entries_studio_id ON media_entries(studio_id);
 
 -- Local files table
 CREATE TABLE local_files (
@@ -67,6 +84,7 @@ CREATE TABLE download_queue (
     retry_count INTEGER DEFAULT 0,
     priority INTEGER DEFAULT 0,
     celery_task_id VARCHAR(255),
+    extraction_method VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -96,6 +114,7 @@ CREATE TABLE library_entries (
     id SERIAL PRIMARY KEY,
     provider_id INTEGER NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
     media_entry_id INTEGER REFERENCES media_entries(id),
+    studio_id INTEGER REFERENCES studios(id) ON DELETE SET NULL,
     title VARCHAR(500) NOT NULL,
     performers JSONB,
     tags JSONB,
@@ -110,6 +129,7 @@ CREATE TABLE library_entries (
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+CREATE INDEX idx_library_entries_studio_id ON library_entries(studio_id);
 
 -- Duplicate entries table
 CREATE TABLE duplicate_entries (
@@ -365,20 +385,6 @@ CREATE TABLE user_preferences (
 );
 CREATE INDEX idx_user_preferences_user_id ON user_preferences(user_id);
 
--- Studios table
-CREATE TABLE studios (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL UNIQUE,
-    logo_url TEXT,
-    url VARCHAR(500),
-    details TEXT,
-    tags JSONB,
-    is_network BOOLEAN DEFAULT FALSE,
-    parent_id INTEGER REFERENCES studios(id) ON DELETE SET NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-CREATE INDEX idx_studios_name ON studios(name);
-CREATE INDEX idx_studios_parent_id ON studios(parent_id);
 
 -- Live streams table
 CREATE TABLE live_streams (

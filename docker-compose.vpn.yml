@@ -1,4 +1,39 @@
+version: "3.8"
+
 services:
+  # VPN Sidecar container using Gluetun
+  # Gluetun is the industry standard for routing container traffic via Wireguard or OpenVPN.
+  vpn:
+    image: qmcgaw/gluetun:latest
+    container_name: voyarr-vpn
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      # Change this to your provider (e.g., mullvad, nordvpn, surfshark, custom, etc.)
+      - VPN_SERVICE_PROVIDER=mullvad
+      # Choose protocol: wireguard or openvpn
+      - VPN_TYPE=wireguard
+      # Replace with your credentials or private key
+      - WIREGUARD_PRIVATE_KEY=your_wireguard_private_key_here
+      - WIREGUARD_ADDRESSES=10.64.0.1/32
+      # Optional: specify location (e.g., Sweden)
+      - SERVER_COUNTRIES=Sweden
+      # Enable DNS leak protection
+      - DOT=on
+      - DNS_KEEP_NAMESERVER=on
+    ports:
+      # Expose backend port through the VPN container instead of the backend container
+      - "${PORT:-8000}:8000"
+      # Expose frontend port through the VPN container instead of the frontend container
+      - "${FRONTEND_PORT:-80}:80"
+      # Expose browserless port if needed locally
+      - "3000:3000"
+    restart: unless-stopped
+    networks:
+      - voyarr_network
+
   db:
     image: postgres:15-alpine
     container_name: voyarr-db
@@ -11,8 +46,6 @@ services:
       - voyarr-db-data:/var/lib/postgresql/data
       - voyarr-backups:/backups
       - ${APP_ROOT:-/opt/voyarr}/init.sql:/docker-entrypoint-initdb.d/init.sql
-    ports:
-      - "${POSTGRES_PORT:-}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-voyarr_user} -d $${POSTGRES_DB:-voyarr}"]
       interval: 10s
@@ -27,8 +60,6 @@ services:
     container_name: voyarr-redis
     environment:
       - TZ=${TZ:-UTC}
-    ports:
-      - "${REDIS_PORT:-}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -40,34 +71,37 @@ services:
   browserless:
     image: browserless/chrome:latest
     container_name: voyarr-browserless
+    # Route through the VPN container namespace to hide Playwright/headless traffic
+    network_mode: "service:vpn"
     environment:
       - TIMEOUT=60000
       - MAX_CONCURRENT_SESSIONS=10
       - TOKEN=${BROWSERLESS_TOKEN:-voyarr-secure-browserless-token}
-    ports:
-      - "3000:3000"
     restart: unless-stopped
-    networks:
-      - voyarr_network
+    depends_on:
+      - vpn
 
   backend:
     image: ghcr.io/gabrieljustinsider/voyarr-backend:latest
     container_name: voyarr-backend
     user: "${PUID:-1000}:${PGID:-1000}"
+    # Route backend through the VPN container namespace
+    network_mode: "service:vpn"
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-voyarr}}
+      # Since we share Gluetun's network namespace, we can contact other services on voyarr_network
+      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:5432/${POSTGRES_DB:-voyarr}}
       - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
-      - BROWSERLESS_URL=${BROWSERLESS_URL:-ws://browserless:3000}
+      - BROWSERLESS_URL=ws://127.0.0.1:3000
       - BROWSERLESS_TOKEN=${BROWSERLESS_TOKEN:-voyarr-secure-browserless-token}
       - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
       - MEDIA_ROOT=${MEDIA_ROOT:-/media/storage}
       - DEFAULT_DOWNLOAD_PATH=${DEFAULT_DOWNLOAD_PATH:-/media/storage/downloads}
       - MASTER_KEY=${MASTER_KEY}
       - SECRET_KEY=${SECRET_KEY}
-      - HOST=${HOST:-0.0.0.0}
-      - PORT=${PORT:-8000}
+      - HOST=127.0.0.1
+      - PORT=8000
       - ROOT_PATH=${ROOT_PATH:-}
-      - AUTO_PORT_FALLBACK=${AUTO_PORT_FALLBACK:-false}
+      - AUTO_PORT_FALLBACK=false
       - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000}
       - COOKIE_SAMESITE=${COOKIE_SAMESITE:-lax}
       - COOKIE_SECURE=${COOKIE_SECURE:-false}
@@ -75,36 +109,29 @@ services:
       - SSL_CERT_PATH=${SSL_CERT_PATH:-}
       - SSL_KEY_PATH=${SSL_KEY_PATH:-}
     volumes:
-      # Use custom volume for configuration, host path bindings for media
       - voyarr-config:/app/config
       - voyarr-backups:/app/backups
       - voyarr-certs:/app/certs:ro
       - ${MEDIA_ROOT_1:-${APP_ROOT:-/opt/voyarr}/media}:/media/storage
       - ${MEDIA_ROOT_2:-${APP_ROOT:-/opt/voyarr}/media_alt1}:/media/storage_alt1
       - ${MEDIA_ROOT_3:-${APP_ROOT:-/opt/voyarr}/media_alt2}:/media/storage_alt2
-    ports:
-      - "${PORT:-}:8000"
     depends_on:
       db:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-    networks:
-      - voyarr_network
+      vpn:
+        condition: service_started
 
   celery_worker:
     image: ghcr.io/gabrieljustinsider/voyarr-backend:latest
     container_name: voyarr-celery
     user: "${PUID:-1000}:${PGID:-1000}"
+    # Route through the VPN container namespace to hide download/scraping traffic
+    network_mode: "service:vpn"
     command: sh -c "mkdir -p /media/storage/logs && celery -A celery_app.celery_app worker --loglevel=${CELERY_LOG_LEVEL:-info} --logfile=/media/storage/logs/celery.log"
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-voyarr}}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:5432/${POSTGRES_DB:-voyarr}}
       - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
-      - BROWSERLESS_URL=${BROWSERLESS_URL:-ws://browserless:3000}
+      - BROWSERLESS_URL=ws://127.0.0.1:3000
       - BROWSERLESS_TOKEN=${BROWSERLESS_TOKEN:-voyarr-secure-browserless-token}
       - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
       - MEDIA_ROOT=${MEDIA_ROOT:-/media/storage}
@@ -123,22 +150,18 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "celery -A celery_app.celery_app inspect ping || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 15s
-    networks:
-      - voyarr_network
+      vpn:
+        condition: service_started
 
   celery_beat:
     image: ghcr.io/gabrieljustinsider/voyarr-backend:latest
     container_name: voyarr-celery-beat
     user: "${PUID:-1000}:${PGID:-1000}"
+    # Route through the VPN container namespace
+    network_mode: "service:vpn"
     command: sh -c "celery -A celery_app.celery_app beat --loglevel=${CELERY_LOG_LEVEL:-info} --pidfile=/tmp/celerybeat.pid"
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-voyarr}}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:5432/${POSTGRES_DB:-voyarr}}
       - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
       - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
       - TZ=${TZ:-UTC}
@@ -149,29 +172,23 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    networks:
-      - voyarr_network
-
+      vpn:
+        condition: service_started
 
   frontend:
     image: ghcr.io/gabrieljustinsider/voyarr-frontend:latest
     container_name: voyarr-frontend
+    # Route frontend through the VPN namespace so all local browser accesses go to the same host
+    network_mode: "service:vpn"
     environment:
+      # Since both backend and frontend are in Gluetun, they can contact each other via 127.0.0.1
       - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8000}
       - TZ=${TZ:-UTC}
-    ports:
-      - "${FRONTEND_PORT:-}:80"
     depends_on:
       backend:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost/ || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-    networks:
-      - voyarr_network
+        condition: service_started
+      vpn:
+        condition: service_started
 
 networks:
   voyarr_network:

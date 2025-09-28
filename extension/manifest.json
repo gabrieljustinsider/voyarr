@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Voyarr Remote",
-  "version": "1.11.0",
+  "version": "1.12.0",
   "description": "Voyarr companion extension for visual CSS mapping and remote control.",
   "permissions": [
     "activeTab",

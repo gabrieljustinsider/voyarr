@@ -61,6 +61,21 @@ export default function BackupManager() {
 
   const fileInputRef = useRef(null)
 
+  const fetchLocalBackups = async () => {
+    setLocalLoading(true)
+    try {
+      const res = await apiFetch(`${BACKUP_API}/local-list`)
+      if (res.ok) {
+        const data = await res.json()
+        setLocalBackups(data.backups || [])
+      }
+    } catch (err) {
+      console.error("Failed to fetch local backups:", err)
+    } finally {
+      setLocalLoading(false)
+    }
+  }
+
   useEffect(() => {
     // Fetch tables info
     apiFetch(`${BACKUP_API}/tables`)
@@ -76,21 +91,6 @@ export default function BackupManager() {
     // Fetch local backups saved on server
     fetchLocalBackups()
   }, [])
-
-  const fetchLocalBackups = async () => {
-    setLocalLoading(true)
-    try {
-      const res = await apiFetch(`${BACKUP_API}/local-list`)
-      if (res.ok) {
-        const data = await res.json()
-        setLocalBackups(data.backups || [])
-      }
-    } catch (err) {
-      console.error("Failed to fetch local backups:", err)
-    } finally {
-      setLocalLoading(false)
-    }
-  }
 
   const handleToggleTable = (tableName) => {
     setSelectedTables(prev => 

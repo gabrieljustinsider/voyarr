@@ -26,6 +26,7 @@ router = APIRouter(
 )
 
 from security import JWT_SECRET
+
 HMAC_KEY = (JWT_SECRET or "voyarr-fallback-secret").encode()
 
 
@@ -61,19 +62,26 @@ def get_backup_dir() -> str:
         return "/app/backups"
     else:
         from utils import get_primary_root
+
         primary_root = get_primary_root()
         return os.path.join(primary_root, "backups")
 
 
 def process_verify_and_decrypt(data: dict, password: Optional[str] = None) -> dict:
     if "type" not in data or "version" not in data:
-        return {"valid": False, "message": "Invalid backup format: missing required metadata fields"}
+        return {
+            "valid": False,
+            "message": "Invalid backup format: missing required metadata fields",
+        }
 
     is_encrypted = data.get("encrypted", False)
 
     if is_encrypted:
         if "salt" not in data or "ciphertext" not in data or "signature" not in data:
-            return {"valid": False, "message": "Invalid backup format: missing required encryption fields"}
+            return {
+                "valid": False,
+                "message": "Invalid backup format: missing required encryption fields",
+            }
 
         if not password:
             return {
@@ -81,7 +89,7 @@ def process_verify_and_decrypt(data: dict, password: Optional[str] = None) -> di
                 "encrypted": True,
                 "type": data["type"],
                 "timestamp": data.get("timestamp"),
-                "message": "Backup is valid but encrypted. Decryption passphrase required."
+                "message": "Backup is valid but encrypted. Decryption passphrase required.",
             }
 
         try:
@@ -96,7 +104,10 @@ def process_verify_and_decrypt(data: dict, password: Optional[str] = None) -> di
             # 2. Verify HMAC-SHA256 signature of ciphertext
             expected_sig = calculate_hmac(derived_key, ciphertext.encode())
             if not hmac.compare_digest(expected_sig, signature):
-                return {"valid": False, "message": "Signature verification failed: invalid password or tampered backup."}
+                return {
+                    "valid": False,
+                    "message": "Signature verification failed: invalid password or tampered backup.",
+                }
 
             # 3. Decrypt ciphertext
             cipher = Fernet(derived_key)
@@ -107,7 +118,10 @@ def process_verify_and_decrypt(data: dict, password: Optional[str] = None) -> di
             if checksum:
                 expected_checksum = hashlib.sha256(decrypted_bytes).hexdigest()
                 if expected_checksum != checksum:
-                    return {"valid": False, "message": "Integrity check failed: decrypted content checksum mismatch."}
+                    return {
+                        "valid": False,
+                        "message": "Integrity check failed: decrypted content checksum mismatch.",
+                    }
 
             decrypted_data = json.loads(decrypted_str)
 
@@ -131,12 +145,15 @@ def process_verify_and_decrypt(data: dict, password: Optional[str] = None) -> di
             "record_count": record_count,
             "checksum": checksum,
             "decrypted_data": decrypted_data,
-            "message": "Backup decrypted and verified successfully."
+            "message": "Backup decrypted and verified successfully.",
         }
 
     else:
         if "data" not in data:
-            return {"valid": False, "message": "Invalid backup format: missing backup data"}
+            return {
+                "valid": False,
+                "message": "Invalid backup format: missing backup data",
+            }
 
         signature = data.get("signature", "")
         checksum = data.get("checksum", "")
@@ -153,7 +170,10 @@ def process_verify_and_decrypt(data: dict, password: Optional[str] = None) -> di
         if checksum:
             expected_checksum = hashlib.sha256(data_str.encode()).hexdigest()
             if expected_checksum != checksum:
-                return {"valid": False, "message": "Integrity check failed: payload checksum mismatch."}
+                return {
+                    "valid": False,
+                    "message": "Integrity check failed: payload checksum mismatch.",
+                }
 
         if data["type"] == "settings":
             table_count = 1
@@ -172,7 +192,9 @@ def process_verify_and_decrypt(data: dict, password: Optional[str] = None) -> di
             "record_count": record_count,
             "checksum": checksum or hashlib.sha256(data_str.encode()).hexdigest(),
             "decrypted_data": data_payload,
-            "message": "Backup verified successfully." if verified_signature else "Backup verified successfully (unsigned or signature mismatch)."
+            "message": "Backup verified successfully."
+            if verified_signature
+            else "Backup verified successfully (unsigned or signature mismatch).",
         }
 
 
@@ -188,7 +210,7 @@ def export_backup(
     type: str = "full",
     tables: Optional[str] = None,
     password: Optional[str] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     if type == "settings":
         from models import Vault
@@ -246,20 +268,20 @@ def export_backup(
         ciphertext = cipher.encrypt(raw_str.encode()).decode()
         signature = calculate_hmac(derived_key, ciphertext.encode())
 
-        export_data.update({
-            "encrypted": True,
-            "salt": salt.hex(),
-            "ciphertext": ciphertext,
-            "signature": signature
-        })
+        export_data.update(
+            {
+                "encrypted": True,
+                "salt": salt.hex(),
+                "ciphertext": ciphertext,
+                "signature": signature,
+            }
+        )
     else:
         # Plaintext Mode with Server Signature
         signature = calculate_hmac(HMAC_KEY, raw_str.encode())
-        export_data.update({
-            "encrypted": False,
-            "data": raw_payload,
-            "signature": signature
-        })
+        export_data.update(
+            {"encrypted": False, "data": raw_payload, "signature": signature}
+        )
 
     return Response(
         content=json.dumps(export_data),
@@ -268,10 +290,7 @@ def export_backup(
 
 
 @router.post("/verify")
-def verify_backup(
-    file: UploadFile = File(...),
-    password: Optional[str] = Query(None)
-):
+def verify_backup(file: UploadFile = File(...), password: Optional[str] = Query(None)):
     try:
         content = file.file.read()
         backup_data = json.loads(content)
@@ -296,24 +315,31 @@ def verify_backup(
 def restore_backup(
     file: UploadFile = File(...),
     password: Optional[str] = Query(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     try:
         content = file.file.read()
         backup_data = json.loads(content)
     except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid backup format: not a valid JSON file")
+        raise HTTPException(
+            status_code=400, detail="Invalid backup format: not a valid JSON file"
+        )
 
     return execute_restore_logic(backup_data, password, db)
 
 
-def execute_restore_logic(backup_data: dict, password: Optional[str], db: Session) -> dict:
+def execute_restore_logic(
+    backup_data: dict, password: Optional[str], db: Session
+) -> dict:
     verify_result = process_verify_and_decrypt(backup_data, password)
     if not verify_result["valid"]:
         raise HTTPException(status_code=400, detail=verify_result["message"])
 
     if verify_result.get("encrypted") and not verify_result.get("decrypted_data"):
-        raise HTTPException(status_code=400, detail="Backup is encrypted. Please provide the passphrase.")
+        raise HTTPException(
+            status_code=400,
+            detail="Backup is encrypted. Please provide the passphrase.",
+        )
 
     btype = verify_result["type"]
     payload = verify_result["decrypted_data"]
@@ -418,7 +444,8 @@ def execute_restore_logic(backup_data: dict, password: Optional[str], db: Sessio
         db.rollback()
         print(f"Database restore error: {str(e)}")
         raise HTTPException(
-            status_code=500, detail=f"Restore failed due to an internal server error: {str(e)}"
+            status_code=500,
+            detail=f"Restore failed due to an internal server error: {str(e)}",
         )
 
 
@@ -433,30 +460,38 @@ def list_local_backups():
         for item in os.listdir(backup_dir):
             if item.endswith(".json"):
                 full_path = os.path.join(backup_dir, item)
-                files.append({
-                    "name": item,
-                    "path": full_path,
-                    "size": os.path.getsize(full_path),
-                    "created_at": datetime.fromtimestamp(os.path.getmtime(full_path)).isoformat()
-                })
+                files.append(
+                    {
+                        "name": item,
+                        "path": full_path,
+                        "size": os.path.getsize(full_path),
+                        "created_at": datetime.fromtimestamp(
+                            os.path.getmtime(full_path)
+                        ).isoformat(),
+                    }
+                )
         files.sort(key=lambda x: x["created_at"], reverse=True)
         return {"backups": files}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to list local backups: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to list local backups: {str(e)}"
+        )
 
 
 @router.post("/verify-local")
 def verify_local_backup(
-    filepath: str = Query(...),
-    password: Optional[str] = Query(None)
+    filepath: str = Query(...), password: Optional[str] = Query(None)
 ):
     backup_dir = get_backup_dir()
     abs_backup_dir = os.path.abspath(backup_dir)
     abs_filepath = os.path.abspath(filepath)
-    
+
     try:
         if os.path.commonpath([abs_backup_dir, abs_filepath]) != abs_backup_dir:
-            raise HTTPException(status_code=403, detail="Access denied: path lies outside backups folder boundary")
+            raise HTTPException(
+                status_code=403,
+                detail="Access denied: path lies outside backups folder boundary",
+            )
     except ValueError:
         raise HTTPException(status_code=403, detail="Access denied: invalid path")
 
@@ -468,7 +503,10 @@ def verify_local_backup(
             backup_data = json.load(f)
         return process_verify_and_decrypt(backup_data, password)
     except json.JSONDecodeError:
-        return {"valid": False, "message": "Invalid backup format: not a valid JSON file"}
+        return {
+            "valid": False,
+            "message": "Invalid backup format: not a valid JSON file",
+        }
     except Exception as e:
         return {"valid": False, "message": f"Verification failed: {str(e)}"}
 
@@ -477,15 +515,18 @@ def verify_local_backup(
 def restore_local_backup(
     filepath: str = Query(...),
     password: Optional[str] = Query(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     backup_dir = get_backup_dir()
     abs_backup_dir = os.path.abspath(backup_dir)
     abs_filepath = os.path.abspath(filepath)
-    
+
     try:
         if os.path.commonpath([abs_backup_dir, abs_filepath]) != abs_backup_dir:
-            raise HTTPException(status_code=403, detail="Access denied: path lies outside backups folder boundary")
+            raise HTTPException(
+                status_code=403,
+                detail="Access denied: path lies outside backups folder boundary",
+            )
     except ValueError:
         raise HTTPException(status_code=403, detail="Access denied: invalid path")
 
@@ -496,6 +537,8 @@ def restore_local_backup(
         with open(abs_filepath, "r") as f:
             backup_data = json.load(f)
     except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid backup format: not a valid JSON file")
+        raise HTTPException(
+            status_code=400, detail="Invalid backup format: not a valid JSON file"
+        )
 
     return execute_restore_logic(backup_data, password, db)
