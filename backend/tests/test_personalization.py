@@ -69,7 +69,7 @@ def restore_modules():
 
 # Mock user object for tests
 class MockUser:
-    id = 42
+    id = "usr_42"
     username = "admin_user"
     role = "admin"
     is_active = True
@@ -125,7 +125,7 @@ def setup_db_and_dependencies():
     db.add(provider)
 
     # 2. Seed default admin User
-    user = User(id=42, username="admin_user", role="admin", password_hash="dummy_hash")
+    user = User(id="usr_42", username="admin_user", role="admin", password_hash="dummy_hash")
     db.add(user)
 
     # 3. Seed default LibraryEntry
@@ -166,7 +166,7 @@ def test_favorites_toggle():
     # Check that it is actually in the db
     db = SessionLocal()
     fav = (
-        db.query(Favorite).filter_by(user_id=42, item_type="scene", item_id="1").first()
+        db.query(Favorite).filter_by(user_id="usr_42", item_type="scene", item_id="1").first()
     )
     assert fav is not None
     db.close()
@@ -182,7 +182,7 @@ def test_favorites_toggle():
     # Check that it is deleted from the db
     db = SessionLocal()
     fav = (
-        db.query(Favorite).filter_by(user_id=42, item_type="scene", item_id="1").first()
+        db.query(Favorite).filter_by(user_id="usr_42", item_type="scene", item_id="1").first()
     )
     assert fav is None
     db.close()
@@ -196,9 +196,9 @@ def test_favorites_toggle():
 
 def test_get_favorites():
     db = SessionLocal()
-    db.add(Favorite(user_id=42, item_type="scene", item_id="101"))
-    db.add(Favorite(user_id=42, item_type="performer", item_id="Jane Doe"))
-    db.add(Favorite(user_id=42, item_type="studio", item_id="Evil Corp"))
+    db.add(Favorite(user_id="usr_42", item_type="scene", item_id="101"))
+    db.add(Favorite(user_id="usr_42", item_type="performer", item_id="Jane Doe"))
+    db.add(Favorite(user_id="usr_42", item_type="studio", item_id="Evil Corp"))
     db.commit()
     db.close()
 
@@ -256,7 +256,7 @@ def test_user_stats_climax():
 
 def test_user_stats_video():
     db = SessionLocal()
-    db.add(UserVideoStats(user_id=42, library_entry_id=1, play_count=8, climax_count=4))
+    db.add(UserVideoStats(user_id="usr_42", library_entry_id=1, play_count=8, climax_count=4))
     db.commit()
     db.close()
 
@@ -358,14 +358,14 @@ def test_analytics_dashboard():
     # Add play history and stats
     db = SessionLocal()
     db.add(
-        UserVideoStats(user_id=42, library_entry_id=1, play_count=10, climax_count=5)
+        UserVideoStats(user_id="usr_42", library_entry_id=1, play_count=10, climax_count=5)
     )
     from models import UserHistory
     import datetime
 
     db.add(
         UserHistory(
-            user_id=42,
+            user_id="usr_42",
             library_entry_id=1,
             duration=500,
             completed=True,
@@ -541,7 +541,7 @@ def test_stash_stats_sync(mock_requests_post):
         )
         db.commit()
 
-    db.add(UserVideoStats(user_id=42, library_entry_id=1, play_count=5, climax_count=1))
+    db.add(UserVideoStats(user_id="usr_42", library_entry_id=1, play_count=5, climax_count=1))
     db.commit()
     db.close()
 
@@ -582,7 +582,7 @@ def test_stash_stats_sync(mock_requests_post):
 
     # Local stats should have been merged to maximums
     db = SessionLocal()
-    stats = db.query(UserVideoStats).filter_by(user_id=42, library_entry_id=1).first()
+    stats = db.query(UserVideoStats).filter_by(user_id="usr_42", library_entry_id=1).first()
     assert stats is not None
     assert stats.play_count == 5
     assert stats.climax_count == 2

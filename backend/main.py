@@ -34,6 +34,8 @@ from routers import (
     analytics,
     live_streams,
     p2p,
+    passkeys,
+    sso,
 )
 
 # Create tables
@@ -45,7 +47,7 @@ from utils import initialize_network_settings
 initialize_network_settings()
 
 app = FastAPI(
-    title="Voyarr API", version="1.12.0", root_path=os.getenv("ROOT_PATH", "")
+    title="Voyarr API", version="1.13.0", root_path=os.getenv("ROOT_PATH", "")
 )
 
 # CORS
@@ -152,6 +154,8 @@ app.include_router(studios.router)
 app.include_router(analytics.router)
 app.include_router(live_streams.router)
 app.include_router(p2p.router)
+app.include_router(passkeys.router)
+app.include_router(sso.router)
 
 
 @app.get("/")

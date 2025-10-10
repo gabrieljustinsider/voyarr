@@ -1,3 +1,4 @@
+import uuid
 from sqlalchemy import (
     Column,
     Integer,
@@ -23,12 +24,13 @@ Base = declarative_base()  # type: ignore
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True)
+    id = Column(String(64), primary_key=True, default=lambda: "usr_" + uuid.uuid4().hex)
     username = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
     role = Column(String(50), default="user")  # 'admin', 'user', 'viewer'
     is_active = Column(Boolean, default=True)
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
+
 
 
 class Provider(Base):
@@ -488,7 +490,7 @@ class UserVideoStats(Base):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(
-        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+        String(64), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     library_entry_id = Column(
         Integer,
@@ -513,7 +515,7 @@ class Favorite(Base):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(
-        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+        String(64), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     item_type = Column(
         String(50), nullable=False
@@ -527,7 +529,7 @@ class UserHistory(Base):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(
-        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+        String(64), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     library_entry_id = Column(
         Integer,
@@ -584,7 +586,7 @@ class NotificationPreference(Base):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(
-        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+        String(64), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     event_type = Column(String(50), nullable=False)
     dispatch_method = Column(String(50), nullable=False)
@@ -608,7 +610,7 @@ class NotificationLog(Base):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(
-        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+        String(64), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
     )
     event_type = Column(String(50), nullable=False)
     title = Column(String(255), nullable=False)
@@ -622,7 +624,7 @@ class UserPreference(Base):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(
-        Integer,
+        String(64),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         unique=True,
@@ -686,3 +688,50 @@ class PeerSyncLog(Base):
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
 
     peer = relationship("PeerNode", back_populates="sync_logs")
+
+
+class Passkey(Base):
+    __tablename__ = "passkeys"
+
+    id = Column(String(64), primary_key=True, default=lambda: "pk_" + uuid.uuid4().hex)
+    user_id = Column(
+        String(64), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name = Column(String(255), nullable=False)
+    credential_id = Column(Text, unique=True, nullable=False, index=True)
+    public_key = Column(Text, nullable=False)
+    sign_count = Column(Integer, default=0)
+    aaguid = Column(String(64), nullable=True)
+
+    # Metadata and logging
+    created_at = Column(TIMESTAMP, default=func.current_timestamp())
+    last_used_at = Column(TIMESTAMP, nullable=True)
+    ip_address = Column(String(45), nullable=True)  # IPv4/IPv6 support
+    location = Column(String(255), nullable=True)  # Mock/offline location
+
+    # Advanced browser details
+    browser = Column(String(100), nullable=True)
+    os_name = Column(String(100), nullable=True)
+    backup_eligible = Column(Boolean, default=True)
+    backup_state = Column(Boolean, default=True)
+
+    user = relationship("User")
+
+
+class SsoLink(Base):
+    __tablename__ = "sso_links"
+    __table_args__ = (
+        UniqueConstraint("provider", "provider_user_id", name="uix_provider_user"),
+    )
+
+    id = Column(String(64), primary_key=True, default=lambda: "sso_" + uuid.uuid4().hex)
+    user_id = Column(
+        String(64), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    provider = Column(String(50), nullable=False)  # 'google', 'github', 'discord'
+    provider_user_id = Column(String(255), nullable=False)
+    email = Column(String(255), nullable=True)
+    linked_at = Column(TIMESTAMP, default=func.current_timestamp())
+
+    user = relationship("User")
+

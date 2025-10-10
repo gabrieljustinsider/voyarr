@@ -64,7 +64,7 @@ def restore_modules():
 
 
 class MockUser:
-    id = 42
+    id = "usr_42"
     username = "admin_user"
     role = "admin"
     is_active = True
@@ -126,7 +126,7 @@ def setup_db_and_dependencies():
     db.add(pref)
 
     # 3. Seed default admin User
-    user = User(id=42, username="admin_user", role="admin", password_hash="dummy_hash")
+    user = User(id="usr_42", username="admin_user", role="admin", password_hash="dummy_hash")
     db.add(user)
 
     # 4. Seed default MediaEntry (needed for DownloadQueue)

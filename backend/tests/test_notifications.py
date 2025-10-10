@@ -55,7 +55,7 @@ def restore_modules():
 
 
 class MockUser:
-    id = 42
+    id = "usr_42"
     username = "admin_user"
     role = "admin"
     is_active = True
@@ -107,7 +107,7 @@ def setup_db_and_dependencies():
 
     db = TestSessionLocal()
     # Seed default admin User
-    user = User(id=42, username="admin_user", role="admin", password_hash="dummy_hash")
+    user = User(id="usr_42", username="admin_user", role="admin", password_hash="dummy_hash")
     db.add(user)
     db.commit()
     db.close()
@@ -240,14 +240,14 @@ def test_notification_history_and_read():
     db = SessionLocal()
     # Add some notification logs
     log1 = NotificationLog(
-        user_id=42,
+        user_id="usr_42",
         event_type="task_completed",
         title="Task Finished",
         message="Your download finished",
         read=False,
     )
     log2 = NotificationLog(
-        user_id=42,
+        user_id="usr_42",
         event_type="favorite_updated",
         title="Favorite Match",
         message="New movie match found",
