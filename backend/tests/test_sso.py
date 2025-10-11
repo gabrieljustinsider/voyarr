@@ -166,3 +166,13 @@ def test_sso_linking_and_login():
     user_db.password_hash = "dummy_password_hash"
     db.commit()
     db.close()
+
+    # Test SSO Lookup Endpoint
+    lookup_res = client.post("/auth/sso/lookup", json={"provider": "github", "email": "user@github.com"})
+    assert lookup_res.status_code == 200
+    assert lookup_res.json()["provider_user_id"] == "github_987654321"
+
+    # Test SSO Lookup Endpoint with non-existent email
+    lookup_fail_res = client.post("/auth/sso/lookup", json={"provider": "github", "email": "missing@github.com"})
+    assert lookup_fail_res.status_code == 404
+

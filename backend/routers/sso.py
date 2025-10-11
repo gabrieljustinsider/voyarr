@@ -179,3 +179,17 @@ def login_sso(
         "role": user.role,
         "username": user.username
     }
+
+class SsoLookupRequest(BaseModel):
+    provider: str
+    email: str
+
+@router.post("/lookup")
+def lookup_sso(req: SsoLookupRequest, db: Session = Depends(get_db)):
+    provider = req.provider.lower().strip()
+    email = req.email.lower().strip()
+    link = db.query(SsoLink).filter(SsoLink.provider == provider, SsoLink.email == email).first()
+    if not link:
+        raise HTTPException(status_code=404, detail="No linked SSO account found with this email.")
+    return {"provider_user_id": link.provider_user_id}
+
