@@ -79,9 +79,29 @@ def list_passkeys(current_user: User = Depends(get_current_user), db: Session = 
         })
     return result
 
+def get_rp_id(request: Request) -> str:
+    """
+    Extracts the relying party ID dynamically from the inbound HTTP request.
+    If the host is an IP address, localhost, or empty, we fall back to "localhost"
+    as WebAuthn RP IDs must be valid domain names excluding ports.
+    """
+    hostname = request.url.hostname
+    if not hostname:
+        return "localhost"
+    
+    # Check if the hostname is a raw IPv4 address or contains colons (IPv6) or is 'localhost'
+    import re
+    is_ip = re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", hostname) or ":" in hostname
+    
+    if is_ip or hostname == "localhost":
+        return "localhost"
+        
+    return hostname
+
 @router.post("/register/options")
-def register_options(current_user: User = Depends(get_current_user)):
-    options = generate_registration_options(current_user.id, current_user.username)
+def register_options(request: Request, current_user: User = Depends(get_current_user)):
+    rp_id = get_rp_id(request)
+    options = generate_registration_options(current_user.id, current_user.username, rp_id=rp_id)
     REGISTRATION_CHALLENGES[current_user.username] = options["challenge"]
     return options
 
@@ -133,7 +153,7 @@ def register_verify(
     return {"status": "success", "message": "Passkey registered successfully!"}
 
 @router.post("/login/options")
-def login_options(req: LoginOptionsRequest, db: Session = Depends(get_db)):
+def login_options(req: LoginOptionsRequest, request: Request, db: Session = Depends(get_db)):
     allowed_credentials = []
     if req.username:
         user = db.query(User).filter(User.username == req.username).first()
@@ -141,7 +161,8 @@ def login_options(req: LoginOptionsRequest, db: Session = Depends(get_db)):
             passkeys = db.query(Passkey).filter(Passkey.user_id == user.id).all()
             allowed_credentials = [pk.credential_id for pk in passkeys]
             
-    options = generate_assertion_options(allowed_credentials)
+    rp_id = get_rp_id(request)
+    options = generate_assertion_options(allowed_credentials, rp_id=rp_id)
     LOGIN_CHALLENGES[options["challenge"]] = datetime.now(timezone.utc)
     return options
 

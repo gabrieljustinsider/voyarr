@@ -180,3 +180,24 @@ def test_passkey_lifecycle():
     # Ensure list is now empty
     list_response3 = client.get("/auth/passkeys/")
     assert len(list_response3.json()) == 0
+
+
+def test_dynamic_rp_id_resolution():
+    # 1. Custom Domain (e.g. voyarr.tv)
+    headers_domain = {"Host": "voyarr.tv"}
+    response = client.post("/auth/passkeys/register/options", headers=headers_domain)
+    assert response.status_code == 200
+    assert response.json()["rp"]["id"] == "voyarr.tv"
+
+    # 2. Localhost fallback when hostname is localhost
+    headers_local = {"Host": "localhost:8000"}
+    response = client.post("/auth/passkeys/register/options", headers=headers_local)
+    assert response.status_code == 200
+    assert response.json()["rp"]["id"] == "localhost"
+
+    # 3. Fallback when hostname is IPv4
+    headers_ip = {"Host": "192.168.1.15:8000"}
+    response = client.post("/auth/passkeys/register/options", headers=headers_ip)
+    assert response.status_code == 200
+    assert response.json()["rp"]["id"] == "localhost"
+

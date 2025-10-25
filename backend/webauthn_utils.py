@@ -86,7 +86,7 @@ def resolve_ip_location(ip_address: str) -> str:
     return MOCK_LOCATIONS[idx]
 
 
-def generate_registration_options(user_id: str, username: str) -> dict:
+def generate_registration_options(user_id: str, username: str, rp_id: str = "localhost") -> dict:
     """Generates options for navigator.credentials.create in frontend."""
     challenge = base64.b64encode(secrets.token_bytes(32)).decode("utf-8").replace("=", "")
     
@@ -94,7 +94,7 @@ def generate_registration_options(user_id: str, username: str) -> dict:
         "challenge": challenge,
         "rp": {
             "name": "Voyarr Media Server",
-            "id": "localhost",
+            "id": rp_id,
         },
         "user": {
             "id": user_id,
@@ -115,19 +115,20 @@ def generate_registration_options(user_id: str, username: str) -> dict:
     }
 
 
-def generate_assertion_options(allowed_credentials: list) -> dict:
+def generate_assertion_options(allowed_credentials: list, rp_id: str = "localhost") -> dict:
     """Generates options for navigator.credentials.get in frontend."""
     challenge = base64.b64encode(secrets.token_bytes(32)).decode("utf-8").replace("=", "")
     
     return {
         "challenge": challenge,
         "timeout": 60000,
-        "rpId": "localhost",
+        "rpId": rp_id,
         "allowCredentials": [
             {"type": "public-key", "id": cred_id} for cred_id in allowed_credentials
         ],
         "userVerification": "preferred",
     }
+
 
 
 def verify_client_data_challenge(client_data_json_b64: str, expected_challenge: str) -> bool:
