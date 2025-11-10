@@ -113,25 +113,34 @@ export default function Analytics() {
     if (!reportData || !reportData.video_stats_breakdown) return
 
     const headers = ['Username', 'Video ID', 'Title', 'Play Count', 'Climax Count', 'Last Played']
+    
+    const sanitizeCSV = (str) => {
+      if (typeof str !== 'string') return str;
+      const cleanStr = str.replace(/"/g, '""');
+      if (cleanStr.match(/^[=\-+@]/)) return `"'${cleanStr}"`;
+      return `"${cleanStr}"`;
+    }
+
     const rows = reportData.video_stats_breakdown.map(item => [
-      item.username,
+      sanitizeCSV(item.username),
       item.video_id,
-      `"${item.title.replace(/"/g, '""')}"`,
+      sanitizeCSV(item.title),
       item.play_count,
       item.climax_count,
       item.last_played || ''
     ])
 
-    const csvContent = "data:text/csv;charset=utf-8," 
-      + [headers.join(','), ...rows.map(e => e.join(','))].join('\n')
-    
-    const encodedUri = encodeURI(csvContent)
+    const csvContent = [headers.join(','), ...rows.map(e => e.join(','))].join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+
     const link = document.createElement("a")
-    link.setAttribute("href", encodedUri)
+    link.setAttribute("href", url)
     link.setAttribute("download", `voyarr_analytics_report_${new Date().toISOString().split('T')[0]}.csv`)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+    URL.revokeObjectURL(url)
   }
 
   if (loading) {

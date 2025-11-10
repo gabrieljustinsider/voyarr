@@ -36,6 +36,7 @@ from routers import (
     p2p,
     passkeys,
     sso,
+    oidc,
 )
 
 # Create tables
@@ -56,11 +57,16 @@ app.add_middleware(
     allow_origins=[
         origin.strip()
         for origin in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+        if origin.strip()
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Session middleware required for OIDC OAuth state management
+from starlette.middleware.sessions import SessionMiddleware
+app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "change-me-in-production"))
 
 
 # Middleware to translate JWT to API Key for unified route protection
@@ -107,10 +113,11 @@ async def jwt_to_api_key_middleware(request: Request, call_next):
                     is_allowed = True
 
                 if is_allowed:
-                    headers = dict(request.scope["headers"])
+                    # Security: Strip any incoming forged headers to prevent HTTP Header Spoofing
+                    headers = [(k, v) for k, v in request.scope.get("headers", []) if k.lower() != b"x-voyarr-api-key"]
                     master_key = os.getenv("MASTER_KEY", "").encode()
-                    headers[b"x-voyarr-api-key"] = master_key
-                    request.scope["headers"] = [(k, v) for k, v in headers.items()]
+                    headers.append((b"x-voyarr-api-key", master_key))
+                    request.scope["headers"] = headers
                 else:
                     from fastapi.responses import JSONResponse
 
@@ -156,6 +163,7 @@ app.include_router(live_streams.router)
 app.include_router(p2p.router)
 app.include_router(passkeys.router)
 app.include_router(sso.router)
+app.include_router(oidc.router)
 
 
 @app.get("/")

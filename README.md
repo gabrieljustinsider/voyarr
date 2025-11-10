@@ -40,6 +40,81 @@ Voyarr automates the tedious parts of managing a local media library. From autom
 20. **Peer-to-Peer (P2P) Syncing & Reconciling:** Exchange CSS scraper recipes and reconcile library watch status/tags securely between remote Voyarr nodes over HTTP/HTTPS tunnels.
 21. **Relational Studio Database Modeling:** Organized flat text studio names into a fully normalized PostgreSQL `studios` model, providing robust metadata structures and tag relations.
 22. **Bulk Duplicate Merging Engine:** Resolve multiple visual duplicates programmatically using similarity-based algorithms (`KEEP_HIGHEST_QUALITY`, `KEEP_OLDEST`, `KEEP_NEWEST`).
+23. **Passwordless Passkeys (WebAuthn):** Fully secure, modern passwordless logins using biometric security keys. Includes browser and OS credentials detection (1Password, Bitwarden, iCloud Keychain, Google Password Manager), AAGUID manufacturer resolving, geographic location auditing, and WebAuthn Conditional UI (autofill mediation) support.
+24. **SSO Provider Fast-Access Linking:** Link Google, GitHub, and Discord accounts to standard user profiles, with automated lockout guards ensuring you can never unlink your sole authentication method.
+25. **Secure String User Identifiers:** Complete migration from sequential integer primary keys to randomly generated UUIDs prefixed with `usr_` to defend against user enumeration attacks.
+26. **OpenID Connect (OIDC) Integration:** Authenticate via any compliant OIDC provider including Keycloak, Authentik, Authelia, Azure AD / Entra ID, Okta, and Google Workspace. Users are auto-provisioned on first login.
+27. **Global Authentication Policy Controls:** Administrative switches to enable or disable Passkeys, SSO, and OIDC globally, with interactive setup notices and backend API enforcement.
+28. **Automatic Authentication Bypass:** Skip the login screen from trusted local network subnets (CIDR notation) or when behind a trusted reverse proxy (Authelia, Authentik, Cloudflare Access) that passes authenticated user headers.
+
+## 🔐 Authentication Policies & Administration
+
+Voyarr provides comprehensive, administrator-controlled authentication policies. All settings are managed from the **Settings → Account Security & Authentication** dashboard.
+
+### Enabling / Disabling Sign-In Methods
+
+| Method | Default | Description |
+|--------|---------|-------------|
+| **Passkeys (WebAuthn)** | ✅ Enabled | Passwordless biometric/hardware key authentication |
+| **SSO (Google, GitHub, Discord)** | ❌ Disabled | Social identity provider linking and fast-access login |
+| **OpenID Connect (OIDC)** | ❌ Disabled | Enterprise identity federation (Keycloak, Authentik, Azure AD, etc.) |
+
+Toggle any method ON or OFF from the admin dashboard. Disabled methods are hidden from the login screen and blocked at the API level.
+
+### Setting Up SSO Providers
+
+1. Navigate to **Settings → Account Security → Global Authentication Policies**.
+2. Toggle **Single Sign-On (SSO)** to ON.
+3. Follow the interactive setup notice that appears, which includes direct links to the developer portals for Google, GitHub, and Discord.
+4. In each provider's developer portal, create an OAuth application and note the **Client ID** and **Client Secret**.
+5. Add these credentials to your host `.env` file:
+   ```env
+   GOOGLE_CLIENT_ID=your_google_client_id
+   GOOGLE_CLIENT_SECRET=your_google_client_secret
+   GITHUB_CLIENT_ID=your_github_client_id
+   GITHUB_CLIENT_SECRET=your_github_client_secret
+   DISCORD_CLIENT_ID=your_discord_client_id
+   DISCORD_CLIENT_SECRET=your_discord_client_secret
+   ```
+6. Restart the backend container.
+
+### Setting Up OpenID Connect (OIDC)
+
+1. Toggle **OpenID Connect (OIDC)** to ON in the admin dashboard.
+2. In your identity provider (Keycloak, Authentik, Azure AD, Okta, etc.), register Voyarr as a new client application:
+   - **Redirect/Callback URI**: `http://<your-voyarr-host>:8000/auth/oidc/callback`
+   - **Scopes**: `openid email profile`
+3. Copy the **Client ID**, **Client Secret**, and **Discovery URL** into your `.env` file:
+   ```env
+   OIDC_CLIENT_ID=your_oidc_client_id
+   OIDC_CLIENT_SECRET=your_oidc_client_secret
+   OIDC_DISCOVERY_URL=https://auth.example.com/.well-known/openid-configuration
+   FRONTEND_URL=http://localhost:3000
+   ```
+4. Restart the backend. A "Sign In with OpenID Connect" button will appear on the login page.
+
+> [!NOTE]
+> Users authenticated via OIDC are automatically provisioned on their first login with the "user" role. Administrators can adjust roles afterward.
+
+### Configuring Automatic Authentication Bypass
+
+> [!WARNING]
+> Authentication bypass should only be enabled on isolated, private networks. If Voyarr is exposed to the internet, ensure your reverse proxy strips spoofed authentication headers.
+
+**Trusted Subnet Bypass:**
+1. Toggle **Trusted Subnet Bypass** to ON.
+2. Enter your trusted IP addresses or CIDR ranges (e.g., `127.0.0.1, 192.168.1.0/24, 10.0.0.0/8`).
+3. Enter the default username to auto-login as (this user must already exist in Voyarr).
+4. Users connecting from matching IPs will be automatically signed in.
+
+**Reverse Proxy Header Trust:**
+1. Toggle **Reverse Proxy Header Trust** to ON.
+2. Enter the trusted header name (default: `Remote-User`). Common values include:
+   - `Remote-User` (Authelia, Authentik)
+   - `X-Webauth-User` (Traefik Forward Auth)
+   - `X-Forwarded-User` (Cloudflare Access)
+3. Configure your reverse proxy to forward the authenticated username in this header.
+4. If the user does not exist in Voyarr, they are automatically provisioned with the "user" role.
 
 ## 🐳 Docker Configuration
 

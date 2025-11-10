@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { 
   Box, 
   Typography, 
@@ -56,11 +56,134 @@ export default function Login() {
   const [ssoEmail, setSsoEmail] = useState('')
   const [ssoLoading, setSsoLoading] = useState(false)
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
+  const [authConfig, setAuthConfig] = useState({ passkeys_enabled: true, sso_enabled: false, oidc_enabled: false, auth_bypass_enabled: false, auth_bypass_proxy_header_enabled: false })
+  const [authConfigLoaded, setAuthConfigLoaded] = useState(false)
 
   const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
 
-  // Keep an abort controller reference to cancel conflicting auth challenges
-  let autofillAbortController = new AbortController()
+  // Keep a persistent abort controller reference to cancel conflicting auth challenges
+  const autofillAbortRef = useRef(null)
+
+  useEffect(() => {
+    let active = true
+    const controller = new AbortController()
+    autofillAbortRef.current = controller
+
+    const initConditionalUI = async () => {
+      try {
+        if (
+          window.PublicKeyCredential &&
+          PublicKeyCredential.isConditionalMediationAvailable
+        ) {
+          const isAvailable = await PublicKeyCredential.isConditionalMediationAvailable()
+          if (isAvailable && active && authConfig.passkeys_enabled) {
+            // Fetch challenge assertion options from the backend (with null username for conditional flow)
+            const optionsRes = await fetch(`${API_BASE}/auth/passkeys/login/options`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ username: null })
+            })
+
+            if (!optionsRes.ok || !active) return
+
+            const options = await optionsRes.json()
+            options.challenge = base64ToBuffer(options.challenge)
+
+            if (options.allowCredentials) {
+              options.allowCredentials = options.allowCredentials.map(cred => ({
+                ...cred,
+                id: base64ToBuffer(cred.id)
+              }))
+            }
+
+            // Trigger conditional mediation (autofill suggestion list)
+            const assertion = await navigator.credentials.get({
+              publicKey: options,
+              mediation: 'conditional',
+              signal: controller.signal
+            })
+
+            if (assertion && active) {
+              const credentialId = assertion.id
+              const clientDataJSON = bufferToBase64(assertion.response.clientDataJSON)
+              const authenticatorData = bufferToBase64(assertion.response.authenticatorData)
+              const signature = bufferToBase64(assertion.response.signature)
+
+              const verifyPayload = {
+                credential_id: credentialId,
+                client_data_json: clientDataJSON,
+                authenticator_data: authenticatorData,
+                signature: signature
+              }
+
+              const verifyRes = await fetch(`${API_BASE}/auth/passkeys/login/verify`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(verifyPayload)
+              })
+
+              if (verifyRes.ok && active) {
+                const verifyData = await verifyRes.json()
+                localStorage.setItem('voyarr_jwt', verifyData.access_token)
+                setSnackbar({ open: true, message: 'Welcome back! Authenticated with Passkey autofill.', severity: 'success' })
+                setTimeout(() => {
+                  window.location.reload()
+                }, 800)
+              }
+            }
+          }
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError' && err.name !== 'NotAllowedError') {
+          console.error('Passkey autofill conditional error:', err)
+        }
+      }
+    }
+
+    initConditionalUI()
+
+    return () => {
+      active = false
+      controller.abort()
+    }
+  }, [authConfig.passkeys_enabled])
+
+  // Fetch public auth configuration on mount
+  useEffect(() => {
+    const fetchAuthConfig = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/auth/config`)
+        if (res.ok) {
+          const data = await res.json()
+          setAuthConfig(data)
+          setAuthConfigLoaded(true)
+
+          // Attempt autologin if bypass is enabled
+          if (data.auth_bypass_enabled || data.auth_bypass_proxy_header_enabled) {
+            try {
+              const autoRes = await fetch(`${API_BASE}/auth/autologin`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+              })
+              if (autoRes.ok) {
+                const autoData = await autoRes.json()
+                localStorage.setItem('voyarr_jwt', autoData.access_token)
+                setSnackbar({ open: true, message: 'Signed in automatically via trusted connection.', severity: 'success' })
+                setTimeout(() => { window.location.reload() }, 800)
+                return
+              }
+            } catch (autoErr) {
+              console.log('Autologin not applicable:', autoErr.message)
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch auth config:', err)
+        setAuthConfigLoaded(true)
+      }
+    }
+    fetchAuthConfig()
+  }, [])
 
   // Base64 helper converters (identical to Settings.jsx)
   const base64ToBuffer = (b64) => {
@@ -116,8 +239,10 @@ export default function Login() {
     setPasskeyLoading(true)
     
     // Abort pending client calls to avoid conflicts
-    autofillAbortController.abort()
-    autofillAbortController = new AbortController()
+    if (autofillAbortRef.current) {
+      autofillAbortRef.current.abort()
+    }
+    autofillAbortRef.current = new AbortController()
 
     try {
       // 1. Fetch challenge assertion options from the backend
@@ -148,7 +273,7 @@ export default function Login() {
       // 2. Trigger native WebAuthn Credential Request Prompt
       const assertion = await navigator.credentials.get({
         publicKey: options,
-        signal: autofillAbortController.signal
+        signal: autofillAbortRef.current.signal
       })
 
       if (!assertion) {
@@ -326,6 +451,7 @@ export default function Login() {
             value={username} 
             onChange={e => setUsername(e.target.value)} 
             placeholder="e.g. administrator"
+            autoComplete="username webauthn"
             required 
             InputProps={{
               startAdornment: (
@@ -375,6 +501,7 @@ export default function Login() {
           </Button>
         </form>
 
+        {authConfig.passkeys_enabled && (
         <Button 
           fullWidth 
           variant="outlined" 
@@ -396,7 +523,10 @@ export default function Login() {
         >
           {passkeyLoading ? 'Authenticating...' : 'Sign In with Passkey'}
         </Button>
+        )}
 
+        {(authConfig.sso_enabled || authConfig.oidc_enabled) && (
+        <>
         <Box sx={{ my: 3, display: 'flex', alignItems: 'center' }}>
           <Divider sx={{ flexGrow: 1, opacity: 0.2 }} />
           <Typography variant="caption" sx={{ px: 2, color: 'text.secondary', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '1px', fontSize: '0.7rem' }}>
@@ -406,7 +536,8 @@ export default function Login() {
         </Box>
 
         {/* SSO fast access badges grid */}
-        <Grid container spacing={2}>
+        {authConfig.sso_enabled && (
+        <Grid container spacing={2} sx={{ mb: authConfig.oidc_enabled ? 2 : 0 }}>
           <Grid item xs={4}>
             <Button 
               fullWidth 
@@ -465,6 +596,32 @@ export default function Login() {
             </Button>
           </Grid>
         </Grid>
+        )}
+
+        {/* OIDC Sign In */}
+        {authConfig.oidc_enabled && (
+          <Button
+            fullWidth
+            variant="outlined"
+            onClick={() => { window.location.href = `${API_BASE}/auth/oidc/login` }}
+            sx={{
+              py: 1.2,
+              borderRadius: '10px',
+              textTransform: 'none',
+              fontWeight: '600',
+              borderColor: 'rgba(255, 152, 0, 0.3)',
+              color: '#ffb74d',
+              '&:hover': {
+                borderColor: 'rgba(255, 152, 0, 0.5)',
+                backgroundColor: 'rgba(255, 152, 0, 0.05)'
+              }
+            }}
+          >
+            Sign In with OpenID Connect
+          </Button>
+        )}
+        </>
+        )}
       </Paper>
 
       {/* Simulated SSO Dialog */}

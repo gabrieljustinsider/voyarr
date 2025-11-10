@@ -2,7 +2,6 @@ import base64
 import hashlib
 import json
 import secrets
-import uuid
 
 # AAGUID Metadata dictionary mapping standard authenticators
 AAGUID_METADATA = {

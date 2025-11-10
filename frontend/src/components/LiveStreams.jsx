@@ -80,6 +80,18 @@ export default function LiveStreams() {
     return () => clearInterval(timer)
   }, [fetchStreams, checkAdmin])
 
+  // Cleanup HLS and Video safely on component unmount
+  useEffect(() => {
+    return () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy()
+      }
+      if (videoRef.current) {
+        videoRef.current.pause()
+      }
+    }
+  }, [])
+
   const handleOpenCreate = () => {
     setEditingId(null)
     setFormData({ name: '', url: '' })
@@ -274,7 +286,7 @@ export default function LiveStreams() {
 
         setTimeout(() => {
           const video = videoRef.current
-          if (!video) return
+          if (!video || !video.isConnected) return
 
           if (video.canPlayType('application/vnd.apple.mpegurl')) {
             // Safari native support
@@ -316,9 +328,17 @@ export default function LiveStreams() {
   const handleClosePlayer = () => {
     setPlayerOpen(false)
     setPlayingStream(null)
+    setPlayerError(null)
+    setPlayerLoading(false)
+
     if (hlsRef.current) {
       hlsRef.current.destroy()
       hlsRef.current = null
+    }
+    if (videoRef.current) {
+      videoRef.current.pause()
+      videoRef.current.removeAttribute('src')
+      videoRef.current.load()
     }
   }
 

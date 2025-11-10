@@ -67,8 +67,10 @@ export default function TranscodeQueue() {
           }
         }
       } catch (e) {
-        if (e.name !== 'AbortError') {
-          setTimeout(startSSE, 5000)
+        if (e.name !== 'AbortError' && !abortController.signal.aborted) {
+          setTimeout(() => {
+            if (!abortController.signal.aborted) startSSE()
+          }, 5000)
         }
       }
     }

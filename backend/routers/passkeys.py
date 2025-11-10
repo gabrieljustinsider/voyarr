@@ -5,14 +5,14 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models import Passkey, User
+from models import Passkey, User, Settings
 from routers.auth import get_current_user
-from security import ALGORITHM, JWT_SECRET, create_access_token
+from security import create_access_token
 from webauthn_utils import (
     generate_assertion_options,
     generate_registration_options,
@@ -25,6 +25,16 @@ from webauthn_utils import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth/passkeys", tags=["passkeys"])
+
+
+def _check_passkeys_enabled(db: Session):
+    """Raise HTTP 400 if Passkeys are disabled by the administrator. Passkeys are enabled by default."""
+    setting = db.query(Settings).filter(Settings.key == "passkeys_enabled").first()
+    if setting and setting.value.lower() != "true":
+        raise HTTPException(
+            status_code=400,
+            detail="Passkey (WebAuthn) authentication is currently disabled by the administrator.",
+        )
 
 # Global in-memory storage for active challenges to avoid database pollution
 REGISTRATION_CHALLENGES = {}
@@ -99,7 +109,8 @@ def get_rp_id(request: Request) -> str:
     return hostname
 
 @router.post("/register/options")
-def register_options(request: Request, current_user: User = Depends(get_current_user)):
+def register_options(request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _check_passkeys_enabled(db)
     rp_id = get_rp_id(request)
     options = generate_registration_options(current_user.id, current_user.username, rp_id=rp_id)
     REGISTRATION_CHALLENGES[current_user.username] = options["challenge"]
@@ -112,6 +123,7 @@ def register_verify(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    _check_passkeys_enabled(db)
     expected_challenge = REGISTRATION_CHALLENGES.pop(current_user.username, None)
     if not expected_challenge:
         raise HTTPException(status_code=400, detail="No active registration challenge found. Please request options first.")
@@ -154,6 +166,7 @@ def register_verify(
 
 @router.post("/login/options")
 def login_options(req: LoginOptionsRequest, request: Request, db: Session = Depends(get_db)):
+    _check_passkeys_enabled(db)
     allowed_credentials = []
     if req.username:
         user = db.query(User).filter(User.username == req.username).first()
@@ -173,6 +186,7 @@ def login_verify(
     response: Response,
     db: Session = Depends(get_db),
 ):
+    _check_passkeys_enabled(db)
     # Verify the challenge exists in active challenges
     try:
         # Decode clientDataJSON to read the challenge first

@@ -8,13 +8,24 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models import SsoLink, User, Passkey
+from models import SsoLink, User, Passkey, Settings
 from routers.auth import get_current_user
-from security import ALGORITHM, JWT_SECRET, create_access_token
+from security import create_access_token
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth/sso", tags=["sso"])
+
+
+def _check_sso_enabled(db: Session):
+    """Raise HTTP 400 if SSO is disabled by the administrator."""
+    setting = db.query(Settings).filter(Settings.key == "sso_enabled").first()
+    if not setting or setting.value.lower() != "true":
+        raise HTTPException(
+            status_code=400,
+            detail="Single Sign-On (SSO) is currently disabled by the administrator.",
+        )
+
 
 class SsoLinkRequest(BaseModel):
     provider: str = Field(..., description="Provider name: google, github, discord")
@@ -47,6 +58,7 @@ def link_sso(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    _check_sso_enabled(db)
     req.provider = req.provider.lower().strip()
     if req.provider not in ("google", "github", "discord"):
         raise HTTPException(status_code=400, detail="Unsupported SSO provider.")
@@ -133,6 +145,7 @@ def login_sso(
     response: Response,
     db: Session = Depends(get_db),
 ):
+    _check_sso_enabled(db)
     req.provider = req.provider.lower().strip()
     sso_link = db.query(SsoLink).filter(
         SsoLink.provider == req.provider,
@@ -186,6 +199,7 @@ class SsoLookupRequest(BaseModel):
 
 @router.post("/lookup")
 def lookup_sso(req: SsoLookupRequest, db: Session = Depends(get_db)):
+    _check_sso_enabled(db)
     provider = req.provider.lower().strip()
     email = req.email.lower().strip()
     link = db.query(SsoLink).filter(SsoLink.provider == provider, SsoLink.email == email).first()

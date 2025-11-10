@@ -1,9 +1,7 @@
 import os
-import sys
 import base64
 import json
 import hashlib
-from datetime import datetime, timezone
 
 # Configure test database in memory
 os.environ["DATABASE_URL"] = "sqlite:///file:testdb_passkeys?mode=memory&cache=shared"
@@ -17,10 +15,9 @@ from sqlalchemy.orm import sessionmaker
 
 import database
 from main import app
-from database import SessionLocal, get_db
-from models import Base, User, Passkey
+from database import get_db
+from models import Base, User
 from routers.auth import get_current_user
-from dependencies import verify_api_key
 
 # Set up test DB
 test_engine = create_engine(

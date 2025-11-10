@@ -24,6 +24,8 @@ pydantic
 pydantic-settings
 python-jose[cryptography]
 passlib[bcrypt]
+authlib
+itsdangerous
 
 # Integrations & External API Requests (StashDB, 1Password, Webhooks)
 httpx

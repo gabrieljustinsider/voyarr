@@ -1,5 +1,4 @@
 import os
-import sys
 
 # Configure test database in memory
 os.environ["DATABASE_URL"] = "sqlite:///file:testdb_sso?mode=memory&cache=shared"
@@ -13,8 +12,8 @@ from sqlalchemy.orm import sessionmaker
 
 import database
 from main import app
-from database import SessionLocal, get_db
-from models import Base, User, SsoLink
+from database import get_db
+from models import Base, User, Settings
 from routers.auth import get_current_user
 
 # Set up test DB
@@ -58,6 +57,8 @@ def setup_db_and_dependencies():
     Base.metadata.create_all(bind=test_engine)
     
     db = TestSessionLocal()
+    # Seed SSO enabled flag since SSO is off by default
+    db.add(Settings(key="sso_enabled", value="true"))
     # Create test user WITH a password hash
     user = User(
         id="usr_sso_test_42",

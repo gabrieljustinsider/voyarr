@@ -122,6 +122,7 @@ services:
 29. ~~**Relational Studio Database Schema (v1.12.0+):** Replaced flat text studio names with a robust normalized, relational table `studios` mapped across all media index types.~~
 30. ~~**Bulk Duplicate Detection & Resolution (v1.12.0+):** Batch perceptual hash merge manager with automated resolution algorithms (highest quality, oldest, newest).~~
 31. ~~**Customizable Network Settings & VPN Sidecar Integration (v1.12.0+):** Full support for global HTTP/HTTPS/SOCKS5 proxies, custom outbound User-Agents, active diagnostic scorecards, secure Vault credential storage, and turnkey Gluetun VPN container definitions.~~
+32. ~~**Secure Random User IDs, Passkeys (WebAuthn) & SSO Provider Linking (v1.13.0):** Complete migration to secure non-enumerable string User IDs (prefixed with "usr_"), enterprise-grade passwordless passkeys (WebAuthn) with CRUD features, AAGUID mapping, reverse-geocoded location auditing, external SSO Google/GitHub/Discord integration, and WebAuthn Conditional UI (autofill mediation) support.~~
 
 ---
 
@@ -187,6 +188,21 @@ To prevent scraper blocks, protect local hosts from ISP inspection, and bypass g
 - **Hot-Reloadable Core Loader**: Resolves global proxy switches, retrieves and decrypts sensitive SOCKS5/HTTP credentials from the secure `Vault`, and dynamically maps variables inside the FastAPI and Celery processes without container restarts.
 - **Interactive Routing Diagnostics**: A live, multi-service routing check sequentially verifying exit node latencies, public outbound exit IPs, and active proxy health scores to provide instant scorecard feedback in the Settings UI.
 - **Turnkey VPN Sidecars**: Integrates with Gluetun, routing all scraping requests (Python and Playwright Chromium contexts) and download daemons through an isolated VPN namespace.
+
+---
+
+### **5. Secure Identity & Passkeys (WebAuthn) Architecture (v1.13.0)**
+
+Voyarr v1.13.0 implements enterprise-grade passwordless authentication, third-party identity synchronization, and secure non-enumerable User IDs:
+- **Secure String User IDs**: Replaced all sequential auto-incrementing integer keys (`1`, `2`, `3`) with cryptographically secure, randomly generated UUIDs prefixed with `"usr_"` (e.g., `usr_5d78a9c...`). This completely eliminates User scanning, horizontal privilege scanning, and account enumeration vulnerabilities.
+- **Passkeys (WebAuthn) CRUD Lifecycle**:
+  - Uses standard browser `navigator.credentials.create()` for registering biometric/security keys and `navigator.credentials.get()` for assertions.
+  - **AAGUID Metadata Badge Scoring**: Fully scans the attestation binary blocks during registration to parse the AAGUID, mapping it to specific device vendor brands (Apple iCloud Keychain, Google Password Manager, Windows Hello, YubiKey 5 NFC) and rendering authentic brand icons in the UI.
+  - **IP and Geo Auditing**: Logs registration/usage timestamps, IPv4 addresses, and performs offline IP-to-location geocoding (e.g., "Chicago, IL, USA") to record session access footprints.
+  - **Inline Renaming**: Allows inline, double-click name editing and credentials revocation within the Settings panel.
+- **SSO Provider Fast-Access Linking**: Integrates Google, GitHub, and Discord OAuth fast-access logins. Incorporates account lockout checks that reject unlinking requests if the provider represents the user's last remaining authentication credential.
+- **WebAuthn Conditional UI (Autofill Integration)**: Features native browser autocomplete integration using `autoComplete="username webauthn"`. An async mount listener schedules conditional mediation queries via `navigator.credentials.get({ publicKey: options, mediation: "conditional", signal })`, allowing instantaneous biometric logins directly from the username input dropdown without clicking button prompts.
+- **Autofill Collision Guards**: Uses persistent React `AbortController` references to terminate outstanding conditional autofill listeners before dispatching explicit manual security challenges, bypassing native selector crashes.
 
 ---
 

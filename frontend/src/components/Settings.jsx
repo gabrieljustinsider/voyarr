@@ -13,6 +13,10 @@ import AddIcon from '@mui/icons-material/Add'
 import LinkIcon from '@mui/icons-material/Link'
 import LinkOffIcon from '@mui/icons-material/LinkOff'
 import SecurityIcon from '@mui/icons-material/Security'
+import WarningAmberIcon from '@mui/icons-material/WarningAmber'
+import TuneIcon from '@mui/icons-material/Tune'
+import LanIcon from '@mui/icons-material/Lan'
+import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import { apiFetch } from '../api'
 import PathPicker from './PathPicker'
 import InlineTextField from './InlineTextField'
@@ -91,7 +95,15 @@ export default function Settings() {
     discord_allowed_users: '',
     global_proxy_enabled: 'false',
     global_proxy_url: '',
-    global_user_agent: ''
+    global_user_agent: '',
+    passkeys_enabled: 'true',
+    sso_enabled: 'false',
+    oidc_enabled: 'false',
+    auth_bypass_enabled: 'false',
+    auth_bypass_subnets: '127.0.0.1',
+    auth_bypass_default_user: '',
+    auth_bypass_proxy_header_enabled: 'false',
+    auth_bypass_proxy_header_name: 'Remote-User'
   })
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
   const [apiKeys, setApiKeys] = useState([])
@@ -228,7 +240,12 @@ export default function Settings() {
 
   // WebAuthn Client Helpers
   const base64ToBuffer = (b64) => {
-    const bin = window.atob(b64.replace(/-/g, '+').replace(/_/g, '/'))
+    let base64 = b64.replace(/-/g, '+').replace(/_/g, '/');
+    const pad = base64.length % 4;
+    if (pad) {
+      base64 += new Array(5 - pad).join('=');
+    }
+    const bin = window.atob(base64)
     const len = bin.length
     const bytes = new Uint8Array(len)
     for (let i = 0; i < len; i++) {
@@ -522,7 +539,9 @@ export default function Settings() {
     localStorage.setItem('voyarr_api_key', masterKeyInput)
     setSnackbar({ open: true, message: 'Master Key saved to browser securely!', severity: 'success' })
     // Refresh data with new key to force an updated fetch
-    window.location.reload()
+    setTimeout(() => {
+      window.location.reload()
+    }, 1000)
   }
 
   const handleCreateUser = async () => {
@@ -1280,6 +1299,214 @@ export default function Settings() {
                 </Grid>
               )
             })}
+          </Grid>
+        </Box>
+
+        <Divider sx={{ my: 3, opacity: 0.2 }} />
+
+        {/* Authentication Policies */}
+        <Box sx={{ mb: 4 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <TuneIcon color="info" />
+            <Typography variant="subtitle1" sx={{ fontWeight: '600' }}>Global Authentication Policies</Typography>
+          </Box>
+          <Typography variant="body2" sx={{ mb: 2, opacity: 0.7 }} color="textSecondary">
+            Control which sign-in methods are available on the login screen. Disabling an option will hide it from users and block API requests.
+          </Typography>
+
+          <Grid container spacing={2} sx={{ mb: 2 }}>
+            <Grid item xs={12} md={4}>
+              <Paper sx={{ p: 2, borderRadius: '12px', backgroundColor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <FormControlLabel
+                  control={<Switch checked={settings.passkeys_enabled === 'true'} onChange={e => handleToggleSetting('passkeys_enabled', e.target.checked)} color="secondary" />}
+                  label={<Typography variant="body2" sx={{ fontWeight: 600 }}>Passkey Authentication</Typography>}
+                />
+                <Typography variant="caption" sx={{ display: 'block', mt: 0.5, opacity: 0.5 }} color="textSecondary">
+                  WebAuthn / FIDO2 passwordless logins
+                </Typography>
+              </Paper>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Paper sx={{ p: 2, borderRadius: '12px', backgroundColor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <FormControlLabel
+                  control={<Switch checked={settings.sso_enabled === 'true'} onChange={e => handleToggleSetting('sso_enabled', e.target.checked)} color="primary" />}
+                  label={<Typography variant="body2" sx={{ fontWeight: 600 }}>Single Sign-On (SSO)</Typography>}
+                />
+                <Typography variant="caption" sx={{ display: 'block', mt: 0.5, opacity: 0.5 }} color="textSecondary">
+                  Google, GitHub, Discord providers
+                </Typography>
+              </Paper>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Paper sx={{ p: 2, borderRadius: '12px', backgroundColor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <FormControlLabel
+                  control={<Switch checked={settings.oidc_enabled === 'true'} onChange={e => handleToggleSetting('oidc_enabled', e.target.checked)} color="primary" />}
+                  label={<Typography variant="body2" sx={{ fontWeight: 600 }}>OpenID Connect (OIDC)</Typography>}
+                />
+                <Typography variant="caption" sx={{ display: 'block', mt: 0.5, opacity: 0.5 }} color="textSecondary">
+                  Keycloak, Authentik, Azure AD, etc.
+                </Typography>
+              </Paper>
+            </Grid>
+          </Grid>
+
+          {/* Passkeys Notice */}
+          {settings.passkeys_enabled === 'true' && (
+            <Box sx={{
+              p: 2, mb: 2, borderRadius: '12px',
+              background: 'linear-gradient(135deg, rgba(0, 230, 118, 0.06) 0%, rgba(0, 176, 255, 0.04) 100%)',
+              border: '1px solid rgba(0, 230, 118, 0.15)'
+            }}>
+              <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#00e676', display: 'block', mb: 0.5 }}>ℹ️ Passkey Requirements</Typography>
+              <Typography variant="caption" sx={{ opacity: 0.8, lineHeight: 1.6 }} color="textSecondary">
+                WebAuthn requires <strong>HTTPS</strong> or <strong>localhost</strong>. The Relying Party (RP) ID is automatically derived from the browser's hostname. Password managers like 1Password, Bitwarden, iCloud Keychain, and Google Password Manager will automatically be triggered during passkey creation and authentication.
+              </Typography>
+            </Box>
+          )}
+
+          {/* SSO Notice */}
+          {settings.sso_enabled === 'true' && (
+            <Box sx={{
+              p: 2, mb: 2, borderRadius: '12px',
+              background: 'linear-gradient(135deg, rgba(63, 81, 181, 0.08) 0%, rgba(156, 39, 176, 0.05) 100%)',
+              border: '1px solid rgba(63, 81, 181, 0.2)'
+            }}>
+              <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#7c8dff', display: 'block', mb: 0.5 }}>ℹ️ SSO Configuration Required</Typography>
+              <Typography variant="caption" component="div" sx={{ opacity: 0.8, lineHeight: 1.8 }} color="textSecondary">
+                To enable SSO providers, configure the following environment variables in your host <code>.env</code> file and restart the backend:
+                <Box component="ul" sx={{ mt: 1, pl: 2, mb: 0 }}>
+                  <li><code>GOOGLE_CLIENT_ID</code> / <code>GOOGLE_CLIENT_SECRET</code> — from <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener" style={{ color: '#7c8dff' }}>Google Cloud Console <OpenInNewIcon sx={{ fontSize: 12, verticalAlign: 'middle' }} /></a></li>
+                  <li><code>GITHUB_CLIENT_ID</code> / <code>GITHUB_CLIENT_SECRET</code> — from <a href="https://github.com/settings/developers" target="_blank" rel="noopener" style={{ color: '#7c8dff' }}>GitHub Developer Settings <OpenInNewIcon sx={{ fontSize: 12, verticalAlign: 'middle' }} /></a></li>
+                  <li><code>DISCORD_CLIENT_ID</code> / <code>DISCORD_CLIENT_SECRET</code> — from <a href="https://discord.com/developers/applications" target="_blank" rel="noopener" style={{ color: '#7c8dff' }}>Discord Developer Portal <OpenInNewIcon sx={{ fontSize: 12, verticalAlign: 'middle' }} /></a></li>
+                </Box>
+              </Typography>
+            </Box>
+          )}
+
+          {/* OIDC Notice */}
+          {settings.oidc_enabled === 'true' && (
+            <Box sx={{
+              p: 2, mb: 2, borderRadius: '12px',
+              background: 'linear-gradient(135deg, rgba(255, 152, 0, 0.08) 0%, rgba(255, 87, 34, 0.05) 100%)',
+              border: '1px solid rgba(255, 152, 0, 0.2)'
+            }}>
+              <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#ffb74d', display: 'block', mb: 0.5 }}>ℹ️ OIDC Configuration Required</Typography>
+              <Typography variant="caption" component="div" sx={{ opacity: 0.8, lineHeight: 1.8 }} color="textSecondary">
+                Configure these environment variables in your host <code>.env</code> file:
+                <Box component="ul" sx={{ mt: 1, pl: 2, mb: 0 }}>
+                  <li><code>OIDC_CLIENT_ID</code> — The client ID from your identity provider</li>
+                  <li><code>OIDC_CLIENT_SECRET</code> — The client secret from your identity provider</li>
+                  <li><code>OIDC_DISCOVERY_URL</code> — The OpenID Connect discovery endpoint (e.g., <code>https://auth.example.com/.well-known/openid-configuration</code>)</li>
+                </Box>
+                <Box sx={{ mt: 1 }}>
+                  Set the <strong>Callback/Redirect URI</strong> in your identity provider to: <code>{`${window.location.protocol}//${window.location.hostname}:8000/auth/oidc/callback`}</code>
+                </Box>
+                <Box sx={{ mt: 1 }}>
+                  Compatible with: Keycloak, Authentik, Authelia, Azure AD / Entra ID, Okta, Google Workspace, and any OpenID Connect compliant provider.
+                </Box>
+              </Typography>
+            </Box>
+          )}
+        </Box>
+
+        <Divider sx={{ my: 3, opacity: 0.2 }} />
+
+        {/* Automatic Authentication Bypass (Autologin) */}
+        <Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <LanIcon color="warning" />
+            <Typography variant="subtitle1" sx={{ fontWeight: '600' }}>Automatic Authentication Bypass</Typography>
+          </Box>
+          <Typography variant="body2" sx={{ mb: 2, opacity: 0.7 }} color="textSecondary">
+            Allow users to skip the login screen entirely when connecting from a trusted network or through a trusted reverse proxy.
+          </Typography>
+
+          {(settings.auth_bypass_enabled === 'true' || settings.auth_bypass_proxy_header_enabled === 'true') && (
+            <Box sx={{
+              p: 2, mb: 3, borderRadius: '12px',
+              background: 'linear-gradient(135deg, rgba(255, 152, 0, 0.12) 0%, rgba(244, 67, 54, 0.08) 100%)',
+              border: '1px solid rgba(255, 152, 0, 0.3)',
+              display: 'flex', alignItems: 'flex-start', gap: 1.5
+            }}>
+              <WarningAmberIcon sx={{ color: '#ff9800', mt: 0.2 }} />
+              <Box>
+                <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#ff9800', display: 'block', mb: 0.5 }}>⚠️ Security Warning</Typography>
+                <Typography variant="caption" sx={{ opacity: 0.9, lineHeight: 1.6 }} color="textSecondary">
+                  Authentication bypass should only be enabled on isolated, private networks. If you are exposing Voyarr to the internet, ensure your reverse proxy strips any spoofed authentication headers from external requests. Misconfigured bypass settings can allow unauthorized access.
+                </Typography>
+              </Box>
+            </Box>
+          )}
+
+          <Grid container spacing={2}>
+            {/* Trusted Subnet Bypass */}
+            <Grid item xs={12} md={6}>
+              <Paper sx={{ p: 2, borderRadius: '12px', backgroundColor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', height: '100%' }}>
+                <FormControlLabel
+                  control={<Switch checked={settings.auth_bypass_enabled === 'true'} onChange={e => handleToggleSetting('auth_bypass_enabled', e.target.checked)} color="warning" />}
+                  label={<Typography variant="body2" sx={{ fontWeight: 600 }}>Trusted Subnet Bypass</Typography>}
+                />
+                <Typography variant="caption" sx={{ display: 'block', mb: 2, opacity: 0.5 }} color="textSecondary">
+                  Auto-login when connecting from a trusted IP range (e.g., your home LAN).
+                </Typography>
+
+                {settings.auth_bypass_enabled === 'true' && (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                    <TextField
+                      size="small"
+                      label="Trusted Subnets (comma-separated)"
+                      placeholder="127.0.0.1, 192.168.1.0/24, 10.0.0.0/8"
+                      value={settings.auth_bypass_subnets}
+                      onChange={e => setSettings(prev => ({ ...prev, auth_bypass_subnets: e.target.value }))}
+                      onBlur={() => handleSave('auth_bypass_subnets', settings.auth_bypass_subnets)}
+                      helperText="IPv4/IPv6 addresses or CIDR notation"
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+                    />
+                    <TextField
+                      size="small"
+                      label="Default Auto-Login Username"
+                      placeholder="e.g. local_viewer"
+                      value={settings.auth_bypass_default_user}
+                      onChange={e => setSettings(prev => ({ ...prev, auth_bypass_default_user: e.target.value }))}
+                      onBlur={() => handleSave('auth_bypass_default_user', settings.auth_bypass_default_user)}
+                      helperText="The user account to sign in as automatically"
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+                    />
+                  </Box>
+                )}
+              </Paper>
+            </Grid>
+
+            {/* Reverse Proxy Header Trust */}
+            <Grid item xs={12} md={6}>
+              <Paper sx={{ p: 2, borderRadius: '12px', backgroundColor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', height: '100%' }}>
+                <FormControlLabel
+                  control={<Switch checked={settings.auth_bypass_proxy_header_enabled === 'true'} onChange={e => handleToggleSetting('auth_bypass_proxy_header_enabled', e.target.checked)} color="warning" />}
+                  label={<Typography variant="body2" sx={{ fontWeight: 600 }}>Reverse Proxy Header Trust</Typography>}
+                />
+                <Typography variant="caption" sx={{ display: 'block', mb: 2, opacity: 0.5 }} color="textSecondary">
+                  Trust an HTTP header set by your reverse proxy (Authelia, Authentik, Cloudflare Access) to auto-login.
+                </Typography>
+
+                {settings.auth_bypass_proxy_header_enabled === 'true' && (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                    <TextField
+                      size="small"
+                      label="Trusted Header Name"
+                      placeholder="Remote-User"
+                      value={settings.auth_bypass_proxy_header_name}
+                      onChange={e => setSettings(prev => ({ ...prev, auth_bypass_proxy_header_name: e.target.value }))}
+                      onBlur={() => handleSave('auth_bypass_proxy_header_name', settings.auth_bypass_proxy_header_name)}
+                      helperText="Common headers: Remote-User, X-Webauth-User, X-Forwarded-User"
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+                    />
+                    <Typography variant="caption" sx={{ opacity: 0.6, lineHeight: 1.5 }} color="textSecondary">
+                      If the specified user does not exist, a new account will be auto-provisioned with the "user" role.
+                    </Typography>
+                  </Box>
+                )}
+              </Paper>
+            </Grid>
           </Grid>
         </Box>
       </Paper>

@@ -23,7 +23,11 @@ export default function LogsViewer() {
       authQuery = `api_key=${encodeURIComponent(headers['X-Voyarr-Api-Key'])}`
     }
 
-    const wsUrl = API_BASE.replace(/^http/, 'ws') + `/logs/ws?source=${logSource}&${authQuery}`
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = API_BASE.startsWith('http') 
+      ? API_BASE.replace(/^https?/, protocol.replace(':', '')) + `/logs/ws?source=${logSource}&${authQuery}`
+      : `${protocol}//${window.location.host}${API_BASE}/logs/ws?source=${logSource}&${authQuery}`;
+
     const ws = new WebSocket(wsUrl)
     wsRef.current = ws
 
@@ -39,14 +43,12 @@ export default function LogsViewer() {
     }
 
     return () => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.close()
-      }
+      ws.close()
     }
   }, [logSource])
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    bottomRef.current?.scrollIntoView() // Remove smooth scrolling to prevent animation queue thrashing on high volume logs
   }, [logs, logLevel, searchQuery])
 
   const clearLogs = async () => {

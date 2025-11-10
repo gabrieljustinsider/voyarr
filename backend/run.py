@@ -5,36 +5,28 @@ import uvicorn
 import logging
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format="%(levelname)s:     %(message)s")
+logging.basicConfig(level=logging.INFO, format='%(levelname)s:     %(message)s')
 logger = logging.getLogger("voyarr.start")
-
 
 def is_port_in_use(port: int, host: str = "0.0.0.0") -> bool:  # nosec B104
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        try:
-            s.bind((host, port))
-            return False
-        except socket.error:
-            return True
-
+        return s.connect_ex((host, port)) == 0
 
 def main():
     host = os.getenv("HOST", "0.0.0.0")  # nosec B104
     port_env = os.getenv("PORT", "8000")
-
+    
     try:
         port = int(port_env)
     except ValueError:
-        logger.error(
-            f"Invalid PORT environment variable: {port_env}. Must be an integer."
-        )
+        logger.error(f"Invalid PORT environment variable: {port_env}. Must be an integer.")
         sys.exit(1)
 
     if is_port_in_use(port, host):
         logger.warning(f"Port {port} is already in use on {host}.")
-
+        
         auto_alt = os.getenv("AUTO_PORT_FALLBACK", "false").lower() == "true"
-
+        
         if auto_alt:
             original_port = port
             # Try next 10 ports
@@ -44,50 +36,36 @@ def main():
                     port = alt_port
                     break
             else:
-                logger.error(
-                    f"Could not find an available port near {original_port}. Please free up port {original_port} or manually set a different PORT."
-                )
+                logger.error(f"Could not find an available port near {original_port}. Please free up port {original_port} or manually set a different PORT.")
                 sys.exit(1)
         else:
-            logger.error(
-                f"Port {port} is already in use. Please check if another instance is running, or change the PORT environment variable in your .env file."
-            )
-            logger.info(
-                "Tip: You can enable automatic fallback by setting AUTO_PORT_FALLBACK=true"
-            )
+            logger.error(f"Port {port} is already in use. Please check if another instance is running, or change the PORT environment variable in your .env file.")
+            logger.info("Tip: You can enable automatic fallback by setting AUTO_PORT_FALLBACK=true")
             sys.exit(1)
 
     # Update environment for uvicorn and child processes
     os.environ["PORT"] = str(port)
-
+    
     ssl_cert_path = os.getenv("SSL_CERT_PATH")
     ssl_key_path = os.getenv("SSL_KEY_PATH")
-
+    
     run_kwargs = {
         "app": "main:app",
         "host": host,
         "port": port,
         "log_level": "info",
         "proxy_headers": True,
-        "forwarded_allow_ips": "*",
+        "forwarded_allow_ips": "*"
     }
-
-    if (
-        ssl_cert_path
-        and ssl_key_path
-        and os.path.exists(ssl_cert_path)
-        and os.path.exists(ssl_key_path)
-    ):
+    
+    if ssl_cert_path and ssl_key_path and os.path.exists(ssl_cert_path) and os.path.exists(ssl_key_path):
         run_kwargs["ssl_certfile"] = ssl_cert_path
         run_kwargs["ssl_keyfile"] = ssl_key_path
         logger.info("Starting uvicorn with SSL/TLS enabled.")
     elif ssl_cert_path or ssl_key_path:
-        logger.warning(
-            "SSL configuration incomplete or files not found. Starting without SSL."
-        )
+        logger.warning("SSL configuration incomplete or files not found. Starting without SSL.")
 
     uvicorn.run(**run_kwargs)
-
 
 if __name__ == "__main__":
     main()
