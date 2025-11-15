@@ -13,7 +13,15 @@ jobs:
     name: Add issue to project
     runs-on: ubuntu-latest
     steps:
+      - name: Load secrets from 1Password
+        uses: 1password/load-secrets-action@v2
+        with:
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          PROJECT_PAT: "op://6wgu5yz5yphvacdimgc64ej65i/Voyarr token for GHCR/Personal access token"
+
       - uses: actions/add-to-project@v2
         with:
           project-url: https://github.com/users/gabrieljustinsider/projects/1
-          github-token: ${{ secrets.PROJECT_PAT }}
+          github-token: ${{ env.PROJECT_PAT }}
