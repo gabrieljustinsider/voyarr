@@ -14,12 +14,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Load secrets from 1Password
-        uses: 1password/load-secrets-action@v2
+        uses: 1password/load-secrets-action@v1
         with:
           export-env: true
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          PROJECT_PAT: "op://6wgu5yz5yphvacdimgc64ej65i/Voyarr token for GHCR/Personal access token"
+          PROJECT_PAT: op://6wgu5yz5yphvacdimgc64ej65i/GitHub Voyarr Project PAT/Personal access token
 
       - uses: actions/add-to-project@v2
         with:
