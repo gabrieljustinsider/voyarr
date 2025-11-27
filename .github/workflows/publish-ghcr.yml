@@ -28,7 +28,7 @@ jobs:
           export-env: true
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          GHCR_PAT: ""op://6wgu5yz5yphvacdimgc64ej65i/GitHub Voyarr Project PAT/Personal access token""
+          GHCR_PAT: "op://6wgu5yz5yphvacdimgc64ej65i/Voyarr token for GHCR/Personal access token"
 
       - name: Log in to the Container registry
         uses: docker/login-action@v3

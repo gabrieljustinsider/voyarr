@@ -158,6 +158,7 @@ async def oidc_callback(request: Request, db: Session = Depends(get_db)):
                 break  # Successful provision
             except IntegrityError:
                 db.rollback()
+                base_username = f"{preferred_username}{suffix}"
                 suffix += 1
                 if attempt == max_retries - 1:
                     logger.error("Failed to auto-provision OIDC user: Max retries reached for username generation.")

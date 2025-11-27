@@ -24,15 +24,15 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      includeAssets: ['app_icon.png'],
       manifest: {
         name: 'Voyarr Media Manager',
         short_name: 'Voyarr',
         description: 'Automated Media Management & Ripping',
         theme_color: '#ffffff',
         icons: [
-          { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' }
+          { src: 'app_icon.png', sizes: '192x192', type: 'image/png' },
+          { src: 'app_icon.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
         ]
       }
     })
