@@ -242,6 +242,10 @@ document.addEventListener('DOMContentLoaded', () => {
       selector: finalSelector
     };
 
+    if (providerSelect.value) {
+      payload.provider_id = parseInt(providerSelect.value, 10);
+    }
+
     saveBtn.disabled = true;
     saveBtn.innerText = "Saving...";
 

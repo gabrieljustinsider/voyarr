@@ -51,14 +51,20 @@ class MapModePayload(BaseModel):
     host: str
     property: str
     selector: str
+    provider_id: Optional[int] = None
 
 
 @router.post("/map-mode")
 def save_map_mode_mapping(payload: MapModePayload, db: Session = Depends(get_db)):
-    # Try to match the host to a known provider
-    provider = (
-        db.query(Provider).filter(Provider.base_url.ilike(f"%{payload.host}%")).first()
-    )
+    # Prioritize direct provider ID match if supplied by the browser extension
+    provider = None
+    if payload.provider_id:
+        provider = db.query(Provider).filter(Provider.id == payload.provider_id).first()
+
+    if not provider:
+        provider = (
+            db.query(Provider).filter(Provider.base_url.ilike(f"%{payload.host}%")).first()
+        )
     if not provider:
         raise HTTPException(
             status_code=404, detail=f"No provider configured for host: {payload.host}"
