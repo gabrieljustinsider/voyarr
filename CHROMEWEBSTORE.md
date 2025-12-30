@@ -1,30 +1,36 @@
-# **Voyarr Remote Companion — Chrome Web Store Listing**
+# **Voyarr Lens — Chrome Web Store Listing**
 
-This document serves as the single source of truth for the **Voyarr Remote** companion Chrome extension store listing, containing all descriptive copy, assets mappings, plain-English permissions justifications, and privacy disclosures.
+This document serves as the single source of truth for the **Voyarr Lens** companion Chrome extension store listing, containing all descriptive copy, assets mappings, plain-English permissions justifications, and privacy disclosures.
 
 ---
 
 ## **📝 Store Listing Copy**
 
 ### **1. Extension Title**
-`Voyarr Remote`
+`Voyarr Lens`
 
 ### **2. Short Description (max 150 chars)**
-`Voyarr companion extension for visual CSS mapping and remote control.`
+`The official companion tool for Voyarr. Visually map CSS selectors to integrate premium media subscriptions into your self-hosted library.`
 
 ### **3. Detailed Description**
 ```markdown
-Empower your self-hosted media management with Voyarr Remote!
+### Unify Your Premium Media Subscriptions
+Voyarr is a powerful, self-hosted media aggregator that unifies your disparate content libraries. It serves as your ultimate private media player, allowing you to seamlessly scrape, organize, and stream all of your premium subscription services from one centralized, private platform.
 
-Voyarr Remote is the official companion extension for the Voyarr ecosystem. It allows administrators to visually build, edit, and audit CSS scraping recipes for their media providers directly on any target page.
+### The Voyarr Lens Extension
+Voyarr Lens is the official companion extension designed to help you easily build integration "recipes" for your Voyarr server. Instead of manually inspecting source code to figure out how to scrape a website, Voyarr Lens provides a visual, point-and-click interface to map out metadata fields directly on the page.
 
-Key Features:
-🎯 Visual Map Mode: Click any element (title, performer, tags, or resolution) on a website to automatically extract its CSS selector path.
-🔍 Selector Diagnostics: Instantly test and evaluate the selector unique match count inside the browser page before committing.
-⚡ Turnkey Synchronization: One-click saving push that securely transmits new site selectors back to your Voyarr server.
-🔐 Secure Authorization: Fully hardens all outbound payload mappings using your master Voyarr Server API keys.
+Simply browse to one of your premium subscription sites, activate Map Mode, and click on the elements you want Voyarr to capture (like Titles, Performers, Tags, or Video Sources). The extension instantly calculates the exact CSS selector and securely transmits it to your self-hosted backend.
 
-Deploy a streamlined visual scraping recipe tool for your home library server in seconds.
+### Key Features
+* 🎯 **Point-and-Click Mapping:** Visually click any element on a webpage to instantly generate a mathematically exact, deep-DOM CSS selector.
+* ✅ **Match Validation & Testing:** Ensure your selectors are perfect. The extension displays the exact number of matching elements on the page and lets you flash them in bright green to verify your targeting.
+* ✏️ **Editable Selectors:** Prefer writing your own CSS? Manually tweak and test your selectors directly within the popup before saving.
+* ⚡ **Power-User Shortcuts:** Instantly launch into Map Mode on any website using the `Ctrl+Shift+M` (`Cmd+Shift+M` on Mac) global keyboard shortcut or via the right-click context menu.
+* 🛡️ **Privacy First & Least Privilege:** Voyarr Lens respects your privacy. It requires zero global tracking permissions. It only requests connection access to the specific self-hosted Voyarr server URL you provide, and scripts are strictly injected on-demand.
+
+### Requirements
+This extension requires a running, self-hosted instance of the Voyarr backend server to function.
 ```
 
 ---
@@ -56,7 +62,7 @@ The Chrome Web Store review team requires explicit, plain-English justifications
 To make submission as frictionless as possible, we have generated **official, high-quality, high-resolution (1280x800)** store screenshots formatted precisely to Chrome Web Store listing specifications.
 
 You can find these images ready to be uploaded in your workspace:
-1. **[Popup Interface Screenshot](screenshots/cws-screenshot-popup.png)**: Showcases the beautiful, modern, glassmorphic Voyarr Remote action popup centered on a blurred streaming library background.
+1. **[Popup Interface Screenshot](screenshots/cws-screenshot-popup.png)**: Showcases the beautiful, modern, glassmorphic Voyarr Lens action popup centered on a blurred streaming library background.
 2. **[Visual Map Mode Screenshot](screenshots/cws-screenshot-mapmode.png)**: Demonstrates the interactive visual dashed outline mapping elements in real-time on a target provider page.
 
 ---
