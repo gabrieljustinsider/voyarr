@@ -31,3 +31,6 @@ Thumbs.db
 # SQLite test databases
 *testdb_*
 file:testdb_*
+
+# Extension Upload Archive
+voyarr-extension.zip
