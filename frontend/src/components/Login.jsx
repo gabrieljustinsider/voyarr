@@ -57,9 +57,28 @@ export default function Login() {
   const [ssoLoading, setSsoLoading] = useState(false)
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
   const [authConfig, setAuthConfig] = useState({ passkeys_enabled: true, sso_enabled: false, oidc_enabled: false, auth_bypass_enabled: false, auth_bypass_proxy_header_enabled: false })
-  const [authConfigLoaded, setAuthConfigLoaded] = useState(false)
 
   const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
+
+  // Base64 helper converters (identical to Settings.jsx)
+  const base64ToBuffer = (b64) => {
+    const bin = window.atob(b64.replace(/-/g, '+').replace(/_/g, '/'))
+    const len = bin.length
+    const bytes = new Uint8Array(len)
+    for (let i = 0; i < len; i++) {
+      bytes[i] = bin.charCodeAt(i)
+    }
+    return bytes.buffer
+  }
+
+  const bufferToBase64 = (buf) => {
+    const bytes = new Uint8Array(buf)
+    let binary = ''
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i])
+    }
+    return window.btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+  }
 
   // Keep a persistent abort controller reference to cancel conflicting auth challenges
   const autofillAbortRef = useRef(null)
@@ -146,7 +165,7 @@ export default function Login() {
       active = false
       controller.abort()
     }
-  }, [authConfig.passkeys_enabled])
+  }, [authConfig.passkeys_enabled, API_BASE])
 
   // Fetch public auth configuration on mount
   useEffect(() => {
@@ -156,7 +175,6 @@ export default function Login() {
         if (res.ok) {
           const data = await res.json()
           setAuthConfig(data)
-          setAuthConfigLoaded(true)
 
           // Attempt autologin if bypass is enabled
           if (data.auth_bypass_enabled || data.auth_bypass_proxy_header_enabled) {
@@ -179,31 +197,10 @@ export default function Login() {
         }
       } catch (err) {
         console.error('Failed to fetch auth config:', err)
-        setAuthConfigLoaded(true)
       }
     }
     fetchAuthConfig()
-  }, [])
-
-  // Base64 helper converters (identical to Settings.jsx)
-  const base64ToBuffer = (b64) => {
-    const bin = window.atob(b64.replace(/-/g, '+').replace(/_/g, '/'))
-    const len = bin.length
-    const bytes = new Uint8Array(len)
-    for (let i = 0; i < len; i++) {
-      bytes[i] = bin.charCodeAt(i)
-    }
-    return bytes.buffer
-  }
-
-  const bufferToBase64 = (buf) => {
-    const bytes = new Uint8Array(buf)
-    let binary = ''
-    for (let i = 0; i < bytes.byteLength; i++) {
-      binary += String.fromCharCode(bytes[i])
-    }
-    return window.btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
-  }
+  }, [API_BASE])
 
   // Handle standard Username & Password form login
   const handleLogin = async (e) => {

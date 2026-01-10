@@ -7,6 +7,7 @@ from typing import Optional, Dict, Any
 from sqlalchemy.orm.attributes import flag_modified
 
 from dependencies import verify_api_key
+from utils import validate_url_ssrf
 
 router = APIRouter(
     prefix="/scraper", tags=["scraper"], dependencies=[Depends(verify_api_key)]
@@ -94,6 +95,7 @@ class ScraperTestRequest(BaseModel):
 
 @router.post("/test")
 def test_scraper(req: ScraperTestRequest, db: Session = Depends(get_db)):
+    validate_url_ssrf(req.url)
     recipe = (
         db.query(SiteRecipe).filter(SiteRecipe.provider_id == req.provider_id).first()
     )

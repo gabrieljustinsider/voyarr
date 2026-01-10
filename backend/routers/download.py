@@ -23,7 +23,6 @@ import json
 import asyncio
 import requests
 import re
-import urllib.parse
 import os
 import tempfile
 
@@ -55,91 +54,7 @@ class AnalyzeUrlRequest(BaseModel):
     provider_id: Optional[int] = None
 
 
-def validate_url_ssrf(url_str: str):
-    if not url_str.lower().startswith(("http://", "https://")):
-        raise HTTPException(status_code=400, detail="Invalid URL scheme")
-
-    try:
-        parsed = urllib.parse.urlparse(url_str)
-        hostname = parsed.hostname.lower() if parsed.hostname else ""
-
-        try:
-            import ipaddress
-            import socket
-
-            def is_disallowed_ip(ip_str_or_obj):
-                try:
-                    ip_obj = (
-                        ipaddress.ip_address(ip_str_or_obj)
-                        if isinstance(ip_str_or_obj, str)
-                        else ip_str_or_obj
-                    )
-
-                    # Unwrap IPv4-mapped IPv6 addresses to correctly evaluate their underlying IPv4 properties
-                    if isinstance(ip_obj, ipaddress.IPv6Address) and ip_obj.ipv4_mapped:
-                        ip_obj = ip_obj.ipv4_mapped
-
-                    return (
-                        ip_obj.is_loopback
-                        or ip_obj.is_private
-                        or ip_obj.is_link_local
-                        or ip_obj.is_multicast
-                        or ip_obj.is_unspecified
-                        or ip_obj.is_reserved
-                    )
-                except ValueError:
-                    return False
-
-            try:
-                ip_obj = ipaddress.ip_address(hostname.strip("[]"))
-                if is_disallowed_ip(ip_obj):
-                    raise HTTPException(
-                        status_code=400, detail="Disallowed internal IP"
-                    )
-            except ValueError:
-                pass
-
-            # Resolve hostname to catch custom domains pointing to internal IPs
-            try:
-                addr_info = socket.getaddrinfo(hostname, None)
-                for addr in addr_info:
-                    ip_str = addr[4][0]
-                    if is_disallowed_ip(ip_str):
-                        raise HTTPException(
-                            status_code=400,
-                            detail="Disallowed internal IP (resolved via DNS)",
-                        )
-            except socket.gaierror:
-                pass  # Unresolvable hostnames will fail naturally downstream
-
-            if hostname.startswith("0x"):
-                ip_int = int(hostname, 16)
-            elif hostname.startswith("0") and hostname.isdigit():
-                ip_int = int(hostname, 8)
-            elif hostname.isdigit():
-                ip_int = int(hostname)
-            else:
-                ip_int = None
-            if ip_int is not None and is_disallowed_ip(ipaddress.ip_address(ip_int)):
-                raise HTTPException(
-                    status_code=400, detail="Disallowed internal numeric IP"
-                )
-        except ValueError:
-            pass
-
-        if hostname in [
-            "localhost",
-            "127.0.0.1",
-            "0.0.0.0",  # nosec B104
-            "169.254.169.254",
-            "::1",
-            "[::1]",
-        ] or hostname.endswith((".internal", ".nip.io", ".xip.io", ".sslip.io")):
-            raise HTTPException(status_code=400, detail="Disallowed internal hostname")
-    except HTTPException:
-        raise
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid URL format")
+from utils import validate_url_ssrf
 
 
 def evaluate_rules(

@@ -37,6 +37,7 @@ from routers import (
     passkeys,
     sso,
     oidc,
+    scraper,
 )
 
 # Create tables
@@ -164,6 +165,7 @@ app.include_router(p2p.router)
 app.include_router(passkeys.router)
 app.include_router(sso.router)
 app.include_router(oidc.router)
+app.include_router(scraper.router)
 
 
 @app.get("/")

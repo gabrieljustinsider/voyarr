@@ -10,6 +10,8 @@ import subprocess # nosec B404
 import os
 import shutil
 
+from utils import validate_url_ssrf
+
 router = APIRouter(prefix="/live-streams", tags=["live_streams"])
 
 class LiveStreamCreateUpdate(BaseModel):
@@ -58,6 +60,9 @@ def create_live_stream(
             detail="Invalid stream URL scheme. Only HTTP, HTTPS, and RTMP are permitted."
         )
 
+    if req.url.lower().startswith(("http://", "https://")):
+        validate_url_ssrf(req.url)
+
     existing = db.query(LiveStream).filter(LiveStream.name.ilike(req.name)).first()
     if existing:
         raise HTTPException(
@@ -101,6 +106,9 @@ def update_live_stream(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid stream URL scheme. Only HTTP, HTTPS, and RTMP are permitted."
         )
+
+    if req.url.lower().startswith(("http://", "https://")):
+        validate_url_ssrf(req.url)
 
     stream.name = req.name
     stream.url = req.url

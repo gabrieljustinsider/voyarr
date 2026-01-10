@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Load secrets from 1Password
+        id: op-secrets
         uses: 1password/load-secrets-action@v1
         with:
           export-env: true
@@ -24,4 +25,4 @@ jobs:
       - uses: actions/add-to-project@v2
         with:
           project-url: https://github.com/users/gabrieljustinsider/projects/1
-          github-token: ${{ env.PROJECT_PAT }}
+          github-token: ${{ steps.op-secrets.outputs.PROJECT_PAT }}

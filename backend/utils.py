@@ -1,4 +1,8 @@
 import os
+import urllib.parse
+import ipaddress
+import socket
+from fastapi import HTTPException
 from db_utils import get_db_session
 from models import Settings
 
@@ -119,3 +123,64 @@ def initialize_network_settings():
 
     except Exception as e:
         print(f"Error initializing network settings: {e}")
+
+
+def validate_url_ssrf(url_str: str):
+    if not url_str.lower().startswith(("http://", "https://")):
+        raise HTTPException(status_code=400, detail="Invalid URL scheme")
+
+    try:
+        parsed = urllib.parse.urlparse(url_str)
+        hostname = parsed.hostname.lower() if parsed.hostname else ""
+
+        try:
+            def is_disallowed_ip(ip_str_or_obj):
+                try:
+                    ip_obj = (
+                        ipaddress.ip_address(ip_str_or_obj)
+                        if isinstance(ip_str_or_obj, str)
+                        else ip_str_or_obj
+                    )
+
+                    # Unwrap IPv4-mapped IPv6 addresses to correctly evaluate their underlying IPv4 properties
+                    if isinstance(ip_obj, ipaddress.IPv6Address) and ip_obj.ipv4_mapped:
+                        ip_obj = ip_obj.ipv4_mapped
+
+                    return (
+                        ip_obj.is_loopback
+                        or ip_obj.is_private
+                        or ip_obj.is_link_local
+                        or ip_obj.is_multicast
+                        or ip_obj.is_unspecified
+                        or ip_obj.is_reserved
+                    )
+                except ValueError:
+                    return False
+
+            try:
+                ip_obj = ipaddress.ip_address(hostname.strip("[]"))
+                if is_disallowed_ip(ip_obj):
+                    raise HTTPException(
+                        status_code=400, detail="Disallowed internal IP"
+                    )
+            except ValueError:
+                pass
+
+            # Resolve hostname to catch custom domains pointing to internal IPs
+            try:
+                addr_info = socket.getaddrinfo(hostname, None)
+                for addr in addr_info:
+                    ip_str = addr[4][0]
+                    if is_disallowed_ip(ip_str):
+                        raise HTTPException(
+                            status_code=400,
+                            detail="Disallowed internal IP (resolved via DNS)",
+                        )
+            except socket.gaierror:
+                pass
+        except ImportError:
+            pass
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=400, detail=f"Invalid URL: {str(e)}")

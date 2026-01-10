@@ -23,6 +23,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Load secrets from 1Password
+        id: op-secrets
         uses: 1password/load-secrets-action@v2
         with:
           export-env: true
@@ -35,7 +36,7 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ env.GHCR_PAT }}
+          password: ${{ steps.op-secrets.outputs.GHCR_PAT }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

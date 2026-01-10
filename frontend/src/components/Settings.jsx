@@ -330,7 +330,7 @@ export default function Settings() {
           return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
       }).join(''))
       return JSON.parse(jsonPayload).sub || 'User'
-    } catch (e) {
+    } catch {
       return 'User'
     }
   }

@@ -1,5 +1,4 @@
 import requests
-import urllib.parse
 from models import Webhook
 import logging
 from db_utils import get_db_session
@@ -16,47 +15,12 @@ class WebhookService:
                 # Check if the webhook subscribes to this specific event (or all events if empty)
                 if not wh.events or event_name in wh.events:
                     try:
-                        parsed = urllib.parse.urlparse(wh.url)
-                        hostname = parsed.hostname.lower() if parsed.hostname else ""
-
-                        try:
-                            import ipaddress
-
-                            if hostname.startswith("0x"):
-                                ip_int = int(hostname, 16)
-                            elif hostname.startswith("0") and hostname.isdigit():
-                                ip_int = int(hostname, 8)
-                            elif hostname.isdigit():
-                                ip_int = int(hostname)
-                            else:
-                                ip_int = None
-                            if ip_int is not None and (
-                                ipaddress.ip_address(ip_int).is_loopback
-                                or ipaddress.ip_address(ip_int).is_private
-                            ):
-                                logger.warning(
-                                    f"SSRF blocked: Disallowed internal numeric IP {hostname} in webhook {wh.name}"
-                                )
-                                continue
-                        except ValueError:
-                            pass
-
-                        if hostname in [
-                            "localhost",
-                            "127.0.0.1",
-                            "0.0.0.0",  # nosec B104
-                            "169.254.169.254",
-                            "::1",
-                            "[::1]",
-                        ] or hostname.endswith(
-                            (".internal", ".nip.io", ".xip.io", ".sslip.io")
-                        ):
-                            logger.warning(
-                                f"SSRF blocked: Disallowed internal hostname {hostname} in webhook {wh.name}"
-                            )
-                            continue
-                    except Exception as e:
-                        logger.warning(f"Error validating webhook {wh.url}: {e}")
+                        from utils import validate_url_ssrf
+                        validate_url_ssrf(wh.url)
+                    except Exception as ssrf_err:
+                        logger.warning(
+                            f"SSRF blocked: Disallowed or unsafe URL format in webhook {wh.name} ({wh.url}): {ssrf_err}"
+                        )
                         continue
                     try:
                         data = {"event": event_name, "data": payload}

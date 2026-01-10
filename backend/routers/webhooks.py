@@ -23,10 +23,13 @@ def get_webhooks(db: Session = Depends(get_db)):
     return db.query(Webhook).all()
 
 
+from utils import validate_url_ssrf
+
 @router.post(
     "/", dependencies=[Depends(rate_limit(max_requests=10, window_seconds=60))]
 )
 def create_webhook(webhook: WebhookCreate, db: Session = Depends(get_db)):
+    validate_url_ssrf(str(webhook.url))
     db_wh = Webhook(name=webhook.name, url=str(webhook.url), events=webhook.events)
     db.add(db_wh)
     db.commit()

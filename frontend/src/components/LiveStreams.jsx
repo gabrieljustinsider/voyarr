@@ -82,12 +82,13 @@ export default function LiveStreams() {
 
   // Cleanup HLS and Video safely on component unmount
   useEffect(() => {
+    const currentVideo = videoRef.current
     return () => {
       if (hlsRef.current) {
         hlsRef.current.destroy()
       }
-      if (videoRef.current) {
-        videoRef.current.pause()
+      if (currentVideo) {
+        currentVideo.pause()
       }
     }
   }, [])
