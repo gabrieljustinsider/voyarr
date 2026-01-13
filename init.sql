@@ -113,7 +113,7 @@ CREATE TABLE download_rules (
 CREATE TABLE library_entries (
     id SERIAL PRIMARY KEY,
     provider_id INTEGER NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
-    media_entry_id INTEGER REFERENCES media_entries(id),
+    media_entry_id INTEGER REFERENCES media_entries(id) ON DELETE SET NULL,
     studio_id INTEGER REFERENCES studios(id) ON DELETE SET NULL,
     title VARCHAR(500) NOT NULL,
     performers JSONB,
@@ -126,6 +126,10 @@ CREATE TABLE library_entries (
     phash VARCHAR(16),
     site_id VARCHAR(100),
     entry_metadata JSONB,
+    adheres_to_naming_scheme BOOLEAN DEFAULT TRUE,
+    has_metadata_match BOOLEAN DEFAULT FALSE,
+    has_chapters BOOLEAN DEFAULT FALSE,
+    has_facial_clusters BOOLEAN DEFAULT FALSE,
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -145,7 +149,7 @@ CREATE TABLE duplicate_entries (
 -- Download preferences table
 CREATE TABLE download_preferences (
     id SERIAL PRIMARY KEY,
-    provider_id INTEGER NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+    provider_id INTEGER NOT NULL REFERENCES providers(id) ON DELETE CASCADE UNIQUE,
     preferred_resolution VARCHAR(20) DEFAULT '1080p',
     naming_pattern TEXT DEFAULT '{title}_{performers}_{resolution}',
     append_metadata BOOLEAN DEFAULT TRUE,
@@ -230,12 +234,23 @@ CREATE TABLE scrape_schedules (
 
 -- Users table
 CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
+    id VARCHAR(64) PRIMARY KEY,
     username VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(50) DEFAULT 'user',
     is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    permissions JSONB DEFAULT '{"can_stream": true, "can_scrape": false, "can_rip": false}'::jsonb
+);
+
+-- Admin Audit Logs table
+CREATE TABLE admin_logs (
+    id SERIAL PRIMARY KEY,
+    admin_id VARCHAR(64) REFERENCES users(id) ON DELETE SET NULL,
+    admin_username VARCHAR(255) NOT NULL,
+    action VARCHAR(255) NOT NULL,
+    details JSONB DEFAULT '{}'::jsonb,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- API Keys table
@@ -341,7 +356,7 @@ CREATE UNIQUE INDEX uq_active_transcode_per_entry ON transcoding_queue(library_e
 -- Favorites table
 CREATE TABLE favorites (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id VARCHAR(64) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     item_type VARCHAR(50) NOT NULL,
     item_id VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -353,7 +368,7 @@ CREATE INDEX idx_favorites_item_type_id ON favorites(item_type, item_id);
 -- User history table
 CREATE TABLE user_history (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id VARCHAR(64) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     library_entry_id INTEGER NOT NULL REFERENCES library_entries(id) ON DELETE CASCADE,
     watched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     duration INTEGER DEFAULT 0,
@@ -365,7 +380,7 @@ CREATE INDEX idx_user_history_entry_id ON user_history(library_entry_id);
 -- User video stats table
 CREATE TABLE user_video_stats (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id VARCHAR(64) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     library_entry_id INTEGER NOT NULL REFERENCES library_entries(id) ON DELETE CASCADE,
     play_count INTEGER DEFAULT 0,
     climax_count INTEGER DEFAULT 0,
@@ -378,7 +393,7 @@ CREATE INDEX idx_user_video_stats_entry_id ON user_video_stats(library_entry_id)
 -- User preferences table
 CREATE TABLE user_preferences (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE UNIQUE,
+    user_id VARCHAR(64) NOT NULL REFERENCES users(id) ON DELETE CASCADE UNIQUE,
     theme VARCHAR(50) DEFAULT 'dark',
     ui_config JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -406,7 +421,7 @@ CREATE INDEX idx_live_streams_status ON live_streams(status);
 -- Notification Preferences table
 CREATE TABLE notification_preferences (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id VARCHAR(64) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     event_type VARCHAR(50) NOT NULL,
     dispatch_method VARCHAR(50) NOT NULL,
     enabled BOOLEAN DEFAULT TRUE,
@@ -427,7 +442,7 @@ CREATE TABLE notification_rules (
 -- Notification Logs table
 CREATE TABLE notification_logs (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    user_id VARCHAR(64) REFERENCES users(id) ON DELETE CASCADE,
     event_type VARCHAR(50) NOT NULL,
     title VARCHAR(255) NOT NULL,
     message TEXT NOT NULL,
@@ -436,3 +451,68 @@ CREATE TABLE notification_logs (
 );
 CREATE INDEX idx_notification_logs_user_id ON notification_logs(user_id);
 CREATE INDEX idx_notification_logs_read ON notification_logs(read);
+
+-- Peer Nodes table (P2P Sync)
+CREATE TABLE peer_nodes (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    peer_url VARCHAR(500) NOT NULL,
+    outbound_key VARCHAR(500) NOT NULL,
+    inbound_token VARCHAR(500) NOT NULL,
+    status VARCHAR(50) DEFAULT 'inactive',
+    recipe_sync_mode VARCHAR(50) DEFAULT 'auto_merge',
+    sync_schedule VARCHAR(100) DEFAULT 'manual',
+    library_scope VARCHAR(50) DEFAULT 'all_entries',
+    allowed_providers JSONB,
+    last_sync_at TIMESTAMP,
+    next_run TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_peer_nodes_name ON peer_nodes(name);
+CREATE INDEX idx_peer_nodes_status ON peer_nodes(status);
+
+-- Peer Sync Logs table (P2P Sync)
+CREATE TABLE peer_sync_logs (
+    id SERIAL PRIMARY KEY,
+    peer_id INTEGER NOT NULL REFERENCES peer_nodes(id) ON DELETE CASCADE,
+    direction VARCHAR(10) NOT NULL,
+    recipes_synced INTEGER DEFAULT 0,
+    media_synced INTEGER DEFAULT 0,
+    status VARCHAR(50) NOT NULL,
+    error_message TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_peer_sync_logs_peer_id ON peer_sync_logs(peer_id);
+
+-- Passkeys table (WebAuthn)
+CREATE TABLE passkeys (
+    id VARCHAR(64) PRIMARY KEY,
+    user_id VARCHAR(64) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    credential_id TEXT NOT NULL UNIQUE,
+    public_key TEXT NOT NULL,
+    sign_count INTEGER DEFAULT 0,
+    aaguid VARCHAR(64),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_used_at TIMESTAMP,
+    ip_address VARCHAR(45),
+    location VARCHAR(255),
+    browser VARCHAR(100),
+    os_name VARCHAR(100),
+    backup_eligible BOOLEAN DEFAULT TRUE,
+    backup_state BOOLEAN DEFAULT TRUE
+);
+CREATE INDEX idx_passkeys_user_id ON passkeys(user_id);
+CREATE INDEX idx_passkeys_credential_id ON passkeys(credential_id);
+
+-- SSO Links table (OAuth logins)
+CREATE TABLE sso_links (
+    id VARCHAR(64) PRIMARY KEY,
+    user_id VARCHAR(64) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    provider VARCHAR(50) NOT NULL,
+    provider_user_id VARCHAR(255) NOT NULL,
+    email VARCHAR(255),
+    linked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uix_provider_user UNIQUE (provider, provider_user_id)
+);
+CREATE INDEX idx_sso_links_user_id ON sso_links(user_id);

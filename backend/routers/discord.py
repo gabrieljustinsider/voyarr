@@ -119,6 +119,20 @@ async def discord_interactions(request: Request, db: Session = Depends(get_db)):
         # Enforce RBAC Role limits
         user_role = get_user_role_from_discord(db, user_id, username)
 
+        # Resolve local user model for fine-grained permissions checks
+        local_user = None
+        mapping_setting = db.query(Settings).filter(Settings.key == "discord_user_mappings").first()
+        if mapping_setting and mapping_setting.value:
+            try:
+                mapping = json.loads(mapping_setting.value)
+                local_username = mapping.get(user_id)
+                if local_username:
+                    local_user = db.query(User).filter(User.username == local_username).first()
+            except Exception:
+                pass
+        if not local_user:
+            local_user = db.query(User).filter(User.username.ilike(username)).first()
+
         # Command: /request (Access: Admin/User/Viewer)
         if command_name == "request":
             title = None
@@ -188,6 +202,17 @@ async def discord_interactions(request: Request, db: Session = Depends(get_db)):
 
         # Command: /add (Access: Admin)
         elif command_name == "add":
+            from db_utils import is_feature_enabled
+            if not is_feature_enabled(db, "scraping", local_user):
+                return JSONResponse(
+                    {
+                        "type": 4,
+                        "data": {
+                            "content": "❌ Forbidden: The scraping feature is disabled globally or you do not have permission."
+                        },
+                    }
+                )
+
             if user_role != "admin":
                 return JSONResponse(
                     {
@@ -236,6 +261,17 @@ async def discord_interactions(request: Request, db: Session = Depends(get_db)):
 
         # Command: /scrape (Access: Admin/User)
         elif command_name == "scrape":
+            from db_utils import is_feature_enabled
+            if not is_feature_enabled(db, "scraping", local_user):
+                return JSONResponse(
+                    {
+                        "type": 4,
+                        "data": {
+                            "content": "❌ Forbidden: The scraping feature is disabled globally or you do not have permission."
+                        },
+                    }
+                )
+
             if user_role not in ["admin", "user"]:
                 return JSONResponse(
                     {

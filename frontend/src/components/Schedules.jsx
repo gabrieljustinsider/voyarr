@@ -102,6 +102,19 @@ export default function Schedules() {
     }
   }
 
+  const [scrapingEnabled, setScrapingEnabled] = useState(true)
+
+  useEffect(() => {
+    apiFetch('/settings')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.scraping_enabled === 'false') {
+          setScrapingEnabled(false)
+        }
+      })
+      .catch(console.error)
+  }, [])
+
   // Convert Python naive UTC ISO strings to local browser time correctly
   const formatTime = (timeStr) => {
     if (!timeStr) return 'Never'
@@ -111,9 +124,14 @@ export default function Schedules() {
 
   return (
     <Box>
+      {!scrapingEnabled && (
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          ⚠️ Access Denied: The Scraping feature is disabled globally by the administrator. Please enable it in Settings to manage or trigger schedules.
+        </Alert>
+      )}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
         <Typography variant="h4">Scrape Schedules</Typography>
-        <Button variant="contained" onClick={() => setOpenDialog(true)}>Add Schedule</Button>
+        <Button variant="contained" onClick={() => setOpenDialog(true)} disabled={!scrapingEnabled}>Add Schedule</Button>
       </Box>
 
       {loading ? <CircularProgress /> : (
@@ -135,7 +153,7 @@ export default function Schedules() {
                 <TableRow><TableCell colSpan={7} align="center">No schedules found.</TableCell></TableRow>
               ) : schedules.map(s => (
                 <TableRow key={s.id}>
-                  <TableCell><Switch checked={s.is_active} onChange={() => handleToggle(s.id, s.is_active)} /></TableCell>
+                  <TableCell><Switch checked={s.is_active} onChange={() => handleToggle(s.id, s.is_active)} disabled={!scrapingEnabled} /></TableCell>
                   <TableCell>{s.name}</TableCell>
                   <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.target_url}</TableCell>
                   <TableCell>{s.cron_expression}</TableCell>
@@ -145,8 +163,8 @@ export default function Schedules() {
                   </TableCell>
                   <TableCell>{s.next_run && s.is_active ? formatTime(s.next_run) : 'Paused'}</TableCell>
                   <TableCell align="right">
-                    <IconButton onClick={() => handleTrigger(s.id)} color="primary" title="Trigger Now"><PlayArrowIcon /></IconButton>
-                    <IconButton onClick={() => setDeleteConfirm({ open: true, scheduleId: s.id })} color="error" title="Delete"><DeleteIcon /></IconButton>
+                    <IconButton onClick={() => handleTrigger(s.id)} color="primary" title="Trigger Now" disabled={!scrapingEnabled}><PlayArrowIcon /></IconButton>
+                    <IconButton onClick={() => setDeleteConfirm({ open: true, scheduleId: s.id })} color="error" title="Delete" disabled={!scrapingEnabled}><DeleteIcon /></IconButton>
                   </TableCell>
                 </TableRow>
               ))}

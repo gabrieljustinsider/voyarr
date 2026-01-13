@@ -2,6 +2,8 @@
 
 **Voyarr** is a self-hosted media management ecosystem designed to handle subscriptions, metadata scraping, and automated downloads from adult websites. It integrates with **ThePornDB**, **Stash**, and **StashDB**, featuring a remote-control browser extension for dynamic metadata mapping.
 
+📖 **Looking for a non-technical, step-by-step user guide? Check out our complete [User Guide & Tutorial](USER_GUIDE.md)!**
+
 ## 🚀 Overview
 
 Voyarr automates the tedious parts of managing a local media library. From automatically queueing videos based on performer rules to upgrading existing files when a higher resolution becomes available, Voyarr is your automated media assistant.
@@ -439,14 +441,50 @@ This hooks all scraper network traffic through a **Gluetun sidecar namespace**, 
 
 ---
 
-## 🧩 Browser Extension Setup
+## 🛡️ Secure Coding, Resiliency & Test Architecture
 
-To use the "Map Mode" for visual scraping configuration:
+Voyarr adheres to rigorous security and architectural resiliency standards. Recent structural improvements include:
+
+### 1. Hardened Backup Signature Verification
+Our backup restoration pipeline features a secure cryptographic signature check. When uploading a JSON configuration backup:
+* **HMAC Validation**: If a backup payload contains a `signature` field, the server calculates a localized SHA-256 HMAC using the secure system `HMAC_KEY`.
+* **Tamper Protection**: Mismatches or invalid signatures are strictly rejected with a `valid: False` payload and blocked from restoration, defending self-hosted instances against unauthorized or tampered configuration injection.
+
+### 2. Resilient Celery Task Orchestration
+To prevent silent orchestration failures in background services, exception handling in Celery workers is hardened:
+* **Exception Propagation**: Real-time video downloads (`real_download_task`) and FFmpeg video transcoding tasks (`transcode_video_task`, `generate_hls_task`) explicitly propagate errors up to the Celery broker once max retries are exceeded.
+* **Orchestration Dashboards**: Tasks are properly transitioned to the `FAILED` state inside your orchestration interfaces rather than silently logging success, ensuring transparent monitoring.
+
+### 3. Outbound SSRF & Loopback Proxy Defense
+During P2P node metadata synchronizations:
+* **Dynamic Scraper Recipe Validation**: Remote peer nodes pushing new site recipes are subject to strict SSRF destination audits.
+* **Subnet Isolation**: Input values targeting loopback adapters or internal private networks (e.g., `127.0.0.1`, `192.168.0.0/16`, local host proxy ports) are strictly blocked from registration to prevent remote peer scanning attacks.
+
+### 4. Zero-Contamination SQLite Test Isolation
+Our backend test suites are built for speed and isolated cleanliness:
+* **Global Pytest Hook**: A centralized pytest [conftest.py](backend/tests/conftest.py) intercepts all engine creation and `os.environ["DATABASE_URL"]` allocations at execution time.
+* **OS Temp Redirection**: Directs all temporary test databases (`sqlite:///file:testdb_*`) to the system's temporary directory (e.g., `/tmp`), completely preventing filesystem clutter in the project root.
+* **Contamination Immunity**: Dynamically resolves session pools in [db_utils.py](backend/db_utils.py) to prevent Pytest's import discovery phase from caching references across different test suites.
+
+---
+
+## 🧩 Browser Extension & Bookmarklet Setup
+
+To use the visual "Map Mode" scraping configuration:
+
+### 💻 1. Standard Desktop Browsers (Chrome / Edge / Opera / Brave)
 1. Open Google Chrome or a Chromium-based browser.
 2. Navigate to `chrome://extensions/`.
-3. Enable **Developer mode**.
+3. Enable **Developer mode** in the top right corner.
 4. Click **Load unpacked** and select the `/extension` directory in this repository.
 5. You can now use the extension to map CSS selectors on supported websites.
+
+### 🕶️ 2. Meta Quest Browser & Mobile Devices (Universal Bookmarklet)
+For VR environments (Meta Quest Browser) or mobile devices where standard unpacked extension uploads are blocked:
+1. Log into your Voyarr Web App, open **Settings**, and scroll to the **Browser Extension Integration** panel.
+2. Under the **Meta Quest & Mobile (Universal Bookmarklet)** section, click **Copy Bookmarklet**.
+3. In your Quest Browser, bookmark any page, rename the bookmark to `"🎯 Voyarr Lens VR"`, and paste the copied `javascript:...` code directly into the URL/Address field of the bookmark.
+4. Browse to any supported video streaming site, open your bookmarks list, and click the bookmark to instantly boot up the visual selection overlay directly in 3D Space!
 
 ## 🏷️ Versioning
 

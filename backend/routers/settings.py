@@ -43,7 +43,11 @@ def get_settings(db: Session = Depends(get_db)):
 
 
 @router.post("", dependencies=[Depends(rate_limit(max_requests=10, window_seconds=60))])
-def update_setting(setting: SettingUpdate, db: Session = Depends(get_db)):
+def update_setting(
+    setting: SettingUpdate,
+    auth_info: dict = Depends(verify_api_key),
+    db: Session = Depends(get_db)
+):
     if setting.key in SECURE_SETTINGS:
         db_vault = (
             db.query(Vault)
@@ -75,6 +79,30 @@ def update_setting(setting: SettingUpdate, db: Session = Depends(get_db)):
 
     db.commit()
 
+    # Log admin action
+    from db_utils import log_admin_action
+    from models import User
+
+    actor_username = "Unknown Actor"
+    actor_id = None
+    if auth_info.get("type") == "master_key":
+        actor_username = "Master Key"
+    elif auth_info.get("type") == "jwt":
+        actor_username = auth_info.get("user")
+        actor_user = db.query(User).filter(User.username == actor_username).first()
+        if actor_user:
+            actor_id = actor_user.id
+    elif auth_info.get("type") == "scoped_key":
+        actor_username = f"API Key: {auth_info.get('name')}"
+
+    log_admin_action(
+        db,
+        admin_id=actor_id,
+        admin_username=actor_username,
+        action="update_setting",
+        details={"key": setting.key, "value": "******" if setting.key in SECURE_SETTINGS else setting.value}
+    )
+
     # Trigger dynamic hot-reload if a networking configuration is updated
     if setting.key in ["global_proxy_enabled", "global_proxy_url", "global_user_agent"]:
         from utils import initialize_network_settings
@@ -85,7 +113,11 @@ def update_setting(setting: SettingUpdate, db: Session = Depends(get_db)):
 
 
 @router.delete("/{key}")
-def delete_setting(key: str, db: Session = Depends(get_db)):
+def delete_setting(
+    key: str,
+    auth_info: dict = Depends(verify_api_key),
+    db: Session = Depends(get_db)
+):
     if key in SECURE_SETTINGS:
         db_item = (
             db.query(Vault)
@@ -100,6 +132,30 @@ def delete_setting(key: str, db: Session = Depends(get_db)):
 
     db.delete(db_item)
     db.commit()
+
+    # Log admin action
+    from db_utils import log_admin_action
+    from models import User
+
+    actor_username = "Unknown Actor"
+    actor_id = None
+    if auth_info.get("type") == "master_key":
+        actor_username = "Master Key"
+    elif auth_info.get("type") == "jwt":
+        actor_username = auth_info.get("user")
+        actor_user = db.query(User).filter(User.username == actor_username).first()
+        if actor_user:
+            actor_id = actor_user.id
+    elif auth_info.get("type") == "scoped_key":
+        actor_username = f"API Key: {auth_info.get('name')}"
+
+    log_admin_action(
+        db,
+        admin_id=actor_id,
+        admin_username=actor_username,
+        action="delete_setting",
+        details={"key": key}
+    )
 
     # Trigger dynamic hot-reload if a networking configuration is deleted
     if key in ["global_proxy_enabled", "global_proxy_url", "global_user_agent"]:

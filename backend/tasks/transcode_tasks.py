@@ -232,6 +232,8 @@ def transcode_video_task(self, transcode_job_id: int):
             except Exception as notif_err:
                 print(f"Error sending transcode failure notification: {notif_err}")
 
+            raise e
+
 
 @celery_app.task(bind=True, name="tasks.transcode_tasks.generate_hls_task")
 def generate_hls_task(self, library_entry_id: int):
@@ -295,4 +297,4 @@ def generate_hls_task(self, library_entry_id: int):
         return "HLS Generated successfully"
     except Exception as e:
         logger.error(f"Failed to generate HLS for {video_path}: {e}")
-        return "Failed to generate HLS"
+        raise e

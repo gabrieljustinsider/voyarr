@@ -33,6 +33,18 @@ router = APIRouter(
 )
 
 
+def check_ripping_permission(
+    auth_info: dict = Depends(verify_api_key),
+    db: Session = Depends(get_db)
+):
+    from db_utils import check_feature_permission
+    from models import User
+    user = None
+    if auth_info.get("type") == "jwt" and auth_info.get("user"):
+        user = db.query(User).filter(User.username == auth_info.get("user")).first()
+    check_feature_permission(db, "ripping", user)
+
+
 class DownloadRequest(BaseModel):
     provider_id: int
     url: HttpUrl
@@ -253,7 +265,7 @@ def check_limits_and_cookies(db: Session, provider_id: int):
     return True, active_cookie
 
 
-@router.post("/start")
+@router.post("/start", dependencies=[Depends(check_ripping_permission)])
 def start_download(req: DownloadRequest, db: Session = Depends(get_db)):
     # SECURITY: Prevent SSRF via the download engine
     url_str = str(req.url)
@@ -510,7 +522,7 @@ class MassRipRequest(BaseModel):
     action: Optional[str] = "metadata_and_download"
 
 
-@router.post("/mass_rip")
+@router.post("/mass_rip", dependencies=[Depends(check_ripping_permission)])
 def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
     """
     Parses a channel/performer page, evaluates rules, and queues videos.
@@ -761,7 +773,7 @@ def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
     }
 
 
-@router.post("/extract-stream")
+@router.post("/extract-stream", dependencies=[Depends(check_ripping_permission)])
 def extract_stream_url(req: ExtractStreamRequest):
     """Uses yt-dlp to dynamically resolve a page URL to its raw live video stream URL."""
     url_str = str(req.url)
@@ -793,7 +805,7 @@ def extract_stream_url(req: ExtractStreamRequest):
         )
 
 
-@router.post("/save-stream")
+@router.post("/save-stream", dependencies=[Depends(check_ripping_permission)])
 def save_live_stream(req: SaveStreamRequest, db: Session = Depends(get_db)):
     """Saves a resolved live stream to the database."""
     from models import LiveStream
@@ -815,7 +827,7 @@ def save_live_stream(req: SaveStreamRequest, db: Session = Depends(get_db)):
     return {"message": "Live stream saved successfully", "id": stream.id}
 
 
-@router.post("/analyze-url")
+@router.post("/analyze-url", dependencies=[Depends(check_ripping_permission)])
 def analyze_url(req: AnalyzeUrlRequest, db: Session = Depends(get_db)):
     """Analyzes a URL to detect the best scraping/downloading method."""
     url_str = str(req.url)

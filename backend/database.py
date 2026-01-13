@@ -14,7 +14,21 @@ if not DATABASE_URL:
     db_name = os.getenv("POSTGRES_DB", "voyarr")
     DATABASE_URL = f"postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
 
-engine = create_engine(DATABASE_URL)
+# Dialect-aware connection pooling to optimize performance and prevent starvation
+if DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={"check_same_thread": False, "timeout": 30}
+    )
+else:
+    engine = create_engine(
+        DATABASE_URL,
+        pool_size=20,
+        max_overflow=10,
+        pool_timeout=30,
+        pool_recycle=1800,
+        pool_pre_ping=True
+    )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 

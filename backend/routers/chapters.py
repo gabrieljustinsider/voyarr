@@ -44,6 +44,7 @@ def create_chapter(
         tags=chapter.tags,
     )
     db.add(new_chapter)
+    entry.has_chapters = True
     db.commit()
     db.refresh(new_chapter)
     return new_chapter
@@ -72,8 +73,18 @@ def delete_chapter(chapter_id: int, db: Session = Depends(get_db)):
     if not db_chapter:
         raise HTTPException(status_code=404, detail="Chapter not found")
 
+    entry_id = db_chapter.library_entry_id
     db.delete(db_chapter)
     db.commit()
+
+    # Reset has_chapters flag if no chapters remain
+    remaining = db.query(VideoChapter).filter(VideoChapter.library_entry_id == entry_id).count()
+    if remaining == 0:
+        entry = db.query(LibraryEntry).filter(LibraryEntry.id == entry_id).first()
+        if entry:
+            entry.has_chapters = False
+            db.commit()
+
     return {"message": "Chapter deleted successfully"}
 
 

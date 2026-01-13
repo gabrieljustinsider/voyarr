@@ -1,42 +1,46 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { 
   CssBaseline, AppBar, Toolbar, Typography, Container, Tabs, Tab, Box, 
   Paper, Snackbar, Alert, Dialog, DialogTitle, DialogContent, DialogActions, 
   Button, IconButton, FormControl, InputLabel, Select, MenuItem, Switch, 
-  FormControlLabel, Divider, Grid
+  FormControlLabel, Divider, Grid, TextField, CircularProgress
 } from '@mui/material'
 import LogoutIcon from '@mui/icons-material/Logout'
 import SettingsIcon from '@mui/icons-material/Settings'
 import TuneIcon from '@mui/icons-material/Tune'
-import ProviderList from './components/ProviderList'
-import CredentialForm from './components/CredentialForm'
-import DownloadQueue from './components/DownloadQueue'
-import Settings from './components/Settings'
-import Dashboard from './components/Dashboard'
-import Library from './components/Library'
-import Duplicates from './components/Duplicates'
-import PreferencesAdvanced from './components/PreferencesAdvanced'
-import MetadataManager from './components/MetadataManager'
-import ExternalAPIs from './components/ExternalAPIs'
-import DownloadRules from './components/DownloadRules'
-import CookiesManager from './components/CookiesManager'
-import MassRip from './components/MassRip'
-import ScheduleManager from './components/ScheduleManager'
-import BackupManager from './components/BackupManager'
-import LogsViewer from './components/LogsViewer'
-import ScraperTester from './components/ScraperTester'
-import RequestManager from './components/RequestManager'
+
+// Synchronously load Login to keep initial login paint instant
 import Login from './components/Login'
 
+// Lazily load tab components to optimize bundle size and FCP/LCP
+const ProviderList = lazy(() => import('./components/ProviderList'))
+const CredentialForm = lazy(() => import('./components/CredentialForm'))
+const DownloadQueue = lazy(() => import('./components/DownloadQueue'))
+const Settings = lazy(() => import('./components/Settings'))
+const Dashboard = lazy(() => import('./components/Dashboard'))
+const Library = lazy(() => import('./components/Library'))
+const Duplicates = lazy(() => import('./components/Duplicates'))
+const PreferencesAdvanced = lazy(() => import('./components/PreferencesAdvanced'))
+const MetadataManager = lazy(() => import('./components/MetadataManager'))
+const ExternalAPIs = lazy(() => import('./components/ExternalAPIs'))
+const DownloadRules = lazy(() => import('./components/DownloadRules'))
+const CookiesManager = lazy(() => import('./components/CookiesManager'))
+const MassRip = lazy(() => import('./components/MassRip'))
+const ScheduleManager = lazy(() => import('./components/ScheduleManager'))
+const BackupManager = lazy(() => import('./components/BackupManager'))
+const LogsViewer = lazy(() => import('./components/LogsViewer'))
+const ScraperTester = lazy(() => import('./components/ScraperTester'))
+const RequestManager = lazy(() => import('./components/RequestManager'))
+
 // New Feature components
-import Favorites from './components/Favorites'
-import Studios from './components/Studios'
-import Analytics from './components/Analytics'
-import LiveStreams from './components/LiveStreams'
-import NotificationSettings from './components/NotificationSettings'
-import TranscodeQueue from './components/TranscodeQueue'
-import P2PSync from './components/P2PSync'
+const Favorites = lazy(() => import('./components/Favorites'))
+const Studios = lazy(() => import('./components/Studios'))
+const Analytics = lazy(() => import('./components/Analytics'))
+const LiveStreams = lazy(() => import('./components/LiveStreams'))
+const NotificationSettings = lazy(() => import('./components/NotificationSettings'))
+const TranscodeQueue = lazy(() => import('./components/TranscodeQueue'))
+const P2PSync = lazy(() => import('./components/P2PSync'))
 
 import { apiFetch, getAuthHeaders } from './api'
 import './App.css'
@@ -569,7 +573,13 @@ function App() {
             {visibleTabs.map(t => <Tab key={t.label} label={t.label} sx={{ fontWeight: 'bold' }} />)}
           </Tabs>
           <Box sx={{ mt: 3 }}>
-            {visibleTabs[tabValue >= visibleTabs.length ? 0 : tabValue]?.component}
+            <Suspense fallback={
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
+                <CircularProgress />
+              </Box>
+            }>
+              {visibleTabs[tabValue >= visibleTabs.length ? 0 : tabValue]?.component}
+            </Suspense>
           </Box>
         </Paper>
       </Container>

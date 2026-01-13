@@ -43,6 +43,10 @@ from routers import (
 # Create tables
 Base.metadata.create_all(bind=engine)
 
+# Execute startup database migrations
+from db_utils import run_schema_migrations
+run_schema_migrations(engine)
+
 # Initialize global network configurations (proxies and user-agents)
 from utils import initialize_network_settings
 

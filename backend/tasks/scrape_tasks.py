@@ -21,6 +21,11 @@ def scrape_url_task(url: str, recipe_id: int):
         return None
 
     with get_db_session() as db:
+        from db_utils import is_feature_enabled
+        if not is_feature_enabled(db, "scraping"):
+            print(f"Skipping scraping task for {url}: scraping feature is globally disabled.")
+            return None
+
         try:
             # Fetch the scraping recipe from the DB
             recipe = db.query(SiteRecipe).filter(SiteRecipe.id == recipe_id).first()

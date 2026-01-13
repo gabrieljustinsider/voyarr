@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 from database import get_db
 from models import Studio, User
 from routers.auth import get_current_user
@@ -22,19 +22,16 @@ class StudioCreateUpdate(BaseModel):
 @router.get("")
 def list_studios(q: Optional[str] = None, db: Session = Depends(get_db)):
     """List all studios, optionally filtered by a search query."""
-    query = db.query(Studio)
+    ParentStudio = aliased(Studio)
+    query = db.query(Studio, ParentStudio.name.label("parent_name")).outerjoin(
+        ParentStudio, Studio.parent_id == ParentStudio.id
+    )
     if q:
         query = query.filter(Studio.name.ilike(f"%{q}%"))
-    studios = query.order_by(Studio.name.asc()).all()
+    results = query.order_by(Studio.name.asc()).all()
 
     result = []
-    for s in studios:
-        parent_name = None
-        if s.parent_id:
-            parent = db.query(Studio).filter(Studio.id == s.parent_id).first()
-            if parent:
-                parent_name = parent.name
-
+    for s, parent_name in results:
         result.append(
             {
                 "id": s.id,
@@ -54,18 +51,19 @@ def list_studios(q: Optional[str] = None, db: Session = Depends(get_db)):
 @router.get("/{studio_id}")
 def get_studio(studio_id: int, db: Session = Depends(get_db)):
     """Retrieve details for a specific studio."""
-    s = db.query(Studio).filter(Studio.id == studio_id).first()
-    if not s:
+    ParentStudio = aliased(Studio)
+    result = (
+        db.query(Studio, ParentStudio.name.label("parent_name"))
+        .outerjoin(ParentStudio, Studio.parent_id == ParentStudio.id)
+        .filter(Studio.id == studio_id)
+        .first()
+    )
+    if not result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Studio not found"
         )
 
-    parent_name = None
-    if s.parent_id:
-        parent = db.query(Studio).filter(Studio.id == s.parent_id).first()
-        if parent:
-            parent_name = parent.name
-
+    s, parent_name = result
     return {
         "id": s.id,
         "name": s.name,

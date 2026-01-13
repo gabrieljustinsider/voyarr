@@ -12,7 +12,16 @@ import shutil
 
 from utils import validate_url_ssrf
 
-router = APIRouter(prefix="/live-streams", tags=["live_streams"])
+def check_live_stream_permission(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from db_utils import check_feature_permission
+    check_feature_permission(db, "streaming", current_user)
+
+
+router = APIRouter(
+    prefix="/live-streams",
+    tags=["live_streams"],
+    dependencies=[Depends(check_live_stream_permission)]
+)
 
 class LiveStreamCreateUpdate(BaseModel):
     name: str

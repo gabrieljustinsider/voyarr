@@ -84,8 +84,6 @@ def scan_library(
         aggregated_result["errors"].extend(result.get("errors", []))
 
     return {"message": "Scan complete", "result": aggregated_result}
-
-
 @router.get("/")
 def get_library_entries(
     provider_id: Optional[int] = None,
@@ -93,21 +91,33 @@ def get_library_entries(
     tag: Optional[str] = None,
     performer: Optional[str] = None,
     ohash: Optional[str] = None,
+    adheres_to_naming_scheme: Optional[bool] = None,
+    has_metadata_match: Optional[bool] = None,
+    has_chapters: Optional[bool] = None,
+    has_facial_clusters: Optional[bool] = None,
     page: int = 1,
     limit: int = 50,
     db: Session = Depends(get_db),
 ):
     query = db.query(LibraryEntry).options(defer(LibraryEntry.entry_metadata))
-    if provider_id:
+    if provider_id is not None:
         query = query.filter(LibraryEntry.provider_id == provider_id)
-    if resolution:
+    if resolution is not None:
         query = query.filter(LibraryEntry.resolution == resolution)
-    if tag:
+    if tag is not None:
         query = query.filter(LibraryEntry.tags.contains([tag]))
-    if performer:
+    if performer is not None:
         query = query.filter(LibraryEntry.performers.contains([performer]))
-    if ohash:
+    if ohash is not None:
         query = query.filter(LibraryEntry.ohash == ohash)
+    if adheres_to_naming_scheme is not None:
+        query = query.filter(LibraryEntry.adheres_to_naming_scheme == adheres_to_naming_scheme)
+    if has_metadata_match is not None:
+        query = query.filter(LibraryEntry.has_metadata_match == has_metadata_match)
+    if has_chapters is not None:
+        query = query.filter(LibraryEntry.has_chapters == has_chapters)
+    if has_facial_clusters is not None:
+        query = query.filter(LibraryEntry.has_facial_clusters == has_facial_clusters)
 
     total = query.count()
     items = query.offset((page - 1) * limit).limit(limit).all()
@@ -119,7 +129,18 @@ def get_library_entries(
 
 
 @router.get("/{entry_id}/stream")
-def stream_video(entry_id: int, db: Session = Depends(get_db)):
+def stream_video(
+    entry_id: int,
+    auth_info: dict = Depends(verify_api_key),
+    db: Session = Depends(get_db)
+):
+    from db_utils import check_feature_permission
+    from models import User
+    user = None
+    if auth_info.get("type") == "jwt" and auth_info.get("user"):
+        user = db.query(User).filter(User.username == auth_info.get("user")).first()
+    check_feature_permission(db, "streaming", user)
+
     file_path = (
         db.query(LibraryEntry.file_path).filter(LibraryEntry.id == entry_id).scalar()
     )

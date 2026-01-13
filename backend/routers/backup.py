@@ -166,6 +166,11 @@ def process_verify_and_decrypt(data: dict, password: Optional[str] = None) -> di
             expected_sig = calculate_hmac(HMAC_KEY, data_str.encode())
             if hmac.compare_digest(expected_sig, signature):
                 verified_signature = True
+            else:
+                return {
+                    "valid": False,
+                    "message": "Signature verification failed: invalid signature or tampered backup.",
+                }
 
         if checksum:
             expected_checksum = hashlib.sha256(data_str.encode()).hexdigest()

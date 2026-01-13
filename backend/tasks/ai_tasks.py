@@ -441,6 +441,7 @@ def generate_video_chapters_task(
             )
             db.add(chapter)
 
+        entry.has_chapters = len(filtered_timestamps) > 0
         db.commit()
         logger.info(f"Successfully auto-chaptered {entry.title}.")
         return f"Generated {len(filtered_timestamps)} chapters."

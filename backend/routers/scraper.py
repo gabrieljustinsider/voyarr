@@ -9,8 +9,22 @@ from sqlalchemy.orm.attributes import flag_modified
 from dependencies import verify_api_key
 from utils import validate_url_ssrf
 
+def check_scraper_feature_permission(
+    auth_info: dict = Depends(verify_api_key),
+    db: Session = Depends(get_db)
+):
+    from db_utils import check_feature_permission
+    from models import User
+    user = None
+    if auth_info.get("type") == "jwt" and auth_info.get("user"):
+        user = db.query(User).filter(User.username == auth_info.get("user")).first()
+    check_feature_permission(db, "scraping", user)
+
+
 router = APIRouter(
-    prefix="/scraper", tags=["scraper"], dependencies=[Depends(verify_api_key)]
+    prefix="/scraper",
+    tags=["scraper"],
+    dependencies=[Depends(verify_api_key), Depends(check_scraper_feature_permission)]
 )
 
 
@@ -114,3 +128,44 @@ def test_scraper(req: ScraperTestRequest, db: Session = Depends(get_db)):
             "description": "This is a dummy response returning data extracted based on the configured regex/css selectors.",
         },
     }
+
+
+@router.get("/bookmarklet", dependencies=[])
+def get_bookmarklet():
+    """Generates and returns the encoded, minified bookmarklet URL."""
+    try:
+        import os
+        import urllib.parse
+        import re
+        
+        # Determine path to bookmarklet.js
+        possible_paths = [
+            os.path.join(os.path.dirname(__file__), "../../extension/bookmarklet.js"),
+            os.path.join(os.path.dirname(__file__), "../extension/bookmarklet.js"),
+            os.path.join(os.path.dirname(__file__), "../bookmarklet.js"),
+            "/app/extension/bookmarklet.js",
+            "/app/bookmarklet.js"
+        ]
+        
+        file_path = None
+        for p in possible_paths:
+            if os.path.exists(p):
+                file_path = p
+                break
+                
+        if not file_path:
+            raise HTTPException(status_code=404, detail="bookmarklet.js not found on host filesystem.")
+            
+        with open(file_path, "r") as f:
+            code = f.read()
+            
+        # Basic minification to fit into browser URL limits
+        code = re.sub(r'//.*?\n', '\n', code)
+        code = re.sub(r'/\*.*?\*/', '', code, flags=re.DOTALL)
+        code = re.sub(r'\s+', ' ', code)
+        code = re.sub(r'\s*([\{\}\(\)\;\:\,\=\+\-\*\/])\s*', r'\1', code)
+        
+        return {"bookmarklet": "javascript:" + urllib.parse.quote(code)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load bookmarklet: {str(e)}")
+

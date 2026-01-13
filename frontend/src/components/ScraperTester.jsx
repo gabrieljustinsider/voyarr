@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, TextField, Button, Typography, Paper, CircularProgress } from '@mui/material';
+import { Box, TextField, Button, Typography, Paper, CircularProgress, Alert } from '@mui/material';
 import { apiFetch, API_BASE } from '../api';
 
 export default function ScraperTester() {
@@ -46,7 +46,18 @@ export default function ScraperTester() {
     }
   };
 
+  const [scrapingEnabled, setScrapingEnabled] = useState(true);
+
   useEffect(() => {
+    apiFetch('/settings')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.scraping_enabled === 'false') {
+          setScrapingEnabled(false);
+        }
+      })
+      .catch(console.error);
+
     return () => {
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
@@ -92,10 +103,15 @@ export default function ScraperTester() {
     <Box sx={{ mt: 2 }}>
       <Typography variant="h6" gutterBottom>Test Dynamic Scraper</Typography>
       <Paper sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <TextField label="Target URL" value={url} onChange={(e) => setUrl(e.target.value)} fullWidth />
-        <TextField label="Database Recipe ID" type="number" value={recipeId} onChange={(e) => setRecipeId(e.target.value)} fullWidth />
+        {!scrapingEnabled && (
+          <Alert severity="warning" sx={{ mb: 1 }} style={{ color: '#ff9800', background: 'rgba(255, 152, 0, 0.08)', border: '1px solid rgba(255, 152, 0, 0.2)' }}>
+            ⚠️ Access Denied: The Scraping feature is disabled globally by the administrator. Please enable it in Settings to test scrapers.
+          </Alert>
+        )}
+        <TextField label="Target URL" value={url} onChange={(e) => setUrl(e.target.value)} fullWidth disabled={!scrapingEnabled} />
+        <TextField label="Database Recipe ID" type="number" value={recipeId} onChange={(e) => setRecipeId(e.target.value)} fullWidth disabled={!scrapingEnabled} />
 
-        <Button variant="contained" onClick={handleScrape} disabled={isBusy} startIcon={isBusy ? <CircularProgress size={20} color="inherit" /> : null}>
+        <Button variant="contained" onClick={handleScrape} disabled={isBusy || !scrapingEnabled} startIcon={isBusy ? <CircularProgress size={20} color="inherit" /> : null}>
           {isBusy ? 'Scraping...' : 'Start Scrape'}
         </Button>
 

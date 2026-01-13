@@ -75,16 +75,23 @@ def approve_request(
     )
     api_key = os.getenv("MASTER_KEY", "")
 
-    py_requests.post(
-        f"{api_base}/download/mass_rip",
-        json={
-            "provider_id": provider_id,
-            "url": db_req.url,
-            "action": "metadata_and_download",
-        },
-        headers={"X-Voyarr-Api-Key": api_key},
-        timeout=10,
-    )
+    try:
+        response = py_requests.post(
+            f"{api_base}/download/mass_rip",
+            json={
+                "provider_id": provider_id,
+                "url": db_req.url,
+                "action": "metadata_and_download",
+            },
+            headers={"X-Voyarr-Api-Key": api_key},
+            timeout=10,
+        )
+        response.raise_for_status()
+    except py_requests.RequestException as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to communicate with internal download engine: {str(e)}",
+        )
 
     db.delete(db_req)
     db.commit()

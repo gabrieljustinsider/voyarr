@@ -117,6 +117,7 @@ def cluster_faces_task(self, library_entry_id: int, frame_skip: int = 30):
             meta = (entry_update.entry_metadata or {}).copy()
             meta["facial_clusters"] = cluster_results
             entry_update.entry_metadata = meta
+            entry_update.has_facial_clusters = len(cluster_results) > 0
             db.commit()
 
     return cluster_results

@@ -8,27 +8,23 @@ import database
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from sqlalchemy.pool import StaticPool
+
 test_engine = create_engine(
     "sqlite:///file:testdb_network?mode=memory&cache=shared",
     connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
 )
 TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
 
-database.engine = test_engine
-database.SessionLocal = TestSessionLocal
-
+from models import Base, Settings, Vault
+from utils import initialize_network_settings
 import db_utils
-
-db_utils.SessionLocal = TestSessionLocal
-
 import pytest
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
-
 from main import app
 from dependencies import verify_api_key
-from models import Base, Settings, Vault
-from utils import initialize_network_settings
 
 # Override auth dependency to allow testing router directly
 app.dependency_overrides[verify_api_key] = lambda: {"type": "mock", "user": "admin"}
@@ -37,6 +33,9 @@ client = TestClient(app)
 
 @pytest.fixture(autouse=True)
 def setup_db():
+    database.engine = test_engine
+    database.SessionLocal = TestSessionLocal
+    db_utils.SessionLocal = TestSessionLocal
     Base.metadata.create_all(bind=test_engine)
     # Clear tables to avoid conflicts
     with db_utils.get_db_session() as db:

@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field
 from typing import Literal
 from jose import jwt, JWTError
 from rate_limiter import rate_limit
+from dependencies import verify_api_key
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
@@ -100,6 +101,39 @@ def register_user(user: UserCreate, request: Request, db: Session = Depends(get_
     try:
         db.commit()
         db.refresh(db_user)
+        
+        # Log administrative registration action
+        actor_username = "System (First User)"
+        actor_id = None
+        if user_count > 0:
+            api_key = request.headers.get("X-Voyarr-Api-Key")
+            auth_header = request.headers.get("Authorization")
+            master_key_env = os.getenv("MASTER_KEY")
+            if api_key and master_key_env and secrets.compare_digest(api_key, master_key_env):
+                actor_username = "Master Key"
+            elif auth_header and auth_header.startswith("Bearer "):
+                token = auth_header.split(" ")[1]
+                try:
+                    payload = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
+                    actor_username = payload.get("sub") or "Admin User"
+                    actor_user = db.query(User).filter(User.username == actor_username).first()
+                    if actor_user:
+                        actor_id = actor_user.id
+                except Exception:
+                    actor_username = "Admin User"
+                    
+        from db_utils import log_admin_action
+        log_admin_action(
+            db,
+            admin_id=actor_id,
+            admin_username=actor_username,
+            action="register_user",
+            details={
+                "created_user_id": db_user.id,
+                "created_username": db_user.username,
+                "role": db_user.role
+            }
+        )
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=400, detail="Username already registered")
@@ -259,3 +293,105 @@ def autologin(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Authentication bypass criteria not met.",
     )
+
+
+class UserPermissionsUpdate(BaseModel):
+    role: str
+    permissions: dict[str, bool]
+
+
+@router.get("/users")
+def list_users(auth_info: dict = Depends(verify_api_key), db: Session = Depends(get_db)):
+    if auth_info.get("type") == "jwt":
+        if auth_info.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Admin privileges required")
+    elif auth_info.get("type") != "master_key":
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    users = db.query(User).all()
+    return [
+        {
+            "id": u.id,
+            "username": u.username,
+            "role": u.role,
+            "is_active": u.is_active,
+            "created_at": u.created_at,
+            "permissions": u.permissions or {"can_stream": True, "can_scrape": False, "can_rip": False}
+        }
+        for u in users
+    ]
+
+
+@router.put("/users/{user_id}/permissions")
+def update_user_permissions(
+    user_id: str,
+    payload: UserPermissionsUpdate,
+    auth_info: dict = Depends(verify_api_key),
+    db: Session = Depends(get_db)
+):
+    actor_username = "Unknown"
+    actor_id = None
+    if auth_info.get("type") == "master_key":
+        actor_username = "Master Key"
+    elif auth_info.get("type") == "jwt":
+        if auth_info.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Admin privileges required")
+        actor_username = auth_info.get("user")
+        actor_user = db.query(User).filter(User.username == actor_username).first()
+        if actor_user:
+            actor_id = actor_user.id
+    else:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    old_role = target_user.role
+    old_permissions = target_user.permissions or {"can_stream": True, "can_scrape": False, "can_rip": False}
+
+    target_user.role = payload.role
+    target_user.permissions = payload.permissions
+    db.commit()
+    db.refresh(target_user)
+
+    # Log admin action
+    from db_utils import log_admin_action
+    log_admin_action(
+        db,
+        admin_id=actor_id,
+        admin_username=actor_username,
+        action="update_user_permissions",
+        details={
+            "target_user_id": target_user.id,
+            "target_username": target_user.username,
+            "old_role": old_role,
+            "new_role": payload.role,
+            "old_permissions": old_permissions,
+            "new_permissions": payload.permissions
+        }
+    )
+    return {"message": "User permissions and role updated successfully"}
+
+
+@router.get("/admin-logs")
+def list_admin_logs(auth_info: dict = Depends(verify_api_key), db: Session = Depends(get_db)):
+    if auth_info.get("type") == "jwt":
+        if auth_info.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Admin privileges required")
+    elif auth_info.get("type") != "master_key":
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    from models import AdminLog
+    logs = db.query(AdminLog).order_by(AdminLog.timestamp.desc()).limit(100).all()
+    return [
+        {
+            "id": l.id,
+            "admin_id": l.admin_id,
+            "admin_username": l.admin_username,
+            "action": l.action,
+            "details": l.details,
+            "timestamp": l.timestamp
+        }
+        for l in logs
+    ]

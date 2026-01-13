@@ -51,7 +51,7 @@ def restore_modules():
 
 
 def override_get_db():
-    db = SessionLocal()
+    db = TestSessionLocal()
     try:
         yield db
     finally:
@@ -80,6 +80,13 @@ def setup_db_and_dependencies():
     # Re-create all tables in this test's unique cache database
     Base.metadata.drop_all(bind=test_engine)
     Base.metadata.create_all(bind=test_engine)
+
+    # Seed global settings to enable scraping during Discord command tests
+    from models import Settings
+    db = TestSessionLocal()
+    db.add(Settings(key="scraping_enabled", value="true"))
+    db.commit()
+    db.close()
 
     yield
 

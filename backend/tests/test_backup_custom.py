@@ -80,3 +80,15 @@ def test_backup_export_and_verify_cycle():
     assert verify_enc_pw_json["encrypted"] is True
     assert verify_enc_pw_json["verified_signature"] is True
     assert "decrypted_data" in verify_enc_pw_json
+
+    # 6. Verify tampered backup signature mismatch
+    tampered_json = export_json.copy()
+    tampered_json["signature"] = "invalid_signature_to_simulate_tampering"
+    file_tampered_payload = {
+        "file": ("backup_tampered.json", json.dumps(tampered_json), "application/json")
+    }
+    verify_tampered_response = client.post("/backup/verify", files=file_tampered_payload)
+    assert verify_tampered_response.status_code == 200
+    verify_tampered_json = verify_tampered_response.json()
+    assert verify_tampered_json["valid"] is False
+    assert "signature verification failed" in verify_tampered_json["message"].lower()

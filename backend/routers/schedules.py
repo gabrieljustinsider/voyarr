@@ -11,8 +11,22 @@ from tasks.schedule_tasks import process_schedules
 
 from dependencies import verify_api_key
 
+def check_schedules_feature_permission(
+    auth_info: dict = Depends(verify_api_key),
+    db: Session = Depends(get_db)
+):
+    from db_utils import check_feature_permission
+    from models import User
+    user = None
+    if auth_info.get("type") == "jwt" and auth_info.get("user"):
+        user = db.query(User).filter(User.username == auth_info.get("user")).first()
+    check_feature_permission(db, "scraping", user)
+
+
 router = APIRouter(
-    prefix="/schedules", tags=["schedules"], dependencies=[Depends(verify_api_key)]
+    prefix="/schedules",
+    tags=["schedules"],
+    dependencies=[Depends(verify_api_key), Depends(check_schedules_feature_permission)]
 )
 
 

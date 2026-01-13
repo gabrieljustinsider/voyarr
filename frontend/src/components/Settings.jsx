@@ -103,7 +103,10 @@ export default function Settings() {
     auth_bypass_subnets: '127.0.0.1',
     auth_bypass_default_user: '',
     auth_bypass_proxy_header_enabled: 'false',
-    auth_bypass_proxy_header_name: 'Remote-User'
+    auth_bypass_proxy_header_name: 'Remote-User',
+    streaming_enabled: 'true',
+    scraping_enabled: 'false',
+    ripping_enabled: 'false'
   })
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
   const [apiKeys, setApiKeys] = useState([])
@@ -114,8 +117,11 @@ export default function Settings() {
   const [diagnosticLoading, setDiagnosticLoading] = useState(false)
   const [diagnosticResult, setDiagnosticResult] = useState(null)
   const [showProxyUrl, setShowProxyUrl] = useState(false)
+  const [bookmarkletCode, setBookmarkletCode] = useState('')
 
   const [newUser, setNewUser] = useState({ username: '', password: '', role: 'user' })
+  const [usersList, setUsersList] = useState([])
+  const [adminLogs, setAdminLogs] = useState([])
 
   const [passkeys, setPasskeys] = useState([])
   const [ssoLinks, setSsoLinks] = useState([])
@@ -428,6 +434,44 @@ export default function Settings() {
     } catch (err) { console.error('Failed to fetch API keys:', err) }
   }
 
+  const fetchUsersList = async () => {
+    try {
+      const res = await apiFetch('/auth/users')
+      if (res.ok) {
+        setUsersList(await res.json())
+      }
+    } catch (err) { console.error('Failed to fetch users list:', err) }
+  }
+
+  const fetchAdminLogs = async () => {
+    try {
+      const res = await apiFetch('/auth/admin-logs')
+      if (res.ok) {
+        setAdminLogs(await res.json())
+      }
+    } catch (err) { console.error('Failed to fetch admin logs:', err) }
+  }
+
+  const handleUpdateUserPermissions = async (userId, newRole, newPermissions) => {
+    try {
+      const res = await apiFetch(`/auth/users/${userId}/permissions`, {
+        method: 'PUT',
+        body: JSON.stringify({ role: newRole, permissions: newPermissions })
+      })
+      if (res.ok) {
+        setSnackbar({ open: true, message: 'User role and permissions updated successfully!', severity: 'success' })
+        fetchUsersList()
+        fetchAdminLogs()
+      } else {
+        const err = await res.json()
+        setSnackbar({ open: true, message: `Failed: ${err.detail}`, severity: 'error' })
+      }
+    } catch (err) {
+      console.error(err)
+      setSnackbar({ open: true, message: 'Network error updating user.', severity: 'error' })
+    }
+  }
+
   useEffect(() => {
     apiFetch('/settings')
       .then(res => {
@@ -439,9 +483,19 @@ export default function Settings() {
         setSettings(prev => ({ ...prev, ...data }))
       })
       .catch(console.error)
+    apiFetch('/scraper/bookmarklet')
+      .then(res => {
+        if (res.ok) return res.json()
+      })
+      .then(data => {
+        if (data && data.bookmarklet) setBookmarkletCode(data.bookmarklet)
+      })
+      .catch(console.error)
     fetchApiKeys()
     fetchPasskeys()
     fetchSsoLinks()
+    fetchUsersList()
+    fetchAdminLogs()
   }, [])
 
 
@@ -475,6 +529,7 @@ export default function Settings() {
       })
       if (res.ok) {
         setSnackbar({ open: true, message: `Setting "${key}" updated successfully!`, severity: 'success' })
+        fetchAdminLogs()
       } else {
         setSnackbar({ open: true, message: `Failed to update "${key}". Server returned ${res.status}`, severity: 'error' })
       }
@@ -553,6 +608,8 @@ export default function Settings() {
       if (res.ok) {
         setSnackbar({ open: true, message: `User ${newUser.username} created successfully!`, severity: 'success' })
         setNewUser({ username: '', password: '', role: 'user' })
+        fetchUsersList()
+        fetchAdminLogs()
       } else {
         const err = await res.json()
         setSnackbar({ open: true, message: `Failed: ${err.detail}`, severity: 'error' })
@@ -922,15 +979,63 @@ export default function Settings() {
           </Grid>
         </Grid>
         
-        <Box sx={{ mt: 3, p: 2, backgroundColor: 'rgba(25, 118, 210, 0.1)', borderRadius: 1, border: '1px solid #1976d2' }}>
-          <Typography variant="subtitle2" color="primary" gutterBottom>
-            <strong>How to install the Browser Extension:</strong>
-          </Typography>
-          <Typography variant="body2">
-            1. Open Chrome or Edge and navigate to <code>chrome://extensions/</code><br/>
-            2. Enable <strong>Developer mode</strong> in the top right corner.<br/>
-            3. Click <strong>Load unpacked</strong> and select the <code>/extension</code> folder from your Voyarr installation directory.
-          </Typography>
+        <Box sx={{ mt: 3, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3 }}>
+          <Box sx={{ p: 2, flex: 1, backgroundColor: 'rgba(25, 118, 210, 0.1)', borderRadius: 1, border: '1px solid #1976d2' }}>
+            <Typography variant="subtitle2" color="primary" gutterBottom>
+              <strong>1. Chrome / Edge Extension (Standard)</strong>
+            </Typography>
+            <Typography variant="body2">
+              1. Open Chrome or Edge and navigate to <code>chrome://extensions/</code><br/>
+              2. Enable <strong>Developer mode</strong> in the top right corner.<br/>
+              3. Click <strong>Load unpacked</strong> and select the <code>/extension</code> folder from your Voyarr installation directory.
+            </Typography>
+          </Box>
+          
+          <Box sx={{ p: 2, flex: 1, backgroundColor: 'rgba(76, 175, 80, 0.1)', borderRadius: 1, border: '1px solid #4caf50' }}>
+            <Typography variant="subtitle2" color="success.main" gutterBottom style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <strong>2. Meta Quest & Mobile (Universal Bookmarklet)</strong>
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 1.5 }}>
+              For VR Headsets (Meta Quest Browser) or mobile devices: Copy the bookmarklet code below, save it as a browser bookmark, and click it on any website to map selectors in 3D Space!
+            </Typography>
+            {bookmarkletCode ? (
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <Button 
+                    fullWidth 
+                    variant="contained" 
+                    color="success" 
+                    href={bookmarkletCode} 
+                    style={{ textTransform: 'none', cursor: 'grab' }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigator.clipboard.writeText(bookmarkletCode);
+                      setSnackbar({ open: true, message: 'Bookmarklet code copied! Dragging is not supported in all browsers, so paste it as a bookmark URL.', severity: 'success' });
+                    }}
+                  >
+                    🎯 Voyarr Lens VR
+                  </Button>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Button 
+                    fullWidth 
+                    variant="outlined" 
+                    color="success"
+                    onClick={() => {
+                      navigator.clipboard.writeText(bookmarkletCode);
+                      setSnackbar({ open: true, message: 'Bookmarklet code copied to clipboard!', severity: 'success' });
+                    }}
+                  >
+                    Copy Bookmarklet
+                  </Button>
+                </Grid>
+              </Grid>
+            ) : (
+              <Typography variant="body2" color="error">
+                Failed to load bookmarklet code. Make sure your Voyarr server is fully updated and running.
+              </Typography>
+            )}
+          </Box>
         </Box>
       </Paper>
 
@@ -1304,6 +1409,55 @@ export default function Settings() {
 
         <Divider sx={{ my: 3, opacity: 0.2 }} />
 
+        {/* Global Feature Controls */}
+        <Box sx={{ mb: 4 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <TuneIcon color="secondary" />
+            <Typography variant="subtitle1" sx={{ fontWeight: '600' }}>Global Feature Controls</Typography>
+          </Box>
+          <Typography variant="body2" sx={{ mb: 2, opacity: 0.7 }} color="textSecondary">
+            Enable or disable primary features system-wide. Disabling a feature will reject API requests and block access for all users.
+          </Typography>
+
+          <Grid container spacing={2} sx={{ mb: 2 }}>
+            <Grid item xs={12} md={4}>
+              <Paper sx={{ p: 2, borderRadius: '12px', backgroundColor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <FormControlLabel
+                  control={<Switch checked={settings.streaming_enabled === 'true'} onChange={e => handleToggleSetting('streaming_enabled', e.target.checked)} color="primary" />}
+                  label={<Typography variant="body2" sx={{ fontWeight: 600 }}>Streaming Features</Typography>}
+                />
+                <Typography variant="caption" sx={{ display: 'block', mt: 0.5, opacity: 0.5 }} color="textSecondary">
+                  Video streaming, HLS and playback capabilities (Default: ON)
+                </Typography>
+              </Paper>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Paper sx={{ p: 2, borderRadius: '12px', backgroundColor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <FormControlLabel
+                  control={<Switch checked={settings.scraping_enabled === 'true'} onChange={e => handleToggleSetting('scraping_enabled', e.target.checked)} color="secondary" />}
+                  label={<Typography variant="body2" sx={{ fontWeight: 600 }}>Scraping Features</Typography>}
+                />
+                <Typography variant="caption" sx={{ display: 'block', mt: 0.5, opacity: 0.5 }} color="textSecondary">
+                  Dynamic browser metadata scraping & Map Mode (Default: OFF)
+                </Typography>
+              </Paper>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Paper sx={{ p: 2, borderRadius: '12px', backgroundColor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <FormControlLabel
+                  control={<Switch checked={settings.ripping_enabled === 'true'} onChange={e => handleToggleSetting('ripping_enabled', e.target.checked)} color="error" />}
+                  label={<Typography variant="body2" sx={{ fontWeight: 600 }}>Ripping Features</Typography>}
+                />
+                <Typography variant="caption" sx={{ display: 'block', mt: 0.5, opacity: 0.5 }} color="textSecondary">
+                  Mass ripping and queue download engines (Default: OFF)
+                </Typography>
+              </Paper>
+            </Grid>
+          </Grid>
+        </Box>
+
+        <Divider sx={{ my: 3, opacity: 0.2 }} />
+
         {/* Authentication Policies */}
         <Box sx={{ mb: 4 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
@@ -1538,6 +1692,115 @@ export default function Settings() {
           </Grid>
         </Grid>
       </Paper>
+
+      {/* Users List & Granular Permissions */}
+      {usersList.length > 0 && (
+        <Paper sx={{ p: 3, mb: 3 }}>
+          <Typography variant="h6" gutterBottom>User Roles & Granular Permissions</Typography>
+          <Typography variant="body2" sx={{ mb: 2 }} color="textSecondary">
+            Manage granular access controls and per-user permissions for streaming, scraping, and ripping features.
+          </Typography>
+          <Divider sx={{ mb: 2 }} />
+          <Box sx={{ overflowX: 'auto' }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Username</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Role</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>Can Stream</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>Can Scrape</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>Can Rip</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {usersList.map((u) => {
+                  const perms = u.permissions || { can_stream: true, can_scrape: false, can_rip: false };
+                  return (
+                    <TableRow key={u.id} hover>
+                      <TableCell sx={{ fontWeight: 500 }}>{u.username}</TableCell>
+                      <TableCell>
+                        <Select
+                          size="small"
+                          value={u.role}
+                          onChange={(e) => handleUpdateUserPermissions(u.id, e.target.value, perms)}
+                          sx={{ minWidth: 100, borderRadius: '8px' }}
+                        >
+                          <MenuItem value="admin">Admin</MenuItem>
+                          <MenuItem value="user">User</MenuItem>
+                          <MenuItem value="viewer">Viewer</MenuItem>
+                        </Select>
+                      </TableCell>
+                      <TableCell sx={{ textAlign: 'center' }}>
+                        <Switch
+                          checked={perms.can_stream !== false}
+                          disabled={u.role === 'admin'}
+                          onChange={(e) => handleUpdateUserPermissions(u.id, u.role, { ...perms, can_stream: e.target.checked })}
+                          color="primary"
+                        />
+                      </TableCell>
+                      <TableCell sx={{ textAlign: 'center' }}>
+                        <Switch
+                          checked={perms.can_scrape === true}
+                          disabled={u.role === 'admin'}
+                          onChange={(e) => handleUpdateUserPermissions(u.id, u.role, { ...perms, can_scrape: e.target.checked })}
+                          color="secondary"
+                        />
+                      </TableCell>
+                      <TableCell sx={{ textAlign: 'center' }}>
+                        <Switch
+                          checked={perms.can_rip === true}
+                          disabled={u.role === 'admin'}
+                          onChange={(e) => handleUpdateUserPermissions(u.id, u.role, { ...perms, can_rip: e.target.checked })}
+                          color="error"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </Box>
+        </Paper>
+      )}
+
+      {/* Admin Action Audit Logs */}
+      {adminLogs.length > 0 && (
+        <Paper sx={{ p: 3, mb: 3 }}>
+          <Typography variant="h6" gutterBottom>Admin Action Audit Logs</Typography>
+          <Typography variant="body2" sx={{ mb: 2 }} color="textSecondary">
+            A chronological security audit log of all administrative actions, policy adjustments, and user permission updates.
+          </Typography>
+          <Divider sx={{ mb: 2 }} />
+          <Box sx={{ overflowX: 'auto', maxHeight: '400px', overflowY: 'auto' }}>
+            <Table size="small" stickyHeader>
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 'bold', background: '#11121a' }}>Timestamp</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', background: '#11121a' }}>Administrator</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', background: '#11121a' }}>Action</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', background: '#11121a' }}>Details</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {adminLogs.map((log) => (
+                  <TableRow key={log.id} hover>
+                    <TableCell sx={{ opacity: 0.8, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+                      {new Date(log.timestamp).toLocaleString()}
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>{log.admin_username}</TableCell>
+                    <TableCell sx={{ textTransform: 'uppercase', fontSize: '0.8rem', fontWeight: 'bold', color: 'info.main' }}>
+                      {log.action}
+                    </TableCell>
+                    <TableCell sx={{ fontSize: '0.85rem', maxWidth: '300px', wordBreak: 'break-all' }}>
+                      {JSON.stringify(log.details)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Box>
+        </Paper>
+      )}
 
       {/* Mock SSO Simulated OAuth Dialog */}
       <Dialog 

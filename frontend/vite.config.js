@@ -37,6 +37,29 @@ export default defineConfig({
       }
     })
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('@mui/icons-material')) {
+              return 'mui-icons';
+            }
+            if (id.includes('@mui')) {
+              return 'mui';
+            }
+            if (id.includes('recharts')) {
+              return 'recharts';
+            }
+            if (id.includes('react')) {
+              return 'react-vendor';
+            }
+            return 'vendor';
+          }
+        }
+      }
+    }
+  },
   server: {
     port: 3000,
     host: true,

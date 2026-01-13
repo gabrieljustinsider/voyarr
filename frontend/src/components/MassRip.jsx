@@ -11,11 +11,21 @@ export default function MassRip() {
   const [url, setUrl] = useState('')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
+  const [rippingEnabled, setRippingEnabled] = useState(true)
 
   useEffect(() => {
     apiFetch('/providers')
       .then(res => res.json())
       .then(data => setProviders(data))
+      .catch(console.error)
+
+    apiFetch('/settings')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.ripping_enabled === 'false') {
+          setRippingEnabled(false)
+        }
+      })
       .catch(console.error)
   }, [])
 
@@ -46,12 +56,17 @@ export default function MassRip() {
     <Box>
       <Typography variant="h4" gutterBottom>Mass Rip Workflow</Typography>
       <Paper sx={{ p: 3, mb: 3 }}>
+        {!rippingEnabled && (
+          <Alert severity="warning" sx={{ mb: 3 }}>
+            ⚠️ Access Denied: The Ripping feature is disabled globally by the administrator. Please enable it in Settings to use this workflow.
+          </Alert>
+        )}
         <Typography variant="body1" sx={{ mb: 3 }}>
           Provide a channel or playlist URL. Voyarr will scrape all contained video URLs and process them sequentially through your active global and provider-specific Download Rules, queueing matched videos automatically.
         </Typography>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={12} md={3}>
-            <FormControl fullWidth size="small">
+            <FormControl fullWidth size="small" disabled={!rippingEnabled}>
               <InputLabel>Provider Ruleset</InputLabel>
               <Select value={providerId} label="Provider Ruleset" onChange={e => setProviderId(e.target.value)}>
                 {providers.map(p => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
@@ -59,10 +74,10 @@ export default function MassRip() {
             </FormControl>
           </Grid>
           <Grid item xs={12} md={7}>
-            <TextField fullWidth size="small" label="Target URL (Channel/Playlist)" value={url} onChange={e => setUrl(e.target.value)} />
+            <TextField fullWidth size="small" label="Target URL (Channel/Playlist)" value={url} onChange={e => setUrl(e.target.value)} disabled={!rippingEnabled} />
           </Grid>
           <Grid item xs={12} md={2}>
-            <Button fullWidth variant="contained" onClick={handleMassRip} disabled={loading || !providerId || !url}>
+            <Button fullWidth variant="contained" onClick={handleMassRip} disabled={loading || !providerId || !url || !rippingEnabled}>
               {loading ? <CircularProgress size={24} /> : 'Start Mass Rip'}
             </Button>
           </Grid>

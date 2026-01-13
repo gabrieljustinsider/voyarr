@@ -82,6 +82,7 @@ export default function Library() {
     performers_to_remove: ''
   })
   const [bulkSubmitting, setBulkSubmitting] = useState(false)
+  const [streamingEnabled, setStreamingEnabled] = useState(true)
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -148,6 +149,14 @@ export default function Library() {
     fetchLibrary()
     fetchFavScenes()
     fetchStudios()
+    apiFetch('/settings')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.streaming_enabled === 'false') {
+          setStreamingEnabled(false)
+        }
+      })
+      .catch(console.error)
   }, [fetchLibrary, fetchFavScenes, fetchStudios])
 
   const handleFilterChange = (e) => {
@@ -717,17 +726,25 @@ export default function Library() {
             ) : (
               <>
                 <Box sx={{ flexGrow: 1, backgroundColor: 'black', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                  <video 
-                    key={playingVideo.id}
-                    controls 
-                    autoPlay 
-                    onPlay={() => handleVideoPlay(playingVideo.id)}
-                    style={{ width: '100%', maxHeight: '75vh', outline: 'none' }}
-                    src={`${API_BASE}/library/${playingVideo.id}/stream?${getAuthQuery()}`}
-                    controlsList="nodownload"
-                  >
-                    Your browser does not support the video tag.
-                  </video>
+                  {streamingEnabled ? (
+                    <video 
+                      key={playingVideo.id}
+                      controls 
+                      autoPlay 
+                      onPlay={() => handleVideoPlay(playingVideo.id)}
+                      style={{ width: '100%', maxHeight: '75vh', outline: 'none' }}
+                      src={`${API_BASE}/library/${playingVideo.id}/stream?${getAuthQuery()}`}
+                      controlsList="nodownload"
+                    >
+                      Your browser does not support the video tag.
+                    </video>
+                  ) : (
+                    <Box sx={{ p: 4, textAlign: 'center', width: '80%' }}>
+                      <Alert severity="warning" style={{ color: '#ff9800', background: 'rgba(255, 152, 0, 0.08)', border: '1px solid rgba(255, 152, 0, 0.2)' }}>
+                        ⚠️ Video Playback / Streaming is globally disabled by the administrator. Please enable it in Settings.
+                      </Alert>
+                    </Box>
+                  )}
                 </Box>
 
                 <Box sx={{ width: { xs: '100%', md: 300 }, minWidth: { md: 300 }, p: 2, backgroundColor: '#1e1e1e', overflowY: 'auto', maxHeight: { md: '75vh' } }}>

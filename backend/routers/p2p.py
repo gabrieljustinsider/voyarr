@@ -157,11 +157,17 @@ def push_recipes(
                 p_details = next(
                     (p for p in providers_pushed if p.get("name") == prov_name), {}
                 )
+                
+                base_url = p_details.get("base_url")
+                if base_url:
+                    from utils import validate_url_ssrf
+                    validate_url_ssrf(base_url)
+                else:
+                    base_url = f"https://{prov_name.lower()}.com"
+
                 db_prov = Provider(
                     name=prov_name,
-                    base_url=p_details.get(
-                        "base_url", f"https://{prov_name.lower()}.com"
-                    ),
+                    base_url=base_url,
                     naming_pattern=p_details.get("naming_pattern"),
                     separator=p_details.get("separator", "_"),
                     space_replacement=p_details.get("space_replacement", "_"),

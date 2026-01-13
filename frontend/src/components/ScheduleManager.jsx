@@ -21,6 +21,7 @@ export default function ScheduleManager() {
   });
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, scheduleId: null });
+  const [scrapingEnabled, setScrapingEnabled] = useState(true);
 
   const fetchData = useCallback(async () => {
     try {
@@ -30,6 +31,15 @@ export default function ScheduleManager() {
       ]);
       if (schedRes.ok) setSchedules(await schedRes.json());
       if (provRes.ok) setProviders(await provRes.json());
+
+      // Check global scraping setting
+      const settingsRes = await apiFetch('/settings');
+      if (settingsRes.ok) {
+        const settings = await settingsRes.json();
+        if (settings && settings.scraping_enabled === 'false') {
+          setScrapingEnabled(false);
+        }
+      }
     } catch (e) {
       console.error('Failed to fetch data:', e);
     }
@@ -136,16 +146,22 @@ export default function ScheduleManager() {
       
       <Paper sx={{ p: 2, mb: 4 }}>
         <Typography variant="h6" gutterBottom>Create New Schedule</Typography>
+        {!scrapingEnabled && (
+          <Alert severity="warning" sx={{ mb: 2 }} style={{ color: '#ff9800', background: 'rgba(255, 152, 0, 0.08)', border: '1px solid rgba(255, 152, 0, 0.2)' }}>
+            ⚠️ Access Denied: The Scraping feature is disabled globally by the administrator. Please enable it in Settings to configure or manage schedules.
+          </Alert>
+        )}
         <form onSubmit={handleSubmit}>
           <Grid container spacing={2}>
             <Grid item xs={12} md={4}>
               <TextField 
                 fullWidth size="small" name="name" label="Schedule Name" 
                 value={formData.name} onChange={handleChange} required 
+                disabled={!scrapingEnabled}
               />
             </Grid>
             <Grid item xs={12} md={4}>
-              <FormControl fullWidth size="small" required>
+              <FormControl fullWidth size="small" required disabled={!scrapingEnabled}>
                 <InputLabel>Provider</InputLabel>
                 <Select name="provider_id" value={formData.provider_id} onChange={handleChange} label="Provider">
                   {providers.map(p => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
@@ -157,16 +173,18 @@ export default function ScheduleManager() {
                 fullWidth size="small" name="cron_expression" label="Cron Expression" 
                 value={formData.cron_expression} onChange={handleChange} required 
                 helperText="e.g. 0 0 * * * (Daily at midnight)"
+                disabled={!scrapingEnabled}
               />
             </Grid>
             <Grid item xs={12} md={8}>
               <TextField 
                 fullWidth size="small" name="target_url" label="Target URL (Channel/Playlist/Index)" 
                 value={formData.target_url} onChange={handleChange} required 
+                disabled={!scrapingEnabled}
               />
             </Grid>
             <Grid item xs={12} md={4}>
-              <FormControl fullWidth size="small" required>
+              <FormControl fullWidth size="small" required disabled={!scrapingEnabled}>
                 <InputLabel>Action</InputLabel>
                 <Select name="action" value={formData.action} onChange={handleChange} label="Action">
                   <MenuItem value="metadata_and_download">Rip Metadata & Download</MenuItem>
@@ -177,12 +195,12 @@ export default function ScheduleManager() {
             </Grid>
             <Grid item xs={12}>
               <FormControlLabel
-                control={<Switch checked={formData.is_active} onChange={handleChange} name="is_active" />}
+                control={<Switch checked={formData.is_active} onChange={handleChange} name="is_active" disabled={!scrapingEnabled} />}
                 label="Active"
               />
             </Grid>
             <Grid item xs={12}>
-              <Button variant="contained" type="submit">Create Schedule</Button>
+              <Button variant="contained" type="submit" disabled={!scrapingEnabled}>Create Schedule</Button>
             </Grid>
           </Grid>
         </form>
@@ -222,7 +240,7 @@ export default function ScheduleManager() {
                   </TableCell>
                   <TableCell>{row.cron_expression}</TableCell>
                   <TableCell>
-                    <Switch size="small" checked={row.is_active} onChange={() => handleToggle(row.id, row.is_active)} />
+                    <Switch size="small" checked={row.is_active} onChange={() => handleToggle(row.id, row.is_active)} disabled={!scrapingEnabled} />
                   </TableCell>
                   <TableCell>
                     {formatTime(row.last_run)}
@@ -239,12 +257,12 @@ export default function ScheduleManager() {
                   </TableCell>
                   <TableCell>
                     <Tooltip title="Trigger Now">
-                      <IconButton size="small" color="primary" onClick={() => handleTrigger(row.id)}>
+                      <IconButton size="small" color="primary" onClick={() => handleTrigger(row.id)} disabled={!scrapingEnabled}>
                         <PlayArrowIcon />
                       </IconButton>
                     </Tooltip>
                     <Tooltip title="Delete">
-                      <IconButton size="small" color="error" onClick={() => setDeleteConfirm({ open: true, scheduleId: row.id })}>
+                      <IconButton size="small" color="error" onClick={() => setDeleteConfirm({ open: true, scheduleId: row.id })} disabled={!scrapingEnabled}>
                         <DeleteIcon />
                       </IconButton>
                     </Tooltip>

@@ -302,6 +302,8 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
                     except Exception as cookie_err:
                         print(f"Failed to remove cookie path: {cookie_err}")
                 raise self.retry(exc=e, countdown=60)
+            else:
+                raise e
         finally:
             if (
                 "cookie_temp_path" in locals()

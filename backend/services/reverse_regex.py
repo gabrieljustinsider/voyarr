@@ -40,13 +40,15 @@ class ReverseRegexMatcher:
                 filename_no_ext = os.path.splitext(file)[0]
 
                 match = regex.match(filename_no_ext)
-                if not match:
-                    continue
+                adheres = True
+                data = {}
+                if match:
+                    data = match.groupdict()
+                    matched += 1
+                else:
+                    adheres = False
 
                 try:
-                    matched += 1
-                    data = match.groupdict()
-
                     existing = (
                         self.db.query(LibraryEntry.id)
                         .filter(LibraryEntry.file_path == file_path)
@@ -66,18 +68,23 @@ class ReverseRegexMatcher:
                     tags = [t.strip() for t in tags_str.split(",")] if tags_str else []
                     resolution = data.get("resolution", "1080p")
 
-                    media = MediaEntry(
-                        provider_id=provider_id,
-                        title=title,
-                        performers=performers,
-                        tags=tags,
-                        media_metadata=data,
-                    )
-                    self.db.add(media)
-                    self.db.flush()  # Get media.id
+                    media_id = None
+                    has_metadata = False
+                    if adheres:
+                        media = MediaEntry(
+                            provider_id=provider_id,
+                            title=title,
+                            performers=performers,
+                            tags=tags,
+                            media_metadata=data,
+                        )
+                        self.db.add(media)
+                        self.db.flush()
+                        media_id = media.id
+                        has_metadata = True
 
                     library_entry = LibraryEntry(
-                        media_entry_id=media.id,
+                        media_entry_id=media_id,
                         provider_id=provider_id,
                         title=title,
                         performers=performers,
@@ -86,6 +93,10 @@ class ReverseRegexMatcher:
                         resolution=resolution,
                         file_size=os.path.getsize(file_path),
                         entry_metadata=data,
+                        adheres_to_naming_scheme=adheres,
+                        has_metadata_match=has_metadata,
+                        has_chapters=False,
+                        has_facial_clusters=False,
                     )
                     library_entry.ohash = HashService.generate_ohash(file_path)
                     library_entry.phash = HashService.generate_phash(file_path)

@@ -67,6 +67,12 @@ def setup_db_and_dependencies():
 
     import database
     import db_utils
+
+    orig_engine = database.engine
+    orig_sessionlocal = database.SessionLocal
+    orig_db_utils_sessionlocal = getattr(db_utils, "SessionLocal", None)
+
+    database.engine = test_engine
     database.SessionLocal = TestSessionLocal
     db_utils.SessionLocal = TestSessionLocal
 
@@ -96,6 +102,9 @@ def setup_db_and_dependencies():
 
     recipe = SiteRecipe(id=1, provider_id=1, css_selectors={})
     db.add(recipe)
+    
+    from models import Settings
+    db.add(Settings(key="scraping_enabled", value="true"))
     db.commit()
 
     yield
@@ -104,6 +113,10 @@ def setup_db_and_dependencies():
     # Clean up tables
     Base.metadata.drop_all(bind=test_engine)
     app.dependency_overrides = orig_overrides
+    database.engine = orig_engine
+    database.SessionLocal = orig_sessionlocal
+    if orig_db_utils_sessionlocal is not None:
+        db_utils.SessionLocal = orig_db_utils_sessionlocal
 
 
 # ==============================================================================

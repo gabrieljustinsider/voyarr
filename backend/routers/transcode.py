@@ -31,11 +31,21 @@ class TranscodeRequest(BaseModel):
     dependencies=[Depends(rate_limit(max_requests=10, window_seconds=60))],
 )
 def start_transcode(
-    library_entry_id: int, req: TranscodeRequest, db: Session = Depends(get_db)
+    library_entry_id: int,
+    req: TranscodeRequest,
+    auth_info: dict = Depends(verify_api_key),
+    db: Session = Depends(get_db)
 ):
     """
     Adds a video from the library to the transcoding queue.
     """
+    from db_utils import check_feature_permission
+    from models import User
+    user = None
+    if auth_info.get("type") == "jwt" and auth_info.get("user"):
+        user = db.query(User).filter(User.username == auth_info.get("user")).first()
+    check_feature_permission(db, "streaming", user)
+
     library_entry = (
         db.query(LibraryEntry).filter(LibraryEntry.id == library_entry_id).first()
     )
@@ -74,10 +84,21 @@ def start_transcode(
 
 
 @router.get("/")
-def get_transcode_jobs(status: Optional[str] = None, db: Session = Depends(get_db)):
+def get_transcode_jobs(
+    status: Optional[str] = None,
+    auth_info: dict = Depends(verify_api_key),
+    db: Session = Depends(get_db)
+):
     """
     Retrieves all transcoding jobs, optionally filtered by status.
     """
+    from db_utils import check_feature_permission
+    from models import User
+    user = None
+    if auth_info.get("type") == "jwt" and auth_info.get("user"):
+        user = db.query(User).filter(User.username == auth_info.get("user")).first()
+    check_feature_permission(db, "streaming", user)
+
     query = db.query(TranscodingQueue).order_by(
         TranscodingQueue.priority.desc(), TranscodingQueue.created_at.asc()
     )
@@ -87,10 +108,17 @@ def get_transcode_jobs(status: Optional[str] = None, db: Session = Depends(get_d
 
 
 @router.get("/stream")
-def stream_transcode_queue(request: Request):
+def stream_transcode_queue(request: Request, auth_info: dict = Depends(verify_api_key)):
     """
     SSE stream for active transcoding tasks.
     """
+    with get_db_session() as db:
+        from db_utils import check_feature_permission
+        from models import User
+        user = None
+        if auth_info.get("type") == "jwt" and auth_info.get("user"):
+            user = db.query(User).filter(User.username == auth_info.get("user")).first()
+        check_feature_permission(db, "streaming", user)
 
     async def event_generator():
         while True:

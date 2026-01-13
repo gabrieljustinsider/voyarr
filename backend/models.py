@@ -30,6 +30,23 @@ class User(Base):
     role = Column(String(50), default="user")  # 'admin', 'user', 'viewer'
     is_active = Column(Boolean, default=True)
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
+    permissions = Column(
+        JSON().with_variant(JSONB, "postgresql"),
+        default=lambda: {"can_stream": True, "can_scrape": False, "can_rip": False}
+    )
+
+
+class AdminLog(Base):
+    __tablename__ = "admin_logs"
+
+    id = Column(Integer, primary_key=True)
+    admin_id = Column(String(64), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    admin_username = Column(String(255), nullable=False)
+    action = Column(String(255), nullable=False)
+    details = Column(JSON().with_variant(JSONB, "postgresql"), default=dict)
+    timestamp = Column(TIMESTAMP, default=func.current_timestamp())
+
+    admin = relationship("User")
 
 
 
@@ -262,6 +279,10 @@ class LibraryEntry(Base):
     entry_metadata = Column(
         JSON().with_variant(JSONB, "postgresql")
     )  # Full metadata from scraping
+    adheres_to_naming_scheme = Column(Boolean, default=True)
+    has_metadata_match = Column(Boolean, default=False)
+    has_chapters = Column(Boolean, default=False)
+    has_facial_clusters = Column(Boolean, default=False)
     last_updated = Column(TIMESTAMP, default=func.current_timestamp())
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
 
