@@ -20,7 +20,7 @@ jobs:
           export-env: true
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          PROJECT_PAT: op://6wgu5yz5yphvacdimgc64ej65i/GitHub Voyarr Project PAT/token
+          PROJECT_PAT: "op://6wgu5yz5yphvacdimgc64ej65i/GitHub Voyarr Project PAT/token"
 
       - uses: actions/add-to-project@v2
         with:
