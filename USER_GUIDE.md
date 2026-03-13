@@ -12,6 +12,9 @@ Welcome to **Voyarr**! This guide is written to help you set up and get the most
 6. [🎯 Mastering "Map Mode" (Point-and-Click Selector Mapping)](#-mastering-map-mode-point-and-click-selector-mapping)
 7. [🛡️ Biometric Passkeys, Social Logins, and Security Settings](#-biometric-passkeys-social-logins-and-security-settings)
 8. [💾 Backups and Restores Made Simple](#-backups-and-restores-made-simple)
+9. [🔐 Feature Access Controls & Granular User Permissions (RBAC)](#-feature-access-controls--granular-user-permissions-rbac)
+10. [📂 File Naming Scheme, Metadata Matches & Advanced Filtering](#-file-naming-scheme-metadata-matches--advanced-filtering)
+11. [📜 File Naming History Log & One-Click Reversion Rollbacks](#-file-naming-history-log--one-click-reversion-rollbacks)
 
 ---
 
@@ -212,3 +215,93 @@ Backups are critical to ensuring that you never lose your library lists, custom 
     - **Full Backup**: Backs up every single database record (library entries, performer clusters, chapters, rules).
   - Click **Download Backup File** to save the JSON snapshot to your local computer.
 - **Restoring Data**: Simply upload your saved `.json` backup file in the **Restore** section and click **Apply Restore**. Voyarr will verify the file's cryptographically secure signature to ensure it is not corrupted or tampered with, and restore your system state in seconds!
+
+---
+
+## 🛡️ Routing Traffic Through a VPN (Optional)
+
+If you want to hide your scraping and downloading traffic from your ISP, Voyarr includes native support for routing its internal traffic through a Gluetun VPN sidecar.
+
+### Step 1: Configure Your VPN Credentials
+Open your `.env` file and scroll down to **5. VPN SIDECAR (GLUETUN) & BROWSERLESS CONFIGURATION**. Uncomment the variables and fill in your VPN provider's details:
+- `VPN_SERVICE_PROVIDER` (e.g., `mullvad`, `nordvpn`, `surfshark`)
+- `VPN_TYPE` (e.g., `wireguard` or `openvpn`)
+- `WIREGUARD_PRIVATE_KEY`
+- `WIREGUARD_ADDRESSES`
+
+### Step 2: Enable the VPN Compose Configuration
+By default, Voyarr uses standard network routing. To route traffic through the VPN, you need to use the VPN-enabled compose setup.
+
+**If using the Terminal (CLI):**
+Instead of the standard start command, launch the stack using the dedicated VPN compose file:
+```bash
+docker compose -f docker-compose.vpn.yml up -d
+```
+*(Note: If you have already manually consolidated your VPN settings into your main `docker-compose.yml` file, simply uncomment the `vpn:` service and the `network_mode: "service:vpn"` lines inside the compose file, then run `docker compose up -d`).*
+
+### Step 3: Verify the Connection
+Once the containers spin up, you can verify the VPN is active by checking the logs of the VPN container:
+```bash
+docker logs voyarr-vpn
+```
+Look for a message saying `Healthy` or `VPN connection established`. If the VPN fails to connect (e.g., due to bad credentials), the backend and celery containers will automatically pause their network traffic to completely prevent any IP leaks!
+
+---
+
+## 🔐 Feature Access Controls & Granular User Permissions (RBAC)
+
+Voyarr contains powerful, built-in global controls and a **Role-Based Access Control (RBAC)** permission system designed to protect resources and restrict system access.
+
+### Global Feature Controls
+As an administrator, you can enable or disable three core app modules globally from the **Settings > Global Feature Toggles** panel:
+1. **Streaming**: Allows users to watch content directly in their browser or cast to media players. (Enabled by default).
+2. **Scraping**: Allows querying provider channels and updating metadata. (Disabled by default).
+3. **Ripping**: Allows downloading media content to physical server storage. (Disabled by default).
+
+If a feature is globally disabled, all associated background workers and API endpoints are fully blocked, and warning banners are displayed in the corresponding user dashboard screens.
+
+### Per-User Permission Policies
+Admins can grant granular, individual permissions to standard accounts:
+- **Can Stream**: Grants access to playback routes.
+- **Can Scrape**: Grants access to scan directories, retrieve metadata, and manage recipes.
+- **Can Rip**: Grants access to execute direct and queued media downloads.
+
+### Security Audit Logging
+To keep track of administrative changes, Voyarr automatically records all security-sensitive actions in the **Admin Audit Logs**:
+- Creating or editing users.
+- Modifying user roles or individual permission flags.
+- Changing global feature toggles.
+- Access the audit list directly under **Settings > Admin Audit Logs** to review a timestamped trail of who performed what action.
+
+---
+
+## 📂 File Naming Scheme, Metadata Matches & Advanced Filtering
+
+Keeping large media collections organized is easy with Voyarr's built-in file compliance identifiers:
+
+- **Naming Scheme Compliance**: Shows whether a file adheres to standard library naming patterns (e.g., `Studio - Date - Performer - Title.mp4`). Uncompliant files are marked with a yellow warning tag so you can quickly clean them up.
+- **Metadata Matches**: Indicates if a video file has been successfully matched to an official online provider record. unmatched files display a red "Unmatched" badge.
+- **Dynamic Indicators**: Interactive tags showing if the video contains parsed Chapters or Facial Clustering markers.
+- **Advanced Filtering**: Use the dynamic filters sidebar in the **Library** screen to immediately query and narrow down files. Search by:
+  - Compliant vs. Non-compliant names.
+  - Matched vs. Unmatched metadata.
+  - Entries that contain chapter divisions or facial groupings.
+
+---
+
+## 📜 File Naming History Log & One-Click Reversion Rollbacks
+
+If a metadata mismatch occurs or a file is renamed incorrectly, Voyarr lets you track, audit, and completely reverse changes to physical files:
+
+### Automatic & Manual Tracing
+1. **Auto-Logging on Scan**: When files are scanned (`Reverse-Regex` matching), their original file names and paths are permanently recorded as `initial` records in the log.
+2. **Auto-Logging on Download**: When downloads complete and are cataloged, the downloaded file path is logged as a `download_naming` event.
+3. **Manual Renaming**: You can rename any media file directly from the library entry's edit screen by typing a new filename. Voyarr physically renames the file on your server's disk, updates the database, and logs a `manual_correction` action.
+
+### One-Click Reversion (Rollbacks)
+If you realize a file was misidentified and named incorrectly, you don't need to go to your server's command line or FTP client.
+- Go to the library entry's **File History** tab.
+- Review the historical trace of all past names and folder locations.
+- Click **Revert to Previous Name**.
+- Voyarr will instantly and safely execute a physical rollback—moving and renaming the file on disk back to its exact previous path, restoring database records, and logging a `revert` action.
+- The system includes strict path-existence guards to ensure no files are accidentally overwritten or lost!

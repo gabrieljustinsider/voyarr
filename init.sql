@@ -135,6 +135,19 @@ CREATE TABLE library_entries (
 );
 CREATE INDEX idx_library_entries_studio_id ON library_entries(studio_id);
 
+-- File naming history table
+CREATE TABLE file_naming_history (
+    id SERIAL PRIMARY KEY,
+    library_entry_id INTEGER NOT NULL REFERENCES library_entries(id) ON DELETE CASCADE,
+    old_path TEXT,
+    new_path TEXT NOT NULL,
+    old_filename VARCHAR(500),
+    new_filename VARCHAR(500) NOT NULL,
+    reason VARCHAR(255),
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_file_naming_history_entry_id ON file_naming_history(library_entry_id);
+
 -- Duplicate entries table
 CREATE TABLE duplicate_entries (
     id SERIAL PRIMARY KEY,

@@ -260,3 +260,82 @@ def test_library_scheme_and_metadata_filters():
     assert resp.json()["total"] == 1
 
 
+def test_library_file_naming_history_and_revert():
+    """Verify that video files can be renamed, naming history is logged, and renames can be successfully reverted."""
+    global active_auth_info
+    db = TestSessionLocal()
+
+    # Create a temporary file on disk to simulate a real video file
+    import tempfile
+    temp_dir = tempfile.gettempdir()
+    initial_path = os.path.join(temp_dir, "initial_video_file_123.mp4")
+    with open(initial_path, "w") as f:
+        f.write("mock video content")
+
+    entry = LibraryEntry(
+        id=42,
+        provider_id=1,
+        title="Naming History Test Video",
+        file_path=initial_path,
+        adheres_to_naming_scheme=True,
+        has_metadata_match=True,
+    )
+    db.add(entry)
+    db.commit()
+    db.close()
+
+    active_auth_info = {"type": "master_key"}
+
+    try:
+        # 1. Rename the file via API
+        payload = {"new_filename": "corrected_video_file_123.mp4"}
+        resp = client.post("/library/42/rename", json=payload)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["old_filename"] == "initial_video_file_123.mp4"
+        assert data["new_filename"] == "corrected_video_file_123.mp4"
+
+        # Verify physical file renaming
+        expected_new_path = os.path.join(temp_dir, "corrected_video_file_123.mp4")
+        assert os.path.exists(expected_new_path)
+        assert not os.path.exists(initial_path)
+
+        # 2. Query the naming history trace
+        resp = client.get("/library/42/naming-history")
+        assert resp.status_code == 200
+        history = resp.json()
+        assert len(history) == 1
+        assert history[0]["old_filename"] == "initial_video_file_123.mp4"
+        assert history[0]["new_filename"] == "corrected_video_file_123.mp4"
+        assert history[0]["reason"] == "manual_correction"
+
+        # 3. Revert the rename via API
+        resp = client.post("/library/42/revert-rename")
+        assert resp.status_code == 200
+        assert resp.json()["reverted_to"] == "initial_video_file_123.mp4"
+
+        # Verify physical file reversion back to initial path
+        assert os.path.exists(initial_path)
+        assert not os.path.exists(expected_new_path)
+
+        # 4. Check the updated naming history trace showing the revert action
+        resp = client.get("/library/42/naming-history")
+        assert resp.status_code == 200
+        history = resp.json()
+        assert len(history) == 2
+        assert history[0]["reason"] == "revert"
+        assert history[0]["new_filename"] == "initial_video_file_123.mp4"
+        assert history[1]["reason"] == "manual_correction"
+
+    finally:
+        # Clean up temporary physical files
+        if os.path.exists(initial_path):
+            os.remove(initial_path)
+        expected_new_path = os.path.join(temp_dir, "corrected_video_file_123.mp4")
+        if os.path.exists(expected_new_path):
+            os.remove(expected_new_path)
+
+
+
+
+

@@ -208,9 +208,20 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
                     new_entry.phash = HashService.generate_phash(filename)
                 except Exception as e:
                     print(f"Warning: Failed to generate phash for {filename}: {str(e)}")
-
                 db.add(new_entry)
+                db.flush()
 
+                # Log naming history
+                from models import FileNamingHistory
+                history = FileNamingHistory(
+                    library_entry_id=new_entry.id,
+                    old_path=None,
+                    new_path=filename,
+                    old_filename=None,
+                    new_filename=os.path.basename(filename),
+                    reason="download_naming"
+                )
+                db.add(history)
                 if prefs_dict.get("append_metadata"):
                     try:
                         MediaTagger.tag_file(new_entry.file_path, metadata)

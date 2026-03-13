@@ -92,6 +92,39 @@ def run_schema_migrations(engine):
                 conn.execute(text(f"ALTER TABLE library_entries ADD COLUMN {col} {col_type} DEFAULT {default_val}"))
                 conn.commit()
 
+        # 4. Check if file_naming_history table exists, if not, create it
+        try:
+            conn.execute(text("SELECT id FROM file_naming_history LIMIT 1"))
+        except Exception:
+            if dialect_name == "postgresql":
+                create_table_sql = """
+                CREATE TABLE file_naming_history (
+                    id SERIAL PRIMARY KEY,
+                    library_entry_id INTEGER NOT NULL REFERENCES library_entries(id) ON DELETE CASCADE,
+                    old_path TEXT,
+                    new_path TEXT NOT NULL,
+                    old_filename VARCHAR(500),
+                    new_filename VARCHAR(500) NOT NULL,
+                    reason VARCHAR(255),
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+                """
+            else:
+                create_table_sql = """
+                CREATE TABLE file_naming_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    library_entry_id INTEGER NOT NULL REFERENCES library_entries(id) ON DELETE CASCADE,
+                    old_path TEXT,
+                    new_path TEXT NOT NULL,
+                    old_filename VARCHAR(500),
+                    new_filename VARCHAR(500) NOT NULL,
+                    reason VARCHAR(255),
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+                """
+            conn.execute(text(create_table_sql))
+            conn.commit()
+
 
 def is_feature_enabled(db, feature: str, user: Optional[Any] = None) -> bool:
     from models import Settings

@@ -466,6 +466,24 @@ Our backend test suites are built for speed and isolated cleanliness:
 * **OS Temp Redirection**: Directs all temporary test databases (`sqlite:///file:testdb_*`) to the system's temporary directory (e.g., `/tmp`), completely preventing filesystem clutter in the project root.
 * **Contamination Immunity**: Dynamically resolves session pools in [db_utils.py](backend/db_utils.py) to prevent Pytest's import discovery phase from caching references across different test suites.
 
+### 5. Administrative Feature Controls (RBAC) & Security Auditing
+To guard server resource consumption and limit access on public-facing networks:
+* **Global Module Toggles**: Administrators can enable or disable three core features globally from the settings interface: `streaming` (default: ON), `scraping` (default: OFF), and `ripping` (default: OFF).
+* **Router Level Guarding**: The backend implements active route guards (`is_feature_enabled` and `check_feature_permission`) verifying global config and checking the authenticated user's granular JSON `permissions` column (keys: `can_stream`, `can_scrape`, `can_rip`). Unauthorized requests instantly raise `403 Forbidden` errors.
+* **Administrative Audit Trails**: Critical actions (user registrations, permission edits, global settings updates) automatically populate the `admin_logs` database table. These logs record `admin_id`, `action`, `target_user_id`, `details`, and `timestamp`, and can be fetched via `GET /api/auth/admin-logs`.
+
+### 6. Library Schema Identifiers & Advanced Filtering
+To facilitate large library curation, files are parsed and matched with detailed indicators:
+* **Naming Compliance Tracking**: Library entries include the `adheres_to_naming_scheme` boolean column, determining if the scanned file name complies with standard catalog structures.
+* **Metadata Match Identifiers**: The `has_metadata_match` column stores whether a local file has a validated provider recipe match.
+* **Query Scoping Filters**: The main library catalog router (`GET /api/library/`) parses additional optional boolean filters (`compliant`, `matched`, `has_chapters`, `has_faces`) to perform deep database-side WHERE filtering for fast metadata triage.
+
+### 7. Physical File Renaming, History Tracing & Reversions
+To allow corrective actions on incorrect metadata scans and naming mistakes:
+* **Trace Log Schema**: The database defines the `file_naming_history` table tracking `old_path`, `new_path`, `old_filename`, `new_filename`, `reason` (e.g. `initial`, `download_naming`, `manual_correction`, `revert`), and a timestamp.
+* **Manual Renaming Pipeline**: `POST /api/library/{entry_id}/rename` receives a new filename, executes physical `os.rename` on disk, verifies collision guards, updates the `LibraryEntry.file_path`, and logs `manual_correction`.
+* **Deterministic Reversion Engine**: `POST /api/library/{entry_id}/revert-rename` fetches the latest naming history trace ordered deterministically by `timestamp.desc(), id.desc()` (to resolve sub-second SQLite test runs). It validates that the original path is clear, performs `os.rename` back to the initial state, and logs `revert` as a new trace log entry.
+
 ---
 
 ## 🧩 Browser Extension & Bookmarklet Setup

@@ -285,11 +285,30 @@ class LibraryEntry(Base):
     has_facial_clusters = Column(Boolean, default=False)
     last_updated = Column(TIMESTAMP, default=func.current_timestamp())
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
-
     chapters = relationship(
         "VideoChapter", back_populates="library_entry", cascade="all, delete-orphan"
     )
     studio = relationship("Studio")
+
+
+class FileNamingHistory(Base):
+    __tablename__ = "file_naming_history"
+
+    id = Column(Integer, primary_key=True)
+    library_entry_id = Column(
+        Integer,
+        ForeignKey("library_entries.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    old_path = Column(Text, nullable=True)
+    new_path = Column(Text, nullable=False)
+    old_filename = Column(String(500), nullable=True)
+    new_filename = Column(String(500), nullable=False)
+    reason = Column(String(255), nullable=True)  # e.g., "initial", "manual_correction", "bulk_rename"
+    timestamp = Column(TIMESTAMP, default=func.current_timestamp())
+
+    library_entry = relationship("LibraryEntry", backref="naming_history")
 
 
 class VideoChapter(Base):

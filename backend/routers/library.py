@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session, defer
 from database import get_db
-from models import LibraryEntry, DownloadPreference
+from models import LibraryEntry, DownloadPreference, FileNamingHistory
 from typing import Optional, List
 from pydantic import BaseModel
 import os
@@ -385,3 +385,143 @@ def ai_bulk_tag(req: AIBulkTagRequest, db: Session = Depends(get_db)):
     return {
         "message": f"Successfully queued AI auto-tagging for {len(entry_ids)} entries."
     }
+
+
+class RenameRequest(BaseModel):
+    new_filename: str
+
+
+@router.post("/{entry_id}/rename")
+def rename_library_file(entry_id: int, req: RenameRequest, db: Session = Depends(get_db)):
+    """Physically rename a video file in the library and log the action in the naming history log."""
+    entry = db.query(LibraryEntry).filter(LibraryEntry.id == entry_id).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Library entry not found")
+
+    old_path = entry.file_path
+    if not os.path.exists(old_path):
+        raise HTTPException(status_code=404, detail="Physical file not found on disk")
+
+    old_dir = os.path.dirname(old_path)
+    old_filename = os.path.basename(old_path)
+
+    # Safe new filename checks
+    safe_new_filename = os.path.basename(req.new_filename).strip()
+    if not safe_new_filename:
+        raise HTTPException(status_code=400, detail="Invalid new filename")
+
+    new_path = os.path.join(old_dir, safe_new_filename)
+
+    if os.path.exists(new_path) and new_path != old_path:
+        raise HTTPException(status_code=400, detail="Target filename already exists on disk")
+
+    try:
+        os.rename(old_path, new_path)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to physically rename file: {str(e)}")
+
+    # Update database
+    entry.file_path = new_path
+
+    # Log naming history
+    history = FileNamingHistory(
+        library_entry_id=entry.id,
+        old_path=old_path,
+        new_path=new_path,
+        old_filename=old_filename,
+        new_filename=safe_new_filename,
+        reason="manual_correction"
+    )
+    db.add(history)
+    db.commit()
+
+    return {
+        "message": "File renamed successfully",
+        "old_filename": old_filename,
+        "new_filename": safe_new_filename,
+        "new_path": new_path
+    }
+
+
+@router.post("/{entry_id}/revert-rename")
+def revert_library_file_rename(entry_id: int, db: Session = Depends(get_db)):
+    """Physically revert the last rename operation for this library entry."""
+    entry = db.query(LibraryEntry).filter(LibraryEntry.id == entry_id).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Library entry not found")
+
+    latest_rename = (
+        db.query(FileNamingHistory)
+        .filter(
+            FileNamingHistory.library_entry_id == entry_id,
+            FileNamingHistory.old_path.isnot(None)
+        )
+        .order_by(FileNamingHistory.timestamp.desc(), FileNamingHistory.id.desc())
+        .first()
+    )
+
+    if not latest_rename:
+        raise HTTPException(status_code=400, detail="No previous naming history found to revert to.")
+
+    current_path = entry.file_path
+    target_path = latest_rename.old_path
+
+    if not os.path.exists(current_path):
+        raise HTTPException(status_code=404, detail=f"Current file not found on disk at: {current_path}")
+
+    if os.path.exists(target_path) and target_path != current_path:
+        raise HTTPException(status_code=400, detail="Target file path already exists on disk, cannot revert.")
+
+    try:
+        os.rename(current_path, target_path)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to physically revert file rename: {str(e)}")
+
+    # Update database
+    entry.file_path = target_path
+
+    # Log the reversion as a new action for a complete history trail
+    history = FileNamingHistory(
+        library_entry_id=entry.id,
+        old_path=current_path,
+        new_path=target_path,
+        old_filename=os.path.basename(current_path),
+        new_filename=os.path.basename(target_path),
+        reason="revert"
+    )
+    db.add(history)
+    db.commit()
+
+    return {
+        "message": "File rename reverted successfully",
+        "reverted_to": os.path.basename(target_path),
+        "path": target_path
+    }
+
+
+@router.get("/{entry_id}/naming-history")
+def get_library_file_naming_history(entry_id: int, db: Session = Depends(get_db)):
+    """Fetch the complete historical trace of file names and paths for this entry."""
+    entry = db.query(LibraryEntry).filter(LibraryEntry.id == entry_id).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Library entry not found")
+
+    history = (
+        db.query(FileNamingHistory)
+        .filter(FileNamingHistory.library_entry_id == entry_id)
+        .order_by(FileNamingHistory.timestamp.desc(), FileNamingHistory.id.desc())
+        .all()
+    )
+
+    return [
+        {
+            "id": h.id,
+            "old_path": h.old_path,
+            "new_path": h.new_path,
+            "old_filename": h.old_filename,
+            "new_filename": h.new_filename,
+            "reason": h.reason,
+            "timestamp": h.timestamp
+        }
+        for h in history
+    ]

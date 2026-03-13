@@ -123,7 +123,15 @@ def setup_db_and_dependencies():
 # 1. Direct Utility Tests
 # ==============================================================================
 
-def test_validate_url_ssrf_allowed():
+def test_validate_url_ssrf_allowed(monkeypatch):
+    import socket
+    # Mock socket.getaddrinfo to resolve these test hosts to a public IP
+    def mock_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+        if host in ["google.com", "github.com", "example.com"]:
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))]
+        raise socket.gaierror(-2, "Name or service not known")
+    monkeypatch.setattr(socket, "getaddrinfo", mock_getaddrinfo)
+
     # Public domains should pass
     validate_url_ssrf("https://google.com")
     validate_url_ssrf("https://github.com")

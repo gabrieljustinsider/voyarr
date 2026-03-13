@@ -1,7 +1,7 @@
 import os
 import re
 from sqlalchemy.orm import Session
-from models import LibraryEntry, MediaEntry
+from models import LibraryEntry, MediaEntry, FileNamingHistory
 from services.hash_service import HashService
 
 
@@ -98,10 +98,23 @@ class ReverseRegexMatcher:
                         has_chapters=False,
                         has_facial_clusters=False,
                     )
+
                     library_entry.ohash = HashService.generate_ohash(file_path)
                     library_entry.phash = HashService.generate_phash(file_path)
 
                     self.db.add(library_entry)
+                    self.db.flush()
+
+                    # Log initial naming history
+                    history = FileNamingHistory(
+                        library_entry_id=library_entry.id,
+                        old_path=None,
+                        new_path=file_path,
+                        old_filename=None,
+                        new_filename=os.path.basename(file_path),
+                        reason="initial"
+                    )
+                    self.db.add(history)
                     added += 1
                 except Exception as e:
                     errors.append(f"Error processing {file}: {str(e)}")
