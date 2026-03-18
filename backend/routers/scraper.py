@@ -45,6 +45,46 @@ def create_recipe(recipe: SiteRecipeCreate, db: Session = Depends(get_db)):
     return db_recipe
 
 
+@router.get("/bookmarklet", dependencies=[])
+def get_bookmarklet():
+    """Generates and returns the encoded, minified bookmarklet URL."""
+    try:
+        import os
+        import urllib.parse
+        import re
+        
+        # Determine path to bookmarklet.js
+        possible_paths = [
+            os.path.join(os.path.dirname(__file__), "../../extension/bookmarklet.js"),
+            os.path.join(os.path.dirname(__file__), "../extension/bookmarklet.js"),
+            os.path.join(os.path.dirname(__file__), "../bookmarklet.js"),
+            "/app/extension/bookmarklet.js",
+            "/app/bookmarklet.js"
+        ]
+        
+        file_path = None
+        for p in possible_paths:
+            if os.path.exists(p):
+                file_path = p
+                break
+                
+        if not file_path:
+            raise HTTPException(status_code=404, detail="bookmarklet.js not found on host filesystem.")
+            
+        with open(file_path, "r") as f:
+            code = f.read()
+            
+        # Basic minification to fit into browser URL limits
+        code = re.sub(r'(?<!:)\/\/.*?\n', '\n', code)
+        code = re.sub(r'/\*.*?\*/', '', code, flags=re.DOTALL)
+        code = re.sub(r'\s+', ' ', code)
+        code = re.sub(r'\s*([\{\}\(\)\;\:\,\=\+\-\*\/])\s*', r'\1', code)
+        
+        return {"bookmarklet": "javascript:" + urllib.parse.quote(code)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load bookmarklet: {str(e)}")
+
+
 @router.get("/{provider_id}")
 def get_recipe(provider_id: int, db: Session = Depends(get_db)):
     recipe = db.query(SiteRecipe).filter(SiteRecipe.provider_id == provider_id).first()
@@ -130,42 +170,5 @@ def test_scraper(req: ScraperTestRequest, db: Session = Depends(get_db)):
     }
 
 
-@router.get("/bookmarklet", dependencies=[])
-def get_bookmarklet():
-    """Generates and returns the encoded, minified bookmarklet URL."""
-    try:
-        import os
-        import urllib.parse
-        import re
-        
-        # Determine path to bookmarklet.js
-        possible_paths = [
-            os.path.join(os.path.dirname(__file__), "../../extension/bookmarklet.js"),
-            os.path.join(os.path.dirname(__file__), "../extension/bookmarklet.js"),
-            os.path.join(os.path.dirname(__file__), "../bookmarklet.js"),
-            "/app/extension/bookmarklet.js",
-            "/app/bookmarklet.js"
-        ]
-        
-        file_path = None
-        for p in possible_paths:
-            if os.path.exists(p):
-                file_path = p
-                break
-                
-        if not file_path:
-            raise HTTPException(status_code=404, detail="bookmarklet.js not found on host filesystem.")
-            
-        with open(file_path, "r") as f:
-            code = f.read()
-            
-        # Basic minification to fit into browser URL limits
-        code = re.sub(r'//.*?\n', '\n', code)
-        code = re.sub(r'/\*.*?\*/', '', code, flags=re.DOTALL)
-        code = re.sub(r'\s+', ' ', code)
-        code = re.sub(r'\s*([\{\}\(\)\;\:\,\=\+\-\*\/])\s*', r'\1', code)
-        
-        return {"bookmarklet": "javascript:" + urllib.parse.quote(code)}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to load bookmarklet: {str(e)}")
+
 

@@ -347,6 +347,15 @@ def update_user_permissions(
     if not target_user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    # Lockout protection: prevent downgrading the last admin in the system
+    if target_user.role == "admin" and payload.role != "admin":
+        admin_count = db.query(User).filter(User.role == "admin").count()
+        if admin_count <= 1:
+            raise HTTPException(
+                status_code=400,
+                detail="Lockout Protection: Cannot downgrade the sole administrator account to prevent complete system lockout."
+            )
+
     old_role = target_user.role
     old_permissions = target_user.permissions or {"can_stream": True, "can_scrape": False, "can_rip": False}
 

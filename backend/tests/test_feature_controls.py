@@ -336,6 +336,92 @@ def test_library_file_naming_history_and_revert():
             os.remove(expected_new_path)
 
 
+def test_admin_lockout_protection():
+    """Verify that the sole administrator account cannot be downgraded to prevent system lockout."""
+    global active_auth_info
+    db = TestSessionLocal()
+    
+    # 1. Query existing users to clean up
+    from models import User
+    db.query(User).delete()
+    
+    # Create exactly one admin user
+    admin_user = User(
+        id="usr_admin_lockout_test",
+        username="sole_admin",
+        role="admin",
+        is_active=True,
+        password_hash="hashed_pw",
+        permissions={"can_stream": True, "can_scrape": True, "can_rip": True}
+    )
+    db.add(admin_user)
+    db.commit()
+    db.close()
+    
+    active_auth_info = {"type": "master_key"}
+    
+    try:
+        # Attempt to downgrade the sole admin
+        payload = {
+            "role": "user",
+            "permissions": {"can_stream": True, "can_scrape": False, "can_rip": False}
+        }
+        resp = client.put("/auth/users/usr_admin_lockout_test/permissions", json=payload)
+        
+        # Must fail with 400 Bad Request
+        assert resp.status_code == 400
+        assert "Lockout Protection" in resp.json()["detail"]
+        
+        # Verify user role remains 'admin' in database
+        db = TestSessionLocal()
+        db_user = db.query(User).filter(User.id == "usr_admin_lockout_test").first()
+        assert db_user.role == "admin"
+        db.close()
+    finally:
+        active_auth_info = None
+
+
+def test_bookmarklet_generation():
+    """Verify that the bookmarklet generation API runs successfully and minifies correctly without corrupting URLs."""
+    global active_auth_info
+    
+    # Enable scraping globally
+    db = TestSessionLocal()
+    from models import Settings
+    setting = db.query(Settings).filter(Settings.key == "scraping_enabled").first()
+    if setting:
+        setting.value = "true"
+    else:
+        db.add(Settings(key="scraping_enabled", value="true"))
+    db.commit()
+    db.close()
+
+    active_auth_info = {"type": "master_key"}
+    try:
+        resp = client.get("/scraper/bookmarklet")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "bookmarklet" in data
+        bookmarklet_url = data["bookmarklet"]
+        assert bookmarklet_url.startswith("javascript:")
+        
+        import urllib.parse
+        decoded = urllib.parse.unquote(bookmarklet_url)
+        # Check that 'http://' or 'https://' remains intact
+        assert "http://" in decoded or "https://" in decoded
+        # Verify single line comments are stripped but URLs are preserved
+        assert "//" not in decoded.replace("http://", "").replace("https://", "")
+    finally:
+        active_auth_info = None
+        # Clean up setting
+        db = TestSessionLocal()
+        setting = db.query(Settings).filter(Settings.key == "scraping_enabled").first()
+        if setting:
+            db.delete(setting)
+            db.commit()
+        db.close()
+
+
 
 
 

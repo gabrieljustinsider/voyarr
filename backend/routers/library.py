@@ -421,19 +421,30 @@ def rename_library_file(entry_id: int, req: RenameRequest, db: Session = Depends
         raise HTTPException(status_code=500, detail=f"Failed to physically rename file: {str(e)}")
 
     # Update database
-    entry.file_path = new_path
+    try:
+        entry.file_path = new_path
 
-    # Log naming history
-    history = FileNamingHistory(
-        library_entry_id=entry.id,
-        old_path=old_path,
-        new_path=new_path,
-        old_filename=old_filename,
-        new_filename=safe_new_filename,
-        reason="manual_correction"
-    )
-    db.add(history)
-    db.commit()
+        # Log naming history
+        history = FileNamingHistory(
+            library_entry_id=entry.id,
+            old_path=old_path,
+            new_path=new_path,
+            old_filename=old_filename,
+            new_filename=safe_new_filename,
+            reason="manual_correction"
+        )
+        db.add(history)
+        db.commit()
+    except Exception as db_err:
+        db.rollback()
+        # Roll back physical rename to keep disk in sync with DB
+        try:
+            os.rename(new_path, old_path)
+        except Exception as fs_err:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.critical(f"Critical: Physical file renamed but database commit failed AND physical rollback failed. Disk: {new_path}, DB: {old_path}. Error: {fs_err}")
+        raise HTTPException(status_code=500, detail=f"Database update failed. File rename rolled back. Error: {str(db_err)}")
 
     return {
         "message": "File renamed successfully",
@@ -478,19 +489,30 @@ def revert_library_file_rename(entry_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Failed to physically revert file rename: {str(e)}")
 
     # Update database
-    entry.file_path = target_path
+    try:
+        entry.file_path = target_path
 
-    # Log the reversion as a new action for a complete history trail
-    history = FileNamingHistory(
-        library_entry_id=entry.id,
-        old_path=current_path,
-        new_path=target_path,
-        old_filename=os.path.basename(current_path),
-        new_filename=os.path.basename(target_path),
-        reason="revert"
-    )
-    db.add(history)
-    db.commit()
+        # Log the reversion as a new action for a complete history trail
+        history = FileNamingHistory(
+            library_entry_id=entry.id,
+            old_path=current_path,
+            new_path=target_path,
+            old_filename=os.path.basename(current_path),
+            new_filename=os.path.basename(target_path),
+            reason="revert"
+        )
+        db.add(history)
+        db.commit()
+    except Exception as db_err:
+        db.rollback()
+        # Roll back physical rename to keep disk in sync with DB
+        try:
+            os.rename(target_path, current_path)
+        except Exception as fs_err:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.critical(f"Critical: Physical file reverted but database commit failed AND physical rollback failed. Disk: {current_path}, DB: {target_path}. Error: {fs_err}")
+        raise HTTPException(status_code=500, detail=f"Database update failed. File reversion rolled back. Error: {str(db_err)}")
 
     return {
         "message": "File rename reverted successfully",

@@ -37,23 +37,42 @@ def get_or_create_studio_by_name(db, studio_name: str) -> Optional[int]:
 
 
 def run_schema_migrations(engine):
+    import logging
+    logger = logging.getLogger(__name__)
     from sqlalchemy import text
     dialect_name = engine.name
+
     with engine.connect() as conn:
         # 1. Check if users table has permissions column, if not, add it
         try:
             conn.execute(text("SELECT permissions FROM users LIMIT 1"))
         except Exception:
-            if dialect_name == "postgresql":
-                conn.execute(text("ALTER TABLE users ADD COLUMN permissions JSONB DEFAULT '{\"can_stream\": true, \"can_scrape\": false, \"can_rip\": false}'::jsonb"))
-            else:
-                conn.execute(text("ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT '{\"can_stream\": true, \"can_scrape\": false, \"can_rip\": false}'"))
-            conn.commit()
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            try:
+                if dialect_name == "postgresql":
+                    conn.execute(text("ALTER TABLE users ADD COLUMN permissions JSONB DEFAULT '{\"can_stream\": true, \"can_scrape\": false, \"can_rip\": false}'::jsonb"))
+                else:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT '{\"can_stream\": true, \"can_scrape\": false, \"can_rip\": false}'"))
+                conn.commit()
+                logger.info("Database migration successfully added 'permissions' to 'users'.")
+            except Exception as e:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                logger.warning(f"Failed to add permissions column (it may already exist): {e}")
 
         # 2. Check if admin_logs table exists, if not, create it
         try:
             conn.execute(text("SELECT id FROM admin_logs LIMIT 1"))
         except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
             if dialect_name == "postgresql":
                 create_table_sql = """
                 CREATE TABLE admin_logs (
@@ -76,8 +95,16 @@ def run_schema_migrations(engine):
                     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
                 """
-            conn.execute(text(create_table_sql))
-            conn.commit()
+            try:
+                conn.execute(text(create_table_sql))
+                conn.commit()
+                logger.info("Database migration successfully created 'admin_logs' table.")
+            except Exception as e:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                logger.warning(f"Failed to create admin_logs table (it may already exist): {e}")
 
         # 3. Check if library_entries table has new columns, if not, add them
         for col, col_type, default_val in [
@@ -89,13 +116,29 @@ def run_schema_migrations(engine):
             try:
                 conn.execute(text(f"SELECT {col} FROM library_entries LIMIT 1"))
             except Exception:
-                conn.execute(text(f"ALTER TABLE library_entries ADD COLUMN {col} {col_type} DEFAULT {default_val}"))
-                conn.commit()
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                try:
+                    conn.execute(text(f"ALTER TABLE library_entries ADD COLUMN {col} {col_type} DEFAULT {default_val}"))
+                    conn.commit()
+                    logger.info(f"Database migration successfully added '{col}' to 'library_entries'.")
+                except Exception as e:
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        pass
+                    logger.warning(f"Failed to add column {col} (it may already exist): {e}")
 
         # 4. Check if file_naming_history table exists, if not, create it
         try:
             conn.execute(text("SELECT id FROM file_naming_history LIMIT 1"))
         except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
             if dialect_name == "postgresql":
                 create_table_sql = """
                 CREATE TABLE file_naming_history (
@@ -122,8 +165,16 @@ def run_schema_migrations(engine):
                     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
                 """
-            conn.execute(text(create_table_sql))
-            conn.commit()
+            try:
+                conn.execute(text(create_table_sql))
+                conn.commit()
+                logger.info("Database migration successfully created 'file_naming_history' table.")
+            except Exception as e:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                logger.warning(f"Failed to create file_naming_history table (it may already exist): {e}")
 
 
 def is_feature_enabled(db, feature: str, user: Optional[Any] = None) -> bool:
