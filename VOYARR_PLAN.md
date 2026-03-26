@@ -213,3 +213,9 @@ The following represents identified feature targets and upcoming components for 
 
 ### **1. Real-time Multi-Instance Clustering**
 *   **Description:** Allow remote instances to act as hot-failover mirrors, sharing storage allocations and active Celery task queues in real-time.
+
+### **2. Third-Party & User-Created Extensions**
+*   **Description:** Add support for third-party and user-created extensions to allow community contributions and custom integrations.
+
+### **3. Distributed Worker Nodes & Add-ons**
+*   **Description:** Add node support and a specialized add-on to allow external devices to process intensive tasks (like transcoding or scraping) and report results back to the primary device.
