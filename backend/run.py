@@ -15,6 +15,8 @@ def is_port_in_use(port: int, host: str = "0.0.0.0") -> bool:  # nosec B104
 def main():
     host = os.getenv("HOST", "0.0.0.0")  # nosec B104
     port_env = os.getenv("PORT", "8000")
+    if not port_env or not str(port_env).strip():
+        port_env = "8000"
     
     try:
         port = int(port_env)

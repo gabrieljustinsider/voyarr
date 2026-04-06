@@ -40,12 +40,32 @@ from routers import (
     scraper,
 )
 
-# Create tables
-Base.metadata.create_all(bind=engine)
+# Database initialization with retry logic for container environments
+import time
+import logging
+logger = logging.getLogger(__name__)
 
-# Execute startup database migrations
-from db_utils import run_schema_migrations
-run_schema_migrations(engine)
+max_retries = 10
+retry_delay = 3
+
+for attempt in range(max_retries):
+    try:
+        # Create tables
+        Base.metadata.create_all(bind=engine)
+
+        # Execute startup database migrations
+        from db_utils import run_schema_migrations
+        run_schema_migrations(engine)
+        logger.info("Database initialized successfully.")
+        break
+    except Exception as e:
+        logger.warning(f"Database connection failed (attempt {attempt + 1}/{max_retries}): {e}")
+        if attempt < max_retries - 1:
+            time.sleep(retry_delay)
+        else:
+            logger.error("Failed to connect to the database after maximum retries. Exiting.")
+            import sys
+            sys.exit(1)
 
 # Initialize global network configurations (proxies and user-agents)
 from utils import initialize_network_settings
