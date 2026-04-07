@@ -57,15 +57,6 @@ The Chrome Web Store review team requires explicit, plain-English justifications
 
 ---
 
-## **🖼️ Promotional Store Screenshots**
-
-To make submission as frictionless as possible, we have generated **official, high-quality, high-resolution (1280x800)** store screenshots formatted precisely to Chrome Web Store listing specifications.
-
-You can find these images ready to be uploaded in your workspace:
-1. **[Popup Interface Screenshot](screenshots/cws-screenshot-popup.png)**: Showcases the beautiful, modern, glassmorphic Voyarr Lens action popup centered on a blurred streaming library background.
-2. **[Visual Map Mode Screenshot](screenshots/cws-screenshot-mapmode.png)**: Demonstrates the interactive visual dashed outline mapping elements in real-time on a target provider page.
-
----
 
 ## **📈 Version History**
 
