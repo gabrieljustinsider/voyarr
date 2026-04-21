@@ -5,14 +5,14 @@ services:
     image: postgres:15-alpine
     container_name: jizzarr-db
     environment:
-      POSTGRES_DB: jizzarr
-      POSTGRES_USER: jizzarr_user
-      POSTGRES_PASSWORD: jizzarr_password
+      POSTGRES_DB: ${POSTGRES_DB:-jizzarr}
+      POSTGRES_USER: ${POSTGRES_USER:-jizzarr_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-jizzarr_password}
     volumes:
       - jizzarr_db_data:/var/lib/postgresql/data
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     networks:
       - jizzarr_network
 
@@ -20,13 +20,22 @@ services:
     build: ./backend
     container_name: jizzarr-backend
     environment:
-      - DATABASE_URL=postgresql://jizzarr_user:jizzarr_password@db:5432/jizzarr
-      - NAS_MEDIA_ROOT=/media/nas
+      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-jizzarr_user}:${POSTGRES_PASSWORD:-jizzarr_password}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-jizzarr}}
+      - MEDIA_ROOT=${MEDIA_ROOT:-/media/storage}
+      - MASTER_KEY=${MASTER_KEY}
+      - THEPORNDB_API_KEY=${THEPORNDB_API_KEY}
+      - STASHDB_API_KEY=${STASHDB_API_KEY}
+      - STASH_URL=${STASH_URL}
+      - EXTENSION_SECRET=${EXTENSION_SECRET}
+      - SECRET_KEY=${SECRET_KEY}
+      - HOST=${HOST:-0.0.0.0}
+      - PORT=${PORT:-8000}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000}
     volumes:
-      - ${NAS_MEDIA_ROOT:-./media}:/media/nas
+      - ${MEDIA_ROOT:-./media}:/media/storage
       - ./backend:/app
     ports:
-      - "8000:8000"
+      - "${PORT:-8000}:${PORT:-8000}"
     depends_on:
       - db
     networks:
