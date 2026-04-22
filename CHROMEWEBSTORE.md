@@ -57,7 +57,6 @@ The Chrome Web Store review team requires explicit, plain-English justifications
 
 ---
 
-
 ## **📈 Version History**
 
 ### **v1.13.0** (Current Release)

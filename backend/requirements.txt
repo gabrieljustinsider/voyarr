@@ -18,6 +18,7 @@ mutagen
 ffmpeg-python
 Pillow
 ImageHash
+opencv-python-headless
 
 # Security & Authentication
 pydantic
