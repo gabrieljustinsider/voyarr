@@ -1,22 +1,85 @@
 import { useState, useEffect } from 'react'
+import ProviderList from './components/ProviderList'
+import CredentialForm from './components/CredentialForm'
+import DownloadQueue from './components/DownloadQueue'
 import './App.css'
 
 function App() {
   const [providers, setProviders] = useState([])
   const [selectedProvider, setSelectedProvider] = useState(null)
-  const [credentials, setCredentials] = useState({ username: '', password: '' })
+  const [credentials, setCredentials] = useState({ username: '', password: '', dailyLimit: '' })
+  const [queue, setQueue] = useState([])
+
+  const API_BASE = 'http://localhost:8000'
+
+  const fetchProviders = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/providers`)
+      if (response.ok) {
+        const data = await response.json()
+        setProviders(data)
+      } else {
+        setProviders([
+          { id: 1, name: 'Example Provider', base_url: 'https://example.com', automatic_limits: { daily_downloads: 50 } }
+        ])
+      }
+    } catch (error) {
+      console.error('Failed to fetch providers:', error)
+      setProviders([
+        { id: 1, name: 'Example Provider', base_url: 'https://example.com', automatic_limits: { daily_downloads: 50 } }
+      ])
+    }
+  }
+
+  const fetchQueue = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/progress/1`)
+      if (response.ok) {
+        const data = await response.json()
+        setQueue([data])
+      }
+    } catch (error) {
+      console.error('Failed to fetch queue:', error)
+    }
+  }
 
   useEffect(() => {
-    // TODO: Fetch providers from API
-    setProviders([
-      { id: 1, name: 'Example Provider', base_url: 'https://example.com' }
-    ])
+    // eslint-disable-next-line
+    fetchProviders()
+    fetchQueue()
+    const interval = setInterval(fetchQueue, 5000)
+    return () => clearInterval(interval)
   }, [])
 
   const handleCredentialSubmit = async (e) => {
     e.preventDefault()
-    // TODO: Send to API
-    console.log('Submitting credentials for provider', selectedProvider, credentials)
+    
+    const payload = {
+      provider_id: selectedProvider,
+      username: credentials.username,
+      password: credentials.password,
+    }
+    
+    if (credentials.dailyLimit) {
+      payload.custom_limits = { daily_downloads: parseInt(credentials.dailyLimit, 10) }
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/credentials`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      if (response.ok) {
+        alert('Credentials saved successfully!')
+        setCredentials({ username: '', password: '', dailyLimit: '' })
+      } else {
+        alert('Failed to save credentials.')
+      }
+    } catch (error) {
+      console.error('Error submitting credentials:', error)
+      alert('Error saving credentials.')
+    }
   }
 
   return (
@@ -27,211 +90,22 @@ function App() {
       </header>
 
       <main className="main">
-        <section className="section">
-          <h2>Providers</h2>
-          <div className="providers-list">
-            {providers.map(provider => (
-              <div key={provider.id} className="provider-card">
-                <h3>{provider.name}</h3>
-                <p>{provider.base_url}</p>
-                <button onClick={() => setSelectedProvider(provider.id)}>
-                  Configure Credentials
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
+        <ProviderList 
+          providers={providers} 
+          onSelectProvider={setSelectedProvider} 
+        />
 
         {selectedProvider && (
-          <section className="section">
-            <h2>Credentials</h2>
-            <form onSubmit={handleCredentialSubmit} className="credentials-form">
-              <div className="form-group">
-                <label htmlFor="username">Username</label>
-                <input
-                  type="text"
-                  id="username"
-                  value={credentials.username}
-                  onChange={(e) => setCredentials({...credentials, username: e.target.value})}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="password">Password</label>
-                <input
-                  type="password"
-                  id="password"
-                  value={credentials.password}
-                  onChange={(e) => setCredentials({...credentials, password: e.target.value})}
-                  required
-                />
-              </div>
-              <button type="submit">Save Credentials</button>
-            </form>
-          </section>
+          <CredentialForm 
+            credentials={credentials} 
+            setCredentials={setCredentials} 
+            onSubmit={handleCredentialSubmit} 
+          />
         )}
 
-        <section className="section">
-          <h2>Download Queue</h2>
-          <p>Progress indicators will appear here</p>
-          {/* TODO: Add download queue component */}
-        </section>
+        <DownloadQueue queue={queue} />
       </main>
     </div>
-  )
-}
-
-export default Appimport { useState, useEffect } from 'react'
-import './App.css'
-
-function App() {
-  const [providers, setProviders] = useState([])
-  const [selectedProvider, setSelectedProvider] = useState(null)
-  const [credentials, setCredentials] = useState({ username: '', password: '' })
-
-  useEffect(() => {
-    // TODO: Fetch providers from API
-    setProviders([
-      { id: 1, name: 'Example Provider', base_url: 'https://example.com' }
-    ])
-  }, [])
-
-  const handleCredentialSubmit = async (e) => {
-    e.preventDefault()
-    // TODO: Send to API
-    console.log('Submitting credentials for provider', selectedProvider, credentials)
-  }
-
-  return (
-    <div className="app">
-      <header className="header">
-        <h1>Jizzarr</h1>
-        <p>Self-hosted media management ecosystem</p>
-      </header>
-
-      <main className="main">
-        <section className="section">
-          <h2>Providers</h2>
-          <div className="providers-list">
-            {providers.map(provider => (
-              <div key={provider.id} className="provider-card">
-                <h3>{provider.name}</h3>
-                <p>{provider.base_url}</p>
-                <button onClick={() => setSelectedProvider(provider.id)}>
-                  Configure Credentials
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {selectedProvider && (
-          <section className="section">
-            <h2>Credentials</h2>
-            <form onSubmit={handleCredentialSubmit} className="credentials-form">
-              <div className="form-group">
-                <label htmlFor="username">Username</label>
-                <input
-                  type="text"
-                  id="username"
-                  value={credentials.username}
-                  onChange={(e) => setCredentials({...credentials, username: e.target.value})}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="password">Password</label>
-                <input
-                  type="password"
-                  id="password"
-                  value={credentials.password}
-                  onChange={(e) => setCredentials({...credentials, password: e.target.value})}
-                  required
-                />
-              </div>
-              <button type="submit">Save Credentials</button>
-            </form>
-          </section>
-        )}
-
-        <section className="section">
-          <h2>Download Queue</h2>
-          <p>Progress indicators will appear here</p>
-          {/* TODO: Add download queue component */}
-        </section>
-      </main>
-    </div>
-  )
-}
-
-export default App
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
   )
 }
 

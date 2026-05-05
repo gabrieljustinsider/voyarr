@@ -27,15 +27,15 @@ Jizzarr is a self-hosted media downloader and metadata scraper platform. It incl
 - Basic API endpoints:
   - `GET /` - health check
   - `POST /credentials` - save provider credentials (encrypted)
-  - `GET /credentials/{provider_id}` - placeholder for retrieving provider credentials
-  - `GET /progress/{task_id}` - placeholder progress streaming endpoint
+  - `GET /credentials/{provider_id}` - retrieves and decrypts provider credentials
+  - `GET /progress/{task_id}` - progress streaming endpoint for download queue
 
 ### Frontend
 
 - React UI using Vite and ESLint.
-- Provider list display.
+- Provider list display and API integration.
 - Credential capture form for provider authentication.
-- Download queue placeholder view.
+- Download queue progress view.
 - Designed for future integration with the backend API.
 
 ## Prerequisites
@@ -135,10 +135,8 @@ npm run dev
 
 The PostgreSQL container initializes using `init.sql` mounted into `/docker-entrypoint-initdb.d/`. The backend also calls SQLAlchemy `Base.metadata.create_all()` on startup to ensure tables exist.
 
-## Notes and TODOs
+## Notes
 
-- The frontend currently uses a hard-coded example provider and stubbed API interactions.
-- The backend credential retrieval and progress streaming endpoints are placeholders.
 - Provider management, scraping, download queue processing, and metadata extraction are designed in the schema but need further implementation.
 
 ## Project Structure

@@ -13,6 +13,7 @@ class Provider(Base):
     naming_pattern = Column(Text)
     separator = Column(String(10), default='_')
     space_replacement = Column(String(10), default='_')
+    automatic_limits = Column(JSON)  # Default limits for the provider (e.g., {"daily_downloads": 50, "concurrent_downloads": 2})
 
 class SiteRecipe(Base):
     __tablename__ = 'site_recipes'
@@ -31,6 +32,7 @@ class Credential(Base):
     provider_id = Column(Integer, ForeignKey('providers.id'), nullable=False)
     username_encrypted = Column(Text, nullable=False)
     password_encrypted = Column(Text, nullable=False)
+    custom_limits = Column(JSON)  # Account-level custom provider limits (overrides automatic_limits)
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
 
 class MediaEntry(Base):
