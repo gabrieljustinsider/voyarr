@@ -33,7 +33,6 @@ export default function ExternalAPIs() {
     try {
       const response = await fetch(`${API_BASE}/external-api/theporndb/query`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           query: searchQuery
         }),

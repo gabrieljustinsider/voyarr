@@ -41,7 +41,7 @@ def resolve_duplicate(dupe_id: int, req: ResolveRequest, db: Session = Depends(g
                 try:
                     os.remove(le1.file_path)
                 except OSError:
-                    pass # Handle file locking or permissions gracefully in real app
+                    raise HTTPException(status_code=500, detail="Could not delete file due to lock or permissions.")
             db.delete(le1)
             
     # If action is keep_both, we just mark it resolved without deletion.

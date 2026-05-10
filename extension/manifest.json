@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Voyarr Extension",
-  "version": "1.0",
+  "version": "1.1",
   "description": "Remote control and dynamic scraper mapping for Voyarr Media Manager.",
   "permissions": [
     "activeTab",

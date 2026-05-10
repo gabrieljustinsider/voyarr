@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from models import DownloadQueue, MediaEntry, LibraryEntry, DownloadPreference, Provider, DuplicateEntry, DownloadRule, CustomList, SessionCookie, Credential
@@ -10,6 +10,7 @@ import os
 import yt_dlp
 from services.media_tagger import MediaTagger
 from services.hash_service import HashService
+from tasks.download_tasks import real_download_task
 
 router = APIRouter(prefix="/download", tags=["download"])
 
@@ -90,7 +91,25 @@ def evaluate_rules(db: Session, provider_id: int, metadata: dict):
             
     return "download"
 
-from tasks.download_tasks import real_download_task
+def evaluate_duplicate_quality(db: Session, prefs: DownloadPreference, title: str, meta: dict):
+    if prefs and prefs.duplicate_handling != "overwrite":
+        existing = db.query(LibraryEntry).filter(LibraryEntry.title.ilike(f"%{title}%")).first()
+        if existing:
+            resolutions = {"480p": 1, "720p": 2, "1080p": 3, "2K": 4, "4K": 5, "8K": 6}
+            existing_res = existing.resolution or "1080p"
+            incoming_res = meta.get("resolution", "1080p")
+            
+            existing_score = resolutions.get(existing_res, 0)
+            incoming_score = resolutions.get(incoming_res, 0)
+            
+            if incoming_score > existing_score and existing_score > 0:
+                return {"proceed": True}
+            else:
+                if prefs.duplicate_handling == "skip":
+                    return {"proceed": False, "response": {"message": "Skipped due to duplicate", "duplicate_id": existing.id}}
+                elif prefs.duplicate_handling == "ask":
+                    return {"proceed": False, "response": {"message": "Duplicate detected. Proceed?", "requires_confirmation": True, "existing_id": existing.id}}
+    return {"proceed": True}
 
 def check_limits_and_cookies(db: Session, provider_id: int):
     # Check provider limits
@@ -124,7 +143,7 @@ def check_limits_and_cookies(db: Session, provider_id: int):
     return True, active_cookie
 
 @router.post("/start")
-async def start_download(req: DownloadRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+async def start_download(req: DownloadRequest, db: Session = Depends(get_db)):
     provider = db.query(Provider).filter(Provider.id == req.provider_id).first()
     if not provider:
         # Fallback for testing
@@ -145,24 +164,9 @@ async def start_download(req: DownloadRequest, background_tasks: BackgroundTasks
         return {"message": "Skipped due to custom download rule"}
     
     # 3. Duplicate Checking and Quality Upgrade
-    if prefs and prefs.duplicate_handling != "overwrite":
-        existing = db.query(LibraryEntry).filter(LibraryEntry.title.ilike(f"%{title}%")).first()
-        if existing:
-            resolutions = {"480p": 1, "720p": 2, "1080p": 3, "2K": 4, "4K": 5, "8K": 6}
-            existing_res = existing.resolution or "1080p"
-            incoming_res = meta.get("resolution", "1080p")
-            
-            existing_score = resolutions.get(existing_res, 0)
-            incoming_score = resolutions.get(incoming_res, 0)
-            
-            # Quality Upgrade: If incoming is better, we proceed (essentially overwriting/upgrading)
-            if incoming_score > existing_score and existing_score > 0:
-                pass # Proceed with download to upgrade
-            else:
-                if prefs.duplicate_handling == "skip":
-                    return {"message": "Skipped due to duplicate", "duplicate_id": existing.id}
-                elif prefs.duplicate_handling == "ask":
-                    return {"message": "Duplicate detected. Proceed?", "requires_confirmation": True, "existing_id": existing.id}
+    dupe_check = evaluate_duplicate_quality(db, prefs, title, meta)
+    if not dupe_check.get("proceed"):
+        return dupe_check.get("response")
     
     # 3.5 Check Limits
     can_download, limit_result = check_limits_and_cookies(db, req.provider_id)
@@ -250,11 +254,18 @@ async def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
         {"url": f"{req.url}/video/2", "metadata": {"title": "Mass Rip Video 2", "resolution": "1080p", "performers": ["Performer B"]}}
     ]
     
+    prefs = db.query(DownloadPreference).filter(DownloadPreference.provider_id == req.provider_id).first()
     queued_count = 0
     skipped_count = 0
     
     for video in extracted_videos:
         meta = video["metadata"]
+        
+        # 1.5 Duplicate Checking
+        dupe_check = evaluate_duplicate_quality(db, prefs, meta.get("title", "Unknown"), meta)
+        if not dupe_check.get("proceed"):
+            skipped_count += 1
+            continue
         
         # 2. Evaluate Rules
         action = evaluate_rules(db, req.provider_id, meta)

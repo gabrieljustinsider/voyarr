@@ -68,10 +68,10 @@ class HashService:
             phash_obj = imagehash.phash(img)
             img.close()
 
-            # Clean up the temporary frame
-            os.remove(temp_frame_path)
-
             return str(phash_obj)
         except Exception as e:
             print(f"Error generating phash for {file_path}: {e}")
             return ""
+        finally:
+            if 'temp_frame_path' in locals() and os.path.exists(temp_frame_path):
+                os.remove(temp_frame_path)
