@@ -26,12 +26,16 @@ export default function DownloadRules() {
   const API_BASE = 'http://localhost:8000/rules'
 
   const fetchLists = async () => {
-    const res = await fetch(`${API_BASE}/lists`)
+    const res = await fetch(`${API_BASE}/lists`, {
+      headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
+    })
     if (res.ok) setLists(await res.json())
   }
 
   const fetchRules = async () => {
-    const res = await fetch(API_BASE)
+    const res = await fetch(API_BASE, {
+      headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
+    })
     if (res.ok) setRules(await res.json())
   }
 
@@ -44,7 +48,10 @@ export default function DownloadRules() {
   const handleSaveList = async () => {
     await fetch(`${API_BASE}/lists`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
+      },
       body: JSON.stringify(currentList)
     })
     setOpenListDialog(false)
@@ -52,7 +59,10 @@ export default function DownloadRules() {
   }
 
   const handleDeleteList = async (id) => {
-    await fetch(`${API_BASE}/lists/${id}`, { method: 'DELETE' })
+    await fetch(`${API_BASE}/lists/${id}`, { 
+      method: 'DELETE',
+      headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
+    })
     fetchLists()
   }
 
@@ -74,7 +84,10 @@ export default function DownloadRules() {
   const handleSaveRule = async () => {
     await fetch(API_BASE, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
+      },
       body: JSON.stringify(currentRule)
     })
     setOpenRuleDialog(false)
@@ -82,7 +95,10 @@ export default function DownloadRules() {
   }
 
   const handleDeleteRule = async (id) => {
-    await fetch(`${API_BASE}/${id}`, { method: 'DELETE' })
+    await fetch(`${API_BASE}/${id}`, { 
+      method: 'DELETE',
+      headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
+    })
     fetchRules()
   }
 

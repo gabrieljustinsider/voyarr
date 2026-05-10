@@ -38,7 +38,8 @@ export default function ExternalAPIs() {
         }),
         headers: {
           'Content-Type': 'application/json',
-          'X-API-Key': tpdbKey
+          'X-API-Key': tpdbKey,
+          'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
         }
       })
 
@@ -67,7 +68,8 @@ export default function ExternalAPIs() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-API-Key': stashdbKey
+          'X-API-Key': stashdbKey,
+          'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
         },
         body: JSON.stringify({
           query: searchQuery
@@ -96,7 +98,8 @@ export default function ExternalAPIs() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-API-Key': tpdbKey
+          'X-API-Key': tpdbKey,
+          'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
         },
         body: JSON.stringify({
           site_id: selectedResult.id,
@@ -126,7 +129,8 @@ export default function ExternalAPIs() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-API-Key': stashdbKey
+          'X-API-Key': stashdbKey,
+          'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
         },
         body: JSON.stringify({
           site_id: selectedResult.id,

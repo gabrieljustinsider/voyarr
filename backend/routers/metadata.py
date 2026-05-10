@@ -5,7 +5,8 @@ from models import MetadataCache
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 
-router = APIRouter(prefix="/metadata", tags=["metadata"])
+from dependencies import verify_api_key
+router = APIRouter(prefix="/metadata", tags=["metadata"], dependencies=[Depends(verify_api_key)])
 
 class MetadataCreate(BaseModel):
     site_id: str

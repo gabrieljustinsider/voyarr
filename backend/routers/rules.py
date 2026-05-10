@@ -5,7 +5,8 @@ from models import DownloadRule, CustomList
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
 
-router = APIRouter(prefix="/rules", tags=["rules"])
+from dependencies import verify_api_key
+router = APIRouter(prefix="/rules", tags=["rules"], dependencies=[Depends(verify_api_key)])
 
 class RuleCreate(BaseModel):
     name: str

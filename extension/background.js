@@ -1,29 +1,28 @@
-// background.js for Voyarr Extension
-
-const VOYARR_API = "http://localhost:8000";
-
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === "SAVE_RECIPE") {
-        const payload = request.payload;
-        // In a real scenario we might need to know the provider ID, but for now we send host
+    if (request.action === "SAVE_RECIPE_MAPPING") {
         
-        fetch(`${VOYARR_API}/settings/site_recipe`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload)
-        })
-        .then(response => response.json())
-        .then(data => {
-            console.log("Recipe saved", data);
-            sendResponse({ success: true, data: data });
-        })
-        .catch(error => {
-            console.error("Error saving recipe", error);
-            sendResponse({ success: false, error: error.toString() });
+        // Fetch Auth data from Extension Storage
+        chrome.storage.local.get(['voyarrApiUrl', 'voyarrSecret'], (config) => {
+            if (!config.voyarrSecret || !config.voyarrApiUrl) {
+                sendResponse({ success: false, error: "Missing configuration" });
+                return;
+            }
+
+            fetch(`${config.voyarrApiUrl}/scraper/map-mode`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    // Securely authenticate the payload
+                    'X-Voyarr-Api-Key': config.voyarrSecret
+                },
+                body: JSON.stringify(request.payload)
+            })
+            .then(res => res.json())
+            .then(data => sendResponse({ success: true, data }))
+            .catch(error => sendResponse({ success: false, error: error.toString() }));
         });
         
-        return true; // Keep the message channel open for async response
+        // Keep channel open for async fetch
+        return true; 
     }
 });

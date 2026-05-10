@@ -1,234 +1,155 @@
 import { useState, useEffect } from 'react'
-import {
-  Box, Button, Card, CardContent, TextField, Typography, Select, MenuItem,
-  FormControl, InputLabel, Switch, FormControlLabel, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, Paper, Alert
+import { 
+  Box, Typography, TextField, Button, Paper, Grid, Snackbar, Alert, 
+  FormControl, InputLabel, Select, MenuItem, Switch, FormControlLabel, Divider 
 } from '@mui/material'
 
 export default function PreferencesAdvanced() {
-  const [selectedProvider, setSelectedProvider] = useState(1)
-  const [preferences, setPreferences] = useState(null)
-  const [patternExample, setPatternExample] = useState('')
-  const [availableVariables, setAvailableVariables] = useState([])
+  const [providers, setProviders] = useState([])
+  const [selectedProvider, setSelectedProvider] = useState('')
+  const [prefs, setPrefs] = useState({
+    preferred_resolution: '1080p',
+    naming_pattern: '{title}_{performers}_{resolution}',
+    append_metadata: true,
+    auto_tag_files: true,
+    duplicate_handling: 'skip',
+    custom_base_path: ''
+  })
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
 
   const API_BASE = 'http://localhost:8000'
-
-  useEffect(() => {
-    fetchPreferences()
-    fetchNamingPatterns()
-  }, [selectedProvider])
-
-  const fetchPreferences = async () => {
-    try {
-      const response = await fetch(`${API_BASE}/preferences/provider/${selectedProvider}`)
-      if (response.ok) {
-        const data = await response.json()
-        setPreferences(data)
-        setAvailableVariables(data.available_variables || [])
-      }
-    } catch (error) {
-      console.error('Failed to fetch preferences:', error)
-    }
+  const HEADERS = {
+    'Content-Type': 'application/json',
+    'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
   }
 
-  const fetchNamingPatterns = async () => {
-    try {
-      const response = await fetch(`${API_BASE}/preferences/naming-patterns`)
-      if (response.ok) {
-        const data = await response.json()
-        setAvailableVariables(data.template_variables)
-      }
-    } catch (error) {
-      console.error('Failed to fetch patterns:', error)
+  useEffect(() => {
+    fetch(`${API_BASE}/providers`, { headers: HEADERS })
+      .then(res => res.json())
+      .then(data => setProviders(data))
+      .catch(console.error)
+  }, [])
+
+  useEffect(() => {
+    if (selectedProvider) {
+      fetch(`${API_BASE}/preferences/provider/${selectedProvider}`, { headers: HEADERS })
+        .then(res => res.json())
+        .then(data => {
+          setPrefs({
+            preferred_resolution: data.preferred_resolution || '1080p',
+            naming_pattern: data.naming_pattern || '{title}_{performers}_{resolution}',
+            append_metadata: data.append_metadata !== false,
+            auto_tag_files: data.auto_tag_files !== false,
+            duplicate_handling: data.duplicate_handling || 'skip',
+            custom_base_path: data.custom_base_path || ''
+          })
+        })
+        .catch(console.error)
     }
+  }, [selectedProvider])
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target
+    setPrefs(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }))
   }
 
   const handleSave = async () => {
     try {
-      const response = await fetch(`${API_BASE}/preferences/provider/${selectedProvider}`, {
+      const res = await fetch(`${API_BASE}/preferences/provider/${selectedProvider}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          preferred_resolution: preferences.preferred_resolution,
-          naming_pattern: preferences.naming_pattern,
-          append_metadata: preferences.append_metadata,
-          auto_tag_files: preferences.auto_tag_files,
-          duplicate_handling: preferences.duplicate_handling
-        })
+        headers: HEADERS,
+        body: JSON.stringify(prefs)
       })
-      if (response.ok) {
-        alert('Preferences saved!')
+      if (res.ok) {
+        setSnackbar({ open: true, message: 'Provider preferences saved successfully!', severity: 'success' })
+      } else {
+        setSnackbar({ open: true, message: 'Failed to save preferences.', severity: 'error' })
       }
-    } catch (error) {
-      console.error('Failed to save preferences:', error)
+    } catch (err) {
+      setSnackbar({ open: true, message: `Error: ${err.message}`, severity: 'error' })
     }
-  }
-
-  const handleValidatePattern = async () => {
-    try {
-      const response = await fetch(`${API_BASE}/preferences/validate-pattern`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pattern: preferences.naming_pattern })
-      })
-      if (response.ok) {
-        const data = await response.json()
-        if (data.valid) {
-          setPatternExample(data.example)
-        } else {
-          alert(`Invalid pattern: ${data.error}`)
-        }
-      }
-    } catch (error) {
-      console.error('Failed to validate pattern:', error)
-    }
-  }
-
-  if (!preferences) {
-    return <Typography>Loading...</Typography>
   }
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>
-        Advanced Preferences
-      </Typography>
-
-      <Box sx={{ mb: 3 }}>
-        <FormControl sx={{ minWidth: 200 }}>
-          <InputLabel>Provider</InputLabel>
+      <Typography variant="h4" gutterBottom>Advanced Provider Preferences</Typography>
+      
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <FormControl fullWidth sx={{ mb: 3 }}>
+          <InputLabel>Select Provider</InputLabel>
           <Select
             value={selectedProvider}
+            label="Select Provider"
             onChange={(e) => setSelectedProvider(e.target.value)}
-            label="Provider"
           >
-            <MenuItem value={1}>Provider 1</MenuItem>
-            <MenuItem value={2}>Provider 2</MenuItem>
-            <MenuItem value={3}>Provider 3</MenuItem>
+            {providers.map(p => (
+              <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
+            ))}
           </Select>
         </FormControl>
-      </Box>
 
-      {/* Resolution Preferences */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>Video Resolution Preferences</Typography>
-          <FormControl fullWidth sx={{ mb: 2 }}>
-            <InputLabel>Preferred Resolution</InputLabel>
-            <Select
-              value={preferences.preferred_resolution}
-              onChange={(e) => setPreferences({...preferences, preferred_resolution: e.target.value})}
-              label="Preferred Resolution"
-            >
-              <MenuItem value="auto">Auto (Best Available)</MenuItem>
-              <MenuItem value="4K">4K</MenuItem>
-              <MenuItem value="1080p">1080p</MenuItem>
-              <MenuItem value="720p">720p</MenuItem>
-              <MenuItem value="480p">480p</MenuItem>
-            </Select>
-          </FormControl>
-          <Typography variant="caption" color="textSecondary">
-            Downloads will prefer the selected resolution when available
-          </Typography>
-        </CardContent>
-      </Card>
+        {selectedProvider && (
+          <Grid container spacing={3}>
+            <Grid item xs={12}>
+              <Typography variant="h6">Path & Naming Rules</Typography>
+              <Divider sx={{ my: 1 }} />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <TextField fullWidth label="Custom Base Path" name="custom_base_path" value={prefs.custom_base_path} onChange={handleChange} helperText="e.g., /media/storage/Site_A. Overrides global download destination." />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <TextField fullWidth label="Naming Pattern" name="naming_pattern" value={prefs.naming_pattern} onChange={handleChange} helperText="Available vars: {title}, {performers}, {tags}, {resolution}, {date}, {site_id}" />
+            </Grid>
 
-      {/* Naming Pattern */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>Filename Naming Pattern</Typography>
-          <TextField
-            fullWidth
-            label="Naming Pattern"
-            value={preferences.naming_pattern}
-            onChange={(e) => setPreferences({...preferences, naming_pattern: e.target.value})}
-            margin="normal"
-            multiline
-            rows={2}
-            placeholder="{title}_{performers}_{resolution}"
-          />
-          <Button variant="outlined" onClick={handleValidatePattern} sx={{ mt: 1 }}>
-            Preview Pattern
-          </Button>
-          {patternExample && (
-            <Alert severity="success" sx={{ mt: 2 }}>
-              Example: <strong>{patternExample}</strong>
-            </Alert>
-          )}
+            <Grid item xs={12}>
+              <Typography variant="h6" sx={{ mt: 2 }}>Download Behavior</Typography>
+              <Divider sx={{ my: 1 }} />
+            </Grid>
 
-          <Typography variant="subtitle2" gutterBottom sx={{ mt: 3 }}>
-            Available Variables:
-          </Typography>
-          <TableContainer component={Paper}>
-            <Table size="small">
-              <TableHead>
-                <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
-                  <TableCell>Variable</TableCell>
-                  <TableCell>Description</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {Array.isArray(availableVariables) ? (
-                  Object.entries(availableVariables).map(([key, value]) => (
-                    <TableRow key={key}>
-                      <TableCell><code>{`{${key}}`}</code></TableCell>
-                      <TableCell>{typeof value === 'string' ? value : key}</TableCell>
-                    </TableRow>
-                  ))
-                ) : null}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </CardContent>
-      </Card>
+            <Grid item xs={12} md={4}>
+              <FormControl fullWidth>
+                <InputLabel>Preferred Resolution</InputLabel>
+                <Select name="preferred_resolution" value={prefs.preferred_resolution} label="Preferred Resolution" onChange={handleChange}>
+                  <MenuItem value="4K">4K</MenuItem>
+                  <MenuItem value="1080p">1080p</MenuItem>
+                  <MenuItem value="720p">720p</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
 
-      {/* Metadata & Tagging */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>Metadata & File Tagging</Typography>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={preferences.append_metadata}
-                onChange={(e) => setPreferences({...preferences, append_metadata: e.target.checked})}
-              />
-            }
-            label="Write metadata to JSON sidecar files"
-          />
-          <FormControlLabel
-            control={
-              <Switch
-                checked={preferences.auto_tag_files}
-                onChange={(e) => setPreferences({...preferences, auto_tag_files: e.target.checked})}
-              />
-            }
-            label="Auto-embed metadata tags in video files"
-          />
-        </CardContent>
-      </Card>
+            <Grid item xs={12} md={4}>
+              <FormControl fullWidth>
+                <InputLabel>Duplicate Handling</InputLabel>
+                <Select name="duplicate_handling" value={prefs.duplicate_handling} label="Duplicate Handling" onChange={handleChange}>
+                  <MenuItem value="skip">Skip</MenuItem>
+                  <MenuItem value="ask">Ask</MenuItem>
+                  <MenuItem value="overwrite">Overwrite (Upgrade)</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
 
-      {/* Duplicate Handling */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>Duplicate Handling</Typography>
-          <FormControl fullWidth>
-            <InputLabel>When duplicate detected</InputLabel>
-            <Select
-              value={preferences.duplicate_handling}
-              onChange={(e) => setPreferences({...preferences, duplicate_handling: e.target.value})}
-              label="When duplicate detected"
-            >
-              <MenuItem value="skip">Skip download</MenuItem>
-              <MenuItem value="ask">Ask user</MenuItem>
-              <MenuItem value="overwrite">Overwrite existing</MenuItem>
-            </Select>
-          </FormControl>
-        </CardContent>
-      </Card>
+            <Grid item xs={12} md={4}>
+              <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                <FormControlLabel control={<Switch checked={prefs.append_metadata} onChange={handleChange} name="append_metadata" />} label="Append Metadata to File" />
+                <FormControlLabel control={<Switch checked={prefs.auto_tag_files} onChange={handleChange} name="auto_tag_files" />} label="Auto-tag files in Library" />
+              </Box>
+            </Grid>
 
-      <Button variant="contained" size="large" onClick={handleSave}>
-        Save All Preferences
-      </Button>
+            <Grid item xs={12} sx={{ mt: 2 }}>
+              <Button variant="contained" color="primary" onClick={handleSave} size="large">Save Preferences</Button>
+            </Grid>
+          </Grid>
+        )}
+      </Paper>
+
+      <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={() => setSnackbar({ ...snackbar, open: false })}>
+        <Alert severity={snackbar.severity} sx={{ width: '100%' }}>{snackbar.message}</Alert>
+      </Snackbar>
     </Box>
   )
 }

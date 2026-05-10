@@ -5,7 +5,8 @@ from models import Credential
 from schemas import CredentialCreate, CredentialResponse
 from security import cipher
 
-router = APIRouter(prefix="/credentials", tags=["credentials"])
+from dependencies import verify_api_key
+router = APIRouter(prefix="/credentials", tags=["credentials"], dependencies=[Depends(verify_api_key)])
 
 @router.post("", response_model=CredentialResponse)
 async def create_credential(cred: CredentialCreate, db: Session = Depends(get_db)):

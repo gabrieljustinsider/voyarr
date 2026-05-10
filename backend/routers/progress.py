@@ -4,7 +4,8 @@ from sqlalchemy import func
 from database import get_db
 from models import DownloadQueue, MediaEntry
 
-router = APIRouter(prefix="/progress", tags=["progress"])
+from dependencies import verify_api_key
+router = APIRouter(prefix="/progress", tags=["progress"], dependencies=[Depends(verify_api_key)])
 
 @router.get("/stats")
 async def get_download_stats(db: Session = Depends(get_db)):
@@ -19,8 +20,6 @@ async def get_download_stats(db: Session = Depends(get_db)):
         "running": running or 0,
         "failed": failed or 0
     }
-
-router = APIRouter(prefix="/progress", tags=["progress"])
 
 @router.get("/{task_id}")
 async def get_progress(task_id: int, db: Session = Depends(get_db)):

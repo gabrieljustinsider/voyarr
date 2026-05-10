@@ -4,7 +4,8 @@ from database import get_db
 from models import DownloadPreference, Provider
 from pydantic import BaseModel
 
-router = APIRouter(prefix="/preferences", tags=["preferences"])
+from dependencies import verify_api_key
+router = APIRouter(prefix="/preferences", tags=["preferences"], dependencies=[Depends(verify_api_key)])
 
 class PreferenceUpdate(BaseModel):
     preferred_resolution: str = "1080p"
@@ -12,6 +13,7 @@ class PreferenceUpdate(BaseModel):
     append_metadata: bool = True
     auto_tag_files: bool = True
     duplicate_handling: str = "skip"
+    custom_base_path: Optional[str] = None
 
 @router.get("/provider/{provider_id}")
 async def get_preferences(provider_id: int, db: Session = Depends(get_db)):
@@ -28,6 +30,7 @@ async def get_preferences(provider_id: int, db: Session = Depends(get_db)):
             "naming_pattern": "{title}_{performers}_{resolution}",
             "append_metadata": True,
             "auto_tag_files": True,
+            "custom_base_path": None,
             "duplicate_handling": "skip",
             "available_variables": [
                 "title", "performers", "tags", "resolution",
@@ -42,6 +45,7 @@ async def get_preferences(provider_id: int, db: Session = Depends(get_db)):
         "append_metadata": prefs.append_metadata,
         "auto_tag_files": prefs.auto_tag_files,
         "duplicate_handling": prefs.duplicate_handling,
+        "custom_base_path": getattr(prefs, "custom_base_path", None),
         "available_variables": [
             "title", "performers", "tags", "resolution",
             "date", "duration", "site_id", "provider"
@@ -66,6 +70,8 @@ async def update_preferences(provider_id: int, prefs: PreferenceUpdate, db: Sess
         db_prefs.append_metadata = prefs.append_metadata
         db_prefs.auto_tag_files = prefs.auto_tag_files
         db_prefs.duplicate_handling = prefs.duplicate_handling
+        if hasattr(db_prefs, "custom_base_path"):
+            db_prefs.custom_base_path = prefs.custom_base_path
     else:
         db_prefs = DownloadPreference(
             provider_id=provider_id,
@@ -75,6 +81,8 @@ async def update_preferences(provider_id: int, prefs: PreferenceUpdate, db: Sess
             auto_tag_files=prefs.auto_tag_files,
             duplicate_handling=prefs.duplicate_handling
         )
+        if hasattr(db_prefs, "custom_base_path"):
+            db_prefs.custom_base_path = prefs.custom_base_path
         db.add(db_prefs)
     
     db.commit()

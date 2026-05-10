@@ -3,7 +3,8 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 import requests
 
-router = APIRouter(prefix="/external-api", tags=["external-api"])
+from dependencies import verify_api_key
+router = APIRouter(prefix="/external-api", tags=["external-api"], dependencies=[Depends(verify_api_key)])
 
 class QueryRequest(BaseModel):
     query: str

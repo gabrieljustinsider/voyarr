@@ -12,7 +12,8 @@ from services.media_tagger import MediaTagger
 from services.hash_service import HashService
 from tasks.download_tasks import real_download_task
 
-router = APIRouter(prefix="/download", tags=["download"])
+from dependencies import verify_api_key
+router = APIRouter(prefix="/download", tags=["download"], dependencies=[Depends(verify_api_key)])
 
 class DownloadRequest(BaseModel):
     provider_id: int
@@ -203,7 +204,8 @@ async def start_download(req: DownloadRequest, db: Session = Depends(get_db)):
             
         prefs_dict = {
             "preferred_resolution": prefs.preferred_resolution if prefs else "1080p",
-            "append_metadata": prefs.append_metadata if prefs else False
+            "append_metadata": prefs.append_metadata if prefs else False,
+            "custom_base_path": getattr(prefs, "custom_base_path", None) if prefs else None
         }
         
         real_download_task.delay(queue.id, prefs_dict, meta)
@@ -248,17 +250,38 @@ async def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
         
-    # Mock extracted URLs and metadata from a channel page
-    extracted_videos = [
-        {"url": f"{req.url}/video/1", "metadata": {"title": "Mass Rip Video 1", "resolution": "4K", "performers": ["Performer A"]}},
-        {"url": f"{req.url}/video/2", "metadata": {"title": "Mass Rip Video 2", "resolution": "1080p", "performers": ["Performer B"]}}
-    ]
+    # Extract URLs and metadata using yt-dlp's flat extraction
+    ydl_opts = {'extract_flat': True, 'quiet': True}
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(req.url, download=False)
+            
+        extracted_videos = []
+        if 'entries' in info:
+            for entry in info['entries']:
+                extracted_videos.append({
+                    "url": entry.get('url') or entry.get('webpage_url'),
+                    "metadata": {
+                        "title": entry.get('title', 'Unknown')
+                    }
+                })
+        else:
+            extracted_videos.append({
+                "url": info.get('url') or info.get('webpage_url') or req.url,
+                "metadata": {
+                    "title": info.get('title', 'Unknown')
+                }
+            })
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to extract URLs: {str(e)}")
     
     prefs = db.query(DownloadPreference).filter(DownloadPreference.provider_id == req.provider_id).first()
     queued_count = 0
     skipped_count = 0
     
     for video in extracted_videos:
+        if not video["url"]:
+            continue
         meta = video["metadata"]
         
         # 1.5 Duplicate Checking
@@ -300,7 +323,8 @@ async def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
             prefs = db.query(DownloadPreference).filter(DownloadPreference.provider_id == req.provider_id).first()
             prefs_dict = {
                 "preferred_resolution": prefs.preferred_resolution if prefs else "1080p",
-                "append_metadata": prefs.append_metadata if prefs else False
+                "append_metadata": prefs.append_metadata if prefs else False,
+                "custom_base_path": getattr(prefs, "custom_base_path", None) if prefs else None
             }
             # Note: Quality Upgrade is handled during start_download usually, but we assume it's queued here.
             real_download_task.delay(queue.id, prefs_dict, meta)

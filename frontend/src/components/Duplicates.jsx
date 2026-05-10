@@ -6,7 +6,9 @@ export default function Duplicates() {
 
   const fetchDuplicates = async () => {
     try {
-      const res = await fetch('http://localhost:8000/duplicates')
+      const res = await fetch('http://localhost:8000/duplicates', {
+        headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
+      })
       if (res.ok) setDuplicates(await res.json())
     } catch (e) {
       console.error(e)
@@ -18,7 +20,10 @@ export default function Duplicates() {
   const resolveDuplicate = async (id, action) => {
     await fetch(`http://localhost:8000/duplicates/${id}/resolve`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
+      },
       body: JSON.stringify({ action })
     })
     fetchDuplicates()

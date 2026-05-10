@@ -7,7 +7,8 @@ from typing import Optional
 from datetime import datetime
 from services.cookie_service import CookieService
 
-router = APIRouter(prefix="/cookies", tags=["cookies"])
+from dependencies import verify_api_key
+router = APIRouter(prefix="/cookies", tags=["cookies"], dependencies=[Depends(verify_api_key)])
 
 class CookieCreate(BaseModel):
     provider_id: Optional[int] = None
