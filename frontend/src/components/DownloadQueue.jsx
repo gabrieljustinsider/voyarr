@@ -1,25 +1,88 @@
+import { Typography, LinearProgress, List, ListItem, ListItemText, Box, Button, Chip } from '@mui/material'
+
 export default function DownloadQueue({ queue }) {
+  const API_BASE = 'http://localhost:8000'
+
+  const handlePause = async (taskId) => {
+    try {
+      const response = await fetch(`${API_BASE}/progress/${taskId}/pause`, { method: 'POST' })
+      if (response.ok) {
+        console.log('Download paused')
+        // Refresh queue or update state
+      }
+    } catch (error) {
+      console.error('Error pausing download:', error)
+    }
+  }
+
+  const handleResume = async (taskId) => {
+    try {
+      const response = await fetch(`${API_BASE}/progress/${taskId}/resume`, { method: 'POST' })
+      if (response.ok) {
+        console.log('Download resumed')
+      }
+    } catch (error) {
+      console.error('Error resuming download:', error)
+    }
+  }
+
+  const handleCancel = async (taskId) => {
+    try {
+      const response = await fetch(`${API_BASE}/progress/${taskId}/cancel`, { method: 'POST' })
+      if (response.ok) {
+        console.log('Download cancelled')
+      }
+    } catch (error) {
+      console.error('Error cancelling download:', error)
+    }
+  }
+
   return (
-    <section className="section">
-      <h2>Download Queue</h2>
+    <div>
+      <Typography variant="h4" gutterBottom>
+        Download Queue
+      </Typography>
       {queue.length > 0 ? (
-        <div className="queue-list">
+        <List>
           {queue.map((task) => (
-            <div key={task.task_id} className="queue-item">
-              <span>Task {task.task_id}: {task.status}</span>
-              <div className="progress-bar" style={{ backgroundColor: '#e0e0e0', borderRadius: '4px', margin: '10px 0' }}>
-                <div 
-                  className="progress-fill" 
-                  style={{ width: `${task.progress}%`, backgroundColor: '#4caf50', height: '10px', borderRadius: '4px' }}
-                ></div>
-              </div>
-              <span>{task.progress}%</span>
-            </div>
+            <ListItem key={task.task_id} sx={{ flexDirection: 'column', alignItems: 'flex-start' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', mb: 1 }}>
+                <Typography variant="h6">
+                  Task {task.task_id}
+                </Typography>
+                <Chip 
+                  label={task.status} 
+                  color={task.status === 'completed' ? 'success' : task.status === 'failed' ? 'error' : 'primary'} 
+                  size="small"
+                />
+              </Box>
+              <Box sx={{ width: '100%', mb: 1 }}>
+                <LinearProgress variant="determinate" value={task.progress} sx={{ height: 10, borderRadius: 5 }} />
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                  {task.progress}% complete
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                {task.status === 'running' && (
+                  <Button size="small" variant="outlined" onClick={() => handlePause(task.task_id)}>
+                    Pause
+                  </Button>
+                )}
+                {task.status === 'paused' && (
+                  <Button size="small" variant="outlined" onClick={() => handleResume(task.task_id)}>
+                    Resume
+                  </Button>
+                )}
+                <Button size="small" variant="outlined" color="error" onClick={() => handleCancel(task.task_id)}>
+                  Cancel
+                </Button>
+              </Box>
+            </ListItem>
           ))}
-        </div>
+        </List>
       ) : (
-        <p>No active downloads.</p>
+        <Typography>No active downloads.</Typography>
       )}
-    </section>
+    </div>
   )
 }

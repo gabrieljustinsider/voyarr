@@ -1,8 +1,8 @@
-# **Jizzarr: Technical Specification & Implementation Plan**
+# **Voyarr: Technical Specification & Implementation Plan**
 
 ## **🚀 Overview**
 
-**Jizzarr** is a self-hosted (Docker/Self-Hosted) media management ecosystem designed to handle subscriptions, metadata scraping, and automated downloads from adult websites. It integrates with **Stash**, **StashDB**, and **ThePornDB**, featuring a remote-control browser extension for dynamic metadata mapping.
+**Voyarr** is a self-hosted (Docker/Self-Hosted) media management ecosystem designed to handle subscriptions, metadata scraping, and automated downloads from adult websites. It integrates with **Stash**, **StashDB**, and **ThePornDB**, featuring a remote-control browser extension for dynamic metadata mapping.
 
 ## **🏗️ System Architecture**
 
@@ -44,33 +44,39 @@
 ## **🔗 Integrations**
 
 * **ThePornDB / StashDB:** Sync metadata and contribute ohash/phash.  
-* **Stash Plugin:** Custom scraper for Stash that uses **Jizzarr** as a high-quality metadata source.  
-* **Browser Extension:** Remote control for Jizzarr, progress monitor, and dynamic regex mapper.
+* **Stash Plugin:** Custom scraper for Stash that uses **Voyarr** as a high-quality metadata source.  
+* **Browser Extension:** Remote control for Voyarr, progress monitor, and dynamic regex mapper.
 
 ## **🐳 Docker Configuration (docker-compose.yml)**
 
 services:  
   db:  
     image: postgres:15-alpine  
-    container\_name: jizzarr-db  
+    container\_name: voyarr-db  
     volumes:  
-      \- jizzarr\_db\_data:/var/lib/postgresql/data  
+      \- voyarr\_db\_data:/var/lib/postgresql/data  
   backend:  
-    image: jizzarr-api \# Python FastAPI  
+    image: voyarr-api \# Python FastAPI  
     volumes:  
       \- ${MEDIA\_ROOT}:/media/storage  
       \- ./backend:/app  
   frontend:  
-    image: jizzarr-ui \# PWA
+    image: voyarr-ui \# PWA
 
 ## **🛤️ Roadmap & GitHub Integration**
 
-* **Repo:** [gabrieljustinsider/jizzarr](https://github.com/gabrieljustinsider/jizzarr)  
-* **Project Board:** [Jizzarr Board \#1](https://github.com/users/gabrieljustinsider/projects/1)  
+* **Repo:** [gabrieljustinsider/voyarr](https://github.com/gabrieljustinsider/voyarr)  
+* **Project Board:** [Voyarr Board \#1](https://github.com/users/gabrieljustinsider/projects/1)  
 * **Automation:** GitHub Actions to sync issues/PRs to the board and handle Docker builds.
 
 ## **📋 Next Steps**
 
 1. **Initialize Git:** Push .gitignore, .env.example, and init.sql.  
 2. **Backend Foundation:** Define the ProviderBase Python class for modular scraping.  
-3. **API Skeleton:** Build FastAPI routes for credential management and progress streaming.ming.
+3. **API Skeleton:** Build FastAPI routes for credential management and progress streaming.
+4. **Robust Task Queue (Celery / Redis):** Replace FastAPI BackgroundTasks with Celery (backed by Redis or RabbitMQ) for pausing, resuming, and persistently tracking long-running yt-dlp download tasks.
+5. **Reverse Regex Matching Engine:** Implement logic to scan the /media folder and reverse-engineer local files into the database based on naming patterns (e.g., {title}_{performers}_{resolution}.mp4) without hitting external APIs.
+6. **Mass Rip & Quality Upgrade Workflow:** Build the Mass Rip API to parse channel/performer pages, evaluate DownloadRules, queue videos, and detect/upgrade local resolutions automatically.
+7. **True Perceptual Hashing (phash):** Implement actual video phash generation by capturing frames via FFmpeg/OpenCV, converting to grayscale, and calculating DCT for visual similarity matching.
+8. **Browser Extension "Map Mode" UI:** Build the UI/Content Script for the Chrome extension (manifest v3) with a DOM-picker tool to generate CSS Selectors and push them to the SiteRecipe table.
+9. **PWA Compatibility:** Configure Vite with `vite-plugin-pwa` to build the app as an installable Progressive Web App, including manifest, icons, and service worker registration.

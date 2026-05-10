@@ -1,16 +1,32 @@
-# React + Vite
+# Voyarr Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The frontend for Voyarr is built with **React**, **Vite**, and **Material UI**. It operates as a fully installable **Progressive Web App (PWA)**, meaning you can install it to your desktop or mobile device for a native-like experience.
 
-Currently, two official plugins are available:
+## Features
+- **Dashboard:** Overview of system health and active downloads.
+- **Provider & Credential Management:** Securely input credentials for various media sites.
+- **Library & Duplicates:** Manage your local media and resolve duplicates based on perceptual hashing (phash).
+- **Download Rules:** Configure multi-criteria rules for Mass Ripping and automated downloads.
+- **PWA Ready:** Includes a web manifest, service workers, and scalable icons for standalone installation.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Development
 
-## React Compiler
+If you are developing without Docker:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+1. Install dependencies:
+```bash
+npm install
+```
 
-## Expanding the ESLint configuration
+2. Start the development server:
+```bash
+npm run dev
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+3. Build for production:
+```bash
+npm run build
+```
+
+## PWA Configuration
+PWA features are powered by `vite-plugin-pwa`. The manifest is automatically generated and injected during the build process. Icons are sourced from `public/favicon.svg`.

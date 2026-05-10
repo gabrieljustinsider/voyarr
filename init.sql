@@ -1,4 +1,4 @@
--- Jizzarr Database Schema
+-- Voyarr Database Schema
 
 -- Providers table
 CREATE TABLE providers (
@@ -75,6 +75,102 @@ CREATE TABLE filters (
     criteria JSONB, -- e.g., {"performers": ["name1"], "categories": ["cat1"], "resolution": "1080p"}
     auto_queue BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Custom lists table
+CREATE TABLE custom_lists (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    item_type VARCHAR(50),
+    items JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Download rules table
+CREATE TABLE download_rules (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    criteria JSONB,
+    action VARCHAR(50) DEFAULT 'download',
+    scope VARCHAR(50) DEFAULT 'global',
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Library entries table
+CREATE TABLE library_entries (
+    id SERIAL PRIMARY KEY,
+    provider_id INTEGER REFERENCES providers(id) ON DELETE CASCADE,
+    title VARCHAR(500) NOT NULL,
+    performers JSONB,
+    tags JSONB,
+    file_path TEXT NOT NULL,
+    file_size BIGINT,
+    resolution VARCHAR(20),
+    duration INTEGER,
+    ohash VARCHAR(16),
+    phash VARCHAR(16),
+    site_id VARCHAR(100),
+    metadata JSONB,
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Duplicate entries table
+CREATE TABLE duplicate_entries (
+    id SERIAL PRIMARY KEY,
+    library_entry_id1 INTEGER REFERENCES library_entries(id) ON DELETE CASCADE,
+    library_entry_id2 INTEGER REFERENCES library_entries(id) ON DELETE CASCADE,
+    similarity_score DECIMAL(5,2),
+    reason VARCHAR(255),
+    resolved BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Download preferences table
+CREATE TABLE download_preferences (
+    id SERIAL PRIMARY KEY,
+    provider_id INTEGER REFERENCES providers(id) ON DELETE CASCADE,
+    preferred_resolution VARCHAR(20) DEFAULT '1080p',
+    naming_pattern TEXT DEFAULT '{title}_{performers}_{resolution}',
+    append_metadata BOOLEAN DEFAULT TRUE,
+    auto_tag_files BOOLEAN DEFAULT TRUE,
+    duplicate_handling VARCHAR(50) DEFAULT 'skip',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Metadata cache table
+CREATE TABLE metadata_cache (
+    id SERIAL PRIMARY KEY,
+    site_id VARCHAR(100) NOT NULL UNIQUE,
+    provider VARCHAR(50),
+    title VARCHAR(500),
+    performers JSONB,
+    tags JSONB,
+    description TEXT,
+    thumbnail_url TEXT,
+    raw_metadata JSONB,
+    synced_to_stashdb BOOLEAN DEFAULT FALSE,
+    synced_to_theporndb BOOLEAN DEFAULT FALSE,
+    last_synced TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Session cookies table
+CREATE TABLE session_cookies (
+    id SERIAL PRIMARY KEY,
+    provider_id INTEGER REFERENCES providers(id) ON DELETE CASCADE,
+    site_id VARCHAR(100),
+    cookie_data TEXT NOT NULL,
+    status VARCHAR(50) DEFAULT 'active',
+    download_limit INTEGER,
+    downloads_used INTEGER DEFAULT 0,
+    duration_limit_seconds INTEGER,
+    expires_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Indexes for performance

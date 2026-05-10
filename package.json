@@ -1,5 +1,5 @@
 {
-  "name": "jizzarr",
+  "name": "voyarr",
   "version": "1.1.0",
   "description": "Media downloader and metadata scraper",
   "main": "index.js",
@@ -9,16 +9,16 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/gabrieljustinsider/jizzarr.git"
+    "url": "git+https://github.com/gabrieljustinsider/voyarr.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "bugs": {
-    "url": "https://github.com/gabrieljustinsider/jizzarr/issues"
+    "url": "https://github.com/gabrieljustinsider/voyarr/issues"
   },
-  "homepage": "https://github.com/gabrieljustinsider/jizzarr#readme",
+  "homepage": "https://github.com/gabrieljustinsider/voyarr#readme",
   "devDependencies": {
     "@types/jest": "^30.0.0",
     "jest": "^30.3.0",

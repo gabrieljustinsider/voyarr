@@ -1,21 +1,46 @@
-export default function ProviderList({ providers, onSelectProvider }) {
+import { Card, CardContent, CardActions, Typography, Button, Grid, TextField, Box } from '@mui/material'
+
+export default function ProviderList({ providers, onSelectProvider, searchQuery, setSearchQuery }) {
   return (
-    <section className="section">
-      <h2>Providers</h2>
-      <div className="providers-list">
+    <div>
+      <Typography variant="h4" gutterBottom>
+        Media Providers
+      </Typography>
+      <Box sx={{ mb: 3 }}>
+        <TextField
+          fullWidth
+          label="Search Providers"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          variant="outlined"
+        />
+      </Box>
+      <Grid container spacing={3}>
         {providers.map(provider => (
-          <div key={provider.id} className="provider-card">
-            <h3>{provider.name}</h3>
-            <p>{provider.base_url}</p>
-            {provider.automatic_limits && (
-              <p className="limits-info">Default Daily Limit: {provider.automatic_limits.daily_downloads || 'None'}</p>
-            )}
-            <button onClick={() => onSelectProvider(provider.id)}>
-              Configure Credentials
-            </button>
-          </div>
+          <Grid item xs={12} sm={6} md={4} key={provider.id}>
+            <Card>
+              <CardContent>
+                <Typography variant="h5" component="div">
+                  {provider.name}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {provider.base_url}
+                </Typography>
+                {provider.automatic_limits && (
+                  <Typography variant="body2">
+                    Default Daily Limit: {provider.automatic_limits.daily_downloads || 'None'}
+                  </Typography>
+                )}
+              </CardContent>
+              <CardActions>
+                <Button size="small" onClick={() => onSelectProvider(provider.id)}>
+                  Configure Credentials
+                </Button>
+              </CardActions>
+            </Card>
+          </Grid>
         ))}
-      </div>
-    </section>
+      </Grid>
+    </div>
   )
 }
