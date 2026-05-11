@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Typography, Box, Card, CardContent, Grid } from '@mui/material'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+
+const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
@@ -10,13 +12,7 @@ export default function Dashboard() {
     failed: 0
   })
 
-  const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
-
-  useEffect(() => {
-    fetchStats()
-  }, [])
-
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const response = await fetch(`${API_BASE}/progress/stats`, {
         headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
@@ -28,7 +24,11 @@ export default function Dashboard() {
     } catch (error) {
       console.error('Failed to fetch stats:', error)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchStats()
+  }, [fetchStats])
 
   const barData = [
     { name: 'Completed', value: stats.completed },
