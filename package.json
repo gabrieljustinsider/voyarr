@@ -1,11 +1,16 @@
 {
   "name": "voyarr",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Media downloader and metadata scraper",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "cd frontend && npm install && npm run build"
+    "start": "docker compose up --build -d",
+    "stop": "docker compose down",
+    "test": "npm run test:frontend && npm run test:backend",
+    "test:frontend": "cd frontend && npm run build",
+    "test:backend": "cd backend && ruff check . && pytest",
+    "build": "cd frontend && npm install && npm run build",
+    "version": "node -e \"require('fs').writeFileSync('VERSION', process.env.npm_package_version + '\\n')\" && git add VERSION"
   },
   "repository": {
     "type": "git",

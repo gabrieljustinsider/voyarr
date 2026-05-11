@@ -27,7 +27,10 @@ export default function Dashboard() {
   }, [])
 
   useEffect(() => {
-    fetchStats()
+    const init = async () => {
+      await fetchStats()
+    }
+    init()
   }, [fetchStats])
 
   const barData = [

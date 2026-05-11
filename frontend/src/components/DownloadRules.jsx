@@ -26,17 +26,25 @@ export default function DownloadRules() {
   const API_BASE = `${import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`}/rules`
 
   const fetchLists = async () => {
-    const res = await fetch(`${API_BASE}/lists`, {
-      headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
-    })
-    if (res.ok) setLists(await res.json())
+    try {
+      const res = await fetch(`${API_BASE}/lists`, {
+        headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
+      })
+      if (res.ok) setLists(await res.json())
+    } catch (e) {
+      console.error('Failed to fetch lists:', e)
+    }
   }
 
   const fetchRules = async () => {
-    const res = await fetch(API_BASE, {
-      headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
-    })
-    if (res.ok) setRules(await res.json())
+    try {
+      const res = await fetch(API_BASE, {
+        headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
+      })
+      if (res.ok) setRules(await res.json())
+    } catch (e) {
+      console.error('Failed to fetch rules:', e)
+    }
   }
 
   useEffect(() => {
@@ -46,24 +54,32 @@ export default function DownloadRules() {
 
   // --- Custom List Handlers ---
   const handleSaveList = async () => {
-    await fetch(`${API_BASE}/lists`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
-      },
-      body: JSON.stringify(currentList)
-    })
-    setOpenListDialog(false)
-    fetchLists()
+    try {
+      await fetch(`${API_BASE}/lists`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
+        },
+        body: JSON.stringify(currentList)
+      })
+      setOpenListDialog(false)
+      fetchLists()
+    } catch (e) {
+      console.error('Failed to save list:', e)
+    }
   }
 
   const handleDeleteList = async (id) => {
-    await fetch(`${API_BASE}/lists/${id}`, { 
-      method: 'DELETE',
-      headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
-    })
-    fetchLists()
+    try {
+      await fetch(`${API_BASE}/lists/${id}`, { 
+        method: 'DELETE',
+        headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
+      })
+      fetchLists()
+    } catch (e) {
+      console.error('Failed to delete list:', e)
+    }
   }
 
   const handleAddListItem = () => {
@@ -82,29 +98,41 @@ export default function DownloadRules() {
 
   // --- Rule Handlers ---
   const handleSaveRule = async () => {
-    await fetch(API_BASE, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
-      },
-      body: JSON.stringify(currentRule)
-    })
-    setOpenRuleDialog(false)
-    fetchRules()
+    try {
+      await fetch(API_BASE, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
+        },
+        body: JSON.stringify(currentRule)
+      })
+      setOpenRuleDialog(false)
+      fetchRules()
+    } catch (e) {
+      console.error('Failed to save rule:', e)
+    }
   }
 
   const handleDeleteRule = async (id) => {
-    await fetch(`${API_BASE}/${id}`, { 
-      method: 'DELETE',
-      headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
-    })
-    fetchRules()
+    try {
+      await fetch(`${API_BASE}/${id}`, { 
+        method: 'DELETE',
+        headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
+      })
+      fetchRules()
+    } catch (e) {
+      console.error('Failed to delete rule:', e)
+    }
   }
 
   const handleAddCriteria = () => {
     let value = criteriaValue
     if (criteriaKey === 'in_list') {
+      if (!criteriaListId) {
+        console.warn('No list selected')
+        return
+      }
       value = parseInt(criteriaListId)
     } else if (criteriaKey === 'performers') {
       value = { contains: criteriaValue }

@@ -13,8 +13,10 @@ else:
     cipher = None
 
 def encrypt_data(data: str) -> str:
-    if not cipher or not data:
+    if not data:
         return data
+    if not cipher:
+        raise ValueError("Encryption cipher is not initialized. MASTER_KEY is missing.")
     return cipher.encrypt(data.encode()).decode()
 
 def decrypt_data(encrypted_data: str) -> str:
@@ -24,4 +26,3 @@ def decrypt_data(encrypted_data: str) -> str:
         return cipher.decrypt(encrypted_data.encode()).decode()
     except Exception:
         return encrypted_data # Fallback if not encrypted or wrong key
-

@@ -21,7 +21,10 @@ def create_schedule(schedule: ScrapeScheduleCreate, db: Session = Depends(get_db
     if not croniter.is_valid(schedule.cron_expression):
         raise HTTPException(status_code=400, detail="Invalid cron expression")
         
-    db_schedule = ScrapeSchedule(**schedule.dict())
+    if hasattr(schedule, "model_dump"):
+        db_schedule = ScrapeSchedule(**schedule.model_dump())
+    else:
+        db_schedule = ScrapeSchedule(**schedule.dict())
     
     # Calculate next run
     now = datetime.utcnow()
@@ -39,7 +42,11 @@ def update_schedule(schedule_id: int, schedule: ScrapeScheduleUpdate, db: Sessio
     if not db_schedule:
         raise HTTPException(status_code=404, detail="Schedule not found")
         
-    update_data = schedule.dict(exclude_unset=True)
+    if hasattr(schedule, "model_dump"):
+        update_data = schedule.model_dump(exclude_unset=True)
+    else:
+        update_data = schedule.dict(exclude_unset=True)
+
     if 'cron_expression' in update_data and not croniter.is_valid(update_data['cron_expression']):
         raise HTTPException(status_code=400, detail="Invalid cron expression")
         

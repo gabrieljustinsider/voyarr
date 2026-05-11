@@ -28,8 +28,12 @@ export default function Settings() {
     fetch(SETTINGS_API, {
       headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
     })
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch settings')
+        return res.json()
+      })
       .then(data => {
+        if (data.detail) return; // Prevent overwriting settings with error response payloads
         setSettings(prev => ({ ...prev, ...data }))
       })
       .catch(console.error)
@@ -59,6 +63,8 @@ export default function Settings() {
       })
       if (res.ok) {
         setSnackbar({ open: true, message: `Setting "${key}" updated successfully!`, severity: 'success' })
+      } else {
+        setSnackbar({ open: true, message: `Failed to update "${key}". Server returned ${res.status}`, severity: 'error' })
       }
     } catch (err) {
       setSnackbar({ open: true, message: `Failed to update "${key}".`, severity: 'error' })
@@ -84,18 +90,27 @@ export default function Settings() {
         setGeneratedKey(data.raw_key)
         setNewKeyName('')
         fetchApiKeys()
+      } else {
+        setSnackbar({ open: true, message: `Failed to create API key. Server returned ${res.status}`, severity: 'error' })
       }
-    } catch (err) { console.error(err) }
+    } catch (err) {
+      setSnackbar({ open: true, message: 'Network error creating API key.', severity: 'error' })
+      console.error(err) 
+    }
   }
 
   const handleDeleteApiKey = async (id) => {
-    const confirmed = await window.appConfirm('Revoke this API Key? Any scripts currently using it will immediately lose access.')
+    const confirmed = window.appConfirm ? await window.appConfirm('Revoke this API Key? Any scripts currently using it will immediately lose access.') : window.confirm('Revoke this API Key? Any scripts currently using it will immediately lose access.')
     if (!confirmed) return
-    await fetch(`${API_BASE}/apikeys/${id}`, { 
-      method: 'DELETE', 
-      headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY } 
-    })
-    fetchApiKeys()
+    try {
+      await fetch(`${API_BASE}/apikeys/${id}`, { 
+        method: 'DELETE', 
+        headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY } 
+      })
+      fetchApiKeys()
+    } catch (err) {
+      console.error('Failed to revoke API key:', err)
+    }
   }
 
   return (

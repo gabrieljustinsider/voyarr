@@ -60,7 +60,10 @@ export default function BackupManager() {
       }
 
       const res = await fetch(url, { headers: HEADERS })
-      if (!res.ok) throw new Error('Export failed')
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.detail || 'Export failed')
+      }
       
       const blob = await res.blob()
       const downloadUrl = window.URL.createObjectURL(blob)

@@ -65,6 +65,11 @@ To use the "Map Mode" for visual scraping configuration:
 4. Click **Load unpacked** and select the `/extension` directory in this repository.
 5. You can now use the extension to map CSS selectors on supported websites.
 
+## 🏷️ Versioning
+
+We use SemVer for versioning. Given a version number MAJOR.MINOR.PATCH, we increment the MAJOR version for incompatible API changes, MINOR for backwards-compatible functionality, and PATCH for backwards-compatible bug fixes.
+For the versions available, see the tags on this repository.
+
 ## ⚖️ Legal & Privacy
 
 By using Voyarr, you agree to our terms and understand our privacy practices as a self-hosted software:

@@ -27,7 +27,7 @@ class LibraryEntryBase(BaseModel):
     ohash: Optional[str] = None
     phash: Optional[str] = None
     site_id: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
+    entry_metadata: Optional[Dict[str, Any]] = None
 
 class LibraryEntryCreate(LibraryEntryBase):
     pass
@@ -38,7 +38,7 @@ class LibraryEntryResponse(LibraryEntryBase):
     created_at: Optional[datetime] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class LocalFileBase(BaseModel):
     media_entry_id: int
@@ -55,7 +55,7 @@ class LocalFileResponse(LocalFileBase):
     created_at: Optional[datetime] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class CustomListBase(BaseModel):
     name: str
@@ -69,7 +69,7 @@ class CustomListResponse(CustomListBase):
     id: int
     created_at: Optional[datetime] = None
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class DownloadRuleBase(BaseModel):
     name: str
@@ -85,7 +85,7 @@ class DownloadRuleResponse(DownloadRuleBase):
     id: int
     created_at: Optional[datetime] = None
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class ScrapeScheduleBase(BaseModel):
     provider_id: int
@@ -116,4 +116,4 @@ class ScrapeScheduleResponse(ScrapeScheduleBase):
     updated_at: Optional[datetime] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True

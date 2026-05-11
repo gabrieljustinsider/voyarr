@@ -36,6 +36,7 @@ class HashService:
             file_hash &= 0xFFFFFFFFFFFFFFFF
             return "%016x" % file_hash
         except Exception as e:
+            print(f"Error generating ohash for {file_path}: {e}")
             return ""
 
     @staticmethod
@@ -48,8 +49,9 @@ class HashService:
         try:
             # Get video duration to find the midpoint
             probe = ffmpeg.probe(file_path)
-            duration = float(probe['format']['duration'])
-            midpoint = duration / 2.0
+            format_info = probe.get('format', {})
+            duration = float(format_info.get('duration', 0.0))
+            midpoint = duration / 2.0 if duration > 0 else 0.0
 
             with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as temp_frame:
                 temp_frame_path = temp_frame.name

@@ -80,8 +80,11 @@ function App() {
   }, [])
 
   useEffect(() => {
-    fetchProviders()
-    fetchQueue()
+    const init = async () => {
+      await fetchProviders()
+      await fetchQueue()
+    }
+    init()
     
     const abortController = new AbortController()
     const startSSE = async () => {

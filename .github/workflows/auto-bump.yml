@@ -1,0 +1,53 @@
+name: Auto Version Bump
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  bump-version:
+    # Prevent the action from triggering itself infinitely
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Determine Bump Type
+        id: bump
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          BUMP_TYPE="patch" # Default to patch for fixes and chores
+          
+          if echo "$COMMIT_MSG" | grep -qiE "^(feat|feature)(\(|:)"; then
+            BUMP_TYPE="minor"
+          fi
+          
+          # Catch "BREAKING CHANGE:" or "feat!:" syntax
+          if echo "$COMMIT_MSG" | grep -qiE "^BREAKING CHANGE|^[a-zA-Z]+(\([^)]+\))?!:"; then
+            if echo "$COMMIT_MSG" | grep -q "APPROVE-MAJOR"; then
+              BUMP_TYPE="major"
+            else
+              BUMP_TYPE="minor"
+              echo "Downgrading major bump to minor (missing 'APPROVE-MAJOR' keyword)."
+            fi
+          fi
+          
+          echo "type=$BUMP_TYPE" >> $GITHUB_OUTPUT
+
+      - name: Apply Bump & Push
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          npm version ${{ steps.bump.outputs.type }} -m "chore(release): bump version to %s [skip ci]"
+          git push origin main --tags
