@@ -1,4 +1,5 @@
 import os
+import time
 import yt_dlp
 from celery import shared_task
 from database import SessionLocal
@@ -24,8 +25,19 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
         
         os.makedirs(base_path, exist_ok=True)
 
+        last_db_check = [time.time()]
+
         def progress_hook(d):
             if d['status'] == 'downloading':
+                # Poll the database every 2 seconds for Pause/Cancel signals
+                if time.time() - last_db_check[0] > 2.0:
+                    db.refresh(task)
+                    last_db_check[0] = time.time()
+                    if task.status == 'paused':
+                        raise Exception("Task paused by user")
+                    if task.status == 'cancelled':
+                        raise Exception("Task cancelled by user")
+
                 p_str = d.get('_percent_str', '0%').replace('%', '').strip()
                 try:
                     # Strip ANSI escape sequences commonly injected by yt-dlp
@@ -67,6 +79,7 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
                 ohash=ohash,
                 metadata=metadata
             )
+            new_entry.phash = HashService.generate_phash(filename)
             db.add(new_entry)
             db.commit()
             
@@ -74,8 +87,31 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
                 MediaTagger.tag_file(new_entry.file_path, metadata)
                 
     except Exception as e:
-        task.status = "failed"
-        db.commit()
-        print(f"Download failed: {str(e)}")
+        db.refresh(task)
+        if task.status in ["paused", "cancelled"]:
+            db.commit()
+            print(f"Download {task.status}: {str(e)}")
+            return
+            
+        # Clean up failed download fragments
+        if 'filename' in locals():
+            for ext in ['', '.part', '.ytdl', '.temp']:
+                temp_file = filename + ext
+                if os.path.exists(temp_file):
+                    try:
+                        os.remove(temp_file)
+                    except Exception:
+                        pass
+                        
+        max_retries = prefs_dict.get("max_retries", 3)
+        if self.request.retries < max_retries:
+            task.status = "pending"
+            db.commit()
+            print(f"Download failed, retrying ({self.request.retries + 1}/{max_retries})...")
+            raise self.retry(exc=e, countdown=60)
+        else:
+            task.status = "failed"
+            db.commit()
+            print(f"Download failed permanently after {max_retries} retries: {str(e)}")
     finally:
         db.close()

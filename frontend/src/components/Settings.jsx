@@ -11,11 +11,13 @@ export default function Settings() {
     global_speed_limit_kbps: '0',
     default_resolution: '1080p',
     theme: 'dark',
-    extension_secret: ''
+    extension_secret: '',
+    tpdb_api_key: '',
+    stashdb_api_key: ''
   })
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
 
-  const API_BASE = 'http://localhost:8000/settings'
+  const API_BASE = `${import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`}/settings`
 
   useEffect(() => {
     fetch(API_BASE, {
@@ -118,6 +120,25 @@ export default function Settings() {
           </Grid>
           <Grid item xs={12} md={2}>
             <Button fullWidth variant="contained" onClick={() => handleSave('default_resolution', settings.default_resolution)}>Save</Button>
+          </Grid>
+        </Grid>
+      </Paper>
+
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>External API Integrations</Typography>
+        <Divider sx={{ mb: 2 }} />
+        <Grid container spacing={3} alignItems="center">
+          <Grid item xs={12} md={10}>
+            <TextField fullWidth type="password" label="ThePornDB API Key" name="tpdb_api_key" value={settings.tpdb_api_key || ''} onChange={handleChange} />
+          </Grid>
+          <Grid item xs={12} md={2}>
+            <Button fullWidth variant="contained" onClick={() => handleSave('tpdb_api_key', settings.tpdb_api_key)}>Save</Button>
+          </Grid>
+          <Grid item xs={12} md={10}>
+            <TextField fullWidth type="password" label="StashDB API Key" name="stashdb_api_key" value={settings.stashdb_api_key || ''} onChange={handleChange} />
+          </Grid>
+          <Grid item xs={12} md={2}>
+            <Button fullWidth variant="contained" onClick={() => handleSave('stashdb_api_key', settings.stashdb_api_key)}>Save</Button>
           </Grid>
         </Grid>
       </Paper>

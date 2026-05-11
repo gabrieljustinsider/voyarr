@@ -25,13 +25,22 @@ class SiteRecipe(Base):
     regex_patterns = Column(JSON)
     map_mode_data = Column(JSON)
 
+class Vault(Base):
+    __tablename__ = 'vault'
+    
+    id = Column(Integer, primary_key=True)
+    entity_type = Column(String(50), nullable=False) # e.g., 'credential', 'session_cookie'
+    entity_id = Column(Integer, nullable=False)
+    key = Column(String(100), nullable=False) # e.g., 'username', 'password', 'cookie_data'
+    encrypted_value = Column(Text, nullable=False)
+    created_at = Column(TIMESTAMP, default=func.current_timestamp())
+    updated_at = Column(TIMESTAMP, default=func.current_timestamp(), onupdate=func.current_timestamp())
+
 class Credential(Base):
     __tablename__ = 'credentials'
     
     id = Column(Integer, primary_key=True)
     provider_id = Column(Integer, ForeignKey('providers.id'), nullable=False)
-    username_encrypted = Column(Text, nullable=False)
-    password_encrypted = Column(Text, nullable=False)
     custom_limits = Column(JSON)  # Account-level custom provider limits (overrides automatic_limits)
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
 
@@ -164,13 +173,29 @@ class MetadataCache(Base):
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
     updated_at = Column(TIMESTAMP, default=func.current_timestamp(), onupdate=func.current_timestamp())
 
+class ScrapeSchedule(Base):
+    __tablename__ = 'scrape_schedules'
+    
+    id = Column(Integer, primary_key=True)
+    provider_id = Column(Integer, ForeignKey('providers.id'), nullable=False)
+    name = Column(String(255), nullable=False)
+    target_url = Column(Text, nullable=True) # The URL to rip (channel, playlist, or site index)
+    cron_expression = Column(String(100), nullable=False)  # e.g., "0 0 * * *"
+    action = Column(String(50), default='metadata_and_download') # "metadata_only", "download_only", "metadata_and_download"
+    is_active = Column(Boolean, default=True)
+    last_run = Column(TIMESTAMP, nullable=True)
+    last_run_status = Column(String(50), nullable=True) # e.g. 'success', 'failed'
+    last_run_details = Column(Text, nullable=True) # JSON or text details of the run
+    next_run = Column(TIMESTAMP, nullable=True)
+    created_at = Column(TIMESTAMP, default=func.current_timestamp())
+    updated_at = Column(TIMESTAMP, default=func.current_timestamp(), onupdate=func.current_timestamp())
+
 class SessionCookie(Base):
     __tablename__ = 'session_cookies'
     
     id = Column(Integer, primary_key=True)
     provider_id = Column(Integer, ForeignKey('providers.id'), nullable=True)
     site_id = Column(String(100), nullable=True)
-    cookie_data = Column(Text, nullable=False)
     status = Column(String(50), default='active')
     download_limit = Column(Integer)
     downloads_used = Column(Integer, default=0)

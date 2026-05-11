@@ -8,8 +8,10 @@ export default function ScraperTester() {
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
 
+  const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
+
   useEffect(() => {
-    fetch('http://localhost:8000/providers', {
+    fetch(`${API_BASE}/providers`, {
       headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
     })
       .then(res => res.json())
@@ -21,7 +23,7 @@ export default function ScraperTester() {
     setLoading(true)
     setResult(null)
     try {
-      const res = await fetch('http://localhost:8000/scraper/test', {
+      const res = await fetch(`${API_BASE}/scraper/test`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

@@ -23,7 +23,7 @@ export default function DownloadRules() {
   const [criteriaValue, setCriteriaValue] = useState('')
   const [criteriaListId, setCriteriaListId] = useState('')
 
-  const API_BASE = 'http://localhost:8000/rules'
+  const API_BASE = `${import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`}/rules`
 
   const fetchLists = async () => {
     const res = await fetch(`${API_BASE}/lists`, {

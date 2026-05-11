@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 from database import engine
 from models import Base
-from routers import providers, credentials, progress, settings, library, duplicates, preferences, metadata, external_api, download, rules
+from routers import providers, credentials, progress, settings, library, duplicates, preferences, metadata, external_api, download, rules, schedules, backup, notifications
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -31,6 +31,9 @@ app.include_router(metadata.router)
 app.include_router(external_api.router)
 app.include_router(download.router)
 app.include_router(rules.router)
+app.include_router(schedules.router)
+app.include_router(backup.router)
+app.include_router(notifications.router)
 
 @app.get("/")
 async def root():

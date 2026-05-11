@@ -26,7 +26,7 @@ def query_theporndb(req: QueryRequest, x_api_key: Optional[str] = Header(None)):
         "Accept": "application/json"
     }
     try:
-        res = requests.get("https://api.theporndb.net/scenes", params={"q": req.query}, headers=headers)
+        res = requests.get("https://api.theporndb.net/scenes", params={"q": req.query}, headers=headers, timeout=10)
         res.raise_for_status()
         data = res.json()
         results = []
@@ -61,7 +61,7 @@ def query_stashdb(req: QueryRequest, x_api_key: Optional[str] = Header(None)):
     }
     """
     try:
-        res = requests.post("https://stashdb.org/graphql", json={"query": query, "variables": {"q": req.query}}, headers=headers)
+        res = requests.post("https://stashdb.org/graphql", json={"query": query, "variables": {"q": req.query}}, headers=headers, timeout=10)
         res.raise_for_status()
         data = res.json()
         

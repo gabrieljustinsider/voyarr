@@ -11,7 +11,7 @@ export default function MassRip() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
 
-  const API_BASE = 'http://localhost:8000'
+  const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
   const HEADERS = {
     'Content-Type': 'application/json',
     'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY

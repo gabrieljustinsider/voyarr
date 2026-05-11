@@ -14,9 +14,10 @@ class PreferenceUpdate(BaseModel):
     auto_tag_files: bool = True
     duplicate_handling: str = "skip"
     custom_base_path: Optional[str] = None
+    max_retries: int = 3
 
 @router.get("/provider/{provider_id}")
-async def get_preferences(provider_id: int, db: Session = Depends(get_db)):
+def get_preferences(provider_id: int, db: Session = Depends(get_db)):
     """Get download preferences for a provider."""
     prefs = db.query(DownloadPreference).filter(
         DownloadPreference.provider_id == provider_id
@@ -32,6 +33,7 @@ async def get_preferences(provider_id: int, db: Session = Depends(get_db)):
             "auto_tag_files": True,
             "custom_base_path": None,
             "duplicate_handling": "skip",
+            "max_retries": 3,
             "available_variables": [
                 "title", "performers", "tags", "resolution",
                 "date", "duration", "site_id", "provider"
@@ -46,6 +48,7 @@ async def get_preferences(provider_id: int, db: Session = Depends(get_db)):
         "auto_tag_files": prefs.auto_tag_files,
         "duplicate_handling": prefs.duplicate_handling,
         "custom_base_path": getattr(prefs, "custom_base_path", None),
+        "max_retries": getattr(prefs, "max_retries", 3),
         "available_variables": [
             "title", "performers", "tags", "resolution",
             "date", "duration", "site_id", "provider"
@@ -53,7 +56,7 @@ async def get_preferences(provider_id: int, db: Session = Depends(get_db)):
     }
 
 @router.post("/provider/{provider_id}")
-async def update_preferences(provider_id: int, prefs: PreferenceUpdate, db: Session = Depends(get_db)):
+def update_preferences(provider_id: int, prefs: PreferenceUpdate, db: Session = Depends(get_db)):
     """Update download preferences for a provider."""
     # Verify provider exists
     provider = db.query(Provider).filter(Provider.id == provider_id).first()
@@ -72,6 +75,8 @@ async def update_preferences(provider_id: int, prefs: PreferenceUpdate, db: Sess
         db_prefs.duplicate_handling = prefs.duplicate_handling
         if hasattr(db_prefs, "custom_base_path"):
             db_prefs.custom_base_path = prefs.custom_base_path
+        if hasattr(db_prefs, "max_retries"):
+            db_prefs.max_retries = prefs.max_retries
     else:
         db_prefs = DownloadPreference(
             provider_id=provider_id,
@@ -83,13 +88,15 @@ async def update_preferences(provider_id: int, prefs: PreferenceUpdate, db: Sess
         )
         if hasattr(db_prefs, "custom_base_path"):
             db_prefs.custom_base_path = prefs.custom_base_path
+        if hasattr(db_prefs, "max_retries"):
+            db_prefs.max_retries = prefs.max_retries
         db.add(db_prefs)
     
     db.commit()
     return {"message": "Preferences updated"}
 
 @router.get("/naming-patterns")
-async def get_naming_patterns():
+def get_naming_patterns():
     """Get available naming pattern examples."""
     return {
         "template_variables": {
@@ -111,7 +118,7 @@ async def get_naming_patterns():
     }
 
 @router.post("/validate-pattern")
-async def validate_naming_pattern(pattern: dict):
+def validate_naming_pattern(pattern: dict):
     """Validate a naming pattern."""
     sample_metadata = {
         "title": "Sample Video",

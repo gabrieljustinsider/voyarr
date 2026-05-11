@@ -1,11 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-from database import get_db
+from database import get_db, SessionLocal
 from models import LibraryEntry, DownloadPreference
 from typing import Optional
 import os
 from services.reverse_regex import ReverseRegexMatcher
+from services.hash_service import HashService
 
 from dependencies import verify_api_key
 router = APIRouter(prefix="/library", tags=["library"], dependencies=[Depends(verify_api_key)])
@@ -41,6 +42,7 @@ def get_library_entries(
     resolution: Optional[str] = None,
     tag: Optional[str] = None,
     performer: Optional[str] = None,
+    ohash: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     query = db.query(LibraryEntry)
@@ -52,6 +54,8 @@ def get_library_entries(
         query = query.filter(LibraryEntry.tags.cast(str).ilike(f"%{tag}%"))
     if performer:
         query = query.filter(LibraryEntry.performers.cast(str).ilike(f"%{performer}%"))
+    if ohash:
+        query = query.filter(LibraryEntry.ohash == ohash)
     return query.all()
 
 @router.get("/{entry_id}/stream")
@@ -63,3 +67,23 @@ def stream_video(entry_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="File not found on disk")
         
     return FileResponse(entry.file_path, media_type="video/mp4", headers={"Accept-Ranges": "bytes"})
+
+def process_missing_hashes_task():
+    db = SessionLocal()
+    try:
+        entries = db.query(LibraryEntry).filter(
+            (LibraryEntry.phash == None) | (LibraryEntry.phash == "")
+        ).all()
+        for entry in entries:
+            if os.path.exists(entry.file_path):
+                if not entry.ohash or entry.ohash == "0000000000000000":
+                    entry.ohash = HashService.generate_ohash(entry.file_path)
+                entry.phash = HashService.generate_phash(entry.file_path)
+                db.commit()
+    finally:
+        db.close()
+
+@router.post("/rescan-hashes")
+def rescan_hashes(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    background_tasks.add_task(process_missing_hashes_task)
+    return {"message": "Hash rescan started in the background. This may take a while."}
