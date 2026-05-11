@@ -18,7 +18,9 @@ export default function Dashboard() {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch(`${API_BASE}/progress/stats`)
+      const response = await fetch(`${API_BASE}/progress/stats`, {
+        headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
+      })
       if (response.ok) {
         const data = await response.json()
         setStats(data)

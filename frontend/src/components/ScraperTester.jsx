@@ -1,73 +1,99 @@
-import { useState, useEffect } from 'react'
-import { Box, Typography, TextField, Button, Paper, Grid, MenuItem, Select, FormControl, InputLabel } from '@mui/material'
+import React, { useState } from 'react';
+import { Box, TextField, Button, Typography, Paper, CircularProgress } from '@mui/material';
 
 export default function ScraperTester() {
-  const [providers, setProviders] = useState([])
-  const [providerId, setProviderId] = useState('')
-  const [url, setUrl] = useState('')
-  const [result, setResult] = useState(null)
-  const [loading, setLoading] = useState(false)
+  const [url, setUrl] = useState('');
+  const [recipeId, setRecipeId] = useState('');
+  const [status, setStatus] = useState('Idle');
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
 
-  const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
+  const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`;
+  const MASTER_KEY = import.meta.env.VITE_MASTER_KEY;
 
-  useEffect(() => {
-    fetch(`${API_BASE}/providers`, {
-      headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
-    })
-      .then(res => res.json())
-      .then(data => setProviders(data))
-      .catch(console.error)
-  }, [])
-
-  const testScraper = async () => {
-    setLoading(true)
-    setResult(null)
-    try {
-      const res = await fetch(`${API_BASE}/scraper/test`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
-        },
-        body: JSON.stringify({ url, provider_id: providerId })
-      })
-      const data = await res.json()
-      setResult(data)
-    } catch (err) {
-      setResult({ status: 'error', message: err.message })
+  const handleScrape = async () => {
+    if (!url || !recipeId) {
+      setError("Both URL and Recipe ID are required.");
+      return;
     }
-    setLoading(false)
-  }
+    setStatus('Queuing task...');
+    setError(null);
+    setResult(null);
+
+    try {
+      const res = await fetch(`${API_BASE}/external-api/scrape`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Voyarr-Api-Key': MASTER_KEY
+        },
+        body: JSON.stringify({ url, recipe_id: parseInt(recipeId, 10) })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.detail || "Failed to queue scraping task");
+      }
+
+      const data = await res.json();
+      setStatus('Waiting for scrape to finish (connecting to stream)...');
+      startSSE(data.task_id);
+    } catch (err) {
+      setStatus('Failed');
+      setError(err.message);
+    }
+  };
+
+  const startSSE = (taskId) => {
+    // Using query parameter for auth since EventSource doesn't support custom headers
+    const eventSource = new EventSource(`${API_BASE}/external-api/scrape/stream/${taskId}?api_key=${MASTER_KEY}`);
+
+    eventSource.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      if (data.status === 'success') {
+        setStatus('Completed');
+        setResult(data.result);
+        eventSource.close();
+      } else if (data.status === 'failed') {
+        setStatus('Failed');
+        setError(data.error);
+        eventSource.close();
+      } else {
+        setStatus(`In progress: ${data.status}`);
+      }
+    };
+
+    eventSource.onerror = () => {
+      setStatus('Failed');
+      setError("Lost connection to the streaming server.");
+      eventSource.close();
+    };
+  };
+
+  const isBusy = status.startsWith('In progress') || status === 'Queuing task...' || status.startsWith('Waiting');
 
   return (
-    <Box>
-      <Typography variant="h5" gutterBottom>Dynamic Scraper Tester</Typography>
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} md={3}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Provider Config</InputLabel>
-              <Select value={providerId} label="Provider Config" onChange={e => setProviderId(e.target.value)}>
-                {providers.map(p => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} md={7}>
-            <TextField fullWidth size="small" label="Test Target URL" value={url} onChange={e => setUrl(e.target.value)} />
-          </Grid>
-          <Grid item xs={12} md={2}>
-            <Button fullWidth variant="contained" onClick={testScraper} disabled={!providerId || !url || loading}>
-              {loading ? 'Testing...' : 'Test Config'}
-            </Button>
-          </Grid>
-        </Grid>
+    <Box sx={{ mt: 2 }}>
+      <Typography variant="h6" gutterBottom>Test Dynamic Scraper</Typography>
+      <Paper sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <TextField label="Target URL" value={url} onChange={(e) => setUrl(e.target.value)} fullWidth />
+        <TextField label="Database Recipe ID" type="number" value={recipeId} onChange={(e) => setRecipeId(e.target.value)} fullWidth />
+        
+        <Button variant="contained" onClick={handleScrape} disabled={isBusy} startIcon={isBusy ? <CircularProgress size={20} color="inherit" /> : null}>
+          {isBusy ? 'Scraping...' : 'Start Scrape'}
+        </Button>
+        
+        <Box sx={{ mt: 2 }}>
+          <Typography variant="subtitle1">Status: {status}</Typography>
+          {error && <Typography color="error">{error}</Typography>}
+          {result && (
+            <Box sx={{ mt: 2, p: 2, bgcolor: 'background.default', borderRadius: 1, overflowX: 'auto' }}>
+              <pre style={{ margin: 0, color: '#a5d6ff' }}>{JSON.stringify(result, null, 2)}</pre>
+            </Box>
+          )}
+        </Box>
       </Paper>
-      {result && (
-        <Paper sx={{ p: 2, backgroundColor: '#1e1e1e', overflowX: 'auto' }}>
-          <Typography variant="subtitle1" gutterBottom color={result.status === 'error' ? 'error' : 'primary'}>Result Status: {result.status}</Typography>
-          <pre style={{ color: '#00ff00', margin: 0 }}>{JSON.stringify(result.metadata || result.message, null, 2)}</pre>
-        </Paper>
-      )}
     </Box>
-  )
+  );
 }

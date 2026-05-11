@@ -11,6 +11,10 @@ RUN npm ci
 # Copy source code
 COPY . .
 
+# Declare build arguments
+ARG VITE_MASTER_KEY
+ARG VITE_API_BASE
+
 # Build the app
 RUN npm run build
 
