@@ -1,35 +1,4 @@
 services:
-  # ==============================================================================
-  # 🔒 VPN SIDECAR SERVICE (GLUETUN) - OPTIONAL
-  # ==============================================================================
-  # Uncomment this entire block to route your application traffic securely through a VPN.
-  # When active, YOU MUST ALSO:
-  # 1. Uncomment the `network_mode: "service:vpn"` lines in browserless, backend, celery, and frontend.
-  # 2. Comment out the `ports` and `networks` blocks in those services (Gluetun handles them).
-  # 3. Uncomment the VPN routing overrides in your .env file (BROWSERLESS_URL and HOST).
-  # vpn:
-  #   image: qmcgaw/gluetun:latest
-  #   container_name: voyarr-vpn
-  #   cap_add:
-  #     - NET_ADMIN
-  #   devices:
-  #     - /dev/net/tun:/dev/net/tun
-  #   environment:
-  #     - VPN_SERVICE_PROVIDER=${VPN_SERVICE_PROVIDER:-mullvad}
-  #     - VPN_TYPE=${VPN_TYPE:-wireguard}
-  #     - WIREGUARD_PRIVATE_KEY=${WIREGUARD_PRIVATE_KEY}
-  #     - WIREGUARD_ADDRESSES=${WIREGUARD_ADDRESSES:-10.64.0.1/32}
-  #     - SERVER_COUNTRIES=${SERVER_COUNTRIES:-Sweden}
-  #     - DOT=${VPN_DOT:-on}
-  #     - DNS_KEEP_NAMESERVER=${VPN_DNS_KEEP_NAMESERVER:-on}
-  #   ports:
-  #     - "${PORT:-8000}:8000"
-  #     - "${FRONTEND_PORT:-80}:80"
-  #     - "3000:3000"
-  #   restart: unless-stopped
-  #   networks:
-  #     - voyarr_network
-
   db:
     image: postgres:15-alpine
     container_name: voyarr-db
@@ -70,20 +39,13 @@ services:
   browserless:
     image: browserless/chrome:latest
     container_name: voyarr-browserless
-    # 🔒 VPN CONFIGURATION: Uncomment next line to route through VPN
-    # network_mode: "service:vpn"
     environment:
       - TIMEOUT=60000
       - MAX_CONCURRENT_SESSIONS=10
       - TOKEN=${BROWSERLESS_TOKEN:-voyarr-secure-browserless-token}
-    # 🔒 VPN CONFIGURATION: Comment out the `ports` block below if using VPN
     ports:
       - "3000:3000"
     restart: unless-stopped
-    # 🔒 VPN CONFIGURATION: Uncomment the block below if using VPN
-    # depends_on:
-    #   - vpn
-    # 🔒 VPN CONFIGURATION: Comment out the `networks` block below if using VPN
     networks:
       - voyarr_network
 
@@ -91,8 +53,6 @@ services:
     image: ghcr.io/gabrieljustinsider/voyarr-backend:latest
     container_name: voyarr-backend
     user: "${PUID:-1000}:${PGID:-1000}"
-    # 🔒 VPN CONFIGURATION: Uncomment next line to route through VPN
-    # network_mode: "service:vpn"
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-voyarr}}
       - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
@@ -114,29 +74,23 @@ services:
       - SSL_CERT_PATH=${SSL_CERT_PATH:-}
       - SSL_KEY_PATH=${SSL_KEY_PATH:-}
     volumes:
-      # Use custom volume for configuration, host path bindings for media
       - voyarr-config:/app/config
       - voyarr-backups:/app/backups
       - voyarr-certs:/app/certs:ro
       - ${MEDIA_ROOT_1:-${APP_ROOT:-/opt/voyarr}/media}:/media/storage
       - ${MEDIA_ROOT_2:-${APP_ROOT:-/opt/voyarr}/media_alt1}:/media/storage_alt1
       - ${MEDIA_ROOT_3:-${APP_ROOT:-/opt/voyarr}/media_alt2}:/media/storage_alt2
-    # 🔒 VPN CONFIGURATION: Comment out the `ports` block below if using VPN
     ports:
       - "${PORT:-}:8000"
     depends_on:
       db:
         condition: service_healthy
-      # 🔒 VPN CONFIGURATION: Uncomment the next two lines if using VPN
-      # vpn:
-      #   condition: service_started
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 15s
       timeout: 5s
       retries: 3
       start_period: 10s
-    # 🔒 VPN CONFIGURATION: Comment out the `networks` block below if using VPN
     networks:
       - voyarr_network
 
@@ -144,8 +98,6 @@ services:
     image: ghcr.io/gabrieljustinsider/voyarr-backend:latest
     container_name: voyarr-celery
     user: "${PUID:-1000}:${PGID:-1000}"
-    # 🔒 VPN CONFIGURATION: Uncomment next line to route through VPN
-    # network_mode: "service:vpn"
     command: sh -c "mkdir -p /media/storage/logs && celery -A celery_app.celery_app worker --loglevel=${CELERY_LOG_LEVEL:-info} --logfile=/media/storage/logs/celery.log"
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-voyarr}}
@@ -169,16 +121,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      # 🔒 VPN CONFIGURATION: Uncomment the next two lines if using VPN
-      # vpn:
-      #   condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "celery -A celery_app.celery_app inspect ping || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 15s
-    # 🔒 VPN CONFIGURATION: Comment out the `networks` block below if using VPN
     networks:
       - voyarr_network
 
@@ -186,8 +134,6 @@ services:
     image: ghcr.io/gabrieljustinsider/voyarr-backend:latest
     container_name: voyarr-celery-beat
     user: "${PUID:-1000}:${PGID:-1000}"
-    # 🔒 VPN CONFIGURATION: Uncomment next line to route through VPN
-    # network_mode: "service:vpn"
     command: sh -c "celery -A celery_app.celery_app beat --loglevel=${CELERY_LOG_LEVEL:-info} --pidfile=/tmp/celerybeat.pid"
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-voyarr}}
@@ -201,37 +147,26 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      # 🔒 VPN CONFIGURATION: Uncomment the next two lines if using VPN
-      # vpn:
-      #   condition: service_started
-    # 🔒 VPN CONFIGURATION: Comment out the `networks` block below if using VPN
     networks:
       - voyarr_network
 
   frontend:
     image: ghcr.io/gabrieljustinsider/voyarr-frontend:latest
     container_name: voyarr-frontend
-    # 🔒 VPN CONFIGURATION: Uncomment next line to route through VPN
-    # network_mode: "service:vpn"
     environment:
       - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8000}
       - TZ=${TZ:-UTC}
-    # 🔒 VPN CONFIGURATION: Comment out the `ports` block below if using VPN
     ports:
       - "${FRONTEND_PORT:-}:80"
     depends_on:
       backend:
         condition: service_healthy
-      # 🔒 VPN CONFIGURATION: Uncomment the next two lines if using VPN
-      # vpn:
-      #   condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost/ || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 10s
-    # 🔒 VPN CONFIGURATION: Comment out the `networks` block below if using VPN
     networks:
       - voyarr_network
 

@@ -433,9 +433,9 @@ Within the **Settings** screen in the frontend, administrators can toggle and co
 For complete, leakproof VPN routing across all scraper backend engines, headless Playwright browsers, and downloaders without container overhead:
 1.  Verify host support for tun interfaces (`/dev/net/tun` or `NET_ADMIN` capabilities).
 2.  Configure your credentials (e.g. Wireguard private keys or OpenVPN logins) inside the newly provided [docker-compose.vpn.yml](docker-compose.vpn.yml) file.
-3.  Deploy using the vpn composition profile:
+3.  Deploy using the vpn composition profile alongside the main file:
     ```bash
-    docker compose -f docker-compose.vpn.yml up -d
+    docker compose -f docker-compose.yml -f docker-compose.vpn.yml up -d
     ```
 This hooks all scraper network traffic through a **Gluetun sidecar namespace**, completely locking down metadata requests, headless chromium Playwright contexts, and `yt-dlp` downloaders behind the VPN exit node.
 

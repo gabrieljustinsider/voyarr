@@ -1,0 +1,79 @@
+services:
+  vpn:
+    image: qmcgaw/gluetun:latest
+    container_name: voyarr-vpn
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - VPN_SERVICE_PROVIDER=${VPN_SERVICE_PROVIDER:-mullvad}
+      - VPN_TYPE=${VPN_TYPE:-wireguard}
+      - WIREGUARD_PRIVATE_KEY=${WIREGUARD_PRIVATE_KEY}
+      - WIREGUARD_ADDRESSES=${WIREGUARD_ADDRESSES:-10.64.0.1/32}
+      - SERVER_COUNTRIES=${SERVER_COUNTRIES:-Sweden}
+      - DOT=${VPN_DOT:-on}
+      - DNS_KEEP_NAMESERVER=${VPN_DNS_KEEP_NAMESERVER:-on}
+    ports:
+      - "${PORT:-8000}:8000"
+      - "${FRONTEND_PORT:-80}:80"
+      - "3000:3000"
+    restart: unless-stopped
+    networks:
+      - voyarr_network
+
+  # -------------------------------------------------------------
+  # OVERRIDES: 
+  # These blocks tell Docker to route the other services through 
+  # the 'vpn' container and disable their individual networks/ports.
+  # -------------------------------------------------------------
+
+  browserless:
+    network_mode: "service:vpn"
+    ports: !reset []
+    networks: !reset []
+    depends_on:
+      vpn:
+        condition: service_started
+
+  backend:
+    network_mode: "service:vpn"
+    ports: !reset []
+    networks: !reset []
+    depends_on:
+      db:
+        condition: service_healthy
+      vpn:
+        condition: service_started
+
+  celery_worker:
+    network_mode: "service:vpn"
+    networks: !reset []
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      vpn:
+        condition: service_started
+
+  celery_beat:
+    network_mode: "service:vpn"
+    networks: !reset []
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      vpn:
+        condition: service_started
+
+  frontend:
+    network_mode: "service:vpn"
+    ports: !reset []
+    networks: !reset []
+    depends_on:
+      backend:
+        condition: service_healthy
+      vpn:
+        condition: service_started

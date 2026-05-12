@@ -233,11 +233,11 @@ Open your `.env` file and scroll down to **5. VPN SIDECAR (GLUETUN) & BROWSERLES
 By default, Voyarr uses standard network routing. To route traffic through the VPN, you need to use the VPN-enabled compose setup.
 
 **If using the Terminal (CLI):**
-Instead of the standard start command, launch the stack using the dedicated VPN compose file:
+Instead of the standard start command, launch the stack using the dedicated VPN compose file as an override:
 ```bash
-docker compose -f docker-compose.vpn.yml up -d
+docker compose -f docker-compose.yml -f docker-compose.vpn.yml up -d
 ```
-*(Note: If you have already manually consolidated your VPN settings into your main `docker-compose.yml` file, simply uncomment the `vpn:` service and the `network_mode: "service:vpn"` lines inside the compose file, then run `docker compose up -d`).*
+*(Note: Docker Compose will automatically merge the files, turning the VPN on and securely routing all other containers' traffic through it!)*
 
 ### Step 3: Verify the Connection
 Once the containers spin up, you can verify the VPN is active by checking the logs of the VPN container:
