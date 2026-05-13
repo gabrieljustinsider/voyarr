@@ -4,7 +4,6 @@ from database import get_db
 from pydantic import BaseModel
 import secrets
 import hashlib
-from datetime import datetime
 from dependencies import verify_api_key
 
 # Lazy import for the ApiKey model
@@ -30,8 +29,7 @@ def create_api_key(req: ApiKeyCreate, db: Session = Depends(get_db)):
     
     new_key = ApiKey(
         name=req.name,
-        key_hash=key_hash,
-        created_at=datetime.utcnow()
+        key_hash=key_hash
     )
     db.add(new_key)
     db.commit()

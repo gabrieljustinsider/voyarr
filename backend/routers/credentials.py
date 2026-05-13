@@ -36,13 +36,8 @@ async def create_credential(cred: CredentialCreate, db: Session = Depends(get_db
         
         db.commit()
         db.refresh(new_cred)
-        return CredentialResponse(
-            id=new_cred.id,
-            provider_id=new_cred.provider_id,
-            username=cred.username,  # Note: In production, don't return plain username
-            custom_limits=new_cred.custom_limits,
-            created_at=new_cred.created_at.isoformat()
-        )
+        # The response model will automatically map from the new_cred object
+        return new_cred
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to save credential: {str(e)}")

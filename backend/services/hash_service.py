@@ -1,80 +1,77 @@
 import os
-import hashlib
-import ffmpeg
-from PIL import Image
-import imagehash
+import struct
+import subprocess
 import tempfile
+
+try:
+    from PIL import Image
+    import imagehash
+except ImportError:
+    Image = None
+    imagehash = None
 
 class HashService:
     @staticmethod
     def generate_ohash(file_path: str) -> str:
         """
-        Generates an ohash (OpenSubtitles hash) for a file.
-        This is a size + 64bit checksum of the first and last 64kb.
+        Generates the standard 64-bit oshash (OpenSubtitles hash) from the file structure.
         """
         try:
+            longlongformat = '<q'  # little-endian long long
+            bytesize = struct.calcsize(longlongformat)
             filesize = os.path.getsize(file_path)
-            hash_size = 65536
-            with open(file_path, 'rb') as f:
-                f.seek(0)
-                file_hash = filesize
-                # Read first 64k
-                for _ in range(hash_size // 8):
-                    buffer = f.read(8)
-                    if len(buffer) < 8:
-                        break
-                    file_hash += int.from_bytes(buffer, 'little')
+            hash_val = filesize
+            
+            if filesize < 65536 * 2:
+                return "0000000000000000"
                 
-                # Read last 64k
-                f.seek(max(0, filesize - hash_size))
-                for _ in range(hash_size // 8):
-                    buffer = f.read(8)
-                    if len(buffer) < 8:
-                        break
-                    file_hash += int.from_bytes(buffer, 'little')
+            with open(file_path, "rb") as f:
+                for _ in range(65536 // bytesize):
+                    buffer = f.read(bytesize)
+                    (l_value,) = struct.unpack(longlongformat, buffer)
+                    hash_val += l_value
+                    hash_val = hash_val & 0xFFFFFFFFFFFFFFFF
                     
-            file_hash &= 0xFFFFFFFFFFFFFFFF
-            return "%016x" % file_hash
-        except Exception as e:
-            print(f"Error generating ohash for {file_path}: {e}")
-            return ""
+                f.seek(max(0, filesize - 65536), 0)
+                for _ in range(65536 // bytesize):
+                    buffer = f.read(bytesize)
+                    (l_value,) = struct.unpack(longlongformat, buffer)
+                    hash_val += l_value
+                    hash_val = hash_val & 0xFFFFFFFFFFFFFFFF
+                    
+            return "%016x" % hash_val
+        except Exception:
+            return "0000000000000000"
 
     @staticmethod
     def generate_phash(file_path: str) -> str:
         """
-        Generates a perceptual hash (phash) for a video file by extracting
-        a frame from the middle of the video and computing the DCT hash.
+        Extracts a frame at 20% duration and calculates a perceptual DCT image hash.
         """
-        temp_frame_path = None
-        try:
-            # Get video duration to find the midpoint
-            probe = ffmpeg.probe(file_path)
-            format_info = probe.get('format', {})
-            duration = float(format_info.get('duration', 0.0))
-            midpoint = duration / 2.0 if duration > 0 else 0.0
-
-            with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as temp_frame:
-                temp_frame_path = temp_frame.name
-
-            # Extract a single frame at the midpoint
-            (
-                ffmpeg
-                .input(file_path, ss=midpoint)
-                .filter('scale', 320, -1)
-                .output(temp_frame_path, vframes=1, loglevel="quiet")
-                .overwrite_output()
-                .run()
-            )
-
-            # Compute the perceptual hash using ImageHash (DCT)
-            img = Image.open(temp_frame_path)
-            phash_obj = imagehash.phash(img)
-            img.close()
-
-            return str(phash_obj)
-        except Exception as e:
-            print(f"Error generating phash for {file_path}: {e}")
+        if not Image or not imagehash:
             return ""
-        finally:
-            if temp_frame_path and os.path.exists(temp_frame_path):
-                os.remove(temp_frame_path)
+            
+        try:
+            # Get video duration
+            result = subprocess.run(
+                ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", file_path],
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+            )
+            duration = float(result.stdout.strip())
+            target_time = duration * 0.2
+
+            with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+                temp_filename = tmp.name
+
+            # Extract single frame
+            subprocess.run(["ffmpeg", "-y", "-ss", str(target_time), "-i", file_path, "-vframes", "1", "-q:v", "2", temp_filename], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+            if os.path.exists(temp_filename):
+                img = Image.open(temp_filename)
+                hash_val = str(imagehash.phash(img))
+                img.close()
+                os.remove(temp_filename)
+                return hash_val
+        except Exception as e:
+            print(f"Error generating phash: {e}")
+        return ""

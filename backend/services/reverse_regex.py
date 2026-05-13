@@ -42,38 +42,41 @@ class ReverseRegexMatcher:
                 if not match:
                     continue
 
-                matched += 1
-                data = match.groupdict()
-
-                existing = self.db.query(LibraryEntry).filter(LibraryEntry.file_path == file_path).first()
-                if existing:
-                    continue
-
                 try:
+                    matched += 1
+                    data = match.groupdict()
+                    
+                    existing = self.db.query(LibraryEntry.id).filter(LibraryEntry.file_path == file_path).first()
+                    if existing:
+                        continue
+                    
                     title = data.get('title', filename_no_ext).replace('_', ' ')
                     performers_str = data.get('performers', '')
                     performers = [p.strip() for p in performers_str.split(',')] if performers_str else []
                     tags_str = data.get('tags', '')
                     tags = [t.strip() for t in tags_str.split(',')] if tags_str else []
                     resolution = data.get('resolution', '1080p')
-
-                    # Create database entries using the extracted metadata
+                    
                     media = MediaEntry(provider_id=provider_id, title=title, performers=performers, tags=tags, media_metadata=data)
                     self.db.add(media)
-                    self.db.flush() # Ensure we have media.id available
-
+                    self.db.flush() # Get media.id
+                    
                     library_entry = LibraryEntry(
                         media_entry_id=media.id, provider_id=provider_id, title=title,
                         performers=performers, tags=tags, file_path=file_path, resolution=resolution,
-                        file_size=os.path.getsize(file_path), metadata=data
+                        file_size=os.path.getsize(file_path), entry_metadata=data
                     )
                     library_entry.ohash = HashService.generate_ohash(file_path)
                     library_entry.phash = HashService.generate_phash(file_path)
                     
                     self.db.add(library_entry)
-                    self.db.commit()
                     added += 1
                 except Exception as e:
-                    self.db.rollback()
-                    errors.append(f"Failed to add {file}: {str(e)}")
+                    errors.append(f"Error processing {file}: {str(e)}")
+        try:
+            self.db.commit()
+        except Exception as e:
+            self.db.rollback()
+            errors.append(f"Database commit failed, all changes rolled back. Error: {str(e)}")
+            added = 0 # Reset count as nothing was added
         return {"added": added, "matched": matched, "errors": errors}
