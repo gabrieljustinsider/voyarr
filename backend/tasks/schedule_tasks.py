@@ -3,14 +3,14 @@ import requests
 from celery import shared_task
 from database import SessionLocal
 from models import ScrapeSchedule
-from datetime import datetime
+from datetime import datetime, timezone
 from croniter import croniter
 
 @shared_task
 def process_schedules():
     db = SessionLocal()
     try:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         # Find active schedules that are past their due date
         schedules = db.query(ScrapeSchedule).filter(
             ScrapeSchedule.is_active == True,
@@ -44,7 +44,7 @@ def process_schedules():
                         f"http://backend:{api_port}/download/mass_rip",
                         json={"provider_id": schedule.provider_id, "url": schedule.target_url},
                         headers={"X-Voyarr-Api-Key": api_key},
-                        timeout=10
+                        timeout=120
                     )
                     response.raise_for_status()
 

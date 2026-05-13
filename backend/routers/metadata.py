@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 import os
 from services.media_tagger import MediaTagger
+import json
 
 from dependencies import verify_api_key
 router = APIRouter(prefix="/metadata", tags=["metadata"], dependencies=[Depends(verify_api_key)])
@@ -47,6 +48,19 @@ def write_metadata_to_file(entry_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Physical file not found on disk")
         
     try:
-        return {"message": "Metadata written successfully", "sidecar_file": f"{entry.file_path}.nfo"}
+        # Attempt to embed metadata directly into the media file
+        embed_meta = {
+            "title": entry.title,
+            "performers": entry.performers,
+            "description": entry.metadata.get("description") if entry.metadata else None
+        }
+        MediaTagger.tag_file(entry.file_path, embed_meta)
+        
+        # Write sidecar .json file for external players
+        sidecar_path = f"{entry.file_path}.json"
+        with open(sidecar_path, 'w') as f:
+            json.dump(embed_meta, f, indent=4)
+            
+        return {"message": "Metadata written successfully", "sidecar_file": sidecar_path}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

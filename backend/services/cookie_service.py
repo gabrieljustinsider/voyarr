@@ -1,5 +1,5 @@
 import requests
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from models import SessionCookie
 import re
@@ -47,6 +47,6 @@ class CookieService:
         """Checks all active cookies for expiration."""
         active_cookies = db.query(SessionCookie).filter(SessionCookie.status == 'active').all()
         for cookie in active_cookies:
-            if cookie.expires_at and datetime.utcnow() > cookie.expires_at:
+            if cookie.expires_at and datetime.now(timezone.utc).replace(tzinfo=None) > cookie.expires_at:
                 cookie.status = 'expired'
         db.commit()

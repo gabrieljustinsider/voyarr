@@ -51,9 +51,9 @@ def get_library_entries(
     if resolution:
         query = query.filter(LibraryEntry.resolution == resolution)
     if tag:
-        query = query.filter(LibraryEntry.tags.cast(str).ilike(f"%{tag}%"))
+        query = query.filter(LibraryEntry.tags.contains([tag]))
     if performer:
-        query = query.filter(LibraryEntry.performers.cast(str).ilike(f"%{performer}%"))
+        query = query.filter(LibraryEntry.performers.contains([performer]))
     if ohash:
         query = query.filter(LibraryEntry.ohash == ohash)
     return query.all()
