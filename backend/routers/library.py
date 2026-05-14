@@ -9,9 +9,10 @@ from services.reverse_regex import ReverseRegexMatcher
 from services.hash_service import HashService
 
 from dependencies import verify_api_key
+from rate_limiter import rate_limit
 router = APIRouter(prefix="/library", tags=["library"], dependencies=[Depends(verify_api_key)])
 
-@router.post("/scan")
+@router.post("/scan", dependencies=[Depends(rate_limit(max_requests=3, window_seconds=60))])
 def scan_library(
     provider_id: int,
     directory: str = "/media/storage/downloads",
@@ -22,7 +23,7 @@ def scan_library(
     # SECURITY: Prevent path traversal and arbitrary directory scanning
     media_root = os.path.abspath(os.getenv("MEDIA_ROOT", "/media/storage"))
     target_dir = os.path.abspath(directory)
-    if not target_dir.startswith(media_root):
+    if os.path.commonpath([media_root, target_dir]) != media_root:
         raise HTTPException(status_code=403, detail="Forbidden: Cannot scan directories outside of the configured media root.")
         
     prefs = db.query(DownloadPreference).filter(DownloadPreference.provider_id == provider_id).first()
@@ -83,7 +84,7 @@ def process_missing_hashes_task():
     finally:
         db.close()
 
-@router.post("/rescan-hashes")
+@router.post("/rescan-hashes", dependencies=[Depends(rate_limit(max_requests=2, window_seconds=60))])
 def rescan_hashes(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     background_tasks.add_task(process_missing_hashes_task)
     return {"message": "Hash rescan started in the background. This may take a while."}

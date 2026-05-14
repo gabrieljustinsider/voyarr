@@ -64,3 +64,45 @@ def process_schedules():
         print(f"Schedule processor error: {str(e)}")
     finally:
         db.close()
+
+@shared_task
+def auto_sync_credentials():
+    db = SessionLocal()
+    try:
+        from models import Settings
+        interval_setting = db.query(Settings).filter(Settings.key == "pm_auto_sync_interval").first()
+        direction_setting = db.query(Settings).filter(Settings.key == "pm_sync_direction").first()
+        
+        interval = interval_setting.value if interval_setting else "disabled"
+        direction = direction_setting.value if direction_setting else "pull"
+        
+        if direction not in ["pull", "push"]:
+            direction = "pull"
+            
+        if interval == "disabled":
+            return
+            
+        now = datetime.now(timezone.utc)
+        if interval == "daily" and now.hour != 0:
+            return
+        if interval == "weekly" and (now.weekday() != 0 or now.hour != 0):
+            return
+            
+        print(f"Running automated credential sync ({direction})...")
+        
+        from services.onepassword_service import OnePasswordService
+        try:
+            getattr(OnePasswordService, f"{direction}_credentials")(db)
+        except Exception as e:
+            print(f"Auto-sync 1Password skipped/failed: {e}")
+            
+        from services.bitwarden_service import BitwardenService
+        try:
+            getattr(BitwardenService, f"{direction}_credentials")(db)
+        except Exception as e:
+            print(f"Auto-sync Bitwarden skipped/failed: {e}")
+            
+    except Exception as e:
+        print(f"Auto-sync error: {e}")
+    finally:
+        db.close()

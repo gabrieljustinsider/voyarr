@@ -15,17 +15,20 @@ export default function CookiesManager() {
   const [formData, setFormData] = useState({ provider_id: '', cookie_text: '', download_limit: '' });
 
   const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`;
-  const HEADERS = {
-    'Content-Type': 'application/json',
-    'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('voyarr_jwt');
+    if (token) return { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+    const apiKey = localStorage.getItem('voyarr_api_key');
+    if (apiKey) return { 'X-Voyarr-Api-Key': apiKey, 'Content-Type': 'application/json' };
+    return { 'Content-Type': 'application/json' };
   };
 
   const fetchData = async () => {
     try {
       // Note: Assuming you will create a GET /cookies endpoint in your FastAPI backend
       const [cookieRes, provRes] = await Promise.all([
-        fetch(`${API_BASE}/cookies`, { headers: HEADERS }).catch(() => ({ ok: false })),
-        fetch(`${API_BASE}/providers`, { headers: HEADERS })
+        fetch(`${API_BASE}/cookies`, { headers: getAuthHeaders() }).catch(() => ({ ok: false })),
+        fetch(`${API_BASE}/providers`, { headers: getAuthHeaders() })
       ]);
       
       if (cookieRes.ok) setCookies(await cookieRes.json());
@@ -50,7 +53,7 @@ export default function CookiesManager() {
       // Note: Assuming you will create a POST /cookies endpoint
       const res = await fetch(`${API_BASE}/cookies`, {
         method: 'POST',
-        headers: HEADERS,
+        headers: getAuthHeaders(),
         body: JSON.stringify(payload)
       });
       
@@ -73,7 +76,7 @@ export default function CookiesManager() {
     if (!confirmed) return;
     
     try {
-      await fetch(`${API_BASE}/cookies/${id}`, { method: 'DELETE', headers: HEADERS });
+      await fetch(`${API_BASE}/cookies/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
       fetchData();
       window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Cookie deleted', severity: 'success' } }));
     } catch (e) {

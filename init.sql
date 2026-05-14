@@ -26,6 +26,7 @@ CREATE TABLE credentials (
     id SERIAL PRIMARY KEY,
     provider_id INTEGER REFERENCES providers(id) ON DELETE CASCADE,
     custom_limits JSONB,
+    sync_source VARCHAR(50) DEFAULT 'manual',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -223,8 +224,17 @@ CREATE TABLE transcoding_queue (
     progress_percentage DECIMAL(5,2) DEFAULT 0,
     details TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uq_active_transcode_per_entry UNIQUE (library_entry_id) WHERE (status IN ('pending', 'running'))
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Webhooks table
+CREATE TABLE webhooks (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    url TEXT NOT NULL,
+    events JSONB,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Indexes for performance
@@ -237,3 +247,4 @@ CREATE INDEX idx_download_queue_status ON download_queue(status);
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE INDEX idx_library_entries_title_trgm ON library_entries USING gin (title gin_trgm_ops);
 CREATE INDEX idx_transcoding_queue_status ON transcoding_queue(status);
+CREATE UNIQUE INDEX uq_active_transcode_per_entry ON transcoding_queue(library_entry_id) WHERE status IN ('pending', 'running');

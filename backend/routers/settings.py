@@ -4,34 +4,14 @@ from database import get_db
 from models import Settings, Vault
 from pydantic import BaseModel
 import os
-import base64
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from dependencies import verify_api_key
+from security import encrypt_data, decrypt_data
+from rate_limiter import rate_limit
+
 router = APIRouter(prefix="/settings", tags=["settings"], dependencies=[Depends(verify_api_key)])
 
-SECURE_SETTINGS = ["tpdb_api_key", "stashdb_api_key", "extension_secret"]
-
-def encrypt_value(value: str) -> str:
-    if not value: return ""
-    master_key = os.getenv("MASTER_KEY")
-    if not master_key: return value
-    aesgcm = AESGCM(bytes.fromhex(master_key))
-    nonce = os.urandom(12)
-    ct = aesgcm.encrypt(nonce, value.encode('utf-8'), None)
-    return base64.b64encode(nonce + ct).decode('utf-8')
-
-def decrypt_value(encrypted_b64: str) -> str:
-    if not encrypted_b64: return ""
-    master_key = os.getenv("MASTER_KEY")
-    if not master_key: return encrypted_b64
-    try:
-        aesgcm = AESGCM(bytes.fromhex(master_key))
-        data = base64.b64decode(encrypted_b64)
-        nonce, ct = data[:12], data[12:]
-        return aesgcm.decrypt(nonce, ct, None).decode('utf-8')
-    except Exception:
-        return ""
+SECURE_SETTINGS = ["tpdb_api_key", "stashdb_api_key", "extension_secret", "op_connect_token", "bw_session_token"]
 
 class SettingUpdate(BaseModel):
     key: str
@@ -45,15 +25,15 @@ async def get_settings(db: Session = Depends(get_db)):
     # Load and seamlessly decrypt secure settings from the Vault
     vault_items = db.query(Vault).filter(Vault.entity_type == 'global_setting').all()
     for item in vault_items:
-        settings_dict[item.key] = decrypt_value(item.encrypted_value)
+        settings_dict[item.key] = decrypt_data(item.encrypted_value)
         
     return settings_dict
 
-@router.post("")
+@router.post("", dependencies=[Depends(rate_limit(max_requests=10, window_seconds=60))])
 async def update_setting(setting: SettingUpdate, db: Session = Depends(get_db)):
     if setting.key in SECURE_SETTINGS:
         db_vault = db.query(Vault).filter(Vault.entity_type == 'global_setting', Vault.key == setting.key).first()
-        encrypted_val = encrypt_value(setting.value) if setting.value else ""
+        encrypted_val = encrypt_data(setting.value) if setting.value else ""
         
         if db_vault:
             db_vault.encrypted_value = encrypted_val

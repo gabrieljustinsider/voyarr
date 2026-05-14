@@ -6,41 +6,37 @@ from schemas import CredentialCreate, CredentialResponse
 from security import encrypt_data, decrypt_data
 
 from dependencies import verify_api_key
+from rate_limiter import rate_limit
 router = APIRouter(prefix="/credentials", tags=["credentials"], dependencies=[Depends(verify_api_key)])
 
-@router.post("", response_model=CredentialResponse)
+@router.post("", response_model=CredentialResponse, dependencies=[Depends(rate_limit(max_requests=5, window_seconds=60))])
 async def create_credential(cred: CredentialCreate, db: Session = Depends(get_db)):
     try:
-        new_cred = Credential(
-            provider_id=cred.provider_id,
-            custom_limits=cred.custom_limits
-        )
-        db.add(new_cred)
-        db.flush() # To get new_cred.id
+        # Check if credential already exists to update it rather than duplicating rows
+        db_cred = db.query(Credential).filter_by(provider_id=cred.provider_id).first()
+        if not db_cred:
+            db_cred = Credential(provider_id=cred.provider_id, custom_limits=cred.custom_limits, sync_source='manual')
+            db.add(db_cred)
+            db.flush()
+        else:
+            db_cred.custom_limits = cred.custom_limits
+            db_cred.sync_source = 'manual' # Manually editing locks it from being overwritten by syncs
         
         # Store in Vault
-        vault_user = Vault(
-            entity_type='credential',
-            entity_id=new_cred.id,
-            key='username',
-            encrypted_value=encrypt_data(cred.username)
-        )
-        vault_pass = Vault(
-            entity_type='credential',
-            entity_id=new_cred.id,
-            key='password',
-            encrypted_value=encrypt_data(cred.password)
-        )
-        db.add(vault_user)
-        db.add(vault_pass)
+        for key, val in [('username', cred.username), ('password', cred.password)]:
+            v = db.query(Vault).filter_by(entity_type='credential', entity_id=db_cred.id, key=key).first()
+            if v:
+                v.encrypted_value = encrypt_data(val)
+            else:
+                db.add(Vault(entity_type='credential', entity_id=db_cred.id, key=key, encrypted_value=encrypt_data(val)))
         
         db.commit()
-        db.refresh(new_cred)
-        # The response model will automatically map from the new_cred object
-        return new_cred
+        db.refresh(db_cred)
+        return db_cred
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to save credential: {str(e)}")
+        print(f"Credential save error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to save credential due to an internal error")
 
 @router.get("/{provider_id}")
 async def get_credentials(provider_id: int, db: Session = Depends(get_db)):
@@ -55,5 +51,30 @@ async def get_credentials(provider_id: int, db: Session = Depends(get_db)):
         "provider_id": provider_id, 
         "username": vault_dict.get('username', ''), 
         "password": vault_dict.get('password', ''), 
-        "custom_limits": cred.custom_limits
+        "custom_limits": cred.custom_limits,
+        "sync_source": cred.sync_source
     }
+
+@router.post("/sync/{manager}/{direction}", dependencies=[Depends(rate_limit(max_requests=5, window_seconds=60))])
+async def sync_credential_manager(manager: str, direction: str, db: Session = Depends(get_db)):
+    if manager == "1password":
+        from services.onepassword_service import OnePasswordService
+        service = OnePasswordService
+    elif manager == "bitwarden":
+        from services.bitwarden_service import BitwardenService
+        service = BitwardenService
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported credential manager. Use '1password' or 'bitwarden'.")
+
+    try:
+        if direction == "push":
+            count = service.push_credentials(db)
+            return {"message": f"Successfully pushed {count} credentials to {manager.capitalize()}."}
+        elif direction == "pull":
+            count = service.pull_credentials(db)
+            return {"message": f"Successfully pulled {count} credentials from {manager.capitalize()}."}
+        else:
+            raise HTTPException(status_code=400, detail="Invalid sync direction. Use 'push' or 'pull'.")
+    except Exception as e:
+        print(f"{manager.capitalize()} sync error: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))

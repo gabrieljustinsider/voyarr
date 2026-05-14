@@ -5,6 +5,16 @@ from sqlalchemy.orm import relationship
 
 Base = declarative_base()
 
+class User(Base):
+    __tablename__ = 'users'
+    
+    id = Column(Integer, primary_key=True)
+    username = Column(String(255), unique=True, nullable=False, index=True)
+    password_hash = Column(String(255), nullable=False)
+    role = Column(String(50), default='user') # 'admin', 'user', 'viewer'
+    is_active = Column(Boolean, default=True)
+    created_at = Column(TIMESTAMP, default=func.current_timestamp())
+
 class Provider(Base):
     __tablename__ = 'providers'
     
@@ -43,6 +53,7 @@ class Credential(Base):
     id = Column(Integer, primary_key=True)
     provider_id = Column(Integer, ForeignKey('providers.id'), nullable=False)
     custom_limits = Column(JSON)  # Account-level custom provider limits (overrides automatic_limits)
+    sync_source = Column(String(50), default='manual') # 'manual', '1password', 'bitwarden'
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
 
 class MediaEntry(Base):
@@ -237,3 +248,13 @@ class TranscodingQueue(Base):
     updated_at = Column(TIMESTAMP, default=func.current_timestamp(), onupdate=func.current_timestamp())
 
     library_entry = relationship("LibraryEntry")
+
+class Webhook(Base):
+    __tablename__ = 'webhooks'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), nullable=False)
+    url = Column(Text, nullable=False)
+    events = Column(JSON)  # Array of event strings (e.g., 'transcode.completed')
+    is_active = Column(Boolean, default=True)
+    created_at = Column(TIMESTAMP, default=func.current_timestamp())

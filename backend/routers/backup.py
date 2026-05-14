@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
-from fastapi.responses import JSONResponse
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from database import get_db
@@ -9,6 +9,7 @@ import json
 from typing import Optional
 from decimal import Decimal
 from dependencies import verify_api_key
+from rate_limiter import rate_limit
 
 router = APIRouter(prefix="/backup", tags=["backup"], dependencies=[Depends(verify_api_key)])
 
@@ -24,7 +25,7 @@ class CustomJSONEncoder(json.JSONEncoder):
 def get_backup_tables():
     return {"tables": [table.name for table in Base.metadata.sorted_tables]}
 
-@router.get("/export")
+@router.get("/export", dependencies=[Depends(rate_limit(max_requests=2, window_seconds=60))])
 def export_backup(type: str = 'full', tables: Optional[str] = None, db: Session = Depends(get_db)):
     if type == 'settings':
         settings = db.query(Settings).all()
@@ -36,7 +37,7 @@ def export_backup(type: str = 'full', tables: Optional[str] = None, db: Session 
                 "settings": [{"key": s.key, "value": s.value} for s in settings]
             }
         }
-        return JSONResponse(content=json.loads(json.dumps(data, cls=CustomJSONEncoder)))
+        return Response(content=json.dumps(data, cls=CustomJSONEncoder), media_type="application/json")
     elif type == 'full':
         data = {
             "type": "full",
@@ -48,7 +49,7 @@ def export_backup(type: str = 'full', tables: Optional[str] = None, db: Session 
             rows = db.execute(table.select()).mappings().all()
             data["data"][table.name] = [dict(row) for row in rows]
             
-        return JSONResponse(content=json.loads(json.dumps(data, cls=CustomJSONEncoder)))
+        return Response(content=json.dumps(data, cls=CustomJSONEncoder), media_type="application/json")
     elif type == 'custom':
         if not tables:
             raise HTTPException(status_code=400, detail="Tables must be specified for custom backup")
@@ -64,7 +65,7 @@ def export_backup(type: str = 'full', tables: Optional[str] = None, db: Session 
                 rows = db.execute(table.select()).mappings().all()
                 data["data"][table.name] = [dict(row) for row in rows]
                 
-        return JSONResponse(content=json.loads(json.dumps(data, cls=CustomJSONEncoder)))
+        return Response(content=json.dumps(data, cls=CustomJSONEncoder), media_type="application/json")
     else:
         raise HTTPException(status_code=400, detail="Invalid export type")
 
@@ -92,9 +93,10 @@ def verify_backup(file: UploadFile = File(...)):
     except json.JSONDecodeError:
         return {"valid": False, "message": "Invalid backup format: not a valid JSON file"}
     except Exception as e:
-        return {"valid": False, "message": f"Verification failed: {str(e)}"}
+        print(f"Backup verification error: {str(e)}")
+        return {"valid": False, "message": "Verification failed due to an internal error"}
 
-@router.post("/restore")
+@router.post("/restore", dependencies=[Depends(rate_limit(max_requests=2, window_seconds=60))])
 def restore_backup(file: UploadFile = File(...), db: Session = Depends(get_db)):
     try:
         content = file.file.read()
@@ -170,4 +172,5 @@ def restore_backup(file: UploadFile = File(...), db: Session = Depends(get_db)):
             return {"message": f"Custom tables ({', '.join(tables_in_backup)}) restored successfully"}
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Restore failed: {str(e)}")
+        print(f"Database restore error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Restore failed due to an internal server error")

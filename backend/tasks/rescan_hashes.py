@@ -20,16 +20,14 @@ def rescan_missing_hashes():
     # Find entries missing either ohash or phash
     entries = db.query(LibraryEntry).filter(
         or_(LibraryEntry.ohash.is_(None), LibraryEntry.phash.is_(None))
-    ).all()
+    )
     
-    if not entries:
+    if not entries.first():
         print("No entries with missing hashes found. Your library is fully hashed!")
         db.close()
         return
 
-    print(f"Found {len(entries)} entries missing hashes. Processing...")
-    
-    for entry in entries:
+    for entry in entries.yield_per(100):
         if not os.path.exists(entry.file_path):
             print(f"File missing on disk for entry #{entry.id} ({entry.title}), skipping.")
             continue

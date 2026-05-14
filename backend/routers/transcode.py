@@ -8,12 +8,13 @@ from pydantic import BaseModel
 from typing import Optional
 
 from dependencies import verify_api_key
+from rate_limiter import rate_limit
 router = APIRouter(prefix="/transcode", tags=["transcode"], dependencies=[Depends(verify_api_key)])
 
 class TranscodeRequest(BaseModel):
     target_codec: Optional[str] = 'h265'
 
-@router.post("/{library_entry_id}")
+@router.post("/{library_entry_id}", dependencies=[Depends(rate_limit(max_requests=10, window_seconds=60))])
 def start_transcode(library_entry_id: int, req: TranscodeRequest, db: Session = Depends(get_db)):
     """
     Adds a video from the library to the transcoding queue.

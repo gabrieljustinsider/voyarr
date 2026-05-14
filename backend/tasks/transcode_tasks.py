@@ -7,6 +7,8 @@ from database import SessionLocal
 from models import TranscodingQueue, LibraryEntry
 import logging
 from datetime import datetime
+from services.webhook_service import WebhookService
+from services.off_peak_service import OffPeakService
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +17,11 @@ def transcode_video_task(self, transcode_job_id: int):
     """
     Celery task to transcode a video file to a more efficient codec.
     """
+    # Milestone 4: Scheduled & Off-Peak Tasks
+    if not OffPeakService.is_off_peak():
+        logger.info("Outside of off-peak hours. Deferring transcode task by 60 minutes.")
+        self.retry(countdown=3600)
+
     db = SessionLocal()
     job = db.query(TranscodingQueue).filter(TranscodingQueue.id == transcode_job_id).first()
     if not job:
@@ -121,6 +128,13 @@ def transcode_video_task(self, transcode_job_id: int):
 
         # Clean up old file
         os.remove(old_file_path)
+
+        # Trigger Webhook
+        WebhookService.trigger("transcode.completed", {
+            "library_entry_id": library_entry.id,
+            "file_path": output_path,
+            "new_size": new_file_size
+        })
 
     except Exception as e:
         job.status = 'failed'

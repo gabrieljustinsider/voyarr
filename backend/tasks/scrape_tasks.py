@@ -1,4 +1,5 @@
 import requests
+import urllib.parse
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 from celery import shared_task
 from database import SessionLocal
@@ -10,6 +11,19 @@ def scrape_url_task(url: str, recipe_id: int):
     """
     Fetches HTML from a URL and uses the DynamicScraper to extract metadata.
     """
+    if not url.lower().startswith(('http://', 'https://')):
+        print(f"Error: Invalid URL scheme for {url}")
+        return None
+        
+    try:
+        parsed = urllib.parse.urlparse(url)
+        hostname = parsed.hostname.lower() if parsed.hostname else ""
+        if hostname in ['localhost', '127.0.0.1', '0.0.0.0', '169.254.169.254'] or hostname.endswith('.internal'):
+            print(f"Error: Disallowed internal hostname {hostname}")
+            return None
+    except Exception:
+        pass
+
     db = SessionLocal()
     try:
         # Fetch the scraping recipe from the DB

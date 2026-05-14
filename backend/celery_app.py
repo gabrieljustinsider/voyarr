@@ -14,7 +14,8 @@ celery_app = Celery(
         "tasks.backup_tasks",
         "tasks.cleanup_tasks",
         "tasks.duplicate_tasks",
-        "tasks.transcode_tasks"
+        "tasks.transcode_tasks",
+        "tasks.ai_tasks"
     ]
 )
 
@@ -24,6 +25,14 @@ celery_app.conf.update(
     result_serializer="json",
     timezone="UTC",
     enable_utc=True,
+    # Distributed Worker Nodes support via Task Routing
+    task_routes={
+        'tasks.download_tasks.*': {'queue': 'downloads'},
+        'tasks.transcode_tasks.*': {'queue': 'transcodes'},
+        'tasks.scrape_tasks.*': {'queue': 'scraping'},
+        'tasks.ai_tasks.*': {'queue': 'ai_inference'},
+        '*': {'queue': 'celery'}, # Default queue
+    }
 )
 
 celery_app.conf.beat_schedule = {
@@ -42,5 +51,9 @@ celery_app.conf.beat_schedule = {
     'scan-for-duplicates': {
         'task': 'tasks.duplicate_tasks.scan_for_duplicates',
         'schedule': crontab(hour=4, minute=0),
+    },
+    'auto-sync-credentials': {
+        'task': 'tasks.schedule_tasks.auto_sync_credentials',
+        'schedule': crontab(minute=0),
     },
 }
