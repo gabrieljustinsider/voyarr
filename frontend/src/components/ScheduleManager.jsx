@@ -91,6 +91,40 @@ export default function ScheduleManager() {
     }
   };
 
+  const handleToggle = async (id, currentStatus) => {
+    try {
+      const res = await fetch(`${API_BASE}/schedules/${id}`, {
+        method: 'PUT',
+        headers: HEADERS,
+        body: JSON.stringify({ is_active: !currentStatus })
+      });
+      if (res.ok) {
+        fetchData();
+      } else {
+        setSnackbar({ open: true, message: 'Failed to update schedule.', severity: 'error' });
+      }
+    } catch (e) {
+      console.error('Failed to toggle schedule:', e);
+    }
+  };
+
+  const handleTrigger = async (id) => {
+    try {
+      const res = await fetch(`${API_BASE}/schedules/${id}/trigger`, {
+        method: 'POST',
+        headers: HEADERS
+      });
+      if (res.ok) {
+        setSnackbar({ open: true, message: 'Schedule triggered! Check the download queue shortly.', severity: 'success' });
+        fetchData();
+      } else {
+        setSnackbar({ open: true, message: 'Failed to trigger schedule.', severity: 'error' });
+      }
+    } catch (e) {
+      setSnackbar({ open: true, message: `Error: ${e.message}`, severity: 'error' });
+    }
+  };
+
   return (
     <Box>
       <Typography variant="h5" gutterBottom>Schedule Engine (Site Ripping)</Typography>
@@ -183,7 +217,7 @@ export default function ScheduleManager() {
                   </TableCell>
                   <TableCell>{row.cron_expression}</TableCell>
                   <TableCell>
-                    <Chip size="small" color={row.is_active ? 'success' : 'default'} label={row.is_active ? 'Active' : 'Inactive'} />
+                    <Switch size="small" checked={row.is_active} onChange={() => handleToggle(row.id, row.is_active)} />
                   </TableCell>
                   <TableCell>
                     {row.last_run ? new Date(row.last_run).toLocaleString() : 'N/A'}
@@ -199,9 +233,16 @@ export default function ScheduleManager() {
                     ) : 'N/A'}
                   </TableCell>
                   <TableCell>
-                    <IconButton size="small" color="error" onClick={() => handleDelete(row.id)}>
-                      <DeleteIcon />
-                    </IconButton>
+                    <Tooltip title="Trigger Now">
+                      <IconButton size="small" color="primary" onClick={() => handleTrigger(row.id)}>
+                        <PlayArrowIcon />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Delete">
+                      <IconButton size="small" color="error" onClick={() => handleDelete(row.id)}>
+                        <DeleteIcon />
+                      </IconButton>
+                    </Tooltip>
                   </TableCell>
                 </TableRow>
               );

@@ -222,3 +222,18 @@ class ApiKey(Base):
     key_hash = Column(String(255), unique=True, index=True)
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
     last_used = Column(TIMESTAMP, nullable=True)
+
+class TranscodingQueue(Base):
+    __tablename__ = 'transcoding_queue'
+
+    id = Column(Integer, primary_key=True)
+    library_entry_id = Column(Integer, ForeignKey('library_entries.id', ondelete='CASCADE'))
+    status = Column(String(50), default='pending')
+    target_codec = Column(String(20), default='h265')
+    target_resolution = Column(String(20), nullable=True)
+    progress_percentage = Column(DECIMAL(5, 2), default=0.0)
+    details = Column(Text, nullable=True)
+    created_at = Column(TIMESTAMP, default=func.current_timestamp())
+    updated_at = Column(TIMESTAMP, default=func.current_timestamp(), onupdate=func.current_timestamp())
+
+    library_entry = relationship("LibraryEntry")

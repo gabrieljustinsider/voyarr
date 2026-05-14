@@ -1,28 +1,17 @@
 {
   "manifest_version": 3,
-  "name": "Voyarr Extension",
-  "version": "1.1",
-  "description": "Remote control and dynamic scraper mapping for Voyarr Media Manager.",
-  "permissions": [
-    "activeTab",
-    "scripting",
-    "storage"
-  ],
-  "host_permissions": [
-    "<all_urls>"
-  ],
+  "name": "Voyarr Remote",
+  "version": "1.0",
+  "description": "Voyarr companion extension for visual CSS mapping and remote control.",
+  "permissions": ["activeTab", "storage", "scripting"],
   "action": {
-    "default_popup": "popup.html",
-    "default_title": "Open Voyarr Panel"
-  },
-  "background": {
-    "service_worker": "background.js"
+    "default_popup": "popup.html"
   },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
       "js": ["content.js"],
-      "css": ["content.css"]
+      "run_at": "document_idle"
     }
   ]
 }

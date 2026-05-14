@@ -1,77 +1,60 @@
 import os
-import struct
+import cv2
+import numpy as np
 import subprocess
-import tempfile
-
-try:
-    from PIL import Image
-    import imagehash
-except ImportError:
-    Image = None
-    imagehash = None
 
 class HashService:
     @staticmethod
     def generate_ohash(file_path: str) -> str:
         """
-        Generates the standard 64-bit oshash (OpenSubtitles hash) from the file structure.
+        Generates OpenSubtitles Hash (oshash) for the file.
         """
         try:
-            longlongformat = '<q'  # little-endian long long
-            bytesize = struct.calcsize(longlongformat)
             filesize = os.path.getsize(file_path)
             hash_val = filesize
-            
             if filesize < 65536 * 2:
-                return "0000000000000000"
-                
-            with open(file_path, "rb") as f:
-                for _ in range(65536 // bytesize):
-                    buffer = f.read(bytesize)
-                    (l_value,) = struct.unpack(longlongformat, buffer)
-                    hash_val += l_value
-                    hash_val = hash_val & 0xFFFFFFFFFFFFFFFF
-                    
-                f.seek(max(0, filesize - 65536), 0)
-                for _ in range(65536 // bytesize):
-                    buffer = f.read(bytesize)
-                    (l_value,) = struct.unpack(longlongformat, buffer)
-                    hash_val += l_value
-                    hash_val = hash_val & 0xFFFFFFFFFFFFFFFF
-                    
-            return "%016x" % hash_val
+                return "0"
+            with open(file_path, 'rb') as f:
+                buf = f.read(65536)
+                f.seek(filesize - 65536, 0)
+                buf += f.read(65536)
+            for i in range(16384):
+                chunk = buf[i*8:i*8+8]
+                val = int.from_bytes(chunk, byteorder='little')
+                hash_val = (hash_val + val) & 0xFFFFFFFFFFFFFFFF
+            return f"{hash_val:016x}"
         except Exception:
-            return "0000000000000000"
+            return "0"
 
     @staticmethod
     def generate_phash(file_path: str) -> str:
         """
-        Extracts a frame at 20% duration and calculates a perceptual DCT image hash.
+        Generates perceptual hash (pHash) from a video using DCT on a middle frame.
         """
-        if not Image or not imagehash:
-            return ""
-            
         try:
-            # Get video duration
-            result = subprocess.run(
-                ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", file_path],
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
-            )
-            duration = float(result.stdout.strip())
-            target_time = duration * 0.2
+            out_image = f"{file_path}.jpg"
+            # Calculate middle of the video using ffprobe
+            duration_cmd = ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", file_path]
+            duration = float(subprocess.check_output(duration_cmd).decode('utf-8').strip())
+            mid_time = duration / 2.0
 
-            with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
-                temp_filename = tmp.name
+            # Extract frame using ffmpeg
+            subprocess.run(["ffmpeg", "-y", "-ss", str(mid_time), "-i", file_path, "-vframes", "1", "-q:v", "2", out_image], 
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            
+            if not os.path.exists(out_image):
+                return ""
 
-            # Extract single frame
-            subprocess.run(["ffmpeg", "-y", "-ss", str(target_time), "-i", file_path, "-vframes", "1", "-q:v", "2", temp_filename], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-            if os.path.exists(temp_filename):
-                img = Image.open(temp_filename)
-                hash_val = str(imagehash.phash(img))
-                img.close()
-                os.remove(temp_filename)
-                return hash_val
+            # Compute DCT-based perceptual hash
+            img = np.float32(cv2.resize(cv2.imread(out_image, cv2.IMREAD_GRAYSCALE), (32, 32)))
+            dct = cv2.dct(img)
+            dct_low = dct[0:8, 0:8]
+            avg = np.mean(dct_low[1:, 1:]) # Exclude DC component
+            
+            phash = sum((1 << (i * 8 + j)) for i in range(8) for j in range(8) if dct_low[i, j] > avg)
+            
+            os.remove(out_image)
+            return f"{phash:016x}"
         except Exception as e:
-            print(f"Error generating phash: {e}")
-        return ""
+            print(f"pHash error: {e}")
+            return ""

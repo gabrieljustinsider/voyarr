@@ -1,78 +1,55 @@
-let mapModeActive = false;
-let currentHighlighted = null;
+let mapModeEnabled = false;
 
-// Listen for activation from Popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === "TOGGLE_MAP_MODE") {
-        mapModeActive = true;
-        console.log("Voyarr Map Mode Activated.");
+  if (request.action === "toggleMapMode") {
+    mapModeEnabled = request.enabled;
+    if (mapModeEnabled) {
+      document.body.style.cursor = "crosshair";
+      document.addEventListener('mouseover', highlightElement);
+      document.addEventListener('mouseout', removeHighlight);
+      document.addEventListener('click', selectElement, { capture: true });
+    } else {
+      document.body.style.cursor = "default";
+      document.removeEventListener('mouseover', highlightElement);
+      document.removeEventListener('mouseout', removeHighlight);
+      document.removeEventListener('click', selectElement, { capture: true });
+      removeHighlightFromAll();
     }
+  }
 });
 
-// Handle Hover Highlights
-document.addEventListener('mouseover', (e) => {
-    if (!mapModeActive) return;
-    e.stopPropagation();
-    currentHighlighted = e.target;
-    currentHighlighted.classList.add('voyarr-highlight');
-});
+function highlightElement(e) {
+  if (!mapModeEnabled) return;
+  e.target.style.outline = "2px solid red";
+  e.target.style.backgroundColor = "rgba(255,0,0,0.1)";
+}
 
-document.addEventListener('mouseout', (e) => {
-    if (!mapModeActive) return;
-    if (currentHighlighted) {
-        currentHighlighted.classList.remove('voyarr-highlight');
-    }
-});
+function removeHighlight(e) {
+  e.target.style.outline = "";
+  e.target.style.backgroundColor = "";
+}
 
-// Handle Click to Select
-document.addEventListener('click', (e) => {
-    if (!mapModeActive) return;
-    e.preventDefault();
-    e.stopPropagation();
-    
-    // Generate simple CSS selector
-    let selector = e.target.tagName.toLowerCase();
-    if (e.target.id) selector += `#${e.target.id}`;
-    if (e.target.className) {
-        let classes = e.target.className.split(/\s+/).filter(c => c && c !== 'voyarr-highlight');
-        if (classes.length > 0) selector += `.${classes.join('.')}`;
-    }
+function removeHighlightFromAll() {
+  const els = document.querySelectorAll('*');
+  els.forEach(el => { el.style.outline = ""; el.style.backgroundColor = ""; });
+}
 
-    showOverlay(selector);
-    
-    if (currentHighlighted) currentHighlighted.classList.remove('voyarr-highlight');
-    mapModeActive = false; // Turn off until triggered again
-});
+function selectElement(e) {
+  if (!mapModeEnabled) return;
+  e.preventDefault();
+  e.stopPropagation();
+  
+  const selector = generateCSSSelector(e.target);
+  chrome.runtime.sendMessage({ action: "elementSelected", selector, text: e.target.innerText });
+  chrome.runtime.sendMessage({ action: "disableMapMode" });
+}
 
-function showOverlay(selector) {
-    const overlay = document.createElement('div');
-    overlay.id = 'voyarr-overlay';
-    overlay.innerHTML = `
-        <div class="voyarr-header">Voyarr Map Mode</div>
-        <div class="voyarr-body">
-            <input type="text" id="voyarr-selector" value="${selector}" />
-            <select id="voyarr-property">
-                <option value="title">Title</option>
-                <option value="performers">Performers</option>
-                <option value="tags">Tags/Categories</option>
-            </select>
-            <button id="voyarr-save">Save to Recipe</button>
-            <button id="voyarr-cancel">Cancel</button>
-        </div>
-    `;
-    document.body.appendChild(overlay);
-
-    document.getElementById('voyarr-save').addEventListener('click', () => {
-        const property = document.getElementById('voyarr-property').value;
-        const finalSelector = document.getElementById('voyarr-selector').value;
-        
-        chrome.runtime.sendMessage({
-            action: "SAVE_RECIPE_MAPPING",
-            payload: { host: window.location.hostname, property, selector: finalSelector }
-        }, (response) => {
-            if (response && response.success) overlay.remove();
-            else alert('Failed to save configuration. Check extension setup.');
-        });
-    });
-    document.getElementById('voyarr-cancel').addEventListener('click', () => overlay.remove());
+function generateCSSSelector(el) {
+  if (el.tagName.toLowerCase() === "html") return "html";
+  if (el.id) return `#${el.id}`;
+  if (el.className && typeof el.className === 'string') {
+    const classes = el.className.split(' ').filter(c => c).join('.');
+    if (classes) return `${el.tagName.toLowerCase()}.${classes}`;
+  }
+  return el.tagName.toLowerCase();
 }

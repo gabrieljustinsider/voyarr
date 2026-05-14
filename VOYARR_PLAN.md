@@ -69,14 +69,23 @@ services:
 * **Project Board:** [Voyarr Board \#1](https://github.com/users/gabrieljustinsider/projects/1)  
 * **Automation:** GitHub Actions to sync issues/PRs to the board and handle Docker builds.
 
-## **📋 Next Steps**
+## **✅ Completed Milestones**
 
-1. **Initialize Git:** Push .gitignore, .env.example, and init.sql.  
-2. **Backend Foundation:** Define the ProviderBase Python class for modular scraping.  
-3. **API Skeleton:** Build FastAPI routes for credential management and progress streaming.
-4. **Robust Task Queue (Celery / Redis):** Replace FastAPI BackgroundTasks with Celery (backed by Redis or RabbitMQ) for pausing, resuming, and persistently tracking long-running yt-dlp download tasks.
-5. **Reverse Regex Matching Engine:** Implement logic to scan the /media folder and reverse-engineer local files into the database based on naming patterns (e.g., {title}_{performers}_{resolution}.mp4) without hitting external APIs.
-6. **Mass Rip & Quality Upgrade Workflow:** Build the Mass Rip API to parse channel/performer pages, evaluate DownloadRules, queue videos, and detect/upgrade local resolutions automatically.
-7. **True Perceptual Hashing (phash):** Implement actual video phash generation by capturing frames via FFmpeg/OpenCV, converting to grayscale, and calculating DCT for visual similarity matching.
-8. **Browser Extension "Map Mode" UI:** Build the UI/Content Script for the Chrome extension (manifest v3) with a DOM-picker tool to generate CSS Selectors and push them to the SiteRecipe table.
-9. **PWA Compatibility:** Configure Vite with `vite-plugin-pwa` to build the app as an installable Progressive Web App, including manifest, icons, and service worker registration.
+1. ~~**Initialize Git:** Push .gitignore, .env.example, and init.sql.~~
+2. ~~**Backend Foundation:** Define the ProviderBase Python class for modular scraping.~~
+3. ~~**API Skeleton:** Build FastAPI routes for credential management and progress streaming.~~
+4. ~~**Robust Task Queue (Celery / Redis):** Replace FastAPI BackgroundTasks with Celery.~~
+5. ~~**Reverse Regex Matching Engine:** Implement logic to scan the `/media` folder and reverse-engineer local files.~~
+6. ~~**Mass Rip & Quality Upgrade Workflow:** Build the Mass Rip API to queue videos and detect local resolutions.~~
+7. ~~**True Perceptual Hashing (phash):** Implement actual video phash generation via FFmpeg.~~
+8. ~~**Browser Extension "Map Mode" UI:** Build the UI/Content Script for the Chrome extension.~~
+9. ~~**PWA Compatibility:** Configure Vite with `vite-plugin-pwa` to build the app as an installable PWA.~~
+10. ~~**Automated Transcoding Pipeline:** Integrate background FFmpeg tasks via Celery to transcode large files.~~
+
+## **🚀 Future Milestones**
+
+1. **AI-Powered Auto-Tagging:** Integrate local Vision models or lightweight LLMs to automatically identify performers, tags, or categorize content directly from video frames/descriptions.
+2. **Distributed Worker Nodes:** Expand the Celery architecture to support remote worker nodes across multiple machines, allowing distributed downloading/scraping to easily bypass IP rate limits.
+3. **Multi-User & Role-Based Access Control (RBAC):** Introduce a multi-user environment allowing separate accounts with permissions to view, queue, or manage specific provider libraries.
+4. **Webhooks & Notification Ecosystem:** Build outbound webhooks to trigger events in other home lab applications (like Discord/Telegram bot notifications, or triggering external library scans in Stash) when media downloads complete.
+5. **Scheduled & Off-Peak Tasks:** Enhance the transcoding and download pipelines to run during user-defined off-peak hours to manage system load.

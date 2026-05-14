@@ -17,7 +17,7 @@ def process_schedules():
             ScrapeSchedule.next_run <= now
         ).all()
 
-        api_port = os.getenv("PORT", "8000")
+        api_base = os.getenv("INTERNAL_API_URL", f"http://backend:{os.getenv('PORT', '8000')}")
         api_key = os.getenv("MASTER_KEY", "")
 
         for schedule in schedules:
@@ -41,8 +41,12 @@ def process_schedules():
                 # Call the internal FastAPI mass_rip endpoint to ingest the target URL and run it against rules
                 if hasattr(schedule, 'target_url') and schedule.target_url:
                     response = requests.post(
-                        f"http://backend:{api_port}/download/mass_rip",
-                        json={"provider_id": schedule.provider_id, "url": schedule.target_url},
+                        f"{api_base}/download/mass_rip",
+                        json={
+                            "provider_id": schedule.provider_id, 
+                            "url": schedule.target_url,
+                            "action": schedule.action
+                        },
                         headers={"X-Voyarr-Api-Key": api_key},
                         timeout=120
                     )

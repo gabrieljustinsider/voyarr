@@ -1,24 +1,15 @@
-document.addEventListener('DOMContentLoaded', () => {
-    // Load existing config
-    chrome.storage.local.get(['voyarrApiUrl', 'voyarrSecret'], (data) => {
-        if (data.voyarrApiUrl) document.getElementById('apiUrl').value = data.voyarrApiUrl;
-        if (data.voyarrSecret) document.getElementById('secretKey').value = data.voyarrSecret;
-    });
+document.getElementById('toggleBtn').addEventListener('click', async () => {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  chrome.tabs.sendMessage(tab.id, { action: "toggleMapMode", enabled: true });
+  document.getElementById('toggleBtn').innerText = "Mapping Active... Click an element";
+});
 
-    // Save Config
-    document.getElementById('saveConfig').addEventListener('click', () => {
-        const url = document.getElementById('apiUrl').value;
-        const secret = document.getElementById('secretKey').value;
-        chrome.storage.local.set({ voyarrApiUrl: url, voyarrSecret: secret }, () => {
-            alert('Voyarr Configuration Saved!');
-        });
-    });
-
-    // Activate Map Mode in active tab
-    document.getElementById('activateMapMode').addEventListener('click', () => {
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            chrome.tabs.sendMessage(tabs[0].id, { action: "TOGGLE_MAP_MODE" });
-            window.close();
-        });
-    });
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === "elementSelected") {
+    document.getElementById('result').innerHTML = `<strong>Selector:</strong> ${request.selector}<br><br><strong>Text:</strong> ${request.text}`;
+    document.getElementById('toggleBtn').innerText = "Enable Map Mode";
+  }
+  if (request.action === "disableMapMode") {
+    document.getElementById('toggleBtn').innerText = "Enable Map Mode";
+  }
 });

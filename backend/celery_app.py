@@ -13,7 +13,8 @@ celery_app = Celery(
         "tasks.schedule_tasks", 
         "tasks.backup_tasks",
         "tasks.cleanup_tasks",
-        "tasks.duplicate_tasks"
+        "tasks.duplicate_tasks",
+        "tasks.transcode_tasks"
     ]
 )
 
