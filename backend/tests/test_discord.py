@@ -35,7 +35,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from main import app
-from database import SessionLocal, get_db
+from database import get_db
 from models import Base
 
 

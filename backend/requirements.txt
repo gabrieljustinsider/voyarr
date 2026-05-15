@@ -2,6 +2,7 @@
 fastapi
 uvicorn[standard]
 python-multipart
+python-dotenv
 
 # Database & ORM
 sqlalchemy
@@ -20,6 +21,10 @@ Pillow
 ImageHash
 opencv-python-headless
 
+# Machine Learning & Face Clustering
+face-recognition
+scikit-learn
+
 # Security & Authentication
 pydantic
 pydantic-settings
@@ -27,9 +32,12 @@ python-jose[cryptography]
 passlib[bcrypt]
 authlib
 itsdangerous
+PyNaCl
 
 # Integrations & External API Requests (StashDB, 1Password, Webhooks)
 httpx
+requests
 beautifulsoup4
 croniter
 lxml
+playwright

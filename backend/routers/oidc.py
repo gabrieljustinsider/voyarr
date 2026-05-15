@@ -79,6 +79,8 @@ async def oidc_login(request: Request, db: Session = Depends(get_db)):
     """Initiates the OIDC authorization code flow by redirecting to the provider."""
     oauth = _require_oidc(db)
     redirect_uri = request.url_for("oidc_callback")
+    if request.headers.get("x-forwarded-proto") == "https":
+        redirect_uri = redirect_uri.replace(scheme="https")
     return await oauth.oidc.authorize_redirect(request, str(redirect_uri))
 
 
@@ -86,9 +88,13 @@ async def oidc_login(request: Request, db: Session = Depends(get_db)):
 async def oidc_callback(request: Request, db: Session = Depends(get_db)):
     """Handles the callback from the OIDC provider after user authorization."""
     oauth = _require_oidc(db)
+    
+    redirect_uri = request.url_for("oidc_callback")
+    if request.headers.get("x-forwarded-proto") == "https":
+        redirect_uri = redirect_uri.replace(scheme="https")
 
     try:
-        token = await oauth.oidc.authorize_access_token(request)
+        token = await oauth.oidc.authorize_access_token(request, redirect_uri=str(redirect_uri))
     except Exception as e:
         logger.error(f"OIDC token exchange failed: {e}")
         raise HTTPException(

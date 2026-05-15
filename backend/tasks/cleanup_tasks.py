@@ -6,6 +6,7 @@ from db_utils import get_db_session
 import os
 import shutil
 from utils import get_media_roots
+from celery_utils import single_instance_task
 
 
 @celery_app.on_after_configure.connect
@@ -19,6 +20,7 @@ def setup_periodic_tasks(sender, **kwargs):
 
 
 @shared_task
+@single_instance_task(timeout_seconds=3600)
 def cleanup_abandoned_media():
     with get_db_session() as db:
         # Find all MediaEntry IDs currently referenced by the download queue

@@ -5,9 +5,11 @@ from models import ScrapeSchedule
 from datetime import datetime, timezone
 from croniter import croniter
 from db_utils import get_db_session
+from celery_utils import single_instance_task
 
 
 @shared_task
+@single_instance_task(timeout_seconds=55)
 def process_schedules():
     with get_db_session() as db:
         try:

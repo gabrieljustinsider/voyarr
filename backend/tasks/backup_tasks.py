@@ -6,9 +6,11 @@ from models import Base
 from routers.backup import CustomJSONEncoder
 from utils import get_primary_root
 from db_utils import get_db_session
+from celery_utils import single_instance_task
 
 
 @shared_task
+@single_instance_task(timeout_seconds=3600)
 def automated_backup():
     with get_db_session() as db:
         try:

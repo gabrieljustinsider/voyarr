@@ -2,6 +2,7 @@ from celery import shared_task
 import os
 from models import LibraryEntry, DuplicateEntry
 from db_utils import get_db_session
+from celery_utils import single_instance_task
 
 try:
     import imagehash
@@ -58,6 +59,7 @@ def merge_duplicate_pair(db, keep_id: int, delete_id: int):
 
 
 @shared_task
+@single_instance_task(timeout_seconds=3600)
 def scan_for_duplicates():
     """
     Iterates through the library comparing perceptual hashes.

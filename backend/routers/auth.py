@@ -395,12 +395,12 @@ def list_admin_logs(auth_info: dict = Depends(verify_api_key), db: Session = Dep
     logs = db.query(AdminLog).order_by(AdminLog.timestamp.desc()).limit(100).all()
     return [
         {
-            "id": l.id,
-            "admin_id": l.admin_id,
-            "admin_username": l.admin_username,
-            "action": l.action,
-            "details": l.details,
-            "timestamp": l.timestamp
+            "id": log.id,
+            "admin_id": log.admin_id,
+            "admin_username": log.admin_username,
+            "action": log.action,
+            "details": log.details,
+            "timestamp": log.timestamp
         }
-        for l in logs
+        for log in logs
     ]

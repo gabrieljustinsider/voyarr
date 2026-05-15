@@ -91,7 +91,7 @@ app.add_middleware(
 
 # Session middleware required for OIDC OAuth state management
 from starlette.middleware.sessions import SessionMiddleware
-app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "change-me-in-production"))
+app.add_middleware(SessionMiddleware, secret_key=JWT_SECRET)
 
 
 # Middleware to translate JWT to API Key for unified route protection

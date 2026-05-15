@@ -130,29 +130,37 @@ Voyarr is designed to be run via Docker Compose. The stack includes:
 
 ## ⚙️ Initial Setup
 
-Voyarr utilizes a **hybrid volume architecture** and **dynamic host port selection** to ensure conflict-free ports and permission-safe storage on self-hosted environments (like Synology NAS, Unraid, or standard Linux servers).
+Voyarr utilizes a **robust named volume architecture** and **dynamic host port selection** to ensure conflict-free ports and permission-safe storage on self-hosted environments (like Synology NAS, Unraid, Portainer, or standard Linux/macOS/Windows servers).
 
-### 1. Pre-create Host Folders (Volume Setup)
+### 1. Storage & Volume Configuration
 
-#### 📂 Choosing Where System Data Lives (Root Settings Folder)
-Voyarr needs a place to store its own system configurations, settings, and database. You can choose **any folder** on your NAS or server to act as the root path for these system files. 
+To run inside Docker, Voyarr splits its storage into two logical areas. This design ensures that you can safely upgrade the app without losing your settings, while keeping full control over where your physical movie and library files are stored.
 
-For example, you might choose:
-* **Option A (Default)**: `/volume1/docker/voyarr/` (If you keep all Docker apps on Volume 1)
-* **Option B (Custom Volume)**: `/volume2/appdata/voyarr/` (If you have a separate fast SSD storage pool on Volume 2)
+#### 📦 A. App System Data (Safely Managed inside Docker)
+Voyarr stores its own database, application settings, and backups in **Docker Named Volumes** (`voyarr-config`, `voyarr-db-data`, `voyarr-backups`, and `voyarr-certs`). 
+* **Zero-Setup Startup**: You do **not** need to create any system folders on your computer or NAS before starting the app. Docker handles this automatically.
+* **Persistent & Upgrade-Safe**: Since these files are managed inside Docker volumes, your data is completely separated from the app code. You can stop the app, update it, or pull new versions, and your library lists and settings will remain completely intact. 
 
-Once you decide on this root directory, open **File Station** on your NAS and create the following three folders inside it:
-* 📁 **`config`** (This stores your app settings, custom recipes, and logged-in website sessions)
-* 📁 **`db-data`** (This stores the database file containing your library lists, rules, and download queues)
-* 📁 **`backups`** (This stores your automated scheduled backups, manually exported JSON configs, and PostgreSQL database dumps)
+#### 🎬 B. Your Movies & Downloads (Stored Directly on Your Host Device)
+Your actual library folders, videos, movies, and download directories are stored directly on your host machine's physical drives (such as `/volume1/video` on a Synology NAS or `/home/user/media` on a Linux server).
+* **Direct Host Access**: To allow the isolated Docker containers to read and write to your physical drives, the `docker-compose.yml` file contains a mapping declaration that connects your host path to the internal container path:
+  * **Host Directory (Your NAS/Server)** ➔ Bridges to ➔ **Internal Container Mount** (`/media/storage`)
+* **How to Configure It**: You simply tell Voyarr the exact path to your host media folder in the `.env` file (e.g. `MEDIA_ROOT_1=/volume1/video`). When the container starts, it mounts that host folder directly, allowing you to access all your videos and save new downloads in standard, visible folders outside of Docker.
 
-> [!NOTE]
-> **What is the "Hybrid Volume" Setup and Why Use It?**
-> Voyarr uses a modern **hybrid volume architecture** inside `docker-compose.yml` to give you the best of both worlds:
-> 1. **Docker Named Volumes (`voyarr-config`, `voyarr-db-data`, and `voyarr-backups`)**: Docker manages the lifecycle of these system folders safely. This guarantees that during future Voyarr upgrades or image updates, your settings, database, and backups are never deleted, corrupted, or left with incorrect file permissions.
-> 2. **Custom Host Backing Paths (`CONFIG_ROOT`, `DB_DATA_PATH`, and `BACKUP_ROOT`)**: Instead of Docker hiding these named volumes in system directories, they are bound directly to the physical folder paths on your NAS (e.g. `/volume1/docker/voyarr/config`) that you configure in your `.env` file. This makes it incredibly easy to back up your database, configurations, and scheduled backups manually.
-> 
-> *⚠️ **Important Requirement**: Because Docker named volumes bind directly to your host, the target host folders (`config`, `db-data`, and `backups`) must be physically created on your NAS **prior** to running `docker compose up`, otherwise Docker will fail to start the containers.*
+---
+
+#### 📂 Accessing Your Volume Data from the Host Machine (Optional)
+If you ever want to view, copy, or manually back up the internal system configurations and database files from outside the container, you can do so in two ways:
+
+1. **Direct Path (Linux / Synology / Unraid)**:
+   Docker stores named volumes in standard directories on your host's filesystem. You can access them with root (`sudo`) privileges at:
+   `/var/lib/docker/volumes/voyarr_voyarr-config/_data/`
+   
+2. **Helper Container (macOS / Windows)**:
+   On Docker Desktop (where volumes are stored inside Docker's virtual disk), you can easily copy files to your local machine with this command:
+   ```bash
+   docker run --rm -v voyarr_voyarr-config:/volume -v $(pwd):/backup alpine cp -r /volume /backup/config_backup
+   ```
 
 ---
 
@@ -176,22 +184,16 @@ cp .env.example .env
 
 Open `.env` and configure the following parameters:
 
-* **Paths**: Tell Voyarr where your folders are located on your NAS:
+* **Paths**: Point Voyarr to your physical media libraries on your host:
   ```env
-  # 1. Point this to the config folder you created inside your chosen root path
-  CONFIG_ROOT=/volume1/docker/voyarr/config
-  
-  # 2. Point this to the db-data folder you created inside your chosen root path
-  DB_DATA_PATH=/volume1/docker/voyarr/db-data
-
-  # 3. Point this to the backups folder you created inside your chosen root path
-  BACKUP_ROOT=/volume1/docker/voyarr/backups
-  
-  # 4. Point this to your existing media folder (e.g. /volume1/video)
+  # Point this to your existing primary media folder (e.g. /volume1/video)
   MEDIA_ROOT_1=/volume1/video
   ```
 
   > [!NOTE]
+  > **What about system configuration folders?**
+  > By default, your database and settings are safely managed by standard Docker named volumes (`voyarr-config`, `voyarr-db-data`, `voyarr-backups`, `voyarr-certs`), meaning you **do not** have to specify paths like `CONFIG_ROOT` or `DB_DATA_PATH` in `.env` to start the app.
+  > 
   > **Why are there multiple media variables?**
   > * **`MEDIA_ROOT_1` (Host Path)**: This is where your actual files live on your NAS. Voyarr mounts this host folder inside the container so it can access it.
   > * **`MEDIA_ROOT` (Inside-Container Scanner Path)**: This tells the backend app *inside the container* where to look for media. By default, it is set to `/media/storage` (which corresponds to `MEDIA_ROOT_1` inside the container).

@@ -11,7 +11,7 @@ services:
       - voyarr-db-data:/var/lib/postgresql/data
       - voyarr-backups:/backups
     ports:
-      - "${POSTGRES_PORT:-}:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-voyarr_user} -d $${POSTGRES_DB:-voyarr}"]
       interval: 10s
@@ -27,7 +27,7 @@ services:
     environment:
       - TZ=${TZ:-UTC}
     ports:
-      - "${REDIS_PORT:-}:6379"
+      - "${REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -77,11 +77,11 @@ services:
       - voyarr-config:/app/config
       - voyarr-backups:/app/backups
       - voyarr-certs:/app/certs:ro
-      - ${MEDIA_ROOT_1:-${APP_ROOT:-/opt/voyarr}/media}:/media/storage
-      - ${MEDIA_ROOT_2:-${APP_ROOT:-/opt/voyarr}/media_alt1}:/media/storage_alt1
-      - ${MEDIA_ROOT_3:-${APP_ROOT:-/opt/voyarr}/media_alt2}:/media/storage_alt2
+      - ${MEDIA_ROOT_1:-./media}:/media/storage
+      - ${MEDIA_ROOT_2:-./media_alt1}:/media/storage_alt1
+      - ${MEDIA_ROOT_3:-./media_alt2}:/media/storage_alt2
     ports:
-      - "${PORT:-}:8000"
+      - "${PORT:-8000}:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -94,11 +94,9 @@ services:
     networks:
       - voyarr_network
 
-  celery_worker:
+  x-celery-worker: &celery-worker
     image: ghcr.io/gabrieljustinsider/voyarr-backend:latest
-    container_name: voyarr-celery
     user: "${PUID:-1000}:${PGID:-1000}"
-    command: sh -c "mkdir -p /media/storage/logs && celery -A celery_app.celery_app worker --loglevel=${CELERY_LOG_LEVEL:-info} --logfile=/media/storage/logs/celery.log"
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-voyarr}}
       - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
@@ -113,22 +111,27 @@ services:
     volumes:
       - voyarr-config:/app/config
       - voyarr-backups:/app/backups
-      - ${MEDIA_ROOT_1:-${APP_ROOT:-/opt/voyarr}/media}:/media/storage
-      - ${MEDIA_ROOT_2:-${APP_ROOT:-/opt/voyarr}/media_alt1}:/media/storage_alt1
-      - ${MEDIA_ROOT_3:-${APP_ROOT:-/opt/voyarr}/media_alt2}:/media/storage_alt2
+      - ${MEDIA_ROOT_1:-./media}:/media/storage
+      - ${MEDIA_ROOT_2:-./media_alt1}:/media/storage_alt1
+      - ${MEDIA_ROOT_3:-./media_alt2}:/media/storage_alt2
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - voyarr_network
+
+  celery_worker:
+    <<: *celery-worker
+    container_name: voyarr-celery
+    command: sh -c "mkdir -p /media/storage/logs && celery -A celery_app.celery_app worker -Q celery,downloads,transcodes,scraping,ai_inference --concurrency=${CELERY_CONCURRENCY:-4} --loglevel=${CELERY_LOG_LEVEL:-info} --logfile=/media/storage/logs/celery.log"
     healthcheck:
       test: ["CMD-SHELL", "celery -A celery_app.celery_app inspect ping || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 15s
-    networks:
-      - voyarr_network
 
   celery_beat:
     image: ghcr.io/gabrieljustinsider/voyarr-backend:latest
@@ -157,7 +160,7 @@ services:
       - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8000}
       - TZ=${TZ:-UTC}
     ports:
-      - "${FRONTEND_PORT:-}:80"
+      - "${FRONTEND_PORT:-80}:80"
     depends_on:
       backend:
         condition: service_healthy
@@ -176,26 +179,6 @@ networks:
 
 volumes:
   voyarr-db-data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${DB_DATA_PATH:-${APP_ROOT:-/opt/voyarr}/db/data}
   voyarr-config:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${CONFIG_ROOT:-${APP_ROOT:-/opt/voyarr}/config}
   voyarr-backups:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${BACKUP_ROOT:-${APP_ROOT:-/opt/voyarr}/backups}
   voyarr-certs:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${CERTS_ROOT:-${APP_ROOT:-/opt/voyarr}/certs}
