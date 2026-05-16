@@ -25,7 +25,9 @@ services:
       - voyarr_network
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      network: host
     container_name: voyarr-backend
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-voyarr}}
@@ -47,7 +49,9 @@ services:
       - voyarr_network
 
   celery_worker:
-    build: ./backend
+    build:
+      context: ./backend
+      network: host
     container_name: voyarr-celery
     command: sh -c "mkdir -p /media/storage/logs && celery -A celery_app.celery_app worker --loglevel=info --logfile=/media/storage/logs/celery.log"
     environment:

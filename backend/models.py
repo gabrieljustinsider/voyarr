@@ -333,3 +333,20 @@ class Webhook(Base):
     events = Column(JSON)  # Array of event strings (e.g., 'transcode.completed')
     is_active = Column(Boolean, default=True)
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
+
+
+class MediaRequest(Base):
+    __tablename__ = "media_requests"
+
+    id = Column(Integer, primary_key=True)
+    title = Column(String(500), nullable=False)
+    url = Column(Text, nullable=True)
+    status = Column(
+        String(50), default="pending"
+    )  # 'pending', 'approved', 'rejected', 'downloaded'
+    requested_by = Column(String(255), nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(TIMESTAMP, default=func.current_timestamp())
+    updated_at = Column(
+        TIMESTAMP, default=func.current_timestamp(), onupdate=func.current_timestamp()
+    )

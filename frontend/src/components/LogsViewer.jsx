@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Box, Typography, Paper, Button, CircularProgress } from '@mui/material'
 
 const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
@@ -7,26 +7,31 @@ export default function LogsViewer() {
   const [logs, setLogs] = useState([])
   const [loading, setLoading] = useState(false)
   const bottomRef = useRef(null)
-
-  const fetchLogs = useCallback(async () => {
-    try {
-      const res = await fetch(`${API_BASE}/logs?lines=300`, {
-        headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setLogs(data.logs)
-      }
-    } catch (e) {
-      console.error(e)
-    }
-  }, [])
+  const wsRef = useRef(null)
 
   useEffect(() => {
-    fetchLogs()
-    const interval = setInterval(fetchLogs, 5000)
-    return () => clearInterval(interval)
-  }, [fetchLogs])
+    const wsUrl = API_BASE.replace(/^http/, 'ws') + `/logs/ws?api_key=${import.meta.env.VITE_MASTER_KEY}`
+    const ws = new WebSocket(wsUrl)
+    wsRef.current = ws
+
+    ws.onmessage = (event) => {
+      setLogs((prevLogs) => {
+        const newLogs = [...prevLogs, event.data]
+        // Keep only the last 1000 logs to prevent memory issues
+        return newLogs.slice(-1000)
+      })
+    }
+
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error)
+    }
+
+    return () => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close()
+      }
+    }
+  }, [])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
