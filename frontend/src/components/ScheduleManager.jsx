@@ -65,7 +65,10 @@ export default function ScheduleManager() {
       const res = await fetch(`${API_BASE}/schedules`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          ...formData,
+          provider_id: formData.provider_id ? parseInt(formData.provider_id, 10) : null
+        })
       });
       if (res.ok) {
         setFormData({

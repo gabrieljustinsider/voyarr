@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { 
   Box, Typography, Card, CardContent, Grid, TextField, 
   Chip, FormControl, InputLabel, Select, MenuItem, Paper, CardMedia, Tooltip,
@@ -8,6 +8,8 @@ import {
 import CloseIcon from '@mui/icons-material/Close'
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutlined'
 import SettingsIcon from '@mui/icons-material/Settings'
+
+const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
 
 export default function Library() {
   const [entries, setEntries] = useState([])
@@ -30,12 +32,11 @@ export default function Library() {
   const [rescanLoading, setRescanLoading] = useState(false)
   const [scanResult, setScanResult] = useState(null)
 
-  const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
-  const getApiKey = () => {
+  const getApiKey = useCallback(() => {
     return apiKey || import.meta.env.VITE_MASTER_KEY || '';
-  }
+  }, [apiKey])
 
-  const fetchLibrary = async () => {
+  const fetchLibrary = useCallback(async () => {
     try {
       // Construct query parameters from active filters
       const params = new URLSearchParams()
@@ -51,11 +52,11 @@ export default function Library() {
     } catch (e) {
       console.error("Failed to fetch library entries:", e)
     }
-  }
+  }, [filters, getApiKey])
 
   useEffect(() => {
     fetchLibrary()
-  }, [filters])
+  }, [fetchLibrary])
 
   const handleSaveSettings = () => {
     localStorage.setItem('voyarr_api_key', apiKey)
@@ -71,7 +72,7 @@ export default function Library() {
     setPlayingVideo(null)
   }
 
-  const fetchProviders = async () => {
+  const fetchProviders = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/providers`, {
         headers: { 'X-Voyarr-Api-Key': getApiKey() }
@@ -80,11 +81,11 @@ export default function Library() {
     } catch (e) {
       console.error(e)
     }
-  }
+  }, [getApiKey])
 
   useEffect(() => {
     if (scanDialogOpen && providers.length === 0) fetchProviders()
-  }, [scanDialogOpen])
+  }, [scanDialogOpen, providers.length, fetchProviders])
 
   const handleScanDirectory = async () => {
     setScanLoading(true)

@@ -1,14 +1,14 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Box, Typography, Paper, Button, CircularProgress } from '@mui/material'
+
+const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
 
 export default function LogsViewer() {
   const [logs, setLogs] = useState([])
   const [loading, setLoading] = useState(false)
   const bottomRef = useRef(null)
 
-  const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
-
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/logs?lines=300`, {
         headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
@@ -20,13 +20,13 @@ export default function LogsViewer() {
     } catch (e) {
       console.error(e)
     }
-  }
+  }, [])
 
   useEffect(() => {
     fetchLogs()
     const interval = setInterval(fetchLogs, 5000)
     return () => clearInterval(interval)
-  }, [])
+  }, [fetchLogs])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })

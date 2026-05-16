@@ -1,6 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { Box, Typography, Button, Paper, Grid, Checkbox, FormControlLabel, CircularProgress, Alert, Divider } from '@mui/material'
 
+const API_BASE = `${import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`}/backup`
+const HEADERS = {
+  'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
+}
+
 export default function BackupManager() {
   const [tables, setTables] = useState([])
   const [selectedTables, setSelectedTables] = useState([])
@@ -11,11 +16,6 @@ export default function BackupManager() {
   const [restoreLoading, setRestoreLoading] = useState(false)
   const [restoreMessage, setRestoreMessage] = useState(null)
   const fileInputRef = useRef(null)
-
-  const API_BASE = `${import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`}/backup`
-  const HEADERS = {
-    'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
-  }
 
   useEffect(() => {
     fetch(`${API_BASE}/tables`, { headers: HEADERS })

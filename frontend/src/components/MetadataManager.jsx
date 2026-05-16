@@ -5,19 +5,18 @@ import {
   Chip, CircularProgress, FormControl, InputLabel, Select, MenuItem
 } from '@mui/material'
 
+const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
+const HEADERS = {
+  'Content-Type': 'application/json',
+  'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
+}
+
 export default function MetadataManager() {
   const [entryId, setEntryId] = useState('')
   const [metadata, setMetadata] = useState(null)
   const [loading, setLoading] = useState(false)
   const [libraryEntries, setLibraryEntries] = useState([])
-  const [openDialog, setOpenDialog] = useState(false)
   const [message, setMessage] = useState('')
-
-  const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
-  const HEADERS = {
-    'Content-Type': 'application/json',
-    'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
-  }
 
   useEffect(() => {
     fetch(`${API_BASE}/library`, { headers: HEADERS })

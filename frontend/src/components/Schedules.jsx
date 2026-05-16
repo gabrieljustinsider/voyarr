@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { 
   Box, Typography, Button, TextField, CircularProgress, Dialog, 
   DialogTitle, DialogContent, DialogActions, Table, TableHead, 
@@ -8,6 +8,16 @@ import {
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import DeleteIcon from '@mui/icons-material/Delete'
 
+const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
+
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('voyarr_jwt')
+  if (token) return { 'Authorization': `Bearer ${token}` }
+  const apiKey = localStorage.getItem('voyarr_api_key')
+  if (apiKey) return { 'X-Voyarr-Api-Key': apiKey }
+  return {}
+}
+
 export default function Schedules() {
   const [schedules, setSchedules] = useState([])
   const [loading, setLoading] = useState(true)
@@ -16,17 +26,7 @@ export default function Schedules() {
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' })
   const [formData, setFormData] = useState({ name: '', provider_id: '', target_url: '', cron_expression: '0 0 * * *' })
 
-  const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
-
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem('voyarr_jwt')
-    if (token) return { 'Authorization': `Bearer ${token}` }
-    const apiKey = localStorage.getItem('voyarr_api_key')
-    if (apiKey) return { 'X-Voyarr-Api-Key': apiKey }
-    return {}
-  }
-
-  const fetchSchedules = async () => {
+  const fetchSchedules = useCallback(async () => {
     setLoading(true)
     try {
       const res = await fetch(`${API_BASE}/schedules`, {
@@ -36,11 +36,11 @@ export default function Schedules() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     fetchSchedules()
-  }, [])
+  }, [fetchSchedules])
 
   const handleCreate = async () => {
     try {
@@ -52,7 +52,7 @@ export default function Schedules() {
         },
         body: JSON.stringify({
           ...formData,
-          provider_id: parseInt(formData.provider_id, 10)
+          provider_id: formData.provider_id ? parseInt(formData.provider_id, 10) : null
         })
       })
       if (res.ok) {

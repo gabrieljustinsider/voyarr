@@ -1,9 +1,11 @@
 import os
 from typing import Dict, Any
+
 try:
     from mutagen.mp4 import MP4
 except ImportError:
     MP4 = None
+
 
 class MediaTagger:
     @staticmethod
@@ -13,15 +15,15 @@ class MediaTagger:
         """
         if MP4 is None or not os.path.exists(file_path):
             return False
-            
+
         try:
             video = MP4(file_path)
-            if 'title' in metadata:
-                video['\xa9nam'] = metadata['title']
-            if 'performers' in metadata and isinstance(metadata['performers'], list):
-                video['\xa9ART'] = ", ".join(metadata['performers'])
-            if 'description' in metadata:
-                video['desc'] = metadata['description']
+            if "title" in metadata:
+                video["\xa9nam"] = metadata["title"]
+            if "performers" in metadata and isinstance(metadata["performers"], list):
+                video["\xa9ART"] = ", ".join(metadata["performers"])
+            if "description" in metadata:
+                video["desc"] = metadata["description"]
             video.save()
             return True
         except Exception as e:

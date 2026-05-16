@@ -2,11 +2,13 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
+
 class CredentialCreate(BaseModel):
     provider_id: int
     username: str
     password: str
     custom_limits: dict | None = None
+
 
 class CredentialResponse(BaseModel):
     id: int
@@ -16,6 +18,8 @@ class CredentialResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
 class LibraryEntryBase(BaseModel):
     provider_id: int
     title: str
@@ -30,8 +34,10 @@ class LibraryEntryBase(BaseModel):
     site_id: Optional[str] = None
     entry_metadata: Optional[Dict[str, Any]] = None
 
+
 class LibraryEntryCreate(LibraryEntryBase):
     pass
+
 
 class LibraryEntryResponse(LibraryEntryBase):
     id: int
@@ -41,6 +47,7 @@ class LibraryEntryResponse(LibraryEntryBase):
     class Config:
         from_attributes = True
 
+
 class LocalFileBase(BaseModel):
     media_entry_id: int
     file_path: str
@@ -48,8 +55,10 @@ class LocalFileBase(BaseModel):
     resolution: Optional[str] = None
     matched: bool = False
 
+
 class LocalFileCreate(LocalFileBase):
     pass
+
 
 class LocalFileResponse(LocalFileBase):
     id: int
@@ -58,46 +67,57 @@ class LocalFileResponse(LocalFileBase):
     class Config:
         from_attributes = True
 
+
 class CustomListBase(BaseModel):
     name: str
     item_type: str
     items: List[str]
 
+
 class CustomListCreate(CustomListBase):
     pass
+
 
 class CustomListResponse(CustomListBase):
     id: int
     created_at: Optional[datetime] = None
+
     class Config:
         from_attributes = True
+
 
 class DownloadRuleBase(BaseModel):
     name: str
     criteria: Optional[Dict[str, Any]] = None
-    action: str = 'download'
-    scope: str = 'global'
+    action: str = "download"
+    scope: str = "global"
     is_active: bool = True
+
 
 class DownloadRuleCreate(DownloadRuleBase):
     pass
 
+
 class DownloadRuleResponse(DownloadRuleBase):
     id: int
     created_at: Optional[datetime] = None
+
     class Config:
         from_attributes = True
+
 
 class ScrapeScheduleBase(BaseModel):
     provider_id: int
     name: str
     target_url: Optional[str] = None
     cron_expression: str
-    action: str = 'metadata_and_download'
+    action: str = "metadata_and_download"
     is_active: bool = True
+
 
 class ScrapeScheduleCreate(ScrapeScheduleBase):
     pass
+
 
 class ScrapeScheduleUpdate(BaseModel):
     provider_id: Optional[int] = None
@@ -106,6 +126,7 @@ class ScrapeScheduleUpdate(BaseModel):
     cron_expression: Optional[str] = None
     action: Optional[str] = None
     is_active: Optional[bool] = None
+
 
 class ScrapeScheduleResponse(ScrapeScheduleBase):
     id: int
@@ -119,10 +140,12 @@ class ScrapeScheduleResponse(ScrapeScheduleBase):
     class Config:
         from_attributes = True
 
+
 class CookieCreate(BaseModel):
     provider_id: int
     cookie_text: str
     download_limit: Optional[int] = None
+
 
 class CookieResponse(BaseModel):
     id: int
@@ -134,6 +157,7 @@ class CookieResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
 
 class DuplicateAction(BaseModel):
     action: str

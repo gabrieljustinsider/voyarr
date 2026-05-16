@@ -9,6 +9,7 @@ from database import SessionLocal
 from models import LibraryEntry
 from services.hash_service import HashService
 
+
 def rescan_missing_hashes():
     """
     Scans the database for LibraryEntries missing either an ohash or phash
@@ -16,46 +17,59 @@ def rescan_missing_hashes():
     """
     db = SessionLocal()
     print("Scanning for library entries with missing hashes...")
-    
+
     # Find entries missing either ohash or phash
-    entries = db.query(LibraryEntry).filter(
-        or_(LibraryEntry.ohash.is_(None), LibraryEntry.phash.is_(None))
+    entry_ids = (
+        db.query(LibraryEntry.id)
+        .filter(
+            or_(
+                LibraryEntry.ohash.is_(None),
+                LibraryEntry.ohash == "",
+                LibraryEntry.phash.is_(None),
+                LibraryEntry.phash == "",
+            )
+        )
+        .all()
     )
-    
-    if not entries.first():
+
+    if not entry_ids:
         print("No entries with missing hashes found. Your library is fully hashed!")
         db.close()
         return
 
-    for entry in entries.yield_per(100):
+    for (entry_id,) in entry_ids:
+        entry = db.query(LibraryEntry).get(entry_id)
         if not os.path.exists(entry.file_path):
-            print(f"File missing on disk for entry #{entry.id} ({entry.title}), skipping.")
+            print(
+                f"File missing on disk for entry #{entry.id} ({entry.title}), skipping."
+            )
             continue
-        
+
         updated = False
-        
-        if not entry.ohash:
+
+        if not entry.ohash or entry.ohash == "":
             print(f"Generating ohash for {entry.file_path}...")
             try:
                 entry.ohash = HashService.generate_ohash(entry.file_path)
                 updated = True
             except Exception as e:
                 print(f"Failed to generate ohash: {e}")
-            
-        if not entry.phash:
+
+        if not entry.phash or entry.phash == "":
             print(f"Generating phash for {entry.file_path}...")
             try:
                 entry.phash = HashService.generate_phash(entry.file_path)
                 updated = True
             except Exception as e:
                 print(f"Failed to generate phash: {e}")
-            
+
         if updated:
             db.commit()
             print(f"Successfully updated hashes for entry #{entry.id}.")
-            
+
     db.close()
     print("Finished rescanning hashes.")
+
 
 if __name__ == "__main__":
     rescan_missing_hashes()
