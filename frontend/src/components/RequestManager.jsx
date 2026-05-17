@@ -1,19 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Box, Typography, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Button, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Select, FormControl, InputLabel } from '@mui/material'
-
-const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
-
-const getAuthHeaders = () => {
-  const headers = { 'Content-Type': 'application/json' }
-  const token = localStorage.getItem('voyarr_jwt')
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  } else {
-    const apiKey = localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY
-    if (apiKey) headers['X-Voyarr-Api-Key'] = apiKey
-  }
-  return headers
-}
+import { apiFetch } from '../api'
 
 export default function RequestManager() {
   const [requests, setRequests] = useState([])
@@ -22,9 +9,7 @@ export default function RequestManager() {
 
   const fetchRequests = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/requests`, {
-        headers: getAuthHeaders()
-      })
+      const res = await apiFetch('/requests')
       if (res.ok) {
         const data = await res.json()
         setRequests(data)
@@ -45,9 +30,8 @@ export default function RequestManager() {
 
   const handleSave = async () => {
     try {
-      await fetch(`${API_BASE}/requests/${currentReq.id}`, {
+      await apiFetch(`/requests/${currentReq.id}`, {
         method: 'PUT',
-        headers: getAuthHeaders(),
         body: JSON.stringify({ status: currentReq.status, notes: currentReq.notes })
       })
       fetchRequests()
@@ -61,9 +45,8 @@ export default function RequestManager() {
     const confirmed = window.appConfirm ? await window.appConfirm('Are you sure you want to delete this request?') : window.confirm('Are you sure you want to delete this request?');
     if (confirmed) {
       try {
-        await fetch(`${API_BASE}/requests/${id}`, {
-          method: 'DELETE',
-          headers: getAuthHeaders()
+        await apiFetch(`/requests/${id}`, {
+          method: 'DELETE'
         })
         fetchRequests()
       } catch (e) {

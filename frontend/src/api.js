@@ -1,11 +1,11 @@
-const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
+export const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
 
 export const getAuthHeaders = () => {
   const jwt = localStorage.getItem('voyarr_jwt')
   if (jwt) {
     return { 'Authorization': `Bearer ${jwt}` }
   }
-  const apiKey = localStorage.getItem('voyarr_api_key')
+  const apiKey = localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY
   if (apiKey) {
     return { 'X-Voyarr-Api-Key': apiKey }
   }

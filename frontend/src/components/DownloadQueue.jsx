@@ -3,19 +3,7 @@ import {
   Typography, LinearProgress, List, ListItem, Box, Button, Chip, 
   TextField, Select, MenuItem, FormControl, InputLabel, Paper, Grid, CircularProgress 
 } from '@mui/material'
-
-const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
-const getAuthHeaders = () => {
-  const headers = { 'Content-Type': 'application/json' }
-  const token = localStorage.getItem('voyarr_jwt')
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  } else {
-    const apiKey = localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY
-    if (apiKey) headers['X-Voyarr-Api-Key'] = apiKey
-  }
-  return headers
-}
+import apiFetch from '../api'
 
 export default function DownloadQueue({ queue, onRefresh }) {
   const [providers, setProviders] = useState([])
@@ -24,7 +12,7 @@ export default function DownloadQueue({ queue, onRefresh }) {
   const [filters, setFilters] = useState({ status: '', url_contains: '', provider_id: '' })
 
   useEffect(() => {
-    fetch(`${API_BASE}/providers`, { headers: getAuthHeaders() })
+    apiFetch('/providers')
       .then(res => res.json())
       .then(data => setProviders(data))
       .catch(console.error)
@@ -34,9 +22,8 @@ export default function DownloadQueue({ queue, onRefresh }) {
     if (!newDownload.provider_id || !newDownload.url) return
     setLoading(true)
     try {
-      const res = await fetch(`${API_BASE}/download/start`, {
+      const res = await apiFetch('/download/start', {
         method: 'POST',
-        headers: getAuthHeaders(),
         body: JSON.stringify({ ...newDownload, force_duplicate })
       })
       const data = await res.json()
@@ -62,9 +49,8 @@ export default function DownloadQueue({ queue, onRefresh }) {
 
   const handleAction = async (taskId, action) => {
     try {
-      const response = await fetch(`${API_BASE}/download/${taskId}/${action}`, { 
-        method: 'POST',
-        headers: getAuthHeaders()
+      const response = await apiFetch(`/download/${taskId}/${action}`, { 
+        method: 'POST'
       })
       if (response.ok) {
         console.log(`Download ${action} triggered`)

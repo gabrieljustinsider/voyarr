@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-from database import get_db, SessionLocal
+from database import get_db
 from models import LibraryEntry, DownloadPreference
 from typing import Optional
 import os
 from services.reverse_regex import ReverseRegexMatcher
 from services.hash_service import HashService
+from db_utils import get_db_session
 
 from dependencies import verify_api_key
 from utils import get_media_roots
@@ -122,11 +123,10 @@ def stream_video(entry_id: int, db: Session = Depends(get_db)):
 
 
 def process_missing_hashes_task():
-    db = SessionLocal()
-    try:
+    with get_db_session() as db:
         entry_ids = [
             row[0] for row in db.query(LibraryEntry.id)
-            .filter((LibraryEntry.phash is None) | (LibraryEntry.phash == ""))
+            .filter((LibraryEntry.phash.is_(None)) | (LibraryEntry.phash == ""))
             .all()
         ]
         for eid in entry_ids:
@@ -142,8 +142,6 @@ def process_missing_hashes_task():
             except Exception as e:
                 db.rollback()
                 print(f"Error rescanning hashes for entry {eid}: {str(e)}")
-    finally:
-        db.close()
 
 
 @router.post(

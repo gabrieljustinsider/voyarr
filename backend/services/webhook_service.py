@@ -1,8 +1,8 @@
 import requests
 import urllib.parse
-from database import SessionLocal
 from models import Webhook
 import logging
+from db_utils import get_db_session
 
 logger = logging.getLogger(__name__)
 
@@ -10,8 +10,7 @@ logger = logging.getLogger(__name__)
 class WebhookService:
     @staticmethod
     def trigger(event_name: str, payload: dict):
-        db = SessionLocal()
-        try:
+        with get_db_session() as db:
             webhooks = db.query(Webhook).filter(Webhook.is_active).all()
             for wh in webhooks:
                 # Check if the webhook subscribes to this specific event (or all events if empty)
@@ -71,5 +70,3 @@ class WebhookService:
                         requests.post(wh.url, json=data, timeout=5)
                     except Exception as e:
                         logger.error(f"Failed to trigger webhook {wh.name}: {e}")
-        finally:
-            db.close()

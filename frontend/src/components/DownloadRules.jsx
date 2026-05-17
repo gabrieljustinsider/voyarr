@@ -6,20 +6,7 @@ import {
 } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
 import AddIcon from '@mui/icons-material/Add'
-
-const API_BASE = `${import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`}/rules`
-
-const getAuthHeaders = () => {
-  const headers = { 'Content-Type': 'application/json' }
-  const token = localStorage.getItem('voyarr_jwt')
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  } else {
-    const apiKey = localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY
-    if (apiKey) headers['X-Voyarr-Api-Key'] = apiKey
-  }
-  return headers
-}
+import { apiFetch } from '../api'
 
 export default function DownloadRules() {
   const [lists, setLists] = useState([])
@@ -39,9 +26,7 @@ export default function DownloadRules() {
 
   const fetchLists = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/lists`, {
-        headers: getAuthHeaders()
-      })
+      const res = await apiFetch('/rules/lists')
       if (res.ok) setLists(await res.json())
     } catch (e) {
       console.error('Failed to fetch lists:', e)
@@ -50,9 +35,7 @@ export default function DownloadRules() {
 
   const fetchRules = useCallback(async () => {
     try {
-      const res = await fetch(API_BASE, {
-        headers: getAuthHeaders()
-      })
+      const res = await apiFetch('/rules')
       if (res.ok) setRules(await res.json())
     } catch (e) {
       console.error('Failed to fetch rules:', e)
@@ -67,9 +50,8 @@ export default function DownloadRules() {
   // --- Custom List Handlers ---
   const handleSaveList = async () => {
     try {
-      await fetch(`${API_BASE}/lists`, {
+      await apiFetch('/rules/lists', {
         method: 'POST',
-        headers: getAuthHeaders(),
         body: JSON.stringify(currentList)
       })
       setOpenListDialog(false)
@@ -81,9 +63,8 @@ export default function DownloadRules() {
 
   const handleDeleteList = async (id) => {
     try {
-      await fetch(`${API_BASE}/lists/${id}`, { 
-        method: 'DELETE',
-        headers: getAuthHeaders()
+      await apiFetch(`/rules/lists/${id}`, { 
+        method: 'DELETE'
       })
       fetchLists()
     } catch (e) {
@@ -108,9 +89,8 @@ export default function DownloadRules() {
   // --- Rule Handlers ---
   const handleSaveRule = async () => {
     try {
-      await fetch(API_BASE, {
+      await apiFetch('/rules', {
         method: 'POST',
-        headers: getAuthHeaders(),
         body: JSON.stringify(currentRule)
       })
       setOpenRuleDialog(false)
@@ -122,9 +102,8 @@ export default function DownloadRules() {
 
   const handleDeleteRule = async (id) => {
     try {
-      await fetch(`${API_BASE}/${id}`, { 
-        method: 'DELETE',
-        headers: getAuthHeaders()
+      await apiFetch(`/rules/${id}`, { 
+        method: 'DELETE'
       })
       fetchRules()
     } catch (e) {
@@ -217,7 +196,7 @@ export default function DownloadRules() {
       {/* Add List Dialog */}
       <Dialog open={openListDialog} onClose={() => setOpenListDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Create Custom List</DialogTitle>
-        <DialogContent>
+        <DialogContent dividers>
           <TextField fullWidth label="List Name" value={currentList.name} onChange={e => setCurrentList({...currentList, name: e.target.value})} margin="normal" />
           <FormControl fullWidth margin="normal">
             <InputLabel>Item Type</InputLabel>
@@ -246,7 +225,7 @@ export default function DownloadRules() {
       {/* Add Rule Dialog */}
       <Dialog open={openRuleDialog} onClose={() => setOpenRuleDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Create Download Rule</DialogTitle>
-        <DialogContent>
+        <DialogContent dividers>
           <TextField fullWidth label="Rule Name" value={currentRule.name} onChange={e => setCurrentRule({...currentRule, name: e.target.value})} margin="normal" />
           
           <Grid container spacing={2}>

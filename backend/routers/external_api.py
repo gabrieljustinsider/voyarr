@@ -7,10 +7,10 @@ import asyncio
 import json
 from celery.result import AsyncResult
 
-from database import SessionLocal
 from models import LibraryEntry
 from tasks.scrape_tasks import scrape_url_task
 from tasks.scanner_tasks import scan_library_task
+from db_utils import get_db_session
 
 from dependencies import verify_api_key
 
@@ -199,8 +199,7 @@ async def stream_scrape_task(task_id: str):
 @router.get("/library/search")
 def search_library(title: Optional[str] = None, hash: Optional[str] = None):
     """Optimized search endpoint for the Stash plugin"""
-    db = SessionLocal()
-    try:
+    with get_db_session() as db:
         query = db.query(LibraryEntry)
         if title:
             query = query.filter(LibraryEntry.title.ilike(f"%{title}%"))
@@ -221,8 +220,6 @@ def search_library(title: Optional[str] = None, hash: Optional[str] = None):
                 }
             )
         return results
-    finally:
-        db.close()
 
 
 @router.post("/library/scan")

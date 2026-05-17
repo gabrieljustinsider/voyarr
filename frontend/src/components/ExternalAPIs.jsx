@@ -5,24 +5,13 @@ import {
   TableContainer, TableHead, TableRow, Paper, Dialog, DialogTitle,
   DialogContent, DialogActions, Chip
 } from '@mui/material'
+import { apiFetch } from '../api'
 
 function TabPanel({ children, value, index }) {
   return value === index ? <Box>{children}</Box> : null
 }
 
 export default function ExternalAPIs() {
-  const getAuthHeaders = (extraHeaders = {}) => {
-    const headers = { 'Content-Type': 'application/json', ...extraHeaders }
-    const token = localStorage.getItem('voyarr_jwt')
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`
-    } else {
-      const apiKey = localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY
-      if (apiKey) headers['X-Voyarr-Api-Key'] = apiKey
-    }
-    return headers
-  }
-
   const [tabValue, setTabValue] = useState(0)
   const [tpdbKey, setTpdbKey] = useState('')
   const [stashdbKey, setStashdbKey] = useState('')
@@ -32,8 +21,6 @@ export default function ExternalAPIs() {
   const [message, setMessage] = useState('')
   const [openSyncDialog, setOpenSyncDialog] = useState(false)
   const [selectedResult, setSelectedResult] = useState(null)
-
-  const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
 
   const handleTabChange = (e, value) => {
     setTabValue(value)
@@ -51,12 +38,12 @@ export default function ExternalAPIs() {
 
     setLoading(true)
     try {
-      const response = await fetch(`${API_BASE}/external-api/theporndb/query`, {
+      const response = await apiFetch('/external-api/theporndb/query', {
         method: 'POST',
+        headers: { 'X-API-Key': tpdbKey },
         body: JSON.stringify({
           query: searchQuery
-        }),
-        headers: getAuthHeaders({ 'X-API-Key': tpdbKey })
+        })
       })
 
       if (response.ok) {
@@ -80,9 +67,9 @@ export default function ExternalAPIs() {
 
     setLoading(true)
     try {
-      const response = await fetch(`${API_BASE}/external-api/stashdb/query`, {
+      const response = await apiFetch('/external-api/stashdb/query', {
         method: 'POST',
-        headers: getAuthHeaders({ 'X-API-Key': stashdbKey }),
+        headers: { 'X-API-Key': stashdbKey },
         body: JSON.stringify({
           query: searchQuery
         })
@@ -106,9 +93,9 @@ export default function ExternalAPIs() {
     
     setLoading(true)
     try {
-      const response = await fetch(`${API_BASE}/external-api/theporndb/update`, {
+      const response = await apiFetch('/external-api/theporndb/update', {
         method: 'POST',
-        headers: getAuthHeaders({ 'X-API-Key': tpdbKey }),
+        headers: { 'X-API-Key': tpdbKey },
         body: JSON.stringify({
           site_id: selectedResult.id,
           title: selectedResult.title,
@@ -136,9 +123,9 @@ export default function ExternalAPIs() {
 
     setLoading(true)
     try {
-      const response = await fetch(`${API_BASE}/external-api/stashdb/update`, {
+      const response = await apiFetch('/external-api/stashdb/update', {
         method: 'POST',
-        headers: getAuthHeaders({ 'X-API-Key': stashdbKey }),
+        headers: { 'X-API-Key': stashdbKey },
         body: JSON.stringify({
           site_id: selectedResult.id,
           title: selectedResult.title,
@@ -334,7 +321,7 @@ export default function ExternalAPIs() {
       {/* Sync Dialog */}
       <Dialog open={openSyncDialog} onClose={() => setOpenSyncDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Sync Metadata</DialogTitle>
-        <DialogContent>
+        <DialogContent dividers>
           {selectedResult && (
             <Box sx={{ pt: 2 }}>
               <Typography><strong>Title:</strong> {selectedResult.title}</Typography>

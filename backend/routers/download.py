@@ -488,8 +488,7 @@ def stream_download_queue(request: Request):
         while True:
             if await request.is_disconnected():
                 break
-            db = SessionLocal()
-            try:
+            with get_db_session() as db:
                 # Only push active tasks to the client to save bandwidth and memory
                 tasks = (
                     db.query(DownloadQueue)
@@ -519,8 +518,6 @@ def stream_download_queue(request: Request):
                         }
                     )
                 yield f"data: {json.dumps(data)}\n\n"
-            finally:
-                db.close()
             await asyncio.sleep(2.0)
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
