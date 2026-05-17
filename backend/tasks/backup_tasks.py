@@ -5,6 +5,7 @@ from celery import shared_task
 from database import SessionLocal
 from models import Base
 from routers.backup import CustomJSONEncoder
+from utils import get_primary_root
 
 
 @shared_task
@@ -20,8 +21,9 @@ def automated_backup():
         for table in Base.metadata.sorted_tables:
             rows = db.execute(table.select()).mappings().all()
             data["data"][table.name] = [dict(row) for row in rows]
-
-        backup_dir = os.path.join(os.getenv("MEDIA_ROOT", "/media/storage"), "backups")
+            
+        primary_root = get_primary_root()
+        backup_dir = os.path.join(primary_root, "backups")
         os.makedirs(backup_dir, exist_ok=True)
 
         filename = f"voyarr_backup_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"

@@ -9,6 +9,18 @@ import AddIcon from '@mui/icons-material/Add'
 
 const API_BASE = `${import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`}/rules`
 
+const getAuthHeaders = () => {
+  const headers = { 'Content-Type': 'application/json' }
+  const token = localStorage.getItem('voyarr_jwt')
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  } else {
+    const apiKey = localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY
+    if (apiKey) headers['X-Voyarr-Api-Key'] = apiKey
+  }
+  return headers
+}
+
 export default function DownloadRules() {
   const [lists, setLists] = useState([])
   const [rules, setRules] = useState([])
@@ -28,7 +40,7 @@ export default function DownloadRules() {
   const fetchLists = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/lists`, {
-        headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
+        headers: getAuthHeaders()
       })
       if (res.ok) setLists(await res.json())
     } catch (e) {
@@ -39,7 +51,7 @@ export default function DownloadRules() {
   const fetchRules = useCallback(async () => {
     try {
       const res = await fetch(API_BASE, {
-        headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
+        headers: getAuthHeaders()
       })
       if (res.ok) setRules(await res.json())
     } catch (e) {
@@ -57,10 +69,7 @@ export default function DownloadRules() {
     try {
       await fetch(`${API_BASE}/lists`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(currentList)
       })
       setOpenListDialog(false)
@@ -74,7 +83,7 @@ export default function DownloadRules() {
     try {
       await fetch(`${API_BASE}/lists/${id}`, { 
         method: 'DELETE',
-        headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
+        headers: getAuthHeaders()
       })
       fetchLists()
     } catch (e) {
@@ -101,10 +110,7 @@ export default function DownloadRules() {
     try {
       await fetch(API_BASE, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(currentRule)
       })
       setOpenRuleDialog(false)
@@ -118,7 +124,7 @@ export default function DownloadRules() {
     try {
       await fetch(`${API_BASE}/${id}`, { 
         method: 'DELETE',
-        headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
+        headers: getAuthHeaders()
       })
       fetchRules()
     } catch (e) {
@@ -130,12 +136,14 @@ export default function DownloadRules() {
     let value = criteriaValue
     if (criteriaKey === 'in_list') {
       if (!criteriaListId) {
-        console.warn('No list selected')
+        window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'No list selected', severity: 'warning' } }))
         return
       }
       value = parseInt(criteriaListId)
-    } else if (criteriaKey === 'performers') {
+    } else if (['performers', 'categories', 'series'].includes(criteriaKey)) {
       value = { contains: criteriaValue }
+    } else if (criteriaKey === 'custom_terms') {
+      value = criteriaValue.split(',').map(s => s.trim()).filter(Boolean)
     }
     
     setCurrentRule({

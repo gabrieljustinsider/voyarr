@@ -12,7 +12,7 @@ const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//
 const getAuthHeaders = () => {
   const token = localStorage.getItem('voyarr_jwt');
   if (token) return { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
-  const apiKey = localStorage.getItem('voyarr_api_key');
+  const apiKey = localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY;
   if (apiKey) return { 'X-Voyarr-Api-Key': apiKey, 'Content-Type': 'application/json' };
   return { 'Content-Type': 'application/json' };
 };
@@ -77,7 +77,7 @@ export default function ScheduleManager() {
         fetchData();
         setSnackbar({ open: true, message: 'Schedule created successfully!', severity: 'success' });
       } else {
-        const error = await res.json();
+        const error = await res.json().catch(() => ({}));
         setSnackbar({ open: true, message: `Error: ${error.detail || 'Failed to create schedule'}`, severity: 'error' });
       }
     } catch (e) {
@@ -97,6 +97,9 @@ export default function ScheduleManager() {
         setDeleteConfirm({ open: false, scheduleId: null });
         fetchData();
         setSnackbar({ open: true, message: 'Schedule deleted successfully', severity: 'success' });
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setSnackbar({ open: true, message: `Error: ${err.detail || 'Failed to delete'}`, severity: 'error' });
       }
     } catch (e) {
       console.error('Failed to delete schedule:', e);
@@ -135,6 +138,12 @@ export default function ScheduleManager() {
     } catch (e) {
       setSnackbar({ open: true, message: `Error: ${e.message}`, severity: 'error' });
     }
+  };
+
+  const formatTime = (timeStr) => {
+    if (!timeStr) return 'N/A';
+    const hasTimezone = timeStr.endsWith('Z') || timeStr.includes('+') || timeStr.match(/-\d{2}:\d{2}$/);
+    return new Date(hasTimezone ? timeStr : timeStr + 'Z').toLocaleString();
   };
 
   return (
@@ -232,10 +241,10 @@ export default function ScheduleManager() {
                     <Switch size="small" checked={row.is_active} onChange={() => handleToggle(row.id, row.is_active)} />
                   </TableCell>
                   <TableCell>
-                    {row.last_run ? new Date(row.last_run).toLocaleString() : 'N/A'}
+                    {formatTime(row.last_run)}
                   </TableCell>
                   <TableCell>
-                    {row.next_run ? new Date(row.next_run).toLocaleString() : 'N/A'}
+                    {formatTime(row.next_run)}
                   </TableCell>
                   <TableCell>
                     {row.last_run_status ? (

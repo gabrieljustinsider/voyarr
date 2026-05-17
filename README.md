@@ -13,6 +13,7 @@ Voyarr automates the tedious parts of managing a local media library. From autom
 * **Task Queue:** Celery backed by Redis for robust, persistent download task management (using `yt-dlp`).
 * **Database:** PostgreSQL for relational metadata, local file tracking, and rule management.
 * **Integrations:** Stash Plugin + Browser Extension (Manifest V3).
+* **Credential Sync:** Native 1Password Connect and Bitwarden CLI REST integrations.
 * **Security:** AES-256-GCM encryption for credentials using a RAM-only Master Key.
 
 ## 🔍 Core Features
@@ -23,7 +24,9 @@ Voyarr automates the tedious parts of managing a local media library. From autom
 4. **Quality Upgrade:** Automatically detects if a queued video is a higher resolution (e.g., 4K) than a local file (e.g., 1080p) and upgrades it.
 5. **Reverse Regex Matching Engine:** Scans your `/media` folder and automatically extracts metadata (Title, Performers, Resolution) from existing files based on configurable naming patterns.
 6. **True Perceptual Hashing (phash):** Uses FFmpeg to extract frames and calculates DCT visual hashes to detect visually similar or duplicate videos.
-7. **Remote Mapping Extension:** A Chrome browser extension with a "Map Mode" UI allowing you to click on elements on live websites to generate CSS selectors for site scraping recipes.
+7. **Multi-Drive Storage:** Spread your library across multiple hard drives seamlessly using comma-separated Docker volume mappings.
+8. **Multi-User RBAC:** Create restricted user accounts for friends and family without exposing your Master Key or admin privileges.
+9. **Remote Mapping Extension:** A Chrome browser extension with a "Map Mode" UI allowing you to click on elements on live websites to generate CSS selectors for site scraping recipes.
 
 ## 🐳 Docker Configuration
 

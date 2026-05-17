@@ -42,7 +42,7 @@ def register_user(user: UserCreate, request: Request, db: Session = Depends(get_
 
         is_authorized = False
         master_key_env = os.getenv("MASTER_KEY")
-        if api_key and master_key_env and api_key == master_key_env:
+        if api_key and master_key_env and secrets.compare_digest(api_key, master_key_env):
             is_authorized = True
         elif auth_header and auth_header.startswith("Bearer "):
             token = auth_header.split(" ")[1]

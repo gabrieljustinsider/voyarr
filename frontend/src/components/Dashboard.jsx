@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Typography, Box, Card, CardContent, Grid } from '@mui/material'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
-
-const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
+import apiFetch from '../api'
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
@@ -14,9 +13,7 @@ export default function Dashboard() {
 
   const fetchStats = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE}/progress/stats`, {
-        headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
-      })
+      const response = await apiFetch('/progress/stats')
       if (response.ok) {
         const data = await response.json()
         setStats(data)

@@ -1,5 +1,6 @@
 import os
 import json
+import logging
 from fastapi import APIRouter, Request, HTTPException, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
@@ -9,12 +10,16 @@ from database import get_db
 from models import MediaRequest
 
 router = APIRouter(prefix="/discord", tags=["discord"])
+logger = logging.getLogger(__name__)
 
 
 def verify_signature(request: Request, body: bytes):
     public_key = os.getenv("DISCORD_PUBLIC_KEY")
     if not public_key:
-        return True  # Bypass if not configured, though not recommended in prod
+        # SECURITY: In a production environment, this should probably be required.
+        # We will allow it for now but log a critical warning.
+        logger.warning("DISCORD_PUBLIC_KEY is not set. Discord signature verification is BYPASSED.")
+        return True
 
     signature = request.headers.get("X-Signature-Ed25519")
     timestamp = request.headers.get("X-Signature-Timestamp")
@@ -27,6 +32,9 @@ def verify_signature(request: Request, body: bytes):
         verify_key.verify(timestamp.encode() + body, bytes.fromhex(signature))
     except BadSignatureError:
         raise HTTPException(status_code=401, detail="Invalid request signature")
+    except Exception as e:
+        logger.error(f"Error during Discord signature verification: {str(e)}")
+        raise HTTPException(status_code=401, detail="Could not verify signature")
     return True
 
 

@@ -13,7 +13,7 @@ const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//
 const getAuthHeaders = () => {
   const token = localStorage.getItem('voyarr_jwt')
   if (token) return { 'Authorization': `Bearer ${token}` }
-  const apiKey = localStorage.getItem('voyarr_api_key')
+  const apiKey = localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY
   if (apiKey) return { 'X-Voyarr-Api-Key': apiKey }
   return {}
 }
@@ -60,7 +60,7 @@ export default function Schedules() {
         setFormData({ name: '', provider_id: '', target_url: '', cron_expression: '0 0 * * *' })
         fetchSchedules()
       } else {
-        const err = await res.json()
+        const err = await res.json().catch(() => ({ detail: 'Server Error' }))
         setSnackbar({ open: true, message: `Error: ${err.detail}`, severity: 'error' })
       }
     } catch (e) {
@@ -88,15 +88,20 @@ export default function Schedules() {
     const scheduleId = deleteConfirm.scheduleId
     if (!scheduleId) return
     try {
-      await fetch(`${API_BASE}/schedules/${scheduleId}`, {
+      const res = await fetch(`${API_BASE}/schedules/${scheduleId}`, {
         method: 'DELETE',
         headers: getAuthHeaders()
       })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.detail || 'Failed to delete schedule')
+      }
       setDeleteConfirm({ open: false, scheduleId: null })
       fetchSchedules()
       setSnackbar({ open: true, message: 'Schedule deleted successfully', severity: 'success' })
     } catch (e) {
       console.error(e)
+      setSnackbar({ open: true, message: e.message, severity: 'error' })
     }
   }
 
@@ -119,7 +124,11 @@ export default function Schedules() {
   }
 
   // Convert Python naive UTC ISO strings to local browser time correctly
-  const formatTime = (timeStr) => timeStr ? new Date(timeStr + 'Z').toLocaleString() : 'Never'
+  const formatTime = (timeStr) => {
+    if (!timeStr) return 'Never'
+    const hasTimezone = timeStr.endsWith('Z') || timeStr.includes('+') || timeStr.match(/-\d{2}:\d{2}$/)
+    return new Date(hasTimezone ? timeStr : timeStr + 'Z').toLocaleString()
+  }
 
   return (
     <Box>

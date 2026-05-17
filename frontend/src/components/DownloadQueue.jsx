@@ -5,9 +5,16 @@ import {
 } from '@mui/material'
 
 const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
-const HEADERS = {
-  'Content-Type': 'application/json',
-  'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
+const getAuthHeaders = () => {
+  const headers = { 'Content-Type': 'application/json' }
+  const token = localStorage.getItem('voyarr_jwt')
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  } else {
+    const apiKey = localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY
+    if (apiKey) headers['X-Voyarr-Api-Key'] = apiKey
+  }
+  return headers
 }
 
 export default function DownloadQueue({ queue, onRefresh }) {
@@ -17,7 +24,7 @@ export default function DownloadQueue({ queue, onRefresh }) {
   const [filters, setFilters] = useState({ status: '', url_contains: '', provider_id: '' })
 
   useEffect(() => {
-    fetch(`${API_BASE}/providers`, { headers: HEADERS })
+    fetch(`${API_BASE}/providers`, { headers: getAuthHeaders() })
       .then(res => res.json())
       .then(data => setProviders(data))
       .catch(console.error)
@@ -29,13 +36,13 @@ export default function DownloadQueue({ queue, onRefresh }) {
     try {
       const res = await fetch(`${API_BASE}/download/start`, {
         method: 'POST',
-        headers: HEADERS,
+        headers: getAuthHeaders(),
         body: JSON.stringify({ ...newDownload, force_duplicate })
       })
       const data = await res.json()
       
       if (data.requires_confirmation) {
-        const confirmed = await window.appConfirm(data.message)
+        const confirmed = window.appConfirm ? await window.appConfirm(data.message) : window.confirm(data.message)
         if (confirmed) {
           await handleAddDownload(true)
         }
@@ -57,7 +64,7 @@ export default function DownloadQueue({ queue, onRefresh }) {
     try {
       const response = await fetch(`${API_BASE}/download/${taskId}/${action}`, { 
         method: 'POST',
-        headers: HEADERS
+        headers: getAuthHeaders()
       })
       if (response.ok) {
         console.log(`Download ${action} triggered`)

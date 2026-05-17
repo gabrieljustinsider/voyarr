@@ -44,6 +44,7 @@
 ## **🔗 Integrations**
 
 * **ThePornDB / StashDB:** Sync metadata and contribute ohash/phash.  
+* **1Password & Bitwarden:** Securely synchronize credentials from your external password managers.
 * **Stash Plugin:** Custom scraper for Stash that uses **Voyarr** as a high-quality metadata source.  
 * **Browser Extension:** Remote control for Voyarr, progress monitor, and dynamic regex mapper.
 
@@ -57,8 +58,11 @@ services:
       \- voyarr\_db\_data:/var/lib/postgresql/data  
   backend:  
     image: voyarr-api \# Python FastAPI  
+    environment:
+      \- MEDIA_ROOT=/media/drive1,/media/drive2
     volumes:  
-      \- ${MEDIA\_ROOT}:/media/storage  
+      \- /mnt/host/drive1:/media/drive1
+      \- /mnt/host/drive2:/media/drive2
       \- ./backend:/app  
   frontend:  
     image: voyarr-ui \# PWA
@@ -86,6 +90,9 @@ services:
 13. ~~**Distributed Worker Nodes:** Expand the Celery architecture to support remote worker nodes across multiple machines.~~
 14. ~~**Webhooks & Notification Ecosystem:** Build outbound webhooks to trigger events in other home lab applications.~~
 15. ~~**Scheduled & Off-Peak Tasks:** Enhance the transcoding and download pipelines to run during user-defined off-peak hours.~~
+16. ~~**Multi-Drive Storage Arrays:** Support parsing comma-separated paths for scalable libraries spanning multiple physical disks.~~
+17. ~~**Password Manager Integrations:** Support for 1Password Connect and Bitwarden CLI REST APIs.~~
+18. ~~**Hardened SSRF Defenses:** Comprehensive internal IP/hostname blocking for scraper proxies.~~
 
 ## **🚀 Future Milestones**
 

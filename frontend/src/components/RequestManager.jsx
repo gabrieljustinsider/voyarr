@@ -3,6 +3,18 @@ import { Box, Typography, Paper, Table, TableBody, TableCell, TableContainer, Ta
 
 const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
 
+const getAuthHeaders = () => {
+  const headers = { 'Content-Type': 'application/json' }
+  const token = localStorage.getItem('voyarr_jwt')
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  } else {
+    const apiKey = localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY
+    if (apiKey) headers['X-Voyarr-Api-Key'] = apiKey
+  }
+  return headers
+}
+
 export default function RequestManager() {
   const [requests, setRequests] = useState([])
   const [openDialog, setOpenDialog] = useState(false)
@@ -11,7 +23,7 @@ export default function RequestManager() {
   const fetchRequests = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/requests`, {
-        headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
+        headers: getAuthHeaders()
       })
       if (res.ok) {
         const data = await res.json()
@@ -35,10 +47,7 @@ export default function RequestManager() {
     try {
       await fetch(`${API_BASE}/requests/${currentReq.id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ status: currentReq.status, notes: currentReq.notes })
       })
       fetchRequests()
@@ -49,11 +58,12 @@ export default function RequestManager() {
   }
 
   const handleDelete = async (id) => {
-    if (await window.appConfirm('Are you sure you want to delete this request?')) {
+    const confirmed = window.appConfirm ? await window.appConfirm('Are you sure you want to delete this request?') : window.confirm('Are you sure you want to delete this request?');
+    if (confirmed) {
       try {
         await fetch(`${API_BASE}/requests/${id}`, {
           method: 'DELETE',
-          headers: { 'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY }
+          headers: getAuthHeaders()
         })
         fetchRequests()
       } catch (e) {
@@ -78,7 +88,12 @@ export default function RequestManager() {
           <TableBody>
             {requests.map((req) => (
               <TableRow key={req.id}>
-                <TableCell>{req.title} {req.url && <a href={req.url} target="_blank" rel="noreferrer" style={{marginLeft: 8, color: '#aaa'}}>(Link)</a>}</TableCell>
+                <TableCell>
+                  {req.title} 
+                  {req.url && (req.url.toLowerCase().startsWith('http://') || req.url.toLowerCase().startsWith('https://')) && (
+                    <a href={req.url} target="_blank" rel="noreferrer" style={{marginLeft: 8, color: '#aaa'}}>(Link)</a>
+                  )}
+                </TableCell>
                 <TableCell>{req.requested_by || 'Anonymous'}</TableCell>
                 <TableCell>{req.status.toUpperCase()}</TableCell>
                 <TableCell>

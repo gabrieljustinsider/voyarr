@@ -54,7 +54,7 @@ export default function Settings() {
   const getAuthHeaders = () => {
     const token = localStorage.getItem('voyarr_jwt')
     if (token) return { 'Authorization': `Bearer ${token}` }
-    const apiKey = localStorage.getItem('voyarr_api_key')
+    const apiKey = localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY
     if (apiKey) return { 'X-Voyarr-Api-Key': apiKey }
     return {}
   }
@@ -226,7 +226,7 @@ export default function Settings() {
         <Divider sx={{ mb: 2 }} />
         <Grid container spacing={3} alignItems="center">
           <Grid item xs={12} md={10}>
-            <TextField fullWidth label="Docker Media Root Mapping" name="media_root_path" value={settings.media_root_path || ''} onChange={handleChange} helperText="The physical directory path where downloads will be organized inside the container." />
+            <TextField fullWidth label="Docker Media Root Mapping(s)" name="media_root_path" value={settings.media_root_path || ''} onChange={handleChange} helperText="The physical directory path(s) where downloads will be organized inside the container. Comma-separate for multiple paths. (Note: Must match your container's MEDIA_ROOT environment variable)" />
           </Grid>
           <Grid item xs={12} md={2}>
             <Button fullWidth variant="contained" onClick={() => handleSave('media_root_path', settings.media_root_path)}>Save</Button>

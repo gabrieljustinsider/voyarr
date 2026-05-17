@@ -5,9 +5,16 @@ import {
 } from '@mui/material'
 
 const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
-const HEADERS = {
-  'Content-Type': 'application/json',
-  'X-Voyarr-Api-Key': import.meta.env.VITE_MASTER_KEY
+const getAuthHeaders = () => {
+  const headers = { 'Content-Type': 'application/json' }
+  const token = localStorage.getItem('voyarr_jwt')
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  } else {
+    const apiKey = localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY
+    if (apiKey) headers['X-Voyarr-Api-Key'] = apiKey
+  }
+  return headers
 }
 
 export default function PreferencesAdvanced() {
@@ -30,12 +37,12 @@ export default function PreferencesAdvanced() {
   const [patternInfo, setPatternInfo] = useState(null)
 
   useEffect(() => {
-    fetch(`${API_BASE}/providers`, { headers: HEADERS })
+    fetch(`${API_BASE}/providers`, { headers: getAuthHeaders() })
       .then(res => res.json())
       .then(data => setProviders(data))
       .catch(console.error)
       
-    fetch(`${API_BASE}/preferences/naming-patterns`, { headers: HEADERS })
+    fetch(`${API_BASE}/preferences/naming-patterns`, { headers: getAuthHeaders() })
       .then(res => res.json())
       .then(data => setPatternInfo(data))
       .catch(console.error)
@@ -43,7 +50,7 @@ export default function PreferencesAdvanced() {
 
   useEffect(() => {
     if (selectedProvider) {
-      fetch(`${API_BASE}/preferences/provider/${selectedProvider}`, { headers: HEADERS })
+      fetch(`${API_BASE}/preferences/provider/${selectedProvider}`, { headers: getAuthHeaders() })
         .then(res => res.json())
         .then(data => {
           setPrefs({
@@ -74,7 +81,7 @@ export default function PreferencesAdvanced() {
     try {
       const res = await fetch(`${API_BASE}/preferences/validate-pattern`, {
         method: 'POST',
-        headers: HEADERS,
+        headers: getAuthHeaders(),
         body: JSON.stringify({ pattern: prefs.naming_pattern })
       })
       const data = await res.json()
@@ -89,7 +96,7 @@ export default function PreferencesAdvanced() {
     try {
       const res = await fetch(`${API_BASE}/preferences/provider/${selectedProvider}`, {
         method: 'POST',
-        headers: HEADERS,
+        headers: getAuthHeaders(),
         body: JSON.stringify(prefs)
       })
       if (res.ok) {
