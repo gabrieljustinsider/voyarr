@@ -1,9 +1,9 @@
-import os
-import secrets
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+import os
+import secrets
 from database import get_db
 from models import User
 from security import (
@@ -88,7 +88,9 @@ def register_user(user: UserCreate, request: Request, db: Session = Depends(get_
     "/token", dependencies=[Depends(rate_limit(max_requests=10, window_seconds=60))]
 )
 def login_for_access_token(
-    form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
+    response: Response,
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db)
 ):
     user = db.query(User).filter(User.username == form_data.username).first()
     if not user or not verify_password(form_data.password, user.password_hash):
@@ -106,7 +108,38 @@ def login_for_access_token(
         data={"sub": user.username, "role": user.role},
         expires_delta=access_token_expires,
     )
-    return {"access_token": access_token, "token_type": "bearer", "role": user.role}  # nosec B105
+
+    # SET COOKIE FOR SESSION PERSISTENCE
+    # Read environment settings for cookie hardening
+    samesite = os.getenv("COOKIE_SAMESITE", "lax").lower()
+    secure = os.getenv("COOKIE_SECURE", "false").lower() == "true"
+    
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        expires=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        samesite=samesite,
+        secure=secure
+    )
+
+    return {"access_token": access_token, "token_type": "bearer", "role": user.role}
+
+
+@router.post("/logout")
+def logout(response: Response):
+    """Clears the session cookie."""
+    samesite = os.getenv("COOKIE_SAMESITE", "lax").lower()
+    secure = os.getenv("COOKIE_SECURE", "false").lower() == "true"
+    
+    response.delete_cookie(
+        key="access_token",
+        httponly=True,
+        samesite=samesite,
+        secure=secure
+    )
+    return {"message": "Logged out successfully"}
 
 
 def get_current_user(

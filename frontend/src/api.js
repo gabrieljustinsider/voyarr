@@ -23,7 +23,12 @@ export const apiFetch = async (endpoint, options = {}) => {
     headers['Content-Type'] = 'application/json'
   }
 
-  const response = await fetch(url, { ...options, headers })
+  // Use credentials: 'include' to ensure cookies are sent even in cross-origin requests
+  const response = await fetch(url, { 
+    ...options, 
+    headers,
+    credentials: 'include' 
+  })
   
   if (response.status === 401 || response.status === 403) {
     // Optional: handle session expiration

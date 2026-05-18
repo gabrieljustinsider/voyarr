@@ -36,6 +36,8 @@ services:
       - HOST=${HOST:-0.0.0.0}
       - PORT=${PORT:-8000}
       - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000}
+      - COOKIE_SAMESITE=${COOKIE_SAMESITE:-lax}
+      - COOKIE_SECURE=${COOKIE_SECURE:-false}
     volumes:
       - ${MEDIA_ROOT:-./media}:/media/storage
       - ./backend:/app
