@@ -1,6 +1,6 @@
 import os
 import ffmpeg
-import subprocess
+import subprocess  # nosec B404
 import re
 from celery import shared_task
 from models import TranscodingQueue, LibraryEntry
@@ -83,7 +83,7 @@ def transcode_video_task(self, transcode_job_id: int):
 
             # Compile command and run via subprocess to capture real-time stderr
             args = ffmpeg.compile(stream, overwrite_output=True)
-            process = subprocess.Popen(
+            process = subprocess.Popen(  # nosec B603
                 args, stderr=subprocess.PIPE, universal_newlines=True
             )
 

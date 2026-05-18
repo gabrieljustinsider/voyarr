@@ -20,6 +20,30 @@ class CredentialResponse(BaseModel):
         from_attributes = True
 
 
+class VideoChapterBase(BaseModel):
+    title: str
+    start_time: int
+    end_time: Optional[int] = None
+    tags: Optional[List[str]] = None
+
+class VideoChapterCreate(VideoChapterBase):
+    pass
+
+class VideoChapterUpdate(BaseModel):
+    title: Optional[str] = None
+    start_time: Optional[int] = None
+    end_time: Optional[int] = None
+    tags: Optional[List[str]] = None
+
+class VideoChapterResponse(VideoChapterBase):
+    id: int
+    library_entry_id: int
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
 class LibraryEntryBase(BaseModel):
     provider_id: int
     title: str
@@ -43,6 +67,7 @@ class LibraryEntryResponse(LibraryEntryBase):
     id: int
     last_updated: Optional[datetime] = None
     created_at: Optional[datetime] = None
+    chapters: Optional[List[VideoChapterResponse]] = None
 
     class Config:
         from_attributes = True
@@ -161,3 +186,23 @@ class CookieResponse(BaseModel):
 
 class DuplicateAction(BaseModel):
     action: str
+
+
+class ProviderBase(BaseModel):
+    name: str
+    base_url: str
+    naming_pattern: Optional[str] = None
+    separator: str = "_"
+    space_replacement: str = "_"
+    automatic_limits: Optional[Dict[str, Any]] = None
+
+
+class ProviderCreate(ProviderBase):
+    pass
+
+
+class ProviderResponse(ProviderBase):
+    id: int
+
+    class Config:
+        from_attributes = True

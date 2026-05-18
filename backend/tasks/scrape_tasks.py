@@ -43,15 +43,15 @@ def scrape_url_task(url: str, recipe_id: int):
         if hostname in [
             "localhost",
             "127.0.0.1",
-            "0.0.0.0",
+            "0.0.0.0",  # nosec B104
             "169.254.169.254",
             "::1",
             "[::1]",
         ] or hostname.endswith((".internal", ".nip.io", ".xip.io", ".sslip.io")):
             print(f"Error: Disallowed internal hostname {hostname}")
             return None
-    except Exception:
-        pass
+    except Exception as url_err:
+        print(f"Error parsing or validating URL: {url_err}")
 
     with get_db_session() as db:
         try:

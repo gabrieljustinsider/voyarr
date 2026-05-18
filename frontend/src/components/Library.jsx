@@ -8,6 +8,8 @@ import {
 import CloseIcon from '@mui/icons-material/Close'
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutlined'
 import SettingsIcon from '@mui/icons-material/Settings'
+import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted'
+import ChapterManager from './ChapterManager'
 import { apiFetch } from '../api'
 
 export default function Library() {
@@ -22,6 +24,7 @@ export default function Library() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [playingVideo, setPlayingVideo] = useState(null)
+  const [managingChaptersFor, setManagingChaptersFor] = useState(null)
 
   // Scanner State
   const [scanDialogOpen, setScanDialogOpen] = useState(false)
@@ -206,7 +209,14 @@ export default function Library() {
                   <Typography variant="caption" color="textSecondary">No Thumbnail</Typography>
                 </CardMedia>
                 <CardContent sx={{ flexGrow: 1 }}>
-                  <Typography variant="h6" noWrap title={entry.title}>{entry.title}</Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <Typography variant="h6" noWrap title={entry.title} sx={{ flex: 1, mr: 1 }}>{entry.title}</Typography>
+                    <Tooltip title="Manage Chapters">
+                      <IconButton size="small" onClick={() => setManagingChaptersFor(entry)}>
+                        <FormatListBulletedIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
                   <Typography variant="body2" color="textSecondary" gutterBottom>
                     {entry.resolution} • {entry.file_size ? (entry.file_size / (1024*1024)).toFixed(1) + ' MB' : 'Unknown Size'}
                   </Typography>
@@ -314,6 +324,7 @@ export default function Library() {
           )}
         </DialogContent>
       </Dialog>
+      <ChapterManager open={!!managingChaptersFor} onClose={() => setManagingChaptersFor(null)} libraryEntry={managingChaptersFor} />
     </Box>
   )
 }

@@ -27,12 +27,13 @@ from routers import (
     webhooks,
     requests,
     discord,
+    chapters,
 )
 
 # Create tables
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Voyarr API", version="1.1.0")
+app = FastAPI(title="Voyarr API", version="1.2.0")
 
 # CORS
 app.add_middleware(
@@ -104,8 +105,8 @@ async def jwt_to_api_key_middleware(request: Request, call_next):
                             "detail": "RBAC Forbidden: Your role is insufficient for this action."
                         },
                     )
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"RBAC error parsing JWT: {e}")
     return await call_next(request)
 
 
@@ -131,6 +132,7 @@ app.include_router(auth.router)
 app.include_router(webhooks.router)
 app.include_router(requests.router)
 app.include_router(discord.router)
+app.include_router(chapters.router)
 
 
 @app.get("/")

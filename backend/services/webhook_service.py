@@ -44,7 +44,7 @@ class WebhookService:
                         if hostname in [
                             "localhost",
                             "127.0.0.1",
-                            "0.0.0.0",
+                            "0.0.0.0",  # nosec B104
                             "169.254.169.254",
                             "::1",
                             "[::1]",
@@ -55,7 +55,8 @@ class WebhookService:
                                 f"SSRF blocked: Disallowed internal hostname {hostname} in webhook {wh.name}"
                             )
                             continue
-                    except Exception:
+                    except Exception as e:
+                        logger.warning(f"Error validating webhook {wh.url}: {e}")
                         continue
                     try:
                         data = {"event": event_name, "data": payload}

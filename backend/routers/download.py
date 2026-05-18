@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload, contains_eager
-from database import get_db, SessionLocal
+from database import get_db
+from db_utils import get_db_session
 from models import (
     DownloadQueue,
     MediaEntry,
@@ -104,7 +105,7 @@ def validate_url_ssrf(url_str: str):
         if hostname in [
             "localhost",
             "127.0.0.1",
-            "0.0.0.0",
+            "0.0.0.0",  # nosec B104
             "169.254.169.254",
             "::1",
             "[::1]",

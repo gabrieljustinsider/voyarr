@@ -218,7 +218,7 @@ def restore_backup(file: UploadFile = File(...), db: Session = Depends(get_db)):
                     with db.begin_nested():
                         db.execute(
                             text(
-                                f"SELECT setval(pg_get_serial_sequence('{table_name}', 'id'), coalesce(max(id), 1), max(id) IS NOT null) FROM {table_name};"
+                                f"SELECT setval(pg_get_serial_sequence('{table_name}', 'id'), coalesce(max(id), 1), max(id) IS NOT null) FROM {table_name};"  # nosec B608
                             )
                         )
                 except Exception as e:
@@ -253,7 +253,7 @@ def restore_backup(file: UploadFile = File(...), db: Session = Depends(get_db)):
                     with db.begin_nested():
                         db.execute(
                             text(
-                                f"SELECT setval(pg_get_serial_sequence('{table_name}', 'id'), coalesce(max(id), 1), max(id) IS NOT null) FROM {table_name};"
+                                f"SELECT setval(pg_get_serial_sequence('{table_name}', 'id'), coalesce(max(id), 1), max(id) IS NOT null) FROM {table_name};"  # nosec B608
                             )
                         )
                 except Exception as e:

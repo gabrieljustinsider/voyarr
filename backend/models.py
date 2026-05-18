@@ -9,7 +9,7 @@ from sqlalchemy import (
     JSON,
     Boolean,
     ForeignKey,
-    Index,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.sql import func
@@ -47,7 +47,7 @@ class SiteRecipe(Base):
     __tablename__ = "site_recipes"
 
     id = Column(Integer, primary_key=True)
-    provider_id = Column(Integer, ForeignKey("providers.id"), nullable=False, index=True)
+    provider_id = Column(Integer, ForeignKey("providers.id", ondelete="CASCADE"), nullable=False, index=True)
     css_selectors = Column(JSON)
     xpath_selectors = Column(JSON)
     regex_patterns = Column(JSON)
@@ -56,6 +56,7 @@ class SiteRecipe(Base):
 
 class Vault(Base):
     __tablename__ = "vault"
+    __table_args__ = (UniqueConstraint('entity_type', 'entity_id', 'key', name='uix_vault_entity_key'),)
 
     id = Column(Integer, primary_key=True)
     entity_type = Column(
@@ -76,7 +77,7 @@ class Credential(Base):
     __tablename__ = "credentials"
 
     id = Column(Integer, primary_key=True)
-    provider_id = Column(Integer, ForeignKey("providers.id"), nullable=False, index=True)
+    provider_id = Column(Integer, ForeignKey("providers.id", ondelete="CASCADE"), nullable=False, index=True)
     custom_limits = Column(
         JSON
     )  # Account-level custom provider limits (overrides automatic_limits)
@@ -90,7 +91,7 @@ class MediaEntry(Base):
     __tablename__ = "media_entries"
 
     id = Column(Integer, primary_key=True)
-    provider_id = Column(Integer, ForeignKey("providers.id"), nullable=False, index=True)
+    provider_id = Column(Integer, ForeignKey("providers.id", ondelete="CASCADE"), nullable=False, index=True)
     title = Column(String(500))
     performers = Column(JSON)  # Array of strings
     tags = Column(JSON)  # Array of strings
@@ -117,7 +118,7 @@ class LocalFile(Base):
     __tablename__ = "local_files"
 
     id = Column(Integer, primary_key=True)
-    media_entry_id = Column(Integer, ForeignKey("media_entries.id"), nullable=False, index=True)
+    media_entry_id = Column(Integer, ForeignKey("media_entries.id", ondelete="CASCADE"), nullable=False, index=True)
     file_path = Column(Text, nullable=False)
     file_size = Column(BIGINT)
     resolution = Column(String(20))
@@ -129,7 +130,7 @@ class DownloadQueue(Base):
     __tablename__ = "download_queue"
 
     id = Column(Integer, primary_key=True)
-    media_entry_id = Column(Integer, ForeignKey("media_entries.id"), nullable=False, index=True)
+    media_entry_id = Column(Integer, ForeignKey("media_entries.id", ondelete="CASCADE"), nullable=False, index=True)
     url = Column(Text, nullable=False)
     status = Column(String(50), default="pending", index=True)
     progress_percentage = Column(DECIMAL(5, 2), default=0)
@@ -170,8 +171,8 @@ class LibraryEntry(Base):
     __tablename__ = "library_entries"
 
     id = Column(Integer, primary_key=True)
-    provider_id = Column(Integer, ForeignKey("providers.id"), nullable=False, index=True)
-    media_entry_id = Column(Integer, ForeignKey("media_entries.id"), nullable=True, index=True)
+    provider_id = Column(Integer, ForeignKey("providers.id", ondelete="CASCADE"), nullable=False, index=True)
+    media_entry_id = Column(Integer, ForeignKey("media_entries.id", ondelete="SET NULL"), nullable=True, index=True)
     title = Column(String(500), nullable=False)
     performers = Column(JSON)  # Array of performer names
     tags = Column(JSON)  # Array of tags/categories
@@ -186,16 +187,37 @@ class LibraryEntry(Base):
     last_updated = Column(TIMESTAMP, default=func.current_timestamp())
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
 
+    chapters = relationship("VideoChapter", back_populates="library_entry", cascade="all, delete-orphan")
+
+
+class VideoChapter(Base):
+    __tablename__ = "video_chapters"
+
+    id = Column(Integer, primary_key=True)
+    library_entry_id = Column(
+        Integer, ForeignKey("library_entries.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    title = Column(String(255), nullable=False)
+    start_time = Column(Integer, nullable=False)  # in seconds
+    end_time = Column(Integer, nullable=True)  # in seconds
+    tags = Column(JSON)  # Array of strings
+    created_at = Column(TIMESTAMP, default=func.current_timestamp())
+    updated_at = Column(
+        TIMESTAMP, default=func.current_timestamp(), onupdate=func.current_timestamp()
+    )
+
+    library_entry = relationship("LibraryEntry", back_populates="chapters")
+
 
 class DuplicateEntry(Base):
     __tablename__ = "duplicate_entries"
 
     id = Column(Integer, primary_key=True)
     library_entry_id1 = Column(
-        Integer, ForeignKey("library_entries.id"), nullable=False, index=True
+        Integer, ForeignKey("library_entries.id", ondelete="CASCADE"), nullable=False, index=True
     )
     library_entry_id2 = Column(
-        Integer, ForeignKey("library_entries.id"), nullable=False, index=True
+        Integer, ForeignKey("library_entries.id", ondelete="CASCADE"), nullable=False, index=True
     )
     similarity_score = Column(DECIMAL(5, 2))  # 0-100% similarity
     reason = Column(
@@ -212,7 +234,7 @@ class DownloadPreference(Base):
     __tablename__ = "download_preferences"
 
     id = Column(Integer, primary_key=True)
-    provider_id = Column(Integer, ForeignKey("providers.id"), nullable=False, index=True)
+    provider_id = Column(Integer, ForeignKey("providers.id", ondelete="CASCADE"), nullable=False, index=True)
     preferred_resolution = Column(
         String(20), default="1080p"
     )  # e.g., "1080p", "720p", "auto"
@@ -257,7 +279,7 @@ class ScrapeSchedule(Base):
     __tablename__ = "scrape_schedules"
 
     id = Column(Integer, primary_key=True)
-    provider_id = Column(Integer, ForeignKey("providers.id"), nullable=False, index=True)
+    provider_id = Column(Integer, ForeignKey("providers.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String(255), nullable=False)
     target_url = Column(
         Text, nullable=True
@@ -281,7 +303,7 @@ class SessionCookie(Base):
     __tablename__ = "session_cookies"
 
     id = Column(Integer, primary_key=True)
-    provider_id = Column(Integer, ForeignKey("providers.id"), nullable=True, index=True)
+    provider_id = Column(Integer, ForeignKey("providers.id", ondelete="CASCADE"), nullable=True, index=True)
     site_id = Column(String(100), nullable=True, index=True)
     cookie_text = Column(Text, nullable=True)
     status = Column(String(50), default="active", index=True)

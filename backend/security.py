@@ -23,7 +23,7 @@ else:
 # JWT & Password Hashing Configuration
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 JWT_SECRET = os.getenv("SECRET_KEY")
-if not JWT_SECRET or JWT_SECRET == "your_secret_key_here":
+if not JWT_SECRET or JWT_SECRET == "your_secret_key_here":  # nosec B105
     print(
         "WARNING: Using an ephemeral fallback SECRET_KEY. Sessions will invalidate on restart. Please set a secure SECRET_KEY in your .env file!"
     )

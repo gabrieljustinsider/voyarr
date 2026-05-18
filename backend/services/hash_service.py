@@ -1,7 +1,7 @@
 import os
 import cv2
 import numpy as np
-import subprocess
+import subprocess  # nosec B404
 
 
 class HashService:
@@ -45,13 +45,11 @@ class HashService:
                 "default=noprint_wrappers=1:nokey=1",
                 file_path,
             ]
-            duration = float(
-                subprocess.check_output(duration_cmd).decode("utf-8").strip()
-            )
+            duration = float(subprocess.check_output(duration_cmd).decode("utf-8").strip())  # nosec B603 B607
             mid_time = duration / 2.0
 
             # Extract frame using ffmpeg
-            subprocess.run(
+            subprocess.run(  # nosec B603 B607
                 [
                     "ffmpeg",
                     "-y",
