@@ -61,7 +61,8 @@ def scan_library(
     pattern = prefs.naming_pattern if prefs else "{title}_{performers}_{resolution}"
 
     matcher = ReverseRegexMatcher(db)
-    aggregated_result = {"added": 0, "matched": 0, "errors": []}
+    import typing
+    aggregated_result: typing.Dict[str, typing.Any] = {"added": 0, "matched": 0, "errors": []}
 
     for d in target_dirs:
         if not os.path.exists(d):

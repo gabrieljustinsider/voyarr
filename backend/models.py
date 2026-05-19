@@ -15,7 +15,7 @@ from sqlalchemy.orm import declarative_base
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 
-Base = declarative_base()
+Base = declarative_base()  # type: ignore
 
 
 class User(Base):

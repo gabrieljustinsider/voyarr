@@ -94,6 +94,39 @@ services:
 17. ~~**Password Manager Integrations:** Support for 1Password Connect and Bitwarden CLI REST APIs.~~
 18. ~~**Hardened SSRF Defenses:** Comprehensive internal IP/hostname blocking for scraper proxies.~~
 
-## **🚀 Future Milestones**
+## **🚀 Post-v1.8.0 Feature Backlog**
 
-(All initial milestones achieved. The application is now feature-complete!)
+The following items represent identified feature gaps and unfinished components discovered during the v1.8.0 system audit.
+
+### **1. AI-Powered Auto-Tagging (Placeholder Only)**
+*   **Status:** Milestone 12 is marked as complete, but `backend/tasks/ai_tasks.py` contains only a functional placeholder.
+*   **Gap:** It logs "Running AI inference" and returns hardcoded tags (`["AI-Tagged", "Processed"]`). It lacks actual integration with local vision models (CLIP/LLaVA) or LLM providers for true content categorization.
+
+### **2. Deep API Integrations (ThePornDB & StashDB)**
+Significant feature gaps exist in the metadata synchronization layers:
+*   **ThePornDB (#10):** Missing rich performer biographies, actor-specific search, and support for the more efficient GraphQL endpoint.
+*   **StashDB (#11):** Lacks deterministic matching using **Fingerprints** (MD5/OSHASH/PHASH). Also missing the ability to "submit" local hashes and metadata edits back to the StashDB community via GraphQL mutations.
+
+### **3. Discord Bot Expansion (#6)**
+*   **Status:** Minimal implementation.
+*   **Gap:** The bot currently only supports the `/request` command. Full requirements include library searching, adding new items, and "Scrape CRUD" operations directly via Discord Slash Commands.
+
+### **4. Dashboard & Quota Visualization (#9)**
+*   **Status:** Backend tracking is active, but visual meters are missing.
+*   **Gap:** Session cookies track `downloads_used`, but there are no visual "meters" on the Dashboard or Provider list to show current usage against limits.
+
+### **5. WebSocket Log Streaming Enhancements (#2)**
+*   **Status:** Functional but basic.
+*   **Gap:** The logic in `backend/routers/logs.py` lacks real-time filtering (log levels), keyword searching, or the ability to toggle between different log sources (Celery vs. FastAPI).
+
+---
+
+### **Summary of Pending Work**
+
+| Feature | State | Missing Component |
+| :--- | :--- | :--- |
+| **AI Tagging** | ⚠️ Placeholder | Local/API Model integration |
+| **Fingerprints** | ❌ Missing | MD5/PHASH matching & submission |
+| **Discord Bot** | ⚠️ Minimal | Search/Manage library commands |
+| **Quota Meters** | ❌ Missing | Visual usage charts/meters |
+| **Biographies** | ❌ Missing | Performer profile & social sync |
