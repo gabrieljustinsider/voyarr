@@ -7,7 +7,7 @@ from models import DownloadQueue, LibraryEntry, SessionCookie, Vault, Settings
 from security import decrypt_data
 from services.media_tagger import MediaTagger
 from services.hash_service import HashService
-from utils import get_media_roots, get_primary_root
+from utils import get_media_roots, get_default_download_path
 from db_utils import get_db_session
 
 
@@ -51,10 +51,7 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
                 base_path = None
 
         if not base_path:
-            primary_root = get_primary_root()
-            base_path = os.path.join(
-                primary_root, "downloads"
-            )
+            base_path = get_default_download_path()
 
         os.makedirs(base_path, exist_ok=True)
 

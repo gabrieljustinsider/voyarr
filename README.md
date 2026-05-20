@@ -47,10 +47,10 @@ cp .env.example .env
 
 Update any required secrets (e.g., `MASTER_KEY`) and API keys.
 
-2. Start the stack:
+2. Start the stack (using pre-built production images):
 
 ```bash
-docker compose up --build
+docker compose up -d
 ```
 
 3. Access the services:
