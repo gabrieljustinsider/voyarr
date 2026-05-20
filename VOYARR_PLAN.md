@@ -9,7 +9,7 @@
 * **Frontend:** React/Vue PWA (No native browser alerts; custom toasts/modals only).  
 * **Backend:** Python (FastAPI) running in Docker.  
 * **Database:** PostgreSQL (Relational metadata and history tracking).  
-* **Integration:** Stash Plugin \+ Browser Extension (Manifest v3).  
+* **Integration:** Stash Plugin \+ Browser Extension (Manifest v3) \+ DeoVR/XR API.  
 * **Security:** AES-256-GCM encryption for credentials using a RAM-only Master Key.
 
 ## **🗄️ Database Schema (PostgreSQL)**
@@ -40,6 +40,7 @@
 4. **Remote Mapping:** Browser extension "Map Mode" to visually pick CSS selectors on a live site to update Regex.  
 5. **Quality Upgrade:** Detects if a higher resolution version of a local file is available and offers redownload.  
 6. **Progress Indicators:** Inline progress bars with percentage, current size, and total size for all measurable tasks.
+7. **XR & VR Support:** Native DeoVR JSON API and metadata tags to stream 180°/360° videos directly to XR headsets.
 
 ## **🔗 Integrations**
 
@@ -47,6 +48,7 @@
 * **1Password & Bitwarden:** Securely synchronize credentials from your external password managers.
 * **Stash Plugin:** Custom scraper for Stash that uses **Voyarr** as a high-quality metadata source.  
 * **Browser Extension:** Remote control for Voyarr, progress monitor, and dynamic regex mapper.
+* **DeoVR & XR Players:** Native JSON API endpoint to serve media libraries directly to DeoVR and other compatible VR players.
 
 ## **🐳 Docker Configuration (docker-compose.yml)**
 
