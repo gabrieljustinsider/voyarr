@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from models import MediaRequest
+from models import MediaRequest, DownloadQueue, MediaEntry
 from pydantic import BaseModel
 from typing import Optional
 from dependencies import verify_api_key
+from tasks.download_tasks import real_download_task
 
 router = APIRouter(
     prefix="/requests", tags=["requests"], dependencies=[Depends(verify_api_key)]
@@ -45,12 +46,65 @@ def update_request(req_id: int, req: RequestUpdate, db: Session = Depends(get_db
     if not db_req:
         raise HTTPException(status_code=404, detail="Request not found")
 
+    old_status = db_req.status
     if req.status is not None:
         db_req.status = req.status
     if req.notes is not None:
         db_req.notes = req.notes
 
-    db.commit()
+    # If approved and has a URL, trigger download
+    if req.status == "approved" and old_status != "approved" and db_req.url:
+        # Note: In a real scenario, we might want to know which provider to use.
+        # For now, we'll assume the first available provider or a default one.
+        # This is a simplification.
+        from models import Credential, SessionCookie
+        from routers.download import check_limits_and_cookies
+        
+        # Hardcoding provider_id=1 for now as a fallback if not specified
+        provider_id = 1 
+        can_download, limit_result = check_limits_and_cookies(db, provider_id)
+        
+        # Create a skeleton MediaEntry
+        media = MediaEntry(
+            provider_id=provider_id,
+            title=db_req.title,
+            media_metadata={"requested_by": db_req.requested_by, "request_id": db_req.id},
+        )
+        db.add(media)
+        db.flush()
+
+        # Add to DownloadQueue
+        queue_item = DownloadQueue(
+            media_entry_id=media.id,
+            url=db_req.url,
+            status="pending" if can_download else "queued",
+            progress_percentage=0.0,
+        )
+        db.add(queue_item)
+        db.flush()
+
+        if can_download:
+            if isinstance(limit_result, SessionCookie):
+                limit_result.downloads_used += 1
+            
+            credential = db.query(Credential).filter(Credential.provider_id == provider_id).first()
+            if credential:
+                credential.downloads_used += 1
+            
+            db.commit()
+            db.refresh(queue_item)
+
+            # Trigger Celery Task
+            try:
+                real_download_task.delay(queue_item.id, {}, {})
+            except Exception as e:
+                print(f"Failed to trigger download task: {e}")
+        else:
+            db.commit()
+            db.refresh(queue_item)
+    else:
+        db.commit()
+
     db.refresh(db_req)
     return db_req
 

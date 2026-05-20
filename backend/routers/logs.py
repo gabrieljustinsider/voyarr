@@ -11,7 +11,36 @@ router = APIRouter(
 
 
 @router.websocket("/ws")
-async def websocket_logs(websocket: WebSocket):
+async def websocket_logs(websocket: WebSocket, token: str = None, api_key: str = None):
+    # Verify Authentication
+    is_authenticated = False
+    try:
+        from security import JWT_SECRET, ALGORITHM
+        from jose import jwt
+        import secrets
+
+        # 1. Check JWT Token
+        if token:
+            try:
+                jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
+                is_authenticated = True
+            except Exception:
+                pass
+
+        # 2. Check Master API Key
+        if not is_authenticated and api_key:
+            expected_key = os.getenv("MASTER_KEY")
+            if expected_key and secrets.compare_digest(api_key, expected_key):
+                is_authenticated = True
+    except Exception as e:
+        print(f"WS Auth Error: {e}")
+
+    if not is_authenticated:
+        await websocket.accept()
+        await websocket.send_text("Unauthorized: Invalid session or API key.")
+        await websocket.close(code=1008)
+        return
+
     await websocket.accept()
 
     primary_root = get_primary_root()

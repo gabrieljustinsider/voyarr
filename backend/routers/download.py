@@ -16,7 +16,7 @@ from models import (
 )
 from pydantic import BaseModel, HttpUrl
 from typing import Optional, Dict, Any
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import yt_dlp
 from tasks.download_tasks import real_download_task
 import json
@@ -285,6 +285,21 @@ def check_limits_and_cookies(db: Session, provider_id: int):
             )
             if current_downloads >= int(max_concurrent):
                 return False, "Concurrent download limit reached"
+
+        # Check daily download limit
+        daily_limit = limits.get("daily_downloads")
+        if daily_limit and credential:
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
+            if not credential.limit_reset_at or now >= credential.limit_reset_at:
+                credential.downloads_used = 0
+                # Reset at next midnight
+                credential.limit_reset_at = (now + timedelta(days=1)).replace(
+                    hour=0, minute=0, second=0, microsecond=0
+                )
+                db.flush()
+
+            if credential.downloads_used >= int(daily_limit):
+                return False, "Daily account download limit reached"
 
     # Check session cookies
     active_cookie = (
@@ -699,6 +714,12 @@ def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
             if action != "queue":
                 if isinstance(limit_result, SessionCookie):
                     limit_result.downloads_used += 1
+                
+                # Also increment credential downloads_used if it exists
+                credential = db.query(Credential).filter(Credential.provider_id == req.provider_id).first()
+                if credential:
+                    credential.downloads_used += 1
+                
                 tasks_to_fire.append({"queue_id": queue.id, "meta": meta})
 
             queued_count += 1

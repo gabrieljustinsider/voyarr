@@ -81,6 +81,8 @@ class Credential(Base):
     custom_limits = Column(
         JSON
     )  # Account-level custom provider limits (overrides automatic_limits)
+    downloads_used = Column(Integer, default=0)
+    limit_reset_at = Column(TIMESTAMP, nullable=True)
     sync_source = Column(
         String(50), default="manual"
     )  # 'manual', '1password', 'bitwarden'
