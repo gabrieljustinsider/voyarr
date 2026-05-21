@@ -1,5 +1,5 @@
 import os
-import subprocess
+import subprocess  # nosec B404
 import base64
 import requests
 import logging
@@ -19,7 +19,7 @@ def extract_frame_base64(file_path: str) -> str:
             "ffprobe", "-v", "error", "-show_entries", "format=duration",
             "-of", "default=noprint_wrappers=1:nokey=1", file_path
         ]
-        duration_str = subprocess.check_output(cmd_duration).decode("utf-8").strip()
+        duration_str = subprocess.check_output(cmd_duration).decode("utf-8").strip()  # nosec B603
         duration = float(duration_str)
         midpoint = duration / 2.0
 
@@ -29,7 +29,7 @@ def extract_frame_base64(file_path: str) -> str:
             "ffmpeg", "-y", "-ss", str(midpoint), "-i", file_path,
             "-vframes", "1", "-q:v", "2", frame_path
         ]
-        subprocess.run(cmd_extract, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+        subprocess.run(cmd_extract, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)  # nosec B603
 
         with open(frame_path, "rb") as f:
             encoded = base64.b64encode(f.read()).decode("utf-8")

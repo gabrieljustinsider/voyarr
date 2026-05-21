@@ -1,6 +1,6 @@
 # Voyarr
 
-**Voyarr** is a self-hosted media management ecosystem designed to handle subscriptions, metadata scraping, and automated downloads from adult websites. It integrates with **Stash**, **StashDB**, and **ThePornDB**, featuring a remote-control browser extension for dynamic metadata mapping.
+**Voyarr** is a self-hosted media management ecosystem designed to handle subscriptions, metadata scraping, and automated downloads from adult websites. It integrates with **ThePornDB**, **Stash**, and **StashDB**, featuring a remote-control browser extension for dynamic metadata mapping.
 
 ## 🚀 Overview
 
@@ -57,17 +57,18 @@ For example, you might choose:
 * **Option A (Default)**: `/volume1/docker/voyarr/` (If you keep all Docker apps on Volume 1)
 * **Option B (Custom Volume)**: `/volume2/appdata/voyarr/` (If you have a separate fast SSD storage pool on Volume 2)
 
-Once you decide on this root directory, open **File Station** on your NAS and create the following two folders inside it:
+Once you decide on this root directory, open **File Station** on your NAS and create the following three folders inside it:
 * 📁 **`config`** (This stores your app settings, custom recipes, and logged-in website sessions)
 * 📁 **`db-data`** (This stores the database file containing your library lists, rules, and download queues)
+* 📁 **`backups`** (This stores your automated scheduled backups, manually exported JSON configs, and PostgreSQL database dumps)
 
 > [!NOTE]
 > **What is the "Hybrid Volume" Setup and Why Use It?**
 > Voyarr uses a modern **hybrid volume architecture** inside `docker-compose.yml` to give you the best of both worlds:
-> 1. **Docker Named Volumes (`voyarr-config` and `voyarr-db-data`)**: Docker manages the lifecycle of these system folders safely. This guarantees that during future Voyarr upgrades or image updates, your settings and database are never deleted, corrupted, or left with incorrect file permissions.
-> 2. **Custom Host Backing Paths (`CONFIG_ROOT` and `DB_DATA_PATH`)**: Instead of Docker hiding these named volumes in system directories, they are bound directly to the physical folder paths on your NAS (e.g. `/volume1/docker/voyarr/config`) that you configure in your `.env` file. This makes it incredibly easy to back up your database and configuration files manually.
+> 1. **Docker Named Volumes (`voyarr-config`, `voyarr-db-data`, and `voyarr-backups`)**: Docker manages the lifecycle of these system folders safely. This guarantees that during future Voyarr upgrades or image updates, your settings, database, and backups are never deleted, corrupted, or left with incorrect file permissions.
+> 2. **Custom Host Backing Paths (`CONFIG_ROOT`, `DB_DATA_PATH`, and `BACKUP_ROOT`)**: Instead of Docker hiding these named volumes in system directories, they are bound directly to the physical folder paths on your NAS (e.g. `/volume1/docker/voyarr/config`) that you configure in your `.env` file. This makes it incredibly easy to back up your database, configurations, and scheduled backups manually.
 > 
-> *⚠️ **Important Requirement**: Because Docker named volumes bind directly to your host, the target host folders (`config` and `db-data`) must be physically created on your NAS **prior** to running `docker compose up`, otherwise Docker will fail to start the containers.*
+> *⚠️ **Important Requirement**: Because Docker named volumes bind directly to your host, the target host folders (`config`, `db-data`, and `backups`) must be physically created on your NAS **prior** to running `docker compose up`, otherwise Docker will fail to start the containers.*
 
 ---
 
@@ -98,8 +99,11 @@ Open `.env` and configure the following parameters:
   
   # 2. Point this to the db-data folder you created inside your chosen root path
   DB_DATA_PATH=/volume1/docker/voyarr/db-data
+
+  # 3. Point this to the backups folder you created inside your chosen root path
+  BACKUP_ROOT=/volume1/docker/voyarr/backups
   
-  # 3. Point this to your existing media folder (e.g. /volume1/video)
+  # 4. Point this to your existing media folder (e.g. /volume1/video)
   MEDIA_ROOT_1=/volume1/video
   ```
 
@@ -108,6 +112,17 @@ Open `.env` and configure the following parameters:
   > * **`MEDIA_ROOT_1` (Host Path)**: This is where your actual files live on your NAS. Voyarr mounts this host folder inside the container so it can access it.
   > * **`MEDIA_ROOT` (Inside-Container Scanner Path)**: This tells the backend app *inside the container* where to look for media. By default, it is set to `/media/storage` (which corresponds to `MEDIA_ROOT_1` inside the container).
   > * **Multi-Drive Setup (Advanced)**: If your media library is spread across multiple drives, you can configure additional folders using `MEDIA_ROOT_2` and `MEDIA_ROOT_3`, and then tell the scanner to look at all of them by listing their internal mounts as a comma-separated list in `MEDIA_ROOT` (e.g., `MEDIA_ROOT=/media/storage,/media/storage_alt1`). For 95% of users with a single drive, you can completely ignore `MEDIA_ROOT_2`, `MEDIA_ROOT_3`, and `MEDIA_ROOT`!
+
+* **Standard Container & Permission Settings**: Map container time zones and host system permissions to avoid locking out files:
+  ```env
+  # Set your local timezone (critical for Celery automated daily backup scheduling)
+  TZ=America/New_York
+
+  # Map host user UID and group GID (run `id` in host SSH to find yours) to prevent
+  # files generated inside the container (e.g. logs, backups, downloads) from being locked.
+  PUID=1000
+  PGID=1000
+  ```
 * **Ports**: Under *Host Ports Configuration*, you have two options:
   - **Auto-Allocation (Recommended)**: Leave `PORT=`, `FRONTEND_PORT=`, `REDIS_PORT=`, and `POSTGRES_PORT=` **blank/empty**.
     * *On Synology (Container Manager)*: Synology will automatically select unused ports on your NAS, **remember them permanently**, and maintain the assignment across restarts and container upgrades.
@@ -179,8 +194,10 @@ docker run -d \
   -e POSTGRES_DB=voyarr \
   -e POSTGRES_USER=voyarr_user \
   -e POSTGRES_PASSWORD=your_secure_password \
+  -e TZ=America/New_York \
   -v /absolute/path/to/voyarr/init.sql:/docker-entrypoint-initdb.d/init.sql \
   -v voyarr-db-data:/var/lib/postgresql/data \
+  -v voyarr-backups:/backups \
   -p 5432:5432 \
   postgres:15-alpine
 ```
@@ -190,6 +207,7 @@ docker run -d \
 docker run -d \
   --name voyarr-redis \
   --network voyarr_network \
+  -e TZ=America/New_York \
   -p 6379:6379 \
   redis:7-alpine
 ```
@@ -204,6 +222,7 @@ docker run -d \
   docker run -d \
     --name voyarr-backend \
     --network voyarr_network \
+    --user "1000:1000" \
     -e DATABASE_URL=postgresql://voyarr_user:your_secure_password@voyarr-db:5432/voyarr \
     -e CELERY_BROKER_URL=redis://voyarr-redis:6379/0 \
     -e CELERY_RESULT_BACKEND=redis://voyarr-redis:6379/0 \
@@ -213,7 +232,9 @@ docker run -d \
     -e SECRET_KEY=your_secret_key_here \
     -e HOST=0.0.0.0 \
     -e PORT=8000 \
+    -e TZ=America/New_York \
     -v voyarr-config:/app/config \
+    -v voyarr-backups:/app/backups \
     -v /volume1/video:/media/storage \
     -p 8000:8000 \
     voyarr-backend
@@ -225,6 +246,7 @@ The worker uses the same backend image but runs the Celery daemon:
 docker run -d \
   --name voyarr-celery \
   --network voyarr_network \
+  --user "1000:1000" \
   -e DATABASE_URL=postgresql://voyarr_user:your_secure_password@voyarr-db:5432/voyarr \
   -e CELERY_BROKER_URL=redis://voyarr-redis:6379/0 \
   -e CELERY_RESULT_BACKEND=redis://voyarr-redis:6379/0 \
@@ -232,7 +254,9 @@ docker run -d \
   -e DEFAULT_DOWNLOAD_PATH=/media/storage/downloads \
   -e MASTER_KEY=your_32_byte_hex_key \
   -e SECRET_KEY=your_secret_key_here \
+  -e TZ=America/New_York \
   -v voyarr-config:/app/config \
+  -v voyarr-backups:/app/backups \
   -v /volume1/video:/media/storage \
   voyarr-backend sh -c "mkdir -p /media/storage/logs && celery -A celery_app.celery_app worker --loglevel=info --logfile=/media/storage/logs/celery.log"
 ```
@@ -247,9 +271,47 @@ docker run -d \
   docker run -d \
     --name voyarr-frontend \
     --network voyarr_network \
+    -e TZ=America/New_York \
     -p 3000:80 \
     voyarr-frontend
   ```
+
+---
+
+### 💾 Granular Backup & Restore System
+
+Voyarr features a multi-tiered, highly granular backup and restore system that protects your data at both the application level and the database level. Because of the hybrid volume setup, all backups are immediately accessible as standard files on your host system.
+
+#### 1. Automated System Backups (App State)
+* **How it works**: By default, Celery runs an automated background task once a day (scheduled dynamically based on your `TZ` setting).
+* **Backup Destination**: Writes high-compression, fully portable JSON snapshots of the entire application state directly to the `/app/backups` mount inside the container, which maps physically to your host's **`BACKUP_ROOT`** folder.
+* **Filename pattern**: `voyarr_backup_YYYYMMDD_HHMMSS.json`.
+
+#### 2. Granular Web UI Export & Restore
+Within the Voyarr Web Interface (**Settings > Backup & Restore**), you can export and restore configuration snapshots:
+
+* **🟢 App Settings Only** (`type=settings`): 
+  * Exports only your global settings, website scrapers, session states, and third-party vault configurations.
+  * *Security*: Highly sensitive credentials (like API keys, passwords, session cookies) are automatically decrypted upon export and re-encrypted using your master AES-256 key upon import. This allows you to migrate configurations to different machines safely.
+* **🔵 Full Application Database** (`type=full`):
+  * Exports all tables and relations in the exact dependency order, giving you a complete clone of your libraries, chapters, rules, history, and settings in a single portable JSON file.
+* **🟡 Custom Selection** (`type=custom`):
+  * Select specific database tables (e.g. just `site_recipes`, or just `library_entries`) to backup or restore, leaving other database tables entirely untouched. This is useful for migrating custom site recipes between instances without overwriting library lists.
+
+#### 3. Granular PostgreSQL CLI Dump & Restore (Full Database)
+Because the `voyarr-backups` volume maps directly to `/backups` inside the isolated database container, you can also perform physical PostgreSQL CLI dumps directly from your host terminal:
+
+* **To Back Up (Export SQL Dump)**:
+  Run this command on your host to dump the full database directly into your host backups folder:
+  ```bash
+  docker exec -t voyarr-db pg_dump -U voyarr_user -d voyarr > /volume1/docker/voyarr/backups/postgres_dump.sql
+  ```
+* **To Restore (Import SQL Dump)**:
+  To restore a physical SQL dump back into your Voyarr database container, run:
+  ```bash
+  docker exec -i voyarr-db psql -U voyarr_user -d voyarr < /volume1/docker/voyarr/backups/postgres_dump.sql
+  ```
+  *(Note: Replace `/volume1/docker/voyarr/backups/` with your actual physical `BACKUP_ROOT` folder path if you customized it).*
 
 ---
 

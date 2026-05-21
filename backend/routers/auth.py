@@ -124,7 +124,7 @@ def login_for_access_token(
         secure=secure
     )
 
-    return {"access_token": access_token, "token_type": "bearer", "role": user.role}
+    return {"access_token": access_token, "token_type": "bearer", "role": user.role}  # nosec B105
 
 
 @router.post("/logout")

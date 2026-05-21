@@ -8,7 +8,7 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(levelname)s:     %(message)s')
 logger = logging.getLogger("voyarr.start")
 
-def is_port_in_use(port: int, host: str = "0.0.0.0") -> bool:
+def is_port_in_use(port: int, host: str = "0.0.0.0") -> bool:  # nosec B104
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         try:
             s.bind((host, port))
@@ -17,7 +17,7 @@ def is_port_in_use(port: int, host: str = "0.0.0.0") -> bool:
             return True
 
 def main():
-    host = os.getenv("HOST", "0.0.0.0")
+    host = os.getenv("HOST", "0.0.0.0")  # nosec B104
     port_env = os.getenv("PORT", "8000")
     
     try:
