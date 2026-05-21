@@ -3,7 +3,7 @@ import {
   Box, Button, Card, CardContent, TextField, Typography, 
   Alert, CircularProgress, Tabs, Tab, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Paper, Dialog, DialogTitle,
-  DialogContent, DialogActions, Chip
+  DialogContent, DialogActions, Chip, Avatar
 } from '@mui/material'
 import { apiFetch } from '../api'
 
@@ -21,6 +21,9 @@ export default function ExternalAPIs() {
   const [message, setMessage] = useState('')
   const [openSyncDialog, setOpenSyncDialog] = useState(false)
   const [selectedResult, setSelectedResult] = useState(null)
+  const [performerBio, setPerformerBio] = useState(null)
+  const [openBioDialog, setOpenBioDialog] = useState(false)
+  const [bioLoading, setBioLoading] = useState(false)
 
   const handleTabChange = (e, value) => {
     setTabValue(value)
@@ -57,6 +60,34 @@ export default function ExternalAPIs() {
       setMessage(`Error: ${error.message}`)
     }
     setLoading(false)
+  }
+
+  const handleViewPerformer = async (performerName) => {
+    if (!tpdbKey) return
+    setBioLoading(true)
+    setOpenBioDialog(true)
+    setPerformerBio(null)
+    
+    try {
+      const response = await apiFetch('/external-api/theporndb/performer', {
+        method: 'POST',
+        headers: { 'X-API-Key': tpdbKey },
+        body: JSON.stringify({ name: performerName })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.results && data.results.length > 0) {
+          setPerformerBio(data.results[0])
+        } else {
+          setPerformerBio({ name: performerName, bio: "No detailed biography found." })
+        }
+      }
+    } catch (error) {
+      console.error(error)
+      setPerformerBio({ name: performerName, bio: "Error fetching biography." })
+    }
+    setBioLoading(false)
   }
 
   const handleSearchStashDB = async () => {
@@ -213,9 +244,18 @@ export default function ExternalAPIs() {
                       <TableRow key={result.id}>
                         <TableCell>{result.title}</TableCell>
                         <TableCell>
-                          {result.performers?.slice(0, 2).map(p => (
-                            <Chip key={p.name || p} label={p.name || p} size="small" sx={{ mr: 0.5 }} />
-                          ))}
+                          {result.performers?.slice(0, 2).map(p => {
+                            const name = p.name || p;
+                            return (
+                              <Chip 
+                                key={name} 
+                                label={name} 
+                                size="small" 
+                                sx={{ mr: 0.5, cursor: 'pointer' }} 
+                                onClick={() => handleViewPerformer(name)}
+                              />
+                            )
+                          })}
                         </TableCell>
                         <TableCell>
                           <Button
@@ -346,6 +386,37 @@ export default function ExternalAPIs() {
               Sync to StashDB
             </Button>
           )}
+        </DialogActions>
+      </Dialog>
+      
+      {/* Performer Bio Dialog */}
+      <Dialog open={openBioDialog} onClose={() => setOpenBioDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Performer Biography</DialogTitle>
+        <DialogContent dividers>
+          {bioLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+               <CircularProgress />
+            </Box>
+          ) : performerBio ? (
+            <Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                {performerBio.image && <Avatar src={performerBio.image} sx={{ width: 80, height: 80 }} />}
+                <Box>
+                  <Typography variant="h5">{performerBio.name}</Typography>
+                  {performerBio.aliases && performerBio.aliases.length > 0 && (
+                     <Typography variant="body2" color="textSecondary">AKA: {performerBio.aliases.join(', ')}</Typography>
+                  )}
+                </Box>
+              </Box>
+              <Typography variant="body1" paragraph>{performerBio.bio}</Typography>
+              {performerBio.measurements && (
+                 <Typography variant="body2"><strong>Measurements:</strong> {performerBio.measurements}</Typography>
+              )}
+            </Box>
+          ) : null}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenBioDialog(false)}>Close</Button>
         </DialogActions>
       </Dialog>
     </Box>

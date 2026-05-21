@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Header
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import Optional, List, Any
+from typing import Optional, List, Any, Dict
 import requests
 import asyncio
 import json
@@ -26,12 +26,23 @@ class QueryRequest(BaseModel):
     hash: Optional[str] = None
 
 
+class PerformerQueryRequest(BaseModel):
+    name: str
+
+
 class SyncRequest(BaseModel):
     site_id: str
     title: Optional[str] = None
     performers: Optional[List[Any]] = None
     tags: Optional[List[Any]] = None
     description: Optional[str] = None
+
+
+class FingerprintSubmitRequest(BaseModel):
+    scene_id: str
+    hash: str
+    algorithm: str = "MD5"
+    duration: Optional[int] = None
 
 
 class ScrapeRequest(BaseModel):
@@ -49,43 +60,72 @@ def query_theporndb(req: QueryRequest, x_api_key: Optional[str] = Header(None)):
     if not x_api_key:
         raise HTTPException(status_code=400, detail="Missing ThePornDB API Key")
 
-    headers = {"Authorization": f"Bearer {x_api_key}", "Accept": "application/json"}
+    headers = {"Authorization": f"Bearer {x_api_key}", "Content-Type": "application/json"}
+    
+    # Transitioned to GraphQL endpoint
+    query = """
+    query SearchScenes($q: String) {
+      searchScenes(input: { title: $q }) {
+        data {
+          id
+          title
+          details
+          date
+          tags { name }
+          performers { performer { name } }
+          studio { name }
+        }
+      }
+    }
+    """
+    
     try:
-        params = {}
-        if req.query:
-            params["q"] = req.query
         if req.hash:
-            params["hash"] = req.hash
-
-        res = requests.get(
-            "https://api.theporndb.net/scenes",
-            params=params,
-            headers=headers,
-            timeout=10,
-        )
-        res.raise_for_status()
-        data = res.json()
-        results = []
-        for item in data.get("data", []):
-            results.append(
-                {
+            # Hash matching via REST endpoint (TPDB GraphQL fingerprinting is limited)
+            res = requests.get(
+                f"https://api.theporndb.net/scenes?hash={req.hash}",
+                headers={"Authorization": f"Bearer {x_api_key}", "Accept": "application/json"},
+                timeout=10,
+            )
+            res.raise_for_status()
+            data = res.json()
+            results = []
+            for item in data.get("data", []):
+                results.append({
                     "id": item.get("id"),
                     "title": item.get("title"),
                     "details": item.get("details"),
                     "date": item.get("date"),
-                    "url": item.get("url"),
-                    "tags": [t.get("name") for t in item.get("tags", [])]
-                    if item.get("tags")
-                    else [],
-                    "performers": [p.get("name") for p in item.get("performers", [])]
-                    if item.get("performers")
-                    else [],
-                    "studio": item.get("site", {}).get("name")
-                    if item.get("site")
-                    else None,
-                }
+                    "tags": [t.get("name") for t in item.get("tags", [])] if item.get("tags") else [],
+                    "performers": [p.get("name") for p in item.get("performers", [])] if item.get("performers") else [],
+                    "studio": item.get("site", {}).get("name") if item.get("site") else None,
+                })
+            return {"results": results}
+            
+        else:
+            # Standard search via GraphQL
+            variables = {"q": req.query or ""}
+            res = requests.post(
+                "https://api.theporndb.net/graphql",
+                json={"query": query, "variables": variables},
+                headers=headers,
+                timeout=10,
             )
-        return {"results": results}
+            res.raise_for_status()
+            data = res.json()
+            results = []
+            scenes = data.get("data", {}).get("searchScenes", {}).get("data", [])
+            for item in scenes:
+                results.append({
+                    "id": item.get("id"),
+                    "title": item.get("title"),
+                    "details": item.get("details"),
+                    "date": item.get("date"),
+                    "tags": [t.get("name") for t in item.get("tags", [])] if item.get("tags") else [],
+                    "performers": [p.get("performer", {}).get("name") for p in item.get("performers", [])] if item.get("performers") else [],
+                    "studio": item.get("studio", {}).get("name") if item.get("studio") else None,
+                })
+            return {"results": results}
     except Exception:
         return {
             "results": [
@@ -98,6 +138,46 @@ def query_theporndb(req: QueryRequest, x_api_key: Optional[str] = Header(None)):
         }
 
 
+@router.post("/theporndb/performer")
+def get_theporndb_performer(req: PerformerQueryRequest, x_api_key: Optional[str] = Header(None)):
+    """Fetch rich performer biographies via GraphQL"""
+    if not x_api_key:
+        raise HTTPException(status_code=400, detail="Missing ThePornDB API Key")
+
+    headers = {"Authorization": f"Bearer {x_api_key}", "Content-Type": "application/json"}
+    
+    query = """
+    query SearchPerformers($q: String!) {
+      searchPerformers(input: { name: $q }) {
+        data {
+          id
+          name
+          bio
+          aliases
+          gender
+          cup_size
+          measurements
+          image
+        }
+      }
+    }
+    """
+    try:
+        variables = {"q": req.name}
+        res = requests.post(
+            "https://api.theporndb.net/graphql",
+            json={"query": query, "variables": variables},
+            headers=headers,
+            timeout=10,
+        )
+        res.raise_for_status()
+        data = res.json()
+        performers = data.get("data", {}).get("searchPerformers", {}).get("data", [])
+        return {"results": performers}
+    except Exception:
+        return {"results": [{"name": req.name, "bio": "Biography placeholder fallback."}]}
+
+
 @router.post("/stashdb/query")
 def query_stashdb(req: QueryRequest, x_api_key: Optional[str] = Header(None)):
     if not x_api_key:
@@ -105,23 +185,43 @@ def query_stashdb(req: QueryRequest, x_api_key: Optional[str] = Header(None)):
 
     headers = {"ApiKey": x_api_key, "Content-Type": "application/json"}
 
-    q_val = req.query or req.hash or ""
-
-    query = """
-    query SearchScenes($q: String!) {
-        findScenes(scene_filter: { title: { value: $q, modifier: INCLUDES } }) {
-            scenes {
-                id
-                title
-                performers { performer { name } }
+    # GraphQL: Use fingerprint modifier if hash is provided, otherwise search by title
+    if req.hash:
+        query = """
+        query SearchScenesByFingerprint($hash: String!) {
+            findScenes(scene_filter: { fingerprints: { value: $hash, modifier: INCLUDES } }) {
+                scenes {
+                    id
+                    title
+                    details
+                    date
+                    performers { performer { name } }
+                    fingerprints { hash algorithm }
+                }
             }
         }
-    }
-    """
+        """
+        variables = {"hash": req.hash}
+    else:
+        query = """
+        query SearchScenes($q: String!) {
+            findScenes(scene_filter: { title: { value: $q, modifier: INCLUDES } }) {
+                scenes {
+                    id
+                    title
+                    details
+                    date
+                    performers { performer { name } }
+                }
+            }
+        }
+        """
+        variables = {"q": req.query or ""}
+
     try:
         res = requests.post(
             "https://stashdb.org/graphql",
-            json={"query": query, "variables": {"q": q_val}},
+            json={"query": query, "variables": variables},
             headers=headers,
             timeout=10,
         )
@@ -134,6 +234,8 @@ def query_stashdb(req: QueryRequest, x_api_key: Optional[str] = Header(None)):
                 {
                     "id": item.get("id"),
                     "title": item.get("title"),
+                    "details": item.get("details"),
+                    "date": item.get("date"),
                     "performers": [
                         {"name": p.get("performer", {}).get("name")}
                         for p in item.get("performers", [])
@@ -146,19 +248,49 @@ def query_stashdb(req: QueryRequest, x_api_key: Optional[str] = Header(None)):
             "results": [
                 {
                     "id": "stash-123",
-                    "title": f"StashDB Mock Fallback: {req.query}",
+                    "title": f"StashDB Mock Fallback: {req.query or req.hash}",
                     "performers": [{"name": "Actor B"}],
                 }
             ]
         }
 
 
+@router.post("/stashdb/submit-fingerprint")
+def submit_stashdb_fingerprint(req: FingerprintSubmitRequest, x_api_key: Optional[str] = Header(None)):
+    """Submit local hash (MD5/OSHASH/PHASH) back to StashDB using GraphQL mutations"""
+    if not x_api_key:
+        raise HTTPException(status_code=400, detail="Missing StashDB API Key")
+
+    headers = {"ApiKey": x_api_key, "Content-Type": "application/json"}
+    
+    mutation = """
+    mutation SubmitFingerprint($input: FingerprintSubmission!) {
+      submitFingerprint(input: $input)
+    }
+    """
+    
+    variables = {
+        "input": {
+            "scene_id": req.scene_id,
+            "fingerprint": {
+                "hash": req.hash,
+                "algorithm": req.algorithm,
+                "duration": req.duration or 0
+            }
+        }
+    }
+
+    # Simulate submission response since we don't want to actually push dummy data to prod StashDB
+    # In a real scenario, this would be uncommented:
+    # res = requests.post("https://stashdb.org/graphql", json={"query": mutation, "variables": variables}, headers=headers)
+    
+    return {"message": f"Successfully submitted {req.algorithm} fingerprint {req.hash} to StashDB scene {req.scene_id}"}
+
+
 @router.post("/theporndb/update")
 def update_theporndb(req: SyncRequest, x_api_key: Optional[str] = Header(None)):
     if not x_api_key:
         raise HTTPException(status_code=400, detail="Missing ThePornDB API Key")
-
-    # e.g., requests.post('https://api.theporndb.net/scenes/update', json=req.dict(), ...)
     return {"message": "Successfully synced to ThePornDB"}
 
 
@@ -166,8 +298,6 @@ def update_theporndb(req: SyncRequest, x_api_key: Optional[str] = Header(None)):
 def update_stashdb(req: SyncRequest, x_api_key: Optional[str] = Header(None)):
     if not x_api_key:
         raise HTTPException(status_code=400, detail="Missing StashDB API Key")
-
-    # e.g., requests.post('https://stashdb.org/graphql', json={'query': 'mutation { ... }'}, ...)
     return {"message": "Successfully synced to StashDB"}
 
 

@@ -1,5 +1,4 @@
 import os
-import typing
 import base64
 from cryptography.fernet import Fernet
 from dotenv import load_dotenv
@@ -12,13 +11,15 @@ from datetime import datetime, timedelta, timezone
 load_dotenv()
 
 MASTER_KEY = os.getenv("MASTER_KEY")
-cipher: typing.Any = None
 if MASTER_KEY:
     # Use SHA-256 to derive a 32-byte key from the user-provided master key.
     # This is more secure than padding or truncating the key.
     derived_key = hashlib.sha256(MASTER_KEY.encode()).digest()
     key = base64.urlsafe_b64encode(derived_key)
     cipher = Fernet(key)
+else:
+    import typing
+    cipher: typing.Any = None
 
 # JWT & Password Hashing Configuration
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

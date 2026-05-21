@@ -7,7 +7,7 @@ from models import Base, Settings
 from datetime import datetime, timezone, date
 import json
 import uuid
-from typing import Optional, Any
+from typing import Optional
 from decimal import Decimal
 from dependencies import verify_api_key
 from rate_limiter import rate_limit
@@ -68,7 +68,8 @@ def export_backup(
             media_type="application/json",
         )
     elif type == "full":
-        full_data: dict[str, Any] = {
+        import typing
+        data: typing.Dict[str, typing.Any] = {
             "type": "full",
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "version": "1.0",
@@ -76,10 +77,10 @@ def export_backup(
         }
         for table in Base.metadata.sorted_tables:
             rows = db.execute(table.select()).mappings().all()
-            full_data["data"][table.name] = [dict(row) for row in rows]
+            data["data"][table.name] = [dict(row) for row in rows]
 
         return Response(
-            content=json.dumps(full_data, cls=CustomJSONEncoder),
+            content=json.dumps(data, cls=CustomJSONEncoder),
             media_type="application/json",
         )
     elif type == "custom":
@@ -88,7 +89,7 @@ def export_backup(
                 status_code=400, detail="Tables must be specified for custom backup"
             )
         target_tables = [t.strip() for t in tables.split(",")]
-        custom_data: dict[str, Any] = {
+        data = {
             "type": "custom",
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "version": "1.0",
@@ -97,10 +98,10 @@ def export_backup(
         for table in Base.metadata.sorted_tables:
             if table.name in target_tables:
                 rows = db.execute(table.select()).mappings().all()
-                custom_data["data"][table.name] = [dict(row) for row in rows]
+                data["data"][table.name] = [dict(row) for row in rows]
 
         return Response(
-            content=json.dumps(custom_data, cls=CustomJSONEncoder),
+            content=json.dumps(data, cls=CustomJSONEncoder),
             media_type="application/json",
         )
     else:
