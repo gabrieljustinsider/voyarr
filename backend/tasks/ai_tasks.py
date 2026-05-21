@@ -2,7 +2,6 @@ import os
 import subprocess
 import base64
 import requests
-import json
 import logging
 from celery import shared_task
 from celery.exceptions import MaxRetriesExceededError

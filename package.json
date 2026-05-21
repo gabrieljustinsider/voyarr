@@ -8,7 +8,7 @@
     "stop": "docker compose down",
     "test": "npm run test:frontend && npm run test:backend",
     "test:frontend": "cd frontend && npm run build",
-    "test:backend": "cd backend && ruff check . && pytest",
+    "test:backend": "cd backend && ../venv/bin/ruff check . && PYTHONPATH=. ../venv/bin/pytest",
     "build": "cd frontend && npm install && npm run build",
     "version": "node -e \"require('fs').writeFileSync('VERSION', process.env.npm_package_version + '\\n')\" && git add VERSION"
   },

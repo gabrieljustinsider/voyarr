@@ -41,6 +41,17 @@ function selectElement(e) {
   
   const selector = generateCSSSelector(e.target);
   chrome.runtime.sendMessage({ action: "elementSelected", selector, text: e.target.innerText });
+  
+  disableMapMode();
+}
+
+function disableMapMode() {
+  mapModeEnabled = false;
+  document.body.style.cursor = "default";
+  document.removeEventListener('mouseover', highlightElement);
+  document.removeEventListener('mouseout', removeHighlight);
+  document.removeEventListener('click', selectElement, { capture: true });
+  removeHighlightFromAll();
   chrome.runtime.sendMessage({ action: "disableMapMode" });
 }
 

@@ -27,6 +27,13 @@ Voyarr automates the tedious parts of managing a local media library. From autom
 7. **Multi-Drive Storage:** Spread your library across multiple hard drives seamlessly using comma-separated Docker volume mappings.
 8. **Multi-User RBAC:** Create restricted user accounts for friends and family without exposing your Master Key or admin privileges.
 9. **Remote Mapping Extension:** A Chrome browser extension with a "Map Mode" UI allowing you to click on elements on live websites to generate CSS selectors for site scraping recipes.
+10. **Discord Bot Portal:** Remotely trigger Celery scrape tasks, search the library, and add downloads directly via Discord Slash Commands.
+11. **Automated Transcoding Engine:** Run background FFmpeg pipelines to convert video libraries to lightweight codecs (e.g. H.265) and set target resolutions.
+12. **Outbound Webhooks & Notifications:** Send real-time notifications to external endpoints for downloads, scans, and transcode completions.
+13. **Cron Scrape Schedules:** Schedule automated periodic channel scans and page rips via custom cron-expression schedules.
+14. **System Backup & Recovery:** Export complete PostgreSQL schema records and media metadata configurations.
+15. **Media Requests Portal:** Allow standard or guest users to request downloads via a centralized portal with admin approval queues.
+16. **Video Chapters:** Generate, browse, and edit time-indexed chapter boundaries with sub-tag descriptors directly in the local library.
 
 ## 🐳 Docker Configuration
 
@@ -58,6 +65,16 @@ docker compose up -d
 - **Frontend:** `http://localhost:3000` (Installable as a PWA)
 - **Backend API:** `http://localhost:8000`
 - **FastAPI docs:** `http://localhost:8000/docs`
+
+### 🔐 User & Admin Bootstrapping
+
+Voyarr features a secure, multi-user environment with Role-Based Access Control (RBAC):
+
+1. **Bootstrap the Admin Account**: Upon fresh installation (when no users exist in the database), navigate to the web login screen and register. The very first user account created is **automatically** granted the `"admin"` role to prevent system lockout.
+2. **Lockout Prevention**: Once this first administrator account is created, public registration is **immediately disabled**.
+3. **Registering Subsequent Users**: To register a new user after the admin is configured, the registration request must be:
+   - Approved and triggered by an existing Admin (sent from within the authenticated Admin dashboard/client).
+   - Alternatively, authorized by including the `MASTER_KEY` secret (configured in your `.env` file) as an HTTP header: `X-Voyarr-Api-Key: <your_master_key>`.
 
 ## 🧩 Browser Extension Setup
 

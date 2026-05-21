@@ -11,7 +11,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             // Strip trailing slash if the user added one
             const baseUrl = config.voyarrApiUrl.replace(/\/$/, '');
 
-            fetch(`${baseUrl}/external-api/extension/recipe`, {
+            fetch(`${baseUrl}/scraper/map-mode`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
