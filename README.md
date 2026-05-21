@@ -49,13 +49,30 @@ Voyarr is designed to be run via Docker Compose. The stack includes:
 Voyarr utilizes a **hybrid volume architecture** and **dynamic host port selection** to ensure conflict-free ports and permission-safe storage on self-hosted environments (like Synology NAS, Unraid, or standard Linux servers).
 
 ### 1. Pre-create Host Folders (Volume Setup)
-To prevent host-side permission errors (like `root:root` locked folder conflicts) and ensure seamless container upgrades, pre-create your config and database directories on your host NAS/server:
 
-1. Create a root project directory (e.g., `/volume1/docker/voyarr/`).
-2. Inside it, create the following subdirectories:
-   - `config` (For persistent configurations, cookies, and app settings)
-   - `db-data` (For PostgreSQL database storage)
-   - `media` (For your media libraries, e.g., `/volume1/video/voyarr`)
+#### 📂 Choosing Where System Data Lives (Root Settings Folder)
+Voyarr needs a place to store its own system configurations, settings, and database. You can choose **any folder** on your NAS or server to act as the root path for these system files. 
+
+For example, you might choose:
+* **Option A (Default)**: `/volume1/docker/voyarr/` (If you keep all Docker apps on Volume 1)
+* **Option B (Custom Volume)**: `/volume2/appdata/voyarr/` (If you have a separate fast SSD storage pool on Volume 2)
+
+Once you decide on this root directory, open **File Station** on your NAS and create the following two folders inside it:
+* 📁 **`config`** (This stores your app settings, custom recipes, and logged-in website sessions)
+* 📁 **`db-data`** (This stores the database file containing your library lists, rules, and download queues)
+
+---
+
+#### 🎬 Using Your Existing Media Folders (No need to create new ones!)
+You **do not** need to create a new folder for your media if you already have one! If you have an existing directory where you store your videos, movies, or downloaded files, Voyarr can plug directly into it. 
+
+* **How it works**: Simply find the path of your existing folder and tell Voyarr where to look. It will read and write downloads directly inside your existing folders, saving you from copying or moving any files.
+* **Examples of Existing Paths**:
+  * If your videos are in the default Synology video shared folder: `/volume1/video`
+  * If you have a custom media shared folder on a second drive: `/volume2/my_adult_library`
+  * If you keep downloads in a generic downloads folder: `/volume1/downloads/completed`
+
+You will specify this path in the `.env` file in the next step.
 
 ### 2. Configure Your Environment Variables
 Copy the provided `.env.example` file to `.env`:
@@ -66,11 +83,16 @@ cp .env.example .env
 
 Open `.env` and configure the following parameters:
 
-* **Paths**: Point the path variables directly to the host folders you created in Step 1:
+* **Paths**: Tell Voyarr where your folders are located on your NAS:
   ```env
+  # 1. Point this to the config folder you created inside your chosen root path
   CONFIG_ROOT=/volume1/docker/voyarr/config
+  
+  # 2. Point this to the db-data folder you created inside your chosen root path
   DB_DATA_PATH=/volume1/docker/voyarr/db-data
-  MEDIA_ROOT_1=/volume1/docker/voyarr/media
+  
+  # 3. Point this to your existing media folder (e.g. /volume1/video)
+  MEDIA_ROOT_1=/volume1/video
   ```
 * **Ports**: Under *Host Ports Configuration*, you have two options:
   - **Auto-Allocation (Recommended)**: Leave `PORT=`, `FRONTEND_PORT=`, `REDIS_PORT=`, and `POSTGRES_PORT=` **blank/empty**.
