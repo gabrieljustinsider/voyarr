@@ -54,3 +54,162 @@ def test_call_openai_vision(mock_post):
     
     assert tags == ["tagA", "tagB", "tagC"]
     mock_post.assert_called_once()
+
+
+@patch("tasks.ai_tasks.get_db_session")
+@patch("tasks.ai_tasks.os.path.exists")
+@patch("tasks.ai_tasks.extract_frame_base64")
+@patch("tasks.ai_tasks.call_ollama_vision")
+@patch("tasks.ai_tasks.WebhookService")
+def test_auto_tag_video_task_success(mock_webhook, mock_call_ollama, mock_extract, mock_exists, mock_get_db):
+    mock_exists.return_value = True
+    mock_extract.return_value = "base64data"
+    mock_call_ollama.return_value = ["tagA", "tagB"]
+
+    # Setup database mocks
+    mock_db = MagicMock()
+    mock_get_db.return_value.__enter__.return_value = mock_db
+    
+    # Mock settings
+    mock_ollama_url = MagicMock()
+    mock_ollama_url.value = "http://localhost:11434"
+    mock_openai_key = MagicMock()
+    mock_openai_key.value = None
+    
+    # Mock entry
+    mock_entry = MagicMock()
+    mock_entry.file_path = "/path/to/video.mp4"
+    mock_entry.tags = ["Existing"]
+    mock_entry.id = 42
+
+    # Query behavior: first query gets LibraryEntry, next queries get Settings
+    mock_db.query.return_value.filter.return_value.first.side_effect = [
+        mock_entry,       # first call for LibraryEntry
+        mock_ollama_url,  # second call for ai_ollama_url
+        mock_openai_key   # third call for ai_openai_key
+    ]
+    
+    # Instantiate self mock for bind=True Celery task
+    self_mock = MagicMock()
+    
+    # Run the task
+    auto_tag_video_task.run(42)
+    
+    # Assertions
+    assert "tagA" in mock_entry.tags
+    assert "tagB" in mock_entry.tags
+    assert "Existing" in mock_entry.tags
+    mock_db.commit.assert_called_once()
+    mock_webhook.trigger.assert_called_once_with(
+        "ai_tagging.completed",
+        {"library_entry_id": 42, "new_tags": ["tagA", "tagB"]}
+    )
+
+
+@patch("tasks.ai_tasks.get_db_session")
+@patch("tasks.ai_tasks.os.path.exists")
+@patch("tasks.ai_tasks.extract_frame_base64")
+@patch("tasks.ai_tasks.call_ollama_vision")
+def test_auto_tag_video_task_retry(mock_call_ollama, mock_extract, mock_exists, mock_get_db):
+    import requests
+    mock_exists.return_value = True
+    mock_extract.return_value = "base64data"
+    
+    # Raise network exception on call_ollama_vision
+    exc = requests.exceptions.Timeout("Connection timed out")
+    mock_call_ollama.side_effect = exc
+
+    # Setup database mocks
+    mock_db = MagicMock()
+    mock_get_db.return_value.__enter__.return_value = mock_db
+    
+    mock_ollama_url = MagicMock()
+    mock_ollama_url.value = "http://localhost:11434"
+    mock_openai_key = MagicMock()
+    mock_openai_key.value = None
+    
+    mock_entry = MagicMock()
+    mock_entry.file_path = "/path/to/video.mp4"
+    mock_entry.tags = []
+
+    mock_db.query.return_value.filter.return_value.first.side_effect = [
+        mock_entry,
+        mock_ollama_url,
+        mock_openai_key
+    ]
+    
+    # Mock celery retry and request via patch
+    from unittest.mock import PropertyMock
+    with patch("celery.app.task.Task.request", new_callable=PropertyMock) as mock_request:
+        mock_req = MagicMock()
+        mock_req.retries = 2
+        mock_request.return_value = mock_req
+        
+        with patch("celery.app.task.Task.retry") as mock_retry:
+            mock_retry.side_effect = Exception("CeleryRetry")
+            
+            with pytest.raises(Exception, match="CeleryRetry"):
+                auto_tag_video_task.run(42)
+                
+            mock_retry.assert_called_once_with(exc=exc, countdown=4) # 2 ** 2 = 4
+
+
+@patch("tasks.ai_tasks.get_db_session")
+@patch("tasks.ai_tasks.os.path.exists")
+@patch("tasks.ai_tasks.extract_frame_base64")
+@patch("tasks.ai_tasks.call_ollama_vision")
+@patch("tasks.ai_tasks.WebhookService")
+def test_auto_tag_video_task_fallback(mock_webhook, mock_call_ollama, mock_extract, mock_exists, mock_get_db):
+    import requests
+    from celery.exceptions import MaxRetriesExceededError
+    mock_exists.return_value = True
+    mock_extract.return_value = "base64data"
+    
+    # Raise MaxRetriesExceededError from Celery retry
+    exc = requests.exceptions.Timeout("Connection timed out")
+    mock_call_ollama.side_effect = exc
+
+    # Setup database mocks
+    mock_db = MagicMock()
+    mock_get_db.return_value.__enter__.return_value = mock_db
+    
+    mock_ollama_url = MagicMock()
+    mock_ollama_url.value = "http://localhost:11434"
+    mock_openai_key = MagicMock()
+    mock_openai_key.value = None
+    
+    mock_entry = MagicMock()
+    mock_entry.file_path = "/path/to/video.mp4"
+    mock_entry.tags = []
+    mock_entry.id = 42
+
+
+    mock_db.query.return_value.filter.return_value.first.side_effect = [
+        mock_entry,
+        mock_ollama_url,
+        mock_openai_key
+    ]
+    
+    # Mock celery retry and request via patch
+    from unittest.mock import PropertyMock
+    with patch("celery.app.task.Task.request", new_callable=PropertyMock) as mock_request:
+        mock_req = MagicMock()
+        mock_req.retries = 5
+        mock_request.return_value = mock_req
+        
+        with patch("celery.app.task.Task.retry") as mock_retry:
+            mock_retry.side_effect = MaxRetriesExceededError("Max retries exceeded")
+            
+            # The task should catch MaxRetriesExceededError and apply fallbacks
+            auto_tag_video_task.run(42)
+            
+            assert "AI-Tagged" in mock_entry.tags
+            assert "Processed" in mock_entry.tags
+            mock_db.commit.assert_called_once()
+            mock_webhook.trigger.assert_called_once_with(
+                "ai_tagging.completed",
+                {"library_entry_id": 42, "new_tags": ["AI-Tagged", "Processed"]}
+            )
+
+
+
