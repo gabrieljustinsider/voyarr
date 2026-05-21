@@ -114,17 +114,150 @@ Open `.env` and configure the following parameters:
     * *On CLI*: Docker will assign random ports. Check them via `docker compose ps` and, if desired, add them to your `.env` to lock them in.
   - **Static Allocation**: Specify static ports (e.g., `PORT=8000`, `FRONTEND_PORT=3000`) if you already know they are free.
 
-### 3. Deploy the Stack
-Start the services:
+### 3. Choose Your Deployment Method
 
+Depending on your preference, you can deploy Voyarr using **Docker Compose** (recommended for easy one-step management) or via the **Standard Docker CLI** (for manual container-by-container control).
+
+---
+
+#### 🟢 Method A: Docker Compose Deployment (Highly Recommended)
+
+Docker Compose is the easiest and most robust way to manage the Voyarr multi-container stack.
+
+##### 1. Command Line Interface (CLI)
+Navigate to your Voyarr root directory and launch the services in the background:
 ```bash
-docker compose up -d
+# Build the local images and start the stack in detached mode
+docker compose up -d --build
 ```
 
-If you chose Auto-Allocation, run `docker compose ps` to inspect your dynamically assigned frontend and backend API host ports.
+* **Verify running services**:
+  ```bash
+  docker compose ps
+  ```
+  *(If you chose Auto-Allocation for ports, this command will show you the exact randomly assigned ports for the backend and frontend).*
+* **View real-time logs**:
+  ```bash
+  docker compose logs -f
+  ```
+* **Stop the stack**:
+  ```bash
+  docker compose down
+  ```
+
+##### 2. Graphical UI (Synology Container Manager / Portainer)
+* **Synology Container Manager**:
+  1. Open **Container Manager** on your NAS.
+  2. Navigate to **Project** and click **Create**.
+  3. Enter a Project Name (e.g. `voyarr`).
+  4. Select **Upload docker-compose.yml** or choose a path to the directory containing it.
+  5. Select your pre-configured `.env` file or paste the environment variables.
+  6. Click **Next** and complete the wizard. Synology will automatically download images, build local containers, allocate conflict-free ports, and start the project.
+* **Portainer**:
+  1. Create a new **Stack**.
+  2. Paste the contents of `docker-compose.yml` into the Web editor.
+  3. Add environment variables under **Environment variables** or upload the `.env` file.
+  4. Click **Deploy the stack**.
+
+---
+
+#### 🔵 Method B: Standard Docker CLI Deployment (Individual Containers)
+
+If you prefer to run containers manually without a Compose file, you can build and start them one by one.
+
+##### 1. Create a Shared Docker Network
+So the containers can resolve and talk to each other securely:
+```bash
+docker network create voyarr_network
+```
+
+##### 2. Start PostgreSQL Database
+```bash
+docker run -d \
+  --name voyarr-db \
+  --network voyarr_network \
+  -e POSTGRES_DB=voyarr \
+  -e POSTGRES_USER=voyarr_user \
+  -e POSTGRES_PASSWORD=your_secure_password \
+  -v /absolute/path/to/voyarr/init.sql:/docker-entrypoint-initdb.d/init.sql \
+  -v voyarr-db-data:/var/lib/postgresql/data \
+  -p 5432:5432 \
+  postgres:15-alpine
+```
+
+##### 3. Start Redis Message Broker
+```bash
+docker run -d \
+  --name voyarr-redis \
+  --network voyarr_network \
+  -p 6379:6379 \
+  redis:7-alpine
+```
+
+##### 4. Build and Run FastAPI Backend
+* **Build backend image**:
+  ```bash
+  docker build -t voyarr-backend ./backend
+  ```
+* **Run backend container**:
+  ```bash
+  docker run -d \
+    --name voyarr-backend \
+    --network voyarr_network \
+    -e DATABASE_URL=postgresql://voyarr_user:your_secure_password@voyarr-db:5432/voyarr \
+    -e CELERY_BROKER_URL=redis://voyarr-redis:6379/0 \
+    -e CELERY_RESULT_BACKEND=redis://voyarr-redis:6379/0 \
+    -e MEDIA_ROOT=/media/storage \
+    -e DEFAULT_DOWNLOAD_PATH=/media/storage/downloads \
+    -e MASTER_KEY=your_32_byte_hex_key \
+    -e SECRET_KEY=your_secret_key_here \
+    -e HOST=0.0.0.0 \
+    -e PORT=8000 \
+    -v voyarr-config:/app/config \
+    -v /volume1/video:/media/storage \
+    -p 8000:8000 \
+    voyarr-backend
+  ```
+
+##### 5. Run Celery Worker
+The worker uses the same backend image but runs the Celery daemon:
+```bash
+docker run -d \
+  --name voyarr-celery \
+  --network voyarr_network \
+  -e DATABASE_URL=postgresql://voyarr_user:your_secure_password@voyarr-db:5432/voyarr \
+  -e CELERY_BROKER_URL=redis://voyarr-redis:6379/0 \
+  -e CELERY_RESULT_BACKEND=redis://voyarr-redis:6379/0 \
+  -e MEDIA_ROOT=/media/storage \
+  -e DEFAULT_DOWNLOAD_PATH=/media/storage/downloads \
+  -e MASTER_KEY=your_32_byte_hex_key \
+  -e SECRET_KEY=your_secret_key_here \
+  -v voyarr-config:/app/config \
+  -v /volume1/video:/media/storage \
+  voyarr-backend sh -c "mkdir -p /media/storage/logs && celery -A celery_app.celery_app worker --loglevel=info --logfile=/media/storage/logs/celery.log"
+```
+
+##### 6. Build and Run Vite Frontend
+* **Build frontend image** (specifying backend server address):
+  ```bash
+  docker build -t voyarr-frontend --build-arg VITE_API_BASE_URL=http://localhost:8000 ./frontend
+  ```
+* **Run frontend container**:
+  ```bash
+  docker run -d \
+    --name voyarr-frontend \
+    --network voyarr_network \
+    -p 3000:80 \
+    voyarr-frontend
+  ```
+
+---
 
 ### 4. Access the Services
-Navigate to your assigned frontend host port (e.g., `http://<your-ip>:<assigned-port>`). The React PWA can be installed directly onto your device.
+
+Once running, open your web browser and navigate to:
+* **Frontend Access**: `http://<your-ip>:3000` (or your randomly assigned frontend port)
+* **Backend API Documentation**: `http://<your-ip>:8000/docs` (or your randomly assigned backend port)
 
 ### 🔐 User & Admin Bootstrapping
 
