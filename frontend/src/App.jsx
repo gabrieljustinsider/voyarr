@@ -733,13 +733,4 @@ function App() {
 }
 
 export default App
-ck={() => { promptModal.onConfirm?.(promptModal.value); setPromptModal({ ...promptModal, open: false }) }}>
-            Confirm
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </ThemeProvider>
-  )
-}
 
-export default App
