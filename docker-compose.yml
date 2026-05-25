@@ -53,6 +53,8 @@ services:
     image: ghcr.io/gabrieljustinsider/voyarr-backend:latest
     container_name: voyarr-backend
     user: "${PUID:-1000}:${PGID:-1000}"
+    group_add:
+      - "${SUPPLEMENTARY_GID:-1000}"
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-voyarr}}
       - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
@@ -97,6 +99,8 @@ services:
   x-celery-worker: &celery-worker
     image: ghcr.io/gabrieljustinsider/voyarr-backend:latest
     user: "${PUID:-1000}:${PGID:-1000}"
+    group_add:
+      - "${SUPPLEMENTARY_GID:-1000}"
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-voyarr}}
       - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
@@ -137,6 +141,8 @@ services:
     image: ghcr.io/gabrieljustinsider/voyarr-backend:latest
     container_name: voyarr-celery-beat
     user: "${PUID:-1000}:${PGID:-1000}"
+    group_add:
+      - "${SUPPLEMENTARY_GID:-1000}"
     command: sh -c "celery -A celery_app.celery_app beat --loglevel=${CELERY_LOG_LEVEL:-info} --pidfile=/tmp/celerybeat.pid"
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-voyarr}}
