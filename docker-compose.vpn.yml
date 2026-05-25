@@ -6,14 +6,9 @@ services:
       - NET_ADMIN
     devices:
       - /dev/net/tun:/dev/net/tun
-    environment:
-      - VPN_SERVICE_PROVIDER=${VPN_SERVICE_PROVIDER:-mullvad}
-      - VPN_TYPE=${VPN_TYPE:-wireguard}
-      - WIREGUARD_PRIVATE_KEY=${WIREGUARD_PRIVATE_KEY}
-      - WIREGUARD_ADDRESSES=${WIREGUARD_ADDRESSES:-10.64.0.1/32}
-      - SERVER_COUNTRIES=${SERVER_COUNTRIES:-Sweden}
-      - DOT=${VPN_DOT:-on}
-      - DNS_KEEP_NAMESERVER=${VPN_DNS_KEEP_NAMESERVER:-on}
+    env_file:
+      - path: .env.vpn
+        required: true
     ports:
       - "${PORT:-8000}:8000"
       - "${FRONTEND_PORT:-80}:80"
