@@ -37,13 +37,29 @@ Voyarr runs inside **Docker**, which is a system that allows apps to run in thei
 ### Step 1: Zero-Setup for Application Data
 Voyarr utilizes **Docker Named Volumes** (`voyarr-config`, `voyarr-db-data`, `voyarr-backups`, and `voyarr-certs`) to manage its internal database, certificate folders, configurations, and backups. 
 * **No manual folder creation needed:** You do **not** need to create any database or configuration folders on your server or NAS before starting the app. Docker handles this automatically and keeps your settings entirely persistent and upgrade-safe.
+### Step 1: Pre-Create Your Folders
+Before starting the app, you need to create three empty folders on your host system to store Voyarr's configurations and database.
+1. Open your server's file explorer.
+2. Choose a main location (for example, `/volume1/docker/voyarr/`).
+3. Create three folders inside it:
+   - 📁 `config` (stores your application settings, custom scraping recipes, and login sessions)
+   - 📁 `db-data` (stores your library tables, histories, rules, and download queues)
+   - 📁 `backups` (stores your automated and manual database backups)
 
 ### Step 2: Configure Your Environment File (`.env`)
 Copy the provided `.env.example` file in your Voyarr folder and rename the copy to `.env`. Open it in any text editor and configure your local settings:
 
+Copy the file `.env.example` in your Voyarr folder and rename the copy to `.env`. Open it in any text editor and fill in your folder paths (the paths listed below are just examples. Replace them with your own actual paths):
 ```env
 # Point this to your existing local videos folder on your host machine (where your media is stored):
 HOST_MEDIA_PATH_1=/volume1/video
+# Point these to the folders you created in Step 1:
+CONFIG_ROOT=/volume1/docker/voyarr/config
+DB_DATA_PATH=/volume1/docker/voyarr/db-data
+BACKUP_ROOT=/volume1/docker/voyarr/backups
+
+# Point this to your existing local videos folder (where your downloaded media is stored):
+MEDIA_ROOT_1=/volume1/video
 
 # Set your local timezone (critical for scheduling automated backups):
 TZ=America/New_York
@@ -55,6 +71,8 @@ TZ=America/New_York
 > * **`PUID` (User ID)**: The user ID that runs the container processes. Any new files written by Voyarr (backups, downloads, logs) will be owned by this user on your host.
 > * **`PGID` (Group ID)**: The primary group ID for created files.
 > * **`SUPPLEMENTARY_GID` (Additional GIDs)**: An extra group ID that grants the container access to other host assets. This is like an "extra keycard" allowing the container to access resources like GPU transcoders (e.g., render/video GIDs) or extra NAS share shares without altering the ownership of newly created files.
+> **What are PUID and PGID?**
+> In the `.env` file, you will see `PUID=1000` and `PGID=1000`. These are the user and group ID numbers of your server account. Running the `id` command in your terminal/SSH will show yours. Matching these prevents files created by Voyarr (downloads, logs, backups) from being locked or requiring administrator permissions to move on your storage device. For help with this, feel free to check out the guide, based on the device you are using.
 >
 > **🔍 How to Find Your Host IDs (Terminal Process Call):**
 > Connect to your server/NAS via SSH and run these quick shell commands to output your exact IDs for copy-pasting:
@@ -74,6 +92,9 @@ TZ=America/New_York
 > * Asustor: https://mariushosting.com/asustor-nas-find-uid-userid-and-gid-groupid-in-5-seconds/
 > * Synology: https://mariushosting.com/synology-find-uid-userid-and-gid-groupid-in-5-seconds/
 > * UGREEN: https://mariushosting.com/ugreen-nas-find-uid-userid-and-gid-groupid-in-5-seconds/
+>Asustor: https://mariushosting.com/asustor-nas-find-uid-userid-and-gid-groupid-in-5-seconds/
+>Synology: https://mariushosting.com/synology-find-uid-userid-and-gid-groupid-in-5-seconds/
+>UGREEN: https://mariushosting.com/ugreen-nas-find-uid-userid-and-gid-groupid-in-5-seconds/
 
 
 ### Step 3: Run the App
@@ -314,3 +335,113 @@ If you realize a file was misidentified and named incorrectly, you don't need to
 - Click **Revert to Previous Name**.
 - Voyarr will instantly and safely execute a physical rollback—moving and renaming the file on disk back to its exact previous path, restoring database records, and logging a `revert` action.
 - The system includes strict path-existence guards to ensure no files are accidentally overwritten or lost!
+
+---
+
+## 🔄 How to Update Voyarr
+
+When a new version of Voyarr is released, updating your system is quick and completely safe. Because your configurations and database are stored in isolated volumes on your server, updating the app will **never** delete your files!
+
+**To Update via Terminal / SSH:**
+1. Open your terminal and navigate to your Voyarr folder.
+2. Run the following command to download the newest files:
+   ```bash
+   docker compose pull
+   ```
+3. Restart the app using the new files:
+   ```bash
+   docker compose up -d
+   ```
+
+**To Update via Synology Container Manager:**
+1. Open **Container Manager** and go to the **Project** tab.
+2. Right-click your `voyarr` project and select **Update**.
+3. Synology will automatically download the latest version and restart the containers for you!
+
+---
+
+## 🤖 Discord Bot Setup Guide
+
+Voyarr features a Discord Bot integration that allows you to remotely trigger scrapes, search your library, and queue downloads using slash commands (e.g., `/search`, `/add`).
+
+### Step 1: Create a Discord Bot
+1. Go to the Discord Developer Portal and click **New Application**.
+2. Give it a name (e.g., "Voyarr Bot") and click **Create**.
+3. Go to the **Bot** tab on the left menu.
+4. Under **Privileged Gateway Intents**, enable **Message Content Intent**.
+5. Click **Reset Token** and copy your new Bot Token. Keep this safe!
+
+### Step 2: Configure Voyarr
+1. Open your `.env` file.
+2. Add the following line anywhere in the file:
+   `DISCORD_BOT_TOKEN=your_copied_bot_token_here`
+3. Restart the Voyarr backend: `docker compose restart backend`
+
+### Step 3: Configure the Interactions Endpoint URL (Required)
+Because Voyarr uses HTTP webhooks for slash commands, Discord needs to know where to send them. **Note: Discord requires your server to be accessible over the internet via HTTPS** (e.g., using a reverse proxy or Cloudflare Tunnel).
+1. In the Discord Developer Portal, go to **General Information**.
+2. Scroll down to the **Interactions Endpoint URL** field.
+3. Enter your server's public API URL ending in `/api/discord/interactions`. 
+   *(Example: `https://voyarr.yourdomain.com/api/discord/interactions`)*
+4. Click **Save Changes**. Discord will immediately send a ping to your server to verify the connection.
+
+### Step 4: Invite the Bot to Your Server
+1. In the Discord Developer Portal, go to **OAuth2 > URL Generator**.
+2. Under **Scopes**, select `bot` and `applications.commands`.
+3. Under **Bot Permissions**, select `Send Messages` and `Read Message History`.
+4. Copy the generated URL at the bottom, paste it into your browser, and invite the bot to your private Discord server!
+
+### Available Slash Commands
+Once your bot is running and you have registered your commands with Discord, you can use the following commands directly in your server:
+
+| Command | Options | Required Role | Description |
+| :--- | :--- | :--- | :--- |
+| **`/search`** | `query` (required) | Any | Searches your local Voyarr library for a matching title and returns the result and resolution. |
+| **`/request`** | `title` (required), `url` (optional) | Any | Submits a media request directly into the Voyarr admin dashboard for approval. |
+| **`/scrape`** | `url` (required) | User / Admin | Triggers a background metadata scrape job for the given URL. *(Requires the "Scraping" feature to be globally enabled).* |
+| **`/add`** | `url` (required), `title` (optional) | Admin Only | Instantly queues the provided URL for downloading. *(Requires the "Scraping" feature to be globally enabled).* |
+
+---
+
+## 🧠 AI Auto-Chaptering & Facial Recognition
+
+Voyarr includes powerful machine learning tools to analyze your media files automatically. 
+
+### 1. AI Auto-Chaptering
+Instead of manually finding scene changes, Voyarr can use AI to slice your videos into logical chapters.
+- Go to any video in your **Library** and click on the **Chapters** tab.
+- Click **Generate Chapters via AI**.
+- Voyarr will scan the video frames, detect major scene transitions, and optionally use AI Vision models (like OpenAI GPT-4o or a local Ollama instance) to automatically give each chapter a descriptive title.
+
+### 2. Facial Recognition Clustering
+Voyarr can group faces together across your entire library to help you identify unknown performers.
+- Voyarr runs a background task to find visually similar faces.
+- Navigate to the **Performers > Unknown Faces** tab to see clustered groups.
+- You can select a cluster and assign a name to it. Voyarr will instantly tag that performer across every video where that face appears!
+
+---
+
+## 👯 Managing Duplicates (Bulk Resolution)
+
+If you have a massive library, you probably have duplicate files taking up space. Voyarr uses Perceptual Hashing (phash) to physically "watch" the videos and detect visual duplicates, even if they have different file names or resolutions.
+
+### How to Resolve Duplicates:
+1. Navigate to **Library > Duplicates**. Here, Voyarr groups videos that it believes are visually identical.
+2. You can manually select which file to keep and which to delete, or use the **Bulk Resolve** algorithms:
+   - **Keep Highest Quality**: Voyarr will automatically keep the file with the best resolution and bitrate. It will safely transfer all metadata, tags, and watch history to the kept file, and delete the lower-quality copies from your hard drive.
+   - **Keep Newest / Keep Oldest**: Automatically resolves conflicts based on the date the file was added to your library.
+
+---
+
+## 🔐 Linking Password Managers (1Password & Bitwarden)
+
+While Voyarr securely encrypts all credentials in its database, you might prefer to keep your website passwords in your existing password manager.
+
+### Setup Instructions:
+1. Log into your Voyarr Web App.
+2. Go to **Settings > External Integrations** and find the Password Managers section.
+3. Select your provider:
+   - **1Password**: Enter your 1Password Connect API URL and Token.
+   - **Bitwarden**: Enter your Bitwarden CLI REST API endpoint.
+4. Once connected, whenever you add a new "Provider" (Website) to Voyarr, you can simply type the name of the vault item. Voyarr will securely fetch the login session when it needs to scrape, without ever saving the password to its own database!
+

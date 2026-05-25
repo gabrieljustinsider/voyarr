@@ -76,7 +76,7 @@ services:
   backend:  
     image: ghcr.io/gabrieljustinsider/voyarr-backend:latest
     environment:
-      \- CONTAINER_MEDIA_PATHS=/media/drive1,/media/drive2
+      - CONTAINER_MEDIA_PATHS=/media/drive1,/media/drive2
     volumes:  
       \- /mnt/host/drive1:/media/drive1
       \- /mnt/host/drive2:/media/drive2
@@ -162,7 +162,7 @@ All inbound requests are handled securely under the `/p2p` prefix using a custom
 
 ### **2. Relational Studio Model**
 
-To support normalized analytics, search mappings, and prevent typo corruption, flat `studio` text columns have been fully normalized into a relational structure:
+To support normalized analytics, search mappings, and prevent typo corruption, studios are modeled in a relational structure:
 - **`studios`**: Relational lookup table storing unique studios, descriptions, metadata urls, and parent associations.
 - **Foreign Key Integration**: `studio_id` mapping column introduced across:
   - `media_entries`
@@ -195,7 +195,7 @@ To prevent scraper blocks, protect local hosts from ISP inspection, and bypass g
 ### **5. Secure Identity & Passkeys (WebAuthn) Architecture (v1.13.0)**
 
 Voyarr v1.13.0 implements enterprise-grade passwordless authentication, third-party identity synchronization, and secure non-enumerable User IDs:
-- **Secure String User IDs**: Replaced all sequential auto-incrementing integer keys (`1`, `2`, `3`) with cryptographically secure, randomly generated UUIDs prefixed with `"usr_"` (e.g., `usr_5d78a9c...`). This completely eliminates User scanning, horizontal privilege scanning, and account enumeration vulnerabilities.
+- **Secure String User IDs**: Uses cryptographically secure, randomly generated UUIDs prefixed with `"usr_"` (e.g., `usr_5d78a9c...`). This completely eliminates User scanning, horizontal privilege scanning, and account enumeration vulnerabilities.
 - **Passkeys (WebAuthn) CRUD Lifecycle**:
   - Uses standard browser `navigator.credentials.create()` for registering biometric/security keys and `navigator.credentials.get()` for assertions.
   - **AAGUID Metadata Badge Scoring**: Fully scans the attestation binary blocks during registration to parse the AAGUID, mapping it to specific device vendor brands (Apple iCloud Keychain, Google Password Manager, Windows Hello, YubiKey 5 NFC) and rendering authentic brand icons in the UI.

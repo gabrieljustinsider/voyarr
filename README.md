@@ -3,6 +3,7 @@
 **Voyarr** is a self-hosted media management ecosystem designed to handle subscriptions, metadata scraping, and automated downloads from adult websites. It integrates with **ThePornDB**, **Stash**, and **StashDB**, featuring a remote-control browser extension for dynamic metadata mapping.
 
 📖 **Looking for a non-technical, step-by-step user guide? Check out our complete [User Guide & Tutorial](USER_GUIDE.md)!**
+🛠️ **Running into issues? Check out the Troubleshooting Guide for common errors and fixes.**
 
 ## 🚀 Overview
 
@@ -40,11 +41,11 @@ Voyarr automates the tedious parts of managing a local media library. From autom
 18. **AI-Driven Auto-Chaptering:** Utilize frame-based scene change detection combined with AI Vision models (Ollama/Llava or OpenAI GPT-4o) to automatically segment videos into logical chapters with descriptive titles.
 19. **Granular Queue Priority & Controls:** Adjust priorities, pause, resume, or cancel active tasks inside Celery-managed download, transcoding, and recording streams in real-time.
 20. **Peer-to-Peer (P2P) Syncing & Reconciling:** Exchange CSS scraper recipes and reconcile library watch status/tags securely between remote Voyarr nodes over HTTP/HTTPS tunnels.
-21. **Relational Studio Database Modeling:** Organized flat text studio names into a fully normalized PostgreSQL `studios` model, providing robust metadata structures and tag relations.
+21. **Relational Studio Database Modeling:** Uses a fully normalized PostgreSQL `studios` model, providing robust metadata structures and tag relations.
 22. **Bulk Duplicate Merging Engine:** Resolve multiple visual duplicates programmatically using similarity-based algorithms (`KEEP_HIGHEST_QUALITY`, `KEEP_OLDEST`, `KEEP_NEWEST`).
 23. **Passwordless Passkeys (WebAuthn):** Fully secure, modern passwordless logins using biometric security keys. Includes browser and OS credentials detection (1Password, Bitwarden, iCloud Keychain, Google Password Manager), AAGUID manufacturer resolving, geographic location auditing, and WebAuthn Conditional UI (autofill mediation) support.
 24. **SSO Provider Fast-Access Linking:** Link Google, GitHub, and Discord accounts to standard user profiles, with automated lockout guards ensuring you can never unlink your sole authentication method.
-25. **Secure String User Identifiers:** Complete migration from sequential integer primary keys to randomly generated UUIDs prefixed with `usr_` to defend against user enumeration attacks.
+25. **Secure String User Identifiers:** Uses randomly generated UUIDs prefixed with `usr_` instead of sequential integer primary keys to defend against user enumeration attacks.
 26. **OpenID Connect (OIDC) Integration:** Authenticate via any compliant OIDC provider including Keycloak, Authentik, Authelia, Azure AD / Entra ID, Okta, and Google Workspace. Users are auto-provisioned on first login.
 27. **Global Authentication Policy Controls:** Administrative switches to enable or disable Passkeys, SSO, and OIDC globally, with interactive setup notices and backend API enforcement.
 28. **Automatic Authentication Bypass:** Skip the login screen from trusted local network subnets (CIDR notation) or when behind a trusted reverse proxy (Authelia, Authentik, Cloudflare Access) that passes authenticated user headers.
@@ -130,37 +131,29 @@ Voyarr is designed to be run via Docker Compose. The stack includes:
 
 ## ⚙️ Initial Setup
 
-Voyarr utilizes a **robust named volume architecture** and **dynamic host port selection** to ensure conflict-free ports and permission-safe storage on self-hosted environments (like Synology NAS, Unraid, Portainer, or standard Linux/macOS/Windows servers).
+Voyarr utilizes a **hybrid volume architecture** and **dynamic host port selection** to ensure conflict-free ports and permission-safe storage on self-hosted environments (like Synology NAS, Unraid, or standard Linux servers).
 
-### 1. Storage & Volume Configuration
+### 1. Pre-create Host Folders (Volume Setup)
 
-To run inside Docker, Voyarr splits its storage into two logical areas. This design ensures that you can safely upgrade the app without losing your settings, while keeping full control over where your physical movie and library files are stored.
+#### 📂 Choosing Where System Data Lives (Root Settings Folder)
+Voyarr needs a place to store its own system configurations, settings, and database. You can choose **any folder** on your NAS or server to act as the root path for these system files. 
 
-#### 📦 A. App System Data (Safely Managed inside Docker)
-Voyarr stores its own database, application settings, and backups in **Docker Named Volumes** (`voyarr-config`, `voyarr-db-data`, `voyarr-backups`, and `voyarr-certs`). 
-* **Zero-Setup Startup**: You do **not** need to create any system folders on your computer or NAS before starting the app. Docker handles this automatically.
-* **Persistent & Upgrade-Safe**: Since these files are managed inside Docker volumes, your data is completely separated from the app code. You can stop the app, update it, or pull new versions, and your library lists and settings will remain completely intact. 
+For example, you might choose:
+* **Option A (Default)**: `/volume1/docker/voyarr/` (If you keep all Docker apps on Volume 1)
+* **Option B (Custom Volume)**: `/volume2/appdata/voyarr/` (If you have a separate fast SSD storage pool on Volume 2)
 
-#### 🎬 B. Your Movies & Downloads (Stored Directly on Your Host Device)
-Your actual library folders, videos, movies, and download directories are stored directly on your host machine's physical drives (such as `/volume1/video` on a Synology NAS or `/home/user/media` on a Linux server).
-* **Direct Host Access**: To allow the isolated Docker containers to read and write to your physical drives, the `docker-compose.yml` file contains a mapping declaration that connects your host path to the internal container path:
-  * **Host Directory (Your NAS/Server)** ➔ Bridges to ➔ **Internal Container Mount** (`/media/storage`)
-* **How to Configure It**: You simply tell Voyarr the exact path to your host media folder in the `.env` file (e.g. `HOST_MEDIA_PATH_1=/volume1/video`). When the container starts, it mounts that host folder directly, allowing you to access all your videos and save new downloads in standard, visible folders outside of Docker.
+Once you decide on this root directory, open **File Station** on your NAS and create the following three folders inside it:
+* 📁 **`config`** (This stores your app settings, custom recipes, and logged-in website sessions)
+* 📁 **`db-data`** (This stores the database file containing your library lists, rules, and download queues)
+* 📁 **`backups`** (This stores your automated scheduled backups, manually exported JSON configs, and PostgreSQL database dumps)
 
----
-
-#### 📂 Accessing Your Volume Data from the Host Machine (Optional)
-If you ever want to view, copy, or manually back up the internal system configurations and database files from outside the container, you can do so in two ways:
-
-1. **Direct Path (Linux / Synology / Unraid)**:
-   Docker stores named volumes in standard directories on your host's filesystem. You can access them with root (`sudo`) privileges at:
-   `/var/lib/docker/volumes/voyarr_voyarr-config/_data/`
-   
-2. **Helper Container (macOS / Windows)**:
-   On Docker Desktop (where volumes are stored inside Docker's virtual disk), you can easily copy files to your local machine with this command:
-   ```bash
-   docker run --rm -v voyarr_voyarr-config:/volume -v $(pwd):/backup alpine cp -r /volume /backup/config_backup
-   ```
+> [!NOTE]
+> **What is the "Hybrid Volume" Setup and Why Use It?**
+> Voyarr uses a modern **hybrid volume architecture** inside `docker-compose.yml` to give you the best of both worlds:
+> 1. **Docker Named Volumes (`voyarr-config`, `voyarr-db-data`, and `voyarr-backups`)**: Docker manages the lifecycle of these system folders safely. This guarantees that during future Voyarr upgrades or image updates, your settings, database, and backups are never deleted, corrupted, or left with incorrect file permissions.
+> 2. **Custom Host Backing Paths (`CONFIG_ROOT`, `DB_DATA_PATH`, and `BACKUP_ROOT`)**: Instead of Docker hiding these named volumes in system directories, they are bound directly to the physical folder paths on your NAS (e.g. `/volume1/docker/voyarr/config`) that you configure in your `.env` file. This makes it incredibly easy to back up your database, configurations, and scheduled backups manually.
+> 
+> *⚠️ **Important Requirement**: Because Docker named volumes bind directly to your host, the target host folders (`config`, `db-data`, and `backups`) must be physically created on your NAS **prior** to running `docker compose up`, otherwise Docker will fail to start the containers.*
 
 ---
 
@@ -184,49 +177,37 @@ cp .env.example .env
 
 Open `.env` and configure the following parameters:
 
-* **Paths**: Point Voyarr to your physical media libraries on your host:
+* **Paths**: Tell Voyarr where your folders are located on your NAS:
   ```env
-  # Point this to your existing primary media folder (e.g. /volume1/video)
+  # 1. Point this to the config folder you created inside your chosen root path
+  CONFIG_ROOT=/volume1/docker/voyarr/config
+  
+  # 2. Point this to the db-data folder you created inside your chosen root path
+  DB_DATA_PATH=/volume1/docker/voyarr/db-data
+
+  # 3. Point this to the backups folder you created inside your chosen root path
+  BACKUP_ROOT=/volume1/docker/voyarr/backups
+  
+  # 4. Point this to your existing media folder (e.g. /volume1/video)
   HOST_MEDIA_PATH_1=/volume1/video
   ```
 
   > [!NOTE]
-  > **What about system configuration folders?**
-  > By default, your database and settings are safely managed by standard Docker named volumes (`voyarr-config`, `voyarr-db-data`, `voyarr-backups`, `voyarr-certs`), meaning you **do not** have to specify paths like `CONFIG_ROOT` or `DB_DATA_PATH` in `.env` to start the app.
-  > 
   > **Why are there multiple media variables?**
-  > * **`HOST_MEDIA_PATH_1` (Host Path)**: This is where your actual files live on your NAS. Voyarr mounts this host folder inside the container so it can access it.
-  > * **`CONTAINER_MEDIA_PATHS` (Inside-Container Scanner Path)**: This tells the backend app *inside the container* where to look for media. By default, it is set to `/media/storage` (which corresponds to `HOST_MEDIA_PATH_1` inside the container).
-  > * **Multi-Drive Setup (Advanced)**: If your media library is spread across multiple drives, you can configure additional folders using `HOST_MEDIA_PATH_2` and `HOST_MEDIA_PATH_3`, and then tell the scanner to look at all of them by listing their internal mounts as a comma-separated list in `CONTAINER_MEDIA_PATHS` (e.g., `CONTAINER_MEDIA_PATHS=/media/storage,/media/storage_alt1`). For 95% of users with a single drive, you can completely ignore `HOST_MEDIA_PATH_2`, `HOST_MEDIA_PATH_3`, and `CONTAINER_MEDIA_PATHS`!
+  > * **`MEDIA_ROOT_1` (Host Path)**: This is where your actual files live on your NAS. Voyarr mounts this host folder inside the container so it can access it.
+  > * **`MEDIA_ROOT` (Inside-Container Scanner Path)**: This tells the backend app *inside the container* where to look for media. By default, it is set to `/media/storage` (which corresponds to `MEDIA_ROOT_1` inside the container).
+  > * **Multi-Drive Setup (Advanced)**: If your media library is spread across multiple drives, you can configure additional folders using `MEDIA_ROOT_2` and `MEDIA_ROOT_3`, and then tell the scanner to look at all of them by listing their internal mounts as a comma-separated list in `MEDIA_ROOT` (e.g., `MEDIA_ROOT=/media/storage,/media/storage_alt1`). For 95% of users with a single drive, you can completely ignore `MEDIA_ROOT_2`, `MEDIA_ROOT_3`, and `MEDIA_ROOT`!
 
 * **Standard Container & Permission Settings**: Map container time zones and host system permissions to avoid locking out files:
   ```env
   # Set your local timezone (critical for Celery automated daily backup scheduling)
   TZ=America/New_York
 
-  # Map host user UID and group GID to prevent files generated inside the container
-  # (e.g. logs, backups, downloads) from being locked on your host storage.
+  # Map host user UID and group GID (run `id` in host SSH to find yours) to prevent
+  # files generated inside the container (e.g. logs, backups, downloads) from being locked.
   PUID=1000
   PGID=1000
-
-  # Supplementary Group GID (Additional groups) to grant container access to
-  # other host resources (e.g., render/video GID for GPU hardware transcoding).
-  SUPPLEMENTARY_GID=1000
   ```
-
-  > [!TIP]
-  > **🔍 How to Find Your Host IDs (Terminal Process Call):**
-  > SSH into your host system/NAS and run these shell commands to output your exact IDs for copy-pasting:
-  > * Get your **User ID (PUID)**: `id -u`
-  > * Get your **Primary Group ID (PGID)**: `id -g`
-  > * Get all **Group Memberships (Supplementary GIDs)**: `id` (shows names and GIDs) or `id -G` (shows GIDs only)
-  >
-  > **⚙️ Under the Hood: Docker Native User Process Mapping**
-  > When Docker starts the container's processes, it maps them directly to the native Linux kernel's process privileges via standard OS system calls:
-  > 1. **`setuid` (to `PUID`) & `setgid` (to `PGID`):** Establishes the primary identity of the process. Any new files, backups, or logs written *by* the container will be owned by these IDs on the host.
-  > 2. **`setgroups` (including `SUPPLEMENTARY_GID`):** Appends additional GIDs to the process's supplementary membership list. This does not change the owner of newly created files, but acts as an "extra keycard" granting the process read/write permissions to existing files or hardware devices (such as `/dev/dri` GPU nodes owned by the host's `render` group) that require different GID privileges.
-  >
-  > Because Linux naturally supports multi-group process authorization, defining `PUID`, `PGID`, and `SUPPLEMENTARY_GID` together is completely safe, standard, and highly recommended.
 * **Ports**: Under *Host Ports Configuration*, you have two options:
   - **Auto-Allocation (Recommended)**: Leave `PORT=`, `FRONTEND_PORT=`, `REDIS_PORT=`, and `POSTGRES_PORT=` **blank/empty**.
     * *On Synology (Container Manager)*: Synology will automatically select unused ports on your NAS, **remember them permanently**, and maintain the assignment across restarts and container upgrades.
@@ -327,11 +308,10 @@ docker run -d \
     --name voyarr-backend \
     --network voyarr_network \
     --user "1000:1000" \
-    --group-add 1000 \
     -e DATABASE_URL=postgresql://voyarr_user:your_secure_password@voyarr-db:5432/voyarr \
     -e CELERY_BROKER_URL=redis://voyarr-redis:6379/0 \
     -e CELERY_RESULT_BACKEND=redis://voyarr-redis:6379/0 \
-    -e CONTAINER_MEDIA_PATHS=/media/storage \
+    -e MEDIA_ROOT=/media/storage \
     -e DEFAULT_DOWNLOAD_PATH=/media/storage/downloads \
     -e MASTER_KEY=your_32_byte_hex_key \
     -e SECRET_KEY=your_secret_key_here \
@@ -352,11 +332,10 @@ docker run -d \
   --name voyarr-celery \
   --network voyarr_network \
   --user "1000:1000" \
-  --group-add 1000 \
   -e DATABASE_URL=postgresql://voyarr_user:your_secure_password@voyarr-db:5432/voyarr \
   -e CELERY_BROKER_URL=redis://voyarr-redis:6379/0 \
   -e CELERY_RESULT_BACKEND=redis://voyarr-redis:6379/0 \
-  -e CONTAINER_MEDIA_PATHS=/media/storage \
+  -e MEDIA_ROOT=/media/storage \
   -e DEFAULT_DOWNLOAD_PATH=/media/storage/downloads \
   -e MASTER_KEY=your_32_byte_hex_key \
   -e SECRET_KEY=your_secret_key_here \
@@ -437,6 +416,21 @@ Voyarr features a secure, multi-user environment with Role-Based Access Control 
    - Approved and triggered by an existing Admin (sent from within the authenticated Admin dashboard/client).
    - Alternatively, authorized by including the `MASTER_KEY` secret (configured in your `.env` file) as an HTTP header: `X-Voyarr-Api-Key: <your_master_key>`.
 
+## 🔄 Updating Voyarr
+
+To update Voyarr to the latest version, simply pull the newest Docker images and recreate the containers. Your data is safe within your configured volumes.
+
+```bash
+# 1. Navigate to your Voyarr directory
+cd /path/to/voyarr
+
+# 2. Pull the latest images
+docker compose pull
+
+# 3. Recreate the containers with the new images
+docker compose up -d
+```
+
 ## 🔒 Customizable Network Proxies & VPN Integration
 
 Voyarr provides dual-layer network protection to allow secure scraping, geo-restricted stream acquisition, and complete host masking:
@@ -465,7 +459,7 @@ This hooks all scraper network traffic through a **Gluetun sidecar namespace**, 
 
 ## 🛡️ Secure Coding, Resiliency & Test Architecture
 
-Voyarr adheres to rigorous security and architectural resiliency standards. Recent structural improvements include:
+Voyarr adheres to rigorous security and architectural resiliency standards. Core structural features include:
 
 ### 1. Hardened Backup Signature Verification
 Our backup restoration pipeline features a secure cryptographic signature check. When uploading a JSON configuration backup:

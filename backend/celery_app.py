@@ -2,10 +2,15 @@ import os
 from celery import Celery
 from celery.schedules import crontab
 from utils import initialize_network_settings
-from celery.signals import task_prerun
+from celery.signals import task_prerun, worker_process_init
 
-# Initialize global network configurations (proxies and user-agents) for workers
-initialize_network_settings()
+
+@worker_process_init.connect
+def init_worker_network_settings(*args, **kwargs):
+    try:
+        initialize_network_settings()
+    except Exception as e:
+        print(f"Error initializing worker network settings: {e}")
 
 
 @task_prerun.connect

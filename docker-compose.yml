@@ -56,7 +56,7 @@ services:
     group_add:
       - "${SUPPLEMENTARY_GID:-1000}"
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-voyarr}}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:5432/${POSTGRES_DB:-voyarr}}
       - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
       - BROWSERLESS_URL=${BROWSERLESS_URL:-ws://browserless:3000}
       - BROWSERLESS_TOKEN=${BROWSERLESS_TOKEN:-voyarr-secure-browserless-token}
@@ -80,8 +80,8 @@ services:
       - voyarr-backups:/app/backups
       - voyarr-certs:/app/certs:ro
       - ${HOST_MEDIA_PATH_1:-./media}:/media/storage
-      - ${HOST_MEDIA_PATH_2:-./media_alt1}:/media/storage_alt1
-      - ${HOST_MEDIA_PATH_3:-./media_alt2}:/media/storage_alt2
+      # - ${HOST_MEDIA_PATH_2:-./media_alt1}:/media/storage_alt1  # Optional additional media path. Uncomment if needed.
+      # - ${HOST_MEDIA_PATH_3:-./media_alt2}:/media/storage_alt2  # Optional additional media path. Uncomment if needed.
     ports:
       - "${PORT:-8000}:8000"
     depends_on:
@@ -116,8 +116,8 @@ services:
       - voyarr-config:/app/config
       - voyarr-backups:/app/backups
       - ${HOST_MEDIA_PATH_1:-./media}:/media/storage
-      - ${HOST_MEDIA_PATH_2:-./media_alt1}:/media/storage_alt1
-      - ${HOST_MEDIA_PATH_3:-./media_alt2}:/media/storage_alt2
+      # - ${HOST_MEDIA_PATH_2:-./media_alt1}:/media/storage_alt1  # Optional additional media path. Uncomment if needed.
+      # - ${HOST_MEDIA_PATH_3:-./media_alt2}:/media/storage_alt2  # Optional additional media path. Uncomment if needed.
     depends_on:
       db:
         condition: service_healthy
