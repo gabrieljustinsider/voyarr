@@ -47,7 +47,17 @@ The database consists of 22 fully-integrated relational tables handling authenti
 * **Pattern Logic:** Custom separators (e.g., \_, ., \-) and space-to-character replacement.  
 * **Matching Engine:** Uses ohash (oshash) and Regex reverse-engineering based on naming patterns to identify existing files.  
 * **Metadata Tagging:** Directly writing tags (Title, Performers, Year) to video files via FFmpeg/Mutagen.  
-* **Path Hierarchy:** Root \-\> Sub-site Folder \-\> File (Default or site-specific overrides).
+* **Path Hierarchy:** Root \-> Sub-site Folder \-> File (Default or site-specific overrides).
+
+### **📁 Internal File Storage & Write Paths**
+To ensure safe, permission-isolated operations, Voyarr strictly limits where it writes data within the container. All persistent data is routed to specific mapped volumes:
+
+* **`/app/config/`**: System configuration, Custom UI settings, browser cookie sessions, and the **Celery Beat scheduling database** (`celerybeat-schedule`).
+* **`/app/backups/`**: Automated background JSON database dumps and manual user exports.
+* **`/media/storage/logs/`**: Live application logs from FastAPI and Celery workers (e.g., `celery.log`).
+* **`/media/storage/downloads/`** *(default)*: Temporary download caches, active queues, and live stream recording outputs.
+* **`/media/storage/...`** *(beside video files)*: Generated metadata sidecars (`.json`), HLS transcoded segments (`.hls/`), and AI Facial Recognition clustering caches (`.faces_*/`).
+* **`/tmp/`** *(Ephemeral)*: Ephemeral process PID files and temporary cookie text generation for `yt-dlp` bridging. No persistent data is written here.
 
 ## **🔍 Core Features**
 

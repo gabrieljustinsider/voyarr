@@ -64,3 +64,15 @@ This issue was patched in recent versions! Make sure you are pulling the latest 
 1. Run `docker compose pull`
 2. Run `docker compose up -d`
 Wait about 10 seconds for the backend to finish fully initializing the database schema before the workers attempt to read from it.
+
+---
+
+## 5. "Permission denied: 'celerybeat-schedule'"
+**Error Log Example:**
+`[Errno 13] Permission denied: 'celerybeat-schedule'`
+
+**Cause:**
+The Celery Beat container doesn't have the necessary file permissions to write its schedule tracking file inside the `/app` root.
+
+**Solution:**
+Ensure you are using the latest `docker-compose.yml` configurations where the `celery_beat` command includes `--schedule=/app/config/celerybeat-schedule`. This safely redirects the schedule database to your mapped `config` volume, which is writable by your user.

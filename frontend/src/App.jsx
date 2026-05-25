@@ -41,6 +41,8 @@ const LiveStreams = lazy(() => import('./components/LiveStreams'))
 const NotificationSettings = lazy(() => import('./components/NotificationSettings'))
 const TranscodeQueue = lazy(() => import('./components/TranscodeQueue'))
 const P2PSync = lazy(() => import('./components/P2PSync'))
+const HelpArea = lazy(() => import('./components/HelpArea'))
+const AdminHelpArea = lazy(() => import('./components/AdminHelpArea'))
 
 import { apiFetch, getAuthHeaders } from './api'
 import './App.css'
@@ -516,7 +518,9 @@ function App() {
     { label: "Logs", component: <LogsViewer />, visible: true },
     { label: "Scraper Tester", component: <ScraperTester />, visible: true },
     { label: "Request Manager", component: <RequestManager />, visible: true },
-  ], [uiConfig, filteredProviders, selectedProvider, credentials, queue, fetchQueue, searchQuery, handleCredentialSubmit])
+    { label: "Help", component: <HelpArea />, visible: true },
+    { label: "Admin Help", component: <AdminHelpArea />, visible: userRole === 'admin' },
+  ], [uiConfig, filteredProviders, selectedProvider, credentials, queue, fetchQueue, searchQuery, handleCredentialSubmit, userRole])
 
   const visibleTabs = useMemo(() => allTabs.filter(t => t.visible), [allTabs])
 
@@ -720,6 +724,16 @@ function App() {
             Cancel
           </Button>
           <Button variant="contained" color="primary" onClick={() => { promptModal.onConfirm?.(promptModal.value); setPromptModal({ ...promptModal, open: false }) }}>
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </ThemeProvider>
+  )
+}
+
+export default App
+ck={() => { promptModal.onConfirm?.(promptModal.value); setPromptModal({ ...promptModal, open: false }) }}>
             Confirm
           </Button>
         </DialogActions>
