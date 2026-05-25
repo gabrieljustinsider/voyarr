@@ -50,12 +50,30 @@ TZ=America/New_York
 ```
 
 > [!TIP]
-> **What are PUID and PGID?**
-> In the `.env` file, you will see `PUID=1000` and `PGID=1000`. These are the user and group ID numbers of your server account. Running the `id` command in your terminal/SSH will show yours. Matching these prevents files created by Voyarr (downloads, logs, backups) from being locked or requiring administrator permissions to move on your storage device. For help with this, feel free to check out the guide, based on the device you are using.
+> **What are PUID, PGID, and SUPPLEMENTARY_GID?**
+> These variables map the permissions of files and hardware within the isolated container directly to your host server's user and group accounts:
+> * **`PUID` (User ID)**: The user ID that runs the container processes. Any new files written by Voyarr (backups, downloads, logs) will be owned by this user on your host.
+> * **`PGID` (Group ID)**: The primary group ID for created files.
+> * **`SUPPLEMENTARY_GID` (Additional GIDs)**: An extra group ID that grants the container access to other host assets. This is like an "extra keycard" allowing the container to access resources like GPU transcoders (e.g., render/video GIDs) or extra NAS share shares without altering the ownership of newly created files.
 >
->Asustor: https://mariushosting.com/asustor-nas-find-uid-userid-and-gid-groupid-in-5-seconds/
->Synology: https://mariushosting.com/synology-find-uid-userid-and-gid-groupid-in-5-seconds/
->UGREEN: https://mariushosting.com/ugreen-nas-find-uid-userid-and-gid-groupid-in-5-seconds/
+> **🔍 How to Find Your Host IDs (Terminal Process Call):**
+> Connect to your server/NAS via SSH and run these quick shell commands to output your exact IDs for copy-pasting:
+> * Find your **User ID (PUID)**: `id -u`
+> * Find your **Primary Group ID (PGID)**: `id -g`
+> * Find all **Group Memberships (Supplementary GIDs)**: `id` (shows names and GIDs) or `id -G` (shows GIDs only)
+>
+> **⚙️ Under the Hood: Docker Native User Process Mapping**
+> When Docker starts the container's processes, it maps them directly to the native Linux kernel's process privileges via standard OS system calls:
+> 1. **`setuid` (to `PUID`) & `setgid` (to `PGID`):** Establishes the primary identity of the process. Any new files, backups, or logs written *by* the container will be owned by these IDs on the host.
+> 2. **`setgroups` (including `SUPPLEMENTARY_GID`):** Appends additional GIDs to the process's supplementary membership list. This does not change the owner of newly created files, but acts as an "extra keycard" granting the process read/write permissions to existing files or hardware devices (such as `/dev/dri` GPU nodes owned by the host's `render` group) that require different GID privileges.
+>
+> Because Linux naturally supports multi-group process authorization, defining `PUID`, `PGID`, and `SUPPLEMENTARY_GID` together is completely safe, standard, and highly recommended.
+>
+> **NAS Specific Setup Tutorials:**
+> For step-by-step graphical guides for your specific NAS:
+> * Asustor: https://mariushosting.com/asustor-nas-find-uid-userid-and-gid-groupid-in-5-seconds/
+> * Synology: https://mariushosting.com/synology-find-uid-userid-and-gid-groupid-in-5-seconds/
+> * UGREEN: https://mariushosting.com/ugreen-nas-find-uid-userid-and-gid-groupid-in-5-seconds/
 
 
 ### Step 3: Run the App

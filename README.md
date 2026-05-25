@@ -204,11 +204,29 @@ Open `.env` and configure the following parameters:
   # Set your local timezone (critical for Celery automated daily backup scheduling)
   TZ=America/New_York
 
-  # Map host user UID and group GID (run `id` in host SSH to find yours) to prevent
-  # files generated inside the container (e.g. logs, backups, downloads) from being locked.
+  # Map host user UID and group GID to prevent files generated inside the container
+  # (e.g. logs, backups, downloads) from being locked on your host storage.
   PUID=1000
   PGID=1000
+
+  # Supplementary Group GID (Additional groups) to grant container access to
+  # other host resources (e.g., render/video GID for GPU hardware transcoding).
+  SUPPLEMENTARY_GID=1000
   ```
+
+  > [!TIP]
+  > **🔍 How to Find Your Host IDs (Terminal Process Call):**
+  > SSH into your host system/NAS and run these shell commands to output your exact IDs for copy-pasting:
+  > * Get your **User ID (PUID)**: `id -u`
+  > * Get your **Primary Group ID (PGID)**: `id -g`
+  > * Get all **Group Memberships (Supplementary GIDs)**: `id` (shows names and GIDs) or `id -G` (shows GIDs only)
+  >
+  > **⚙️ Under the Hood: Docker Native User Process Mapping**
+  > When Docker starts the container's processes, it maps them directly to the native Linux kernel's process privileges via standard OS system calls:
+  > 1. **`setuid` (to `PUID`) & `setgid` (to `PGID`):** Establishes the primary identity of the process. Any new files, backups, or logs written *by* the container will be owned by these IDs on the host.
+  > 2. **`setgroups` (including `SUPPLEMENTARY_GID`):** Appends additional GIDs to the process's supplementary membership list. This does not change the owner of newly created files, but acts as an "extra keycard" granting the process read/write permissions to existing files or hardware devices (such as `/dev/dri` GPU nodes owned by the host's `render` group) that require different GID privileges.
+  >
+  > Because Linux naturally supports multi-group process authorization, defining `PUID`, `PGID`, and `SUPPLEMENTARY_GID` together is completely safe, standard, and highly recommended.
 * **Ports**: Under *Host Ports Configuration*, you have two options:
   - **Auto-Allocation (Recommended)**: Leave `PORT=`, `FRONTEND_PORT=`, `REDIS_PORT=`, and `POSTGRES_PORT=` **blank/empty**.
     * *On Synology (Container Manager)*: Synology will automatically select unused ports on your NAS, **remember them permanently**, and maintain the assignment across restarts and container upgrades.
@@ -309,6 +327,7 @@ docker run -d \
     --name voyarr-backend \
     --network voyarr_network \
     --user "1000:1000" \
+    --group-add 1000 \
     -e DATABASE_URL=postgresql://voyarr_user:your_secure_password@voyarr-db:5432/voyarr \
     -e CELERY_BROKER_URL=redis://voyarr-redis:6379/0 \
     -e CELERY_RESULT_BACKEND=redis://voyarr-redis:6379/0 \
@@ -333,6 +352,7 @@ docker run -d \
   --name voyarr-celery \
   --network voyarr_network \
   --user "1000:1000" \
+  --group-add 1000 \
   -e DATABASE_URL=postgresql://voyarr_user:your_secure_password@voyarr-db:5432/voyarr \
   -e CELERY_BROKER_URL=redis://voyarr-redis:6379/0 \
   -e CELERY_RESULT_BACKEND=redis://voyarr-redis:6379/0 \
