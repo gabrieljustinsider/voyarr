@@ -242,6 +242,8 @@ def get_media_roots_fallback():
                     return os.path.realpath(os.path.expanduser(paths[0]))
     except Exception:
         pass
+    paths_str = os.getenv("CONTAINER_MEDIA_PATHS", "/media/storage")
+    paths = [p.strip() for p in paths_str.split(",") if p.strip()]
     return os.path.realpath(
-        os.path.expanduser(os.getenv("MEDIA_ROOT", "/media/storage"))
+        os.path.expanduser(paths[0] if paths else "/media/storage")
     )

@@ -145,7 +145,7 @@ Voyarr stores its own database, application settings, and backups in **Docker Na
 Your actual library folders, videos, movies, and download directories are stored directly on your host machine's physical drives (such as `/volume1/video` on a Synology NAS or `/home/user/media` on a Linux server).
 * **Direct Host Access**: To allow the isolated Docker containers to read and write to your physical drives, the `docker-compose.yml` file contains a mapping declaration that connects your host path to the internal container path:
   * **Host Directory (Your NAS/Server)** ➔ Bridges to ➔ **Internal Container Mount** (`/media/storage`)
-* **How to Configure It**: You simply tell Voyarr the exact path to your host media folder in the `.env` file (e.g. `MEDIA_ROOT_1=/volume1/video`). When the container starts, it mounts that host folder directly, allowing you to access all your videos and save new downloads in standard, visible folders outside of Docker.
+* **How to Configure It**: You simply tell Voyarr the exact path to your host media folder in the `.env` file (e.g. `HOST_MEDIA_PATH_1=/volume1/video`). When the container starts, it mounts that host folder directly, allowing you to access all your videos and save new downloads in standard, visible folders outside of Docker.
 
 ---
 
@@ -187,7 +187,7 @@ Open `.env` and configure the following parameters:
 * **Paths**: Point Voyarr to your physical media libraries on your host:
   ```env
   # Point this to your existing primary media folder (e.g. /volume1/video)
-  MEDIA_ROOT_1=/volume1/video
+  HOST_MEDIA_PATH_1=/volume1/video
   ```
 
   > [!NOTE]
@@ -195,9 +195,9 @@ Open `.env` and configure the following parameters:
   > By default, your database and settings are safely managed by standard Docker named volumes (`voyarr-config`, `voyarr-db-data`, `voyarr-backups`, `voyarr-certs`), meaning you **do not** have to specify paths like `CONFIG_ROOT` or `DB_DATA_PATH` in `.env` to start the app.
   > 
   > **Why are there multiple media variables?**
-  > * **`MEDIA_ROOT_1` (Host Path)**: This is where your actual files live on your NAS. Voyarr mounts this host folder inside the container so it can access it.
-  > * **`MEDIA_ROOT` (Inside-Container Scanner Path)**: This tells the backend app *inside the container* where to look for media. By default, it is set to `/media/storage` (which corresponds to `MEDIA_ROOT_1` inside the container).
-  > * **Multi-Drive Setup (Advanced)**: If your media library is spread across multiple drives, you can configure additional folders using `MEDIA_ROOT_2` and `MEDIA_ROOT_3`, and then tell the scanner to look at all of them by listing their internal mounts as a comma-separated list in `MEDIA_ROOT` (e.g., `MEDIA_ROOT=/media/storage,/media/storage_alt1`). For 95% of users with a single drive, you can completely ignore `MEDIA_ROOT_2`, `MEDIA_ROOT_3`, and `MEDIA_ROOT`!
+  > * **`HOST_MEDIA_PATH_1` (Host Path)**: This is where your actual files live on your NAS. Voyarr mounts this host folder inside the container so it can access it.
+  > * **`CONTAINER_MEDIA_PATHS` (Inside-Container Scanner Path)**: This tells the backend app *inside the container* where to look for media. By default, it is set to `/media/storage` (which corresponds to `HOST_MEDIA_PATH_1` inside the container).
+  > * **Multi-Drive Setup (Advanced)**: If your media library is spread across multiple drives, you can configure additional folders using `HOST_MEDIA_PATH_2` and `HOST_MEDIA_PATH_3`, and then tell the scanner to look at all of them by listing their internal mounts as a comma-separated list in `CONTAINER_MEDIA_PATHS` (e.g., `CONTAINER_MEDIA_PATHS=/media/storage,/media/storage_alt1`). For 95% of users with a single drive, you can completely ignore `HOST_MEDIA_PATH_2`, `HOST_MEDIA_PATH_3`, and `CONTAINER_MEDIA_PATHS`!
 
 * **Standard Container & Permission Settings**: Map container time zones and host system permissions to avoid locking out files:
   ```env
@@ -312,7 +312,7 @@ docker run -d \
     -e DATABASE_URL=postgresql://voyarr_user:your_secure_password@voyarr-db:5432/voyarr \
     -e CELERY_BROKER_URL=redis://voyarr-redis:6379/0 \
     -e CELERY_RESULT_BACKEND=redis://voyarr-redis:6379/0 \
-    -e MEDIA_ROOT=/media/storage \
+    -e CONTAINER_MEDIA_PATHS=/media/storage \
     -e DEFAULT_DOWNLOAD_PATH=/media/storage/downloads \
     -e MASTER_KEY=your_32_byte_hex_key \
     -e SECRET_KEY=your_secret_key_here \
@@ -336,7 +336,7 @@ docker run -d \
   -e DATABASE_URL=postgresql://voyarr_user:your_secure_password@voyarr-db:5432/voyarr \
   -e CELERY_BROKER_URL=redis://voyarr-redis:6379/0 \
   -e CELERY_RESULT_BACKEND=redis://voyarr-redis:6379/0 \
-  -e MEDIA_ROOT=/media/storage \
+  -e CONTAINER_MEDIA_PATHS=/media/storage \
   -e DEFAULT_DOWNLOAD_PATH=/media/storage/downloads \
   -e MASTER_KEY=your_32_byte_hex_key \
   -e SECRET_KEY=your_secret_key_here \

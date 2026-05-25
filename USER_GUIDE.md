@@ -34,25 +34,16 @@ Voyarr does all the heavy lifting:
 
 Voyarr runs inside **Docker**, which is a system that allows apps to run in their own secure, isolated "containers" on your server or NAS (such as a Synology NAS, Unraid, or Linux system).
 
-### Step 1: Pre-Create Your Folders
-Before starting the app, you need to create three empty folders on your host system to store Voyarr's configurations and database.
-1. Open your server's file explorer.
-2. Choose a main location (for example, `/volume1/docker/voyarr/`).
-3. Create three folders inside it:
-   - 📁 `config` (stores your application settings, custom scraping recipes, and login sessions)
-   - 📁 `db-data` (stores your library tables, histories, rules, and download queues)
-   - 📁 `backups` (stores your automated and manual database backups)
+### Step 1: Zero-Setup for Application Data
+Voyarr utilizes **Docker Named Volumes** (`voyarr-config`, `voyarr-db-data`, `voyarr-backups`, and `voyarr-certs`) to manage its internal database, certificate folders, configurations, and backups. 
+* **No manual folder creation needed:** You do **not** need to create any database or configuration folders on your server or NAS before starting the app. Docker handles this automatically and keeps your settings entirely persistent and upgrade-safe.
 
 ### Step 2: Configure Your Environment File (`.env`)
-Copy the file `.env.example` in your Voyarr folder and rename the copy to `.env`. Open it in any text editor and fill in your folder paths (the paths listed below are just examples. Replace them with your own actual paths):
-```env
-# Point these to the folders you created in Step 1:
-CONFIG_ROOT=/volume1/docker/voyarr/config
-DB_DATA_PATH=/volume1/docker/voyarr/db-data
-BACKUP_ROOT=/volume1/docker/voyarr/backups
+Copy the provided `.env.example` file in your Voyarr folder and rename the copy to `.env`. Open it in any text editor and configure your local settings:
 
-# Point this to your existing local videos folder (where your downloaded media is stored):
-MEDIA_ROOT_1=/volume1/video
+```env
+# Point this to your existing local videos folder on your host machine (where your media is stored):
+HOST_MEDIA_PATH_1=/volume1/video
 
 # Set your local timezone (critical for scheduling automated backups):
 TZ=America/New_York

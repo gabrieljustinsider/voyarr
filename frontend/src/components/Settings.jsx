@@ -648,7 +648,7 @@ export default function Settings() {
               label="Docker Media Root Mapping(s)"
               value={settings.media_root_path || ''}
               onChange={(val) => setSettings(prev => ({ ...prev, media_root_path: val }))}
-              helperText="The physical directory path(s) where downloads will be organized inside the container. Comma-separate for multiple paths. (Note: Must match your container's MEDIA_ROOT environment variable)"
+              helperText="The physical directory path(s) where downloads will be organized inside the container. Comma-separate for multiple paths. (Note: Must match your container's CONTAINER_MEDIA_PATHS environment variable)"
             />
           </Grid>
           <Grid item xs={12} md={2}>

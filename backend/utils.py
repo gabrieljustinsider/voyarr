@@ -8,7 +8,7 @@ from models import Settings
 
 
 def get_media_roots():
-    """Parse the media_root_path setting from DB, fallback to MEDIA_ROOT env var, and return a list of all configured media roots. Resolves symlinks and normalizes paths."""
+    """Parse the media_root_path setting from DB, fallback to CONTAINER_MEDIA_PATHS env var, and return a list of all configured media roots. Resolves symlinks and normalizes paths."""
     db_paths = None
     try:
         with get_db_session() as db:
@@ -21,7 +21,7 @@ def get_media_roots():
         print(f"Error fetching media_root_path from DB: {e}")
 
     if not db_paths:
-        db_paths = os.getenv("MEDIA_ROOT", "/media/storage")
+        db_paths = os.getenv("CONTAINER_MEDIA_PATHS", "/media/storage")
 
     # Split by comma, strip whitespace, remove empty entries, and normalize paths
     paths = [p.strip() for p in db_paths.split(",") if p.strip()]

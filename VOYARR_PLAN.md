@@ -76,7 +76,7 @@ services:
   backend:  
     image: ghcr.io/gabrieljustinsider/voyarr-backend:latest
     environment:
-      \- MEDIA_ROOT=/media/drive1,/media/drive2
+      \- CONTAINER_MEDIA_PATHS=/media/drive1,/media/drive2
     volumes:  
       \- /mnt/host/drive1:/media/drive1
       \- /mnt/host/drive2:/media/drive2
