@@ -59,7 +59,11 @@ for attempt in range(max_retries):
         logger.info("Database initialized successfully.")
         break
     except Exception as e:
-        logger.warning(f"Database connection failed (attempt {attempt + 1}/{max_retries}): {e}")
+        err_msg = str(e)
+        if "UniqueViolation" in err_msg or "duplicate key" in err_msg or "pg_type_typname_nsp_index" in err_msg:
+            logger.warning(f"Database table creation race condition detected (attempt {attempt + 1}/{max_retries}). Retrying in {retry_delay}s...")
+        else:
+            logger.warning(f"Database connection failed (attempt {attempt + 1}/{max_retries}): {e}")
         if attempt < max_retries - 1:
             time.sleep(retry_delay)
         else:

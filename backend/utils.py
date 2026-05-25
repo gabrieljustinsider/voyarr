@@ -122,7 +122,13 @@ def initialize_network_settings():
             os.environ.pop("DEFAULT_USER_AGENT", None)
 
     except Exception as e:
-        print(f"Error initializing network settings: {e}")
+        err_msg = str(e)
+        if any(x in err_msg for x in ["relation \"settings\" does not exist", "relation \"vault\" does not exist", "UndefinedTable", "no such table: settings", "no such table: vault"]):
+            print("Database schema is not fully initialized yet (settings/vault table not found). Using default network settings.")
+        elif any(x in err_msg for x in ["Connection refused", "OperationalError", "Can't reconnect", "Is the server running", "does not exist"]):
+            print("Database is not reachable yet. Using default network settings.")
+        else:
+            print(f"Error initializing network settings: {e}")
 
 
 def validate_url_ssrf(url_str: str):
