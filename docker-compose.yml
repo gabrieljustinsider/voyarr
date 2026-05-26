@@ -24,6 +24,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: voyarr-redis
+    command: redis-server --tcp-backlog 128
     environment:
       - TZ=${TZ:-UTC}
     ports:
@@ -181,10 +182,15 @@ services:
 
 networks:
   voyarr_network:
+    name: voyarr_prod_network
     driver: bridge
 
 volumes:
   voyarr-db-data:
+    name: voyarr-db-data
   voyarr-config:
+    name: voyarr-config
   voyarr-backups:
+    name: voyarr-backups
   voyarr-certs:
+    name: voyarr-certs
