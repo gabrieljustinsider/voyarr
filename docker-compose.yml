@@ -103,7 +103,7 @@ services:
     group_add:
       - "${SUPPLEMENTARY_GID:-1000}"
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-voyarr}}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:5432/${POSTGRES_DB:-voyarr}}
       - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
       - BROWSERLESS_URL=${BROWSERLESS_URL:-ws://browserless:3000}
       - BROWSERLESS_TOKEN=${BROWSERLESS_TOKEN:-voyarr-secure-browserless-token}
@@ -146,7 +146,7 @@ services:
       - "${SUPPLEMENTARY_GID:-1000}"
     command: sh -c "celery -A celery_app.celery_app beat --loglevel=${CELERY_LOG_LEVEL:-info} --pidfile=/tmp/celerybeat.pid --schedule=/tmp/celerybeat-schedule"
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-voyarr}}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:5432/${POSTGRES_DB:-voyarr}}
       - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
       - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
       - TZ=${TZ:-UTC}
