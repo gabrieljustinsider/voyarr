@@ -136,7 +136,7 @@ const getTypography = (isTv) => {
   }
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
+const API_BASE = import.meta.env.VITE_API_BASE || '/api'
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('voyarr_jwt') || !!localStorage.getItem('voyarr_api_key'))

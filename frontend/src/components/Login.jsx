@@ -58,7 +58,7 @@ export default function Login() {
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
   const [authConfig, setAuthConfig] = useState({ passkeys_enabled: true, sso_enabled: false, oidc_enabled: false, auth_bypass_enabled: false, auth_bypass_proxy_header_enabled: false })
 
-  const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
+  const API_BASE = import.meta.env.VITE_API_BASE || '/api'
 
   // Base64 helper converters (identical to Settings.jsx)
   const base64ToBuffer = (b64) => {
@@ -430,7 +430,7 @@ export default function Login() {
             Voyarr Media Server
           </Typography>
           <Typography variant="caption" color="textSecondary" align="center" sx={{ mt: 0.5, opacity: 0.7 }}>
-            Secure Enterprise Gateway
+            Please sign in to continue to your dashboard
           </Typography>
         </Box>
 

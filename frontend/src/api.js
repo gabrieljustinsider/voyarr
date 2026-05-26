@@ -1,4 +1,4 @@
-export const API_BASE = import.meta.env.VITE_API_BASE || `${window.location.protocol}//${window.location.hostname}:8000`
+export const API_BASE = import.meta.env.VITE_API_BASE || '/api'
 
 export const getAuthHeaders = () => {
   const jwt = localStorage.getItem('voyarr_jwt')
