@@ -209,10 +209,10 @@ Open `.env` and configure the following parameters:
   PGID=1000
   ```
 * **Ports**: Under *Host Ports Configuration*, you have two options:
-  - **Auto-Allocation (Recommended)**: Leave `PORT=`, `FRONTEND_PORT=`, `REDIS_PORT=`, and `POSTGRES_PORT=` **blank/empty**.
+  - **Auto-Allocation (Recommended)**: Leave `BACKEND_PORT=`, `FRONTEND_PORT=`, `REDIS_PORT=`, and `POSTGRES_PORT=` **blank/empty**.
     * *On Synology (Container Manager)*: Synology will automatically select unused ports on your NAS, **remember them permanently**, and maintain the assignment across restarts and container upgrades.
     * *On CLI*: Docker will assign random ports. Check them via `docker compose ps` and, if desired, add them to your `.env` to lock them in.
-  - **Static Allocation**: Specify static ports (e.g., `PORT=8000`, `FRONTEND_PORT=3000`) if you already know they are free.
+  - **Static Allocation**: Specify static ports (e.g., `BACKEND_PORT=8000`, `FRONTEND_PORT=3000`) if you already know they are free.
 
 ### 3. Choose Your Deployment Method
 
