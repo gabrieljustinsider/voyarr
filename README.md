@@ -208,11 +208,18 @@ Open `.env` and configure the following parameters:
   PUID=1000
   PGID=1000
   ```
-* **Ports**: Under *Host Ports Configuration*, you have two options:
+* **Ports**: Under *Host Ports Configuration*, you can control how your containers are exposed on your host server network:
   - **Auto-Allocation (Recommended)**: Leave `BACKEND_PORT=`, `FRONTEND_PORT=`, `REDIS_PORT=`, and `POSTGRES_PORT=` **blank/empty**.
     * *On Synology (Container Manager)*: Synology will automatically select unused ports on your NAS, **remember them permanently**, and maintain the assignment across restarts and container upgrades.
     * *On CLI*: Docker will assign random ports. Check them via `docker compose ps` and, if desired, add them to your `.env` to lock them in.
-  - **Static Allocation**: Specify static ports (e.g., `BACKEND_PORT=8000`, `FRONTEND_PORT=3000`) if you already know they are free.
+  - **Static Allocation**: Specify static ports (e.g., `BACKEND_PORT=32785`, `FRONTEND_PORT=32786`) if you already know they are free.
+
+  > [!TIP]
+  > **🔒 Network Isolation & Security Best Practices:**
+  > * **Database & Redis Ports (`REDIS_PORT` / `POSTGRES_PORT`)**: Always leave these blank/empty. Voyarr's containers communicate with Postgres and Redis over a private, isolated Docker network bridge (`voyarr_network`). Exposing these ports on your host is completely unnecessary and opens up an unwanted security surface unless you are explicitly trying to connect a desktop client (like pgAdmin or RedisInsight) to manage them.
+  > * **Backend Port (`BACKEND_PORT`)**: If you only use the standard web application UI, exposing the backend port to your host is also completely optional! The frontend container's Nginx proxy handles all `/api` requests by routing them internally over Docker's bridge network directly to `backend:8000`. You only need to expose `BACKEND_PORT` to your host if you are using the Voyarr Chrome extension or bookmarklet (so they can reach the API directly), or if you want direct access to the raw OpenAPI swagger documentation.
+  > * **Interactive API Documentation & Subpaths**: If you wish to access the interactive API Swagger documentation securely through your Nginx reverse proxy subpath (`http://<nas-ip>:<frontend-port>/api/docs`) without exposing the backend port to the host at all, set `ROOT_PATH=/api` in your `.env`. This tells FastAPI that it is running behind an Nginx prefix, and it will automatically strip the `/api` prefix from requests, generating all interactive testing buttons and docs assets cleanly and securely!
+
 
 ### 3. Choose Your Deployment Method
 

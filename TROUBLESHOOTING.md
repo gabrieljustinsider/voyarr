@@ -75,4 +75,62 @@ Wait about 10 seconds for the backend to finish fully initializing the database 
 The Celery Beat container doesn't have the necessary file permissions to write its schedule tracking file inside the `/app` root.
 
 **Solution:**
-Ensure you are using the latest `docker-compose.yml` configurations where the `celery_beat` command includes `--schedule=/app/config/celerybeat-schedule`. This safely redirects the schedule database to your mapped `config` volume, which is writable by your user.
+Ensure you are using the latest `docker-compose.yml` configurations where the `celery_beat` command writes to `--schedule=/tmp/celerybeat-schedule`. Because `/tmp` is globally writable inside the container, this completely eliminates the permission denied crash on startup.
+
+---
+
+## 6. Access to API Blocked by CORS Policy or Port Mismatch
+**Error Log Example (Browser Console):**
+`Access to fetch at 'http://<nas-ip>:8000/auth/config' from origin 'http://<nas-ip>:32786' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.`
+
+**Cause:**
+Historically, web applications required configuring cross-origin resource sharing (CORS) headers to allow the frontend browser client to talk directly to the backend API on a different port. If you changed the host backend port (e.g. to `32785`) but the frontend was built to look at a default port like `8000`, the connection would fail or get blocked by your browser's security rules.
+
+**Solution:**
+Voyarr features **port-agnostic relative routing**. The frontend application defaults its base URL to the relative path `/api`.
+1. The built-in Nginx proxy inside the frontend container receives all requests sent to `/api` and routes them internally over the private Docker bridge network (`voyarr_network`) directly to `http://backend:8000`.
+2. This completely bypasses the browser's CORS restrictions and eliminates the need to configure CORS origins or expose the backend port directly to the host network for standard web UI usage.
+3. Access your application solely via the frontend port (e.g., `http://<nas-ip>:32786`) and let Nginx handle the internal routing.
+
+---
+
+## 7. Interactive API Documentation (/api/docs) Returns 404 Not Found
+**Error Symptom:**
+You can access the frontend web interface and standard endpoints successfully, but trying to view the interactive FastAPI documentation at `http://<nas-ip>:<frontend-port>/api/docs` or `http://<nas-ip>:<frontend-port>/api/redoc` returns a `404 Not Found` error.
+
+**Cause:**
+By default, the backend container runs at the root path (`/`) internally. When Nginx forwards a request like `/api/docs` to the backend, the backend receives `/api/docs` but doesn't recognize the `/api` prefix because it is expecting the documentation to live at `/docs`.
+
+**Solution:**
+To make the interactive API documentation and testing work perfectly through the `/api` reverse proxy subpath, tell the backend about its subpath prefix:
+1. Open your `.env` file on your host.
+2. Uncomment or set the `ROOT_PATH` variable to `/api`:
+   ```env
+   ROOT_PATH=/api
+   ```
+3. Re-create the containers:
+   ```bash
+   docker compose down && docker compose up -d
+   ```
+*This informs FastAPI that it is running behind a proxy with the `/api` prefix. It will automatically strip `/api` from all incoming requests before matching them, allowing `/api/docs` to load successfully and letting the interactive "Try it out" buttons send test requests to the correct paths.*
+
+---
+
+## 8. Host Port Conflict on Port 8000 (CLI Deployments)
+**Error Log Example:**
+`Error response from daemon: driver failed programming external connectivity on endpoint voyarr-backend: Bind for 0.0.0.0:8000 failed: port is already allocated`
+
+**Cause:**
+In the main `docker-compose.yml`, the backend host-exposed port is configured as `${BACKEND_PORT:-8000}:8000`. If you deploy Voyarr via the Command Line (CLI) and leave the `BACKEND_PORT` variable blank or empty in your `.env` file, Docker Compose falls back to attempting to bind the backend container to port `8000` on your host. If you have another service (such as Portainer, OMV, or a development server) already using port 8000, the deployment will fail.
+
+**Solution:**
+If you are deploying via the CLI (instead of Synology Container Manager's auto-allocation GUI which automatically resolves port conflicts):
+1. Open your `.env` file.
+2. Assign a custom, unused host integer port to `BACKEND_PORT` (e.g., `32785`):
+   ```env
+   BACKEND_PORT=32785
+   ```
+3. Run the startup command again:
+   ```bash
+   docker compose up -d
+   ```
