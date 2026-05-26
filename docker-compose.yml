@@ -10,8 +10,8 @@ services:
     volumes:
       - voyarr-db-data:/var/lib/postgresql/data
       - voyarr-backups:/backups
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+    # ports:
+    #   - "${POSTGRES_PORT:-5432}:5432" # Optional: Uncomment to expose DB to host (e.g. for pgAdmin)
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-voyarr_user} -d $${POSTGRES_DB:-voyarr}"]
       interval: 10s
@@ -27,8 +27,8 @@ services:
     command: redis-server --tcp-backlog 128
     environment:
       - TZ=${TZ:-UTC}
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
+    # ports:
+    #   - "${REDIS_PORT:-6379}:6379" # Optional: Uncomment to expose Redis to host (e.g. for RedisInsight)
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
