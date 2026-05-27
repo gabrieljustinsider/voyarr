@@ -217,9 +217,9 @@ Voyarr v1.13.0 implements enterprise-grade passwordless authentication, third-pa
 
 ---
 
-### **6. Premium Branding, First-User Setup, and Asset Standardization (v1.14.1)**
+### **6. Premium Branding, First-User Setup, and Asset Standardization (v1.15.0)**
 
-Voyarr v1.14.1 unifies the visual identity across the web platform and browser extension, standardizes icon packaging, and introduces a frictionless first-time administrator onboarding flow:
+Voyarr v1.15.0 unifies the visual identity across the web platform and browser extension, standardizes icon packaging, and introduces a frictionless first-time administrator onboarding flow:
 - **Unified Brand Styling (Outfit Font)**: Migrated the entire ecosystem's typography to the premium Google Font **Outfit**, updating global CSS variables and preconnecting to Google Font CDNs for optimized Largest Contentful Paint (LCP) performance.
 - **Sleek Glassmorphic Brand Accents**: Redesigned the login screen and user portal using high-end linear purple-to-blue gradients (`linear-gradient(135deg, #6366f1 0%, #a855f7 100%)`), drop-shadow filters on the official branding logo, and premium responsive glassmorphic cards.
 - **Dynamic Version Synchronization**: Implemented dynamic version rendering across all system views. The main app pulls from `package.json` at build time to render a standard `Chip` badge in the navigation `AppBar`. The browser companion extension dynamically queries the chrome runtime manifest (`chrome.runtime.getManifest()`) to display the extension version badge in the popup header next to the title.
@@ -235,7 +235,7 @@ Voyarr v1.14.1 unifies the visual identity across the web platform and browser e
 
 ---
 
-## **🚀 Future Feature Roadmap (v1.14.1+)**
+## **🚀 Future Feature Roadmap (v1.15.0+)**
 
 The following represents identified feature targets and upcoming components for subsequent releases.
 
