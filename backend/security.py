@@ -51,19 +51,8 @@ def decrypt_data(encrypted_data: str) -> str:
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    # First, try verifying using the SHA-256 pre-hash
     pre_hashed = hashlib.sha256(plain_password.encode("utf-8")).hexdigest()
-    try:
-        if pwd_context.verify(pre_hashed, hashed_password):
-            return True
-    except Exception:
-        pass
-
-    # Fallback: try verifying the plain password directly (for legacy non-pre-hashed passwords)
-    try:
-        return pwd_context.verify(plain_password, hashed_password)
-    except Exception:
-        return False
+    return pwd_context.verify(pre_hashed, hashed_password)
 
 
 def get_password_hash(password: str) -> str:
