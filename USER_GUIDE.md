@@ -109,7 +109,7 @@ TZ=America/New_York
 
 ## 🔑 Your First Login & Creating an Admin Account
 
-Once the container finishes starting up, open your web browser and go to `http://<your-server-ip>:3000` (or the port assigned to your frontend).
+Once the container finishes starting up, open your web browser and go to `http://<your-server-ip>:80` (or the custom `FRONTEND_PORT` you assigned in your `.env` file, e.g. `32786`).
 
 1. **Bootstrap Admin**: Since the database is completely empty on your first start, the very first user registration is **automatically granted full Administrator permissions**.
 2. **Immediate Lockout**: As soon as you finish registering this first account, public registration is **immediately disabled globally**. Nobody else can visit your site and create an account.
