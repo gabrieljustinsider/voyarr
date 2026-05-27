@@ -217,7 +217,25 @@ Voyarr v1.13.0 implements enterprise-grade passwordless authentication, third-pa
 
 ---
 
-## **🚀 Future Feature Roadmap (v1.13.0+)**
+### **6. Premium Branding, First-User Setup, and Asset Standardization (v1.14.1)**
+
+Voyarr v1.14.1 unifies the visual identity across the web platform and browser extension, standardizes icon packaging, and introduces a frictionless first-time administrator onboarding flow:
+- **Unified Brand Styling (Outfit Font)**: Migrated the entire ecosystem's typography to the premium Google Font **Outfit**, updating global CSS variables and preconnecting to Google Font CDNs for optimized Largest Contentful Paint (LCP) performance.
+- **Sleek Glassmorphic Brand Accents**: Redesigned the login screen and user portal using high-end linear purple-to-blue gradients (`linear-gradient(135deg, #6366f1 0%, #a855f7 100%)`), drop-shadow filters on the official branding logo, and premium responsive glassmorphic cards.
+- **Dynamic Version Synchronization**: Implemented dynamic version rendering across all system views. The main app pulls from `package.json` at build time to render a standard `Chip` badge in the navigation `AppBar`. The browser companion extension dynamically queries the chrome runtime manifest (`chrome.runtime.getManifest()`) to display the extension version badge in the popup header next to the title.
+- **Frictionless First-User Onboarding Flow**:
+  - Implemented an automated database bootstrap detector. The public endpoint `/api/auth/config` evaluates user existence and exposes a `has_users` boolean flag.
+  - The login interface conditionally replaces the standard sign-in form with an **Initial Setup** registration card when `has_users` is false. This form handles password confirmation, length checks, administrator account provisioning, and directly initiates a secure login session without separate registration routing, preserving global registration lockout policies immediately after.
+- **Standardized Multi-Format PWA Assets**: Programmatically compiled and generated properly-sized multi-format assets from the high-resolution logo (`app_icon.png`):
+  - `favicon.ico` (Multi-size fallback standard favicon)
+  - `favicon-32x32.png` (Standard desktop browser tab icon)
+  - `pwa-192x192.png` (PWA application launcher standard)
+  - `pwa-512x512.png` (PWA splash screen and maskable target)
+  - Updated `index.html` and `vite.config.js` with the corresponding manifest icon schemas and matching themed backdrop colors (`#0b0f19`).
+
+---
+
+## **🚀 Future Feature Roadmap (v1.14.1+)**
 
 The following represents identified feature targets and upcoming components for subsequent releases.
 

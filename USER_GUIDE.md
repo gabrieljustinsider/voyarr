@@ -110,8 +110,8 @@ TZ=America/New_York
 
 Once the container finishes starting up, open your web browser and go to `http://<your-server-ip>:3000` (or the port assigned to your frontend).
 
-1. **Bootstrap Admin**: Since the database is completely empty on your first start, the very first user registration is **automatically granted full Administrator permissions**.
-2. **Immediate Lockout**: As soon as you finish registering this first account, public registration is **immediately disabled globally**. Nobody else can visit your site and create an account.
+1. **Bootstrap Admin**: Since the database is completely empty on your first start, the login screen will automatically detect a fresh installation and present a premium **Initial Setup** form. Fill in your desired administrator username and password to create the primary system account.
+2. **Immediate Lockout**: As soon as you successfully create this admin account and are signed in, public registration is **immediately disabled globally**. Nobody else can visit your site to create or register an account.
 3. **Registering Other Users**: If you want to invite friends or family, you must login as the Admin, go to **Settings > User Profiles**, and trigger a custom invite/registration code from within your dashboard.
 
 ---

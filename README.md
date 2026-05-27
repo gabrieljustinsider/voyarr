@@ -411,8 +411,8 @@ Once running, open your web browser and navigate to:
 
 Voyarr features a secure, multi-user environment with Role-Based Access Control (RBAC):
 
-1. **Bootstrap the Admin Account**: Upon fresh installation (when no users exist in the database), navigate to the web login screen and register. The very first user account created is **automatically** granted the `"admin"` role to prevent system lockout.
-2. **Lockout Prevention**: Once this first administrator account is created, public registration is **immediately disabled**.
+1. **Bootstrap the Admin Account**: Upon fresh installation (when no users exist in the database), the login screen will automatically present an **Initial Setup** form. Creating this primary administrator account will dynamically bootstrap the system's credentials and prevent initial lockouts.
+2. **Lockout Prevention**: Once this first administrator account is created, public registration is **immediately disabled** globally.
 3. **Registering Subsequent Users**: To register a new user after the admin is configured, the registration request must be:
    - Approved and triggered by an existing Admin (sent from within the authenticated Admin dashboard/client).
    - Alternatively, authorized by including the `MASTER_KEY` secret (configured in your `.env` file) as an HTTP header: `X-Voyarr-Api-Key: <your_master_key>`.

@@ -59,7 +59,13 @@ The Chrome Web Store review team requires explicit, plain-English justifications
 
 ## **📈 Version History**
 
-### **v1.13.0** (Current Release)
+### **v1.14.1** (Current Release)
+* **Unified Brand Styling**: Restructured the popup user interface with premium glassmorphism, clean grid elements, and integrated the modern Google Font **Outfit** to match the core Voyarr server branding.
+* **Dynamic Versioning**: Added an auto-populating version badge chip directly adjacent to the main "VOYARR LENS" title, reading version metadata dynamically from the extension's runtime manifest.
+* **Multi-Server & Probing**: Expanded settings to support active multi-server environments with backward-compatible migration, instant server switching, and a visual network card list.
+* **Least Privilege Scoping**: Refactored host permission declarations to target standard private subnets, eliminating scary wildcard warnings while allowing full local network subnet scanning and zero-touch API health discovery.
+
+### **v1.13.0**
 * Refactored service workers (`background.js`) and popup interfaces (`popup.js`) to use modern ES6 `async/await` syntax.
 * Added the required `tabs` permission to resolve domain hostnames, correcting a silent lookup failure.
 * Programmatically resized high-quality PNG icons for 16x16, 48x48, and 128x128 pixel dimensions to comply with Manifest V3.
