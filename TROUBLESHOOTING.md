@@ -134,3 +134,39 @@ If you are deploying via the CLI (instead of Synology Container Manager's auto-a
    ```bash
    docker compose up -d
    ```
+
+---
+
+## 9. Securely Connecting to the PostgreSQL Database (DBeaver via SSH Tunnel)
+
+**Goal:**
+Connect a database administration tool (such as **DBeaver**, **pgAdmin**, or **DataGrip**) from your desktop machine to the PostgreSQL database container running on your NAS or host server, without exposing the database port publicly to the local network (LAN) or the internet.
+
+**Why this is highly secure:**
+In the updated `docker-compose.yml`, the database port is mapped exclusively to the host's loopback interface:
+`"127.0.0.1:${POSTGRES_PORT:-5432}:5432"`
+This ensures that the database port is completely unreachable directly over the LAN (e.g., connecting directly to `http://<nas-ip>:5432` is blocked). To connect externally, you must establish an **SSH Tunnel** through the host server using secure credentials.
+
+**Step-by-Step Configuration in DBeaver:**
+
+1. **Create a New PostgreSQL Connection:**
+   * Open DBeaver, click **New Database Connection**, and select **PostgreSQL**.
+
+2. **Configure the Main Connection Settings (Connection Tab):**
+   * **Host:** `127.0.0.1` *(Leave this exactly as `127.0.0.1`. Do NOT type your NAS/server IP here, because from the perspective of the SSH tunnel terminal inside the NAS, the database port is bound to the NAS's localhost interface).*
+   * **Port:** `5432` *(Or your customized `POSTGRES_PORT` if overridden in `.env`)*
+   * **Database:** `voyarr` *(Or the value of `POSTGRES_DB`)*
+   * **Username:** `voyarr_user` *(Or the value of `POSTGRES_USER`)*
+   * **Password:** `voyarr_password` *(Or the value of `POSTGRES_PASSWORD`)*
+
+3. **Configure the SSH Tunnel (SSH Tab):**
+   * Toggle **Use SSH Tunnel** to **ON** (checked).
+   * **SSH Host:** `<your-nas-ip-address-or-domain>` *(Type the actual IP address or domain name of your NAS/server)*
+   * **Port:** `22` *(Or your customized Synology/host SSH port)*
+   * **User Name:** Your NAS/host system username with SSH administration privileges (e.g., your Synology DSM administrator account).
+   * **Authentication Method:** Select **Password** (or **Public Key** if you use SSH keypairs).
+   * **Password / Private Key:** Enter your NAS login password or path to your SSH private key file.
+
+4. **Test Connection:**
+   * Click **Test Connection** at the bottom left.
+   * DBeaver will securely authenticate over SSH first, map the remote `127.0.0.1:5432` loopback socket locally over the encrypted tunnel, and establish a fully secure connection to your Postgres instance!

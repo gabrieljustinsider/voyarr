@@ -215,6 +215,9 @@ Open `.env` and configure the following parameters:
     * *On CLI*: Docker will assign random ports. Check them via `docker compose ps` and, if desired, add them to your `.env` to lock them in.
   - **Static Allocation**: Specify static ports (e.g., `PORT=8000`, `FRONTEND_PORT=3000`) if you already know they are free.
 
+  > [!NOTE]
+  > **Secure Database Access**: By default, the PostgreSQL database port (`POSTGRES_PORT`) is bound strictly to the local loopback interface (`127.0.0.1`). This isolates the database from raw LAN access while facilitating encrypted management connections via SSH Tunneling (e.g., using DBeaver). For complete connection instructions, see [Section 9 in TROUBLESHOOTING.md](file:///Users/morenicano/Documents/coding/projects/gabrieljustinsider/voyarr/TROUBLESHOOTING.md#9-securely-connecting-to-the-postgresql-database-dbeaver-via-ssh-tunnel).
+
 ### 3. Choose Your Deployment Method
 
 Depending on your preference, you can deploy Voyarr using **Docker Compose** (recommended for easy one-step management) or via the **Standard Docker CLI** (for manual container-by-container control).
