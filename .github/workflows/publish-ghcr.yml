@@ -19,12 +19,14 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required to generate full git log/changelog notes
 
       - name: Log in to the Container registry
         uses: docker/login-action@v3
@@ -49,3 +51,22 @@ jobs:
           context: ./frontend
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:latest
+
+      - name: Create or Update GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(grep '"version"' extension/manifest.json | head -n 1 | awk -F '"' '{print $4}')
+          if [ -z "$VERSION" ]; then
+            VERSION="1.14.0"
+          fi
+          echo "Current Version: v$VERSION"
+          
+          # Check if the release already exists
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
+            echo "Release v$VERSION already exists. Updating details..."
+            gh release edit "v$VERSION" --notes "Automated update of built artifacts and container images."
+          else
+            echo "Creating a new GitHub release v$VERSION..."
+            gh release create "v$VERSION" --title "v$VERSION" --generate-notes
+          fi
