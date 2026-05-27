@@ -121,13 +121,26 @@ Toggle any method ON or OFF from the admin dashboard. Disabled methods are hidde
 
 ## 🐳 Docker Configuration
 
-Voyarr is designed to be run via Docker Compose. The stack includes:
-* `db`: PostgreSQL 15 database.
-* `redis`: Redis 7 for the Celery message broker and cache.
-* `backend`: FastAPI Python application.
-* `celery_worker`: Background task worker for downloads, phash calculation, and transcoding tasks.
-* `celery_beat`: Cron scheduler executing periodic system events (e.g. database backups, scheduled P2P synchronizations).
-* `frontend`: Vite-powered React PWA served on port 3000.
+Voyarr is designed as a highly modular, containerized application run via Docker Compose. The stack partitions tasks into specialized services to ensure high performance, security, and stability:
+
+* **`db` (Postgres 15 Database Engine)**:
+  - **Purpose**: The central source of truth. Stores all user accounts, site recipes, metadata schemas, library records, preferences, and system logs.
+  - **Security**: Keeps host port `5432` commented out by default, ensuring your database remains 100% private and isolated inside the internal Docker bridge network (`voyarr_network`).
+* **`redis` (Cache & Celery Broker)**:
+  - **Purpose**: A high-performance, in-memory database. It acts as the message queue broker that hands background tasks from the FastAPI backend to the Celery workers, and caches short-lived system states.
+  - **Security**: Kept completely isolated internally (host port `6379` commented out by default).
+* **`backend` (FastAPI Core Web Server)**:
+  - **Purpose**: The central brain of the application. It handles all REST API requests, security middleware (JWT, SSO, Passkeys), user authorization checks (RBAC), and manages inbound/outbound P2P metadata syncs.
+  - **Routing & Docs**: Operates internally on port `8000`. Exposes the interactive Swagger API documentation page securely via Nginx relative routing (`/api/docs`) when `ROOT_PATH=/api` is set.
+* **`celery_worker` (Background Executor / The Muscle)**:
+  - **Purpose**: Asynchronously processes all heavy, time-consuming tasks (such as downloading media, calculating perceptual media hashes, running site scrapers, and transcoding files) to ensure the web UI remains highly responsive.
+* **`celery_beat` (Clock Scheduler / The Alarm)**:
+  - **Purpose**: Watches the clock to trigger automated schedules. It uses negligible resources and does not execute heavy tasks itself; instead, it drops scheduled alert messages (e.g. daily database backups, automated scraper intervals, and periodic P2P database syncs) into the Redis queue at exact intervals for the workers to pick up.
+* **`frontend` (Nginx & React UI Gateway)**:
+  - **Purpose**: Serves the pre-compiled, responsive React web interface (Progressive Web App). It also acts as the **reverse proxy gateway** (using Nginx), listening on your `FRONTEND_PORT` (defaults to `80`) and proxying all `/api` requests internally directly to `backend:8000` to completely bypass browser CORS security blocks.
+* **`browserless` (Headless Scraping Browser - Optional Add-on)**:
+  - **Purpose**: Runs a headless instance of Chromium. Used by `celery_worker` to successfully scrape modern, javascript-heavy sites and bypass security blocks.
+  - **Modularity**: Because it occupies 4.6 GB of disk space, it is fully optional. If you do not use automated scraping, you can comment it out in `docker-compose.yml` (or stop its container in your NAS GUI) to instantly reclaim that space. Alternatively, you can point your `.env` to a cloud-based browserless service to keep your local NAS footprint at zero!
 
 ## ⚙️ Initial Setup
 
