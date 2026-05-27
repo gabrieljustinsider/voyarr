@@ -28,6 +28,15 @@ jobs:
         with:
           fetch-depth: 0 # Required to generate full git log/changelog notes
 
+      - name: Extract Version
+        id: vars
+        run: |
+          VERSION=$(grep '"version"' extension/manifest.json | head -n 1 | awk -F '"' '{print $4}')
+          if [ -z "$VERSION" ]; then
+            VERSION="1.14.1"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Log in to the Container registry
         uses: docker/login-action@v3
         with:
@@ -43,14 +52,18 @@ jobs:
         with:
           context: ./backend
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}:latest
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}:${{ steps.vars.outputs.version }}
 
       - name: Build and push Frontend image
         uses: docker/build-push-action@v5
         with:
           context: ./frontend
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:latest
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:${{ steps.vars.outputs.version }}
 
       - name: Create or Update GitHub Release
         env:
