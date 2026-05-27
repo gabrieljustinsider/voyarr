@@ -20,6 +20,7 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import { apiFetch } from '../api'
 import PathPicker from './PathPicker'
 import InlineTextField from './InlineTextField'
+import PasswordChecklist from './PasswordChecklist'
 
 const AppleSvg = () => (
   <svg viewBox="0 0 170 170" width="20" height="20" style={{ fill: 'currentColor' }}>
@@ -600,6 +601,16 @@ export default function Settings() {
   }
 
   const handleCreateUser = async () => {
+    const password = newUser.password || ''
+    const hasLength = password.length >= 8
+    const hasUpper = /[A-Z]/.test(password)
+    const hasLower = /[a-z]/.test(password)
+    const hasNumber = /[0-9]/.test(password)
+    const hasSpecial = /[^A-Za-z0-9]/.test(password)
+    if (!hasLength || !hasUpper || !hasLower || !hasNumber || !hasSpecial) {
+      setSnackbar({ open: true, message: 'Password does not meet all security requirements.', severity: 'error' })
+      return
+    }
     try {
       const res = await apiFetch('/auth/register', {
         method: 'POST',
@@ -1677,6 +1688,7 @@ export default function Settings() {
           </Grid>
           <Grid item xs={12} md={4}>
             <TextField fullWidth size="small" type="password" label="Password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} />
+            <PasswordChecklist password={newUser.password} />
           </Grid>
           <Grid item xs={12} md={3}>
             <FormControl fullWidth size="small">

@@ -22,6 +22,7 @@ import FingerprintIcon from '@mui/icons-material/Fingerprint'
 import LockIcon from '@mui/icons-material/Lock'
 import PersonIcon from '@mui/icons-material/Person'
 import packageJson from '../../package.json'
+import PasswordChecklist from './PasswordChecklist'
 
 // SVG Branded Logos for SSO
 const GoogleSvg = () => (
@@ -217,8 +218,13 @@ export default function Login() {
       setError('Passwords do not match.')
       return
     }
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.')
+    const hasLength = password.length >= 8
+    const hasUpper = /[A-Z]/.test(password)
+    const hasLower = /[a-z]/.test(password)
+    const hasNumber = /[0-9]/.test(password)
+    const hasSpecial = /[^A-Za-z0-9]/.test(password)
+    if (!hasLength || !hasUpper || !hasLower || !hasNumber || !hasSpecial) {
+      setError('Password does not meet all security requirements shown below.')
       return
     }
     setSetupLoading(true)
@@ -570,6 +576,7 @@ export default function Login() {
                 sx: { borderRadius: '10px' }
               }}
             />
+            <PasswordChecklist password={password} />
             <TextField
               fullWidth
               type="password"
