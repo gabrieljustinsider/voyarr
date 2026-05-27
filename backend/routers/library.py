@@ -36,16 +36,13 @@ def scan_library(
 
     if directory:
         # SECURITY: Prevent path traversal and arbitrary directory scanning
-        target_dir = os.path.realpath(directory)
+        target_dir = os.path.abspath(os.path.normpath(directory))
         is_valid_dir = False
         for root in media_roots:
-            try:
-                if os.path.commonpath([root, target_dir]) == root:
-                    is_valid_dir = True
-                    break
-            except ValueError:
-                # Occurs on Windows when comparing paths across different drives
-                continue
+            root_abs = os.path.abspath(os.path.normpath(root))
+            if target_dir.startswith(root_abs + os.sep) or target_dir == root_abs:
+                is_valid_dir = True
+                break
 
         if not is_valid_dir:
             raise HTTPException(
@@ -195,9 +192,12 @@ def get_facial_cluster_thumbnail(
     if not file_path:
         raise HTTPException(status_code=404, detail="Library entry not found")
 
-    faces_dir = os.path.join(os.path.dirname(file_path), f".faces_{entry_id}")
+    faces_dir = os.path.abspath(os.path.normpath(os.path.join(os.path.dirname(file_path), f".faces_{entry_id}")))
     safe_person_name = os.path.basename(person_name)
-    thumb_path = os.path.join(faces_dir, f"{safe_person_name}.jpg")
+    thumb_path = os.path.abspath(os.path.normpath(os.path.join(faces_dir, f"{safe_person_name}.jpg")))
+
+    if not thumb_path.startswith(faces_dir + os.sep):
+        raise HTTPException(status_code=403, detail="Forbidden: Path traversal detected.")
 
     if not os.path.exists(thumb_path):
         raise HTTPException(status_code=404, detail="Thumbnail not found")
