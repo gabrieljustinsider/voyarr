@@ -59,7 +59,12 @@ The Chrome Web Store review team requires explicit, plain-English justifications
 
 ## **📈 Version History**
 
-### **v1.13.0** (Current Release)
+### **v1.14.0** (Current Release)
+* Added multi-server connection support allowing seamless switching between local and remote Voyarr server instances directly from any popup tab.
+* Designed an elegant glassmorphic server management dashboard to easily add, test, configure, and delete Voyarr instances.
+* Engineered a fully backward-compatible automated settings storage migration path ensuring existing configurations upgrade gracefully with zero connection loss.
+
+### **v1.13.0**
 * Refactored service workers (`background.js`) and popup interfaces (`popup.js`) to use modern ES6 `async/await` syntax.
 * Added the required `tabs` permission to resolve domain hostnames, correcting a silent lookup failure.
 * Programmatically resized high-quality PNG icons for 16x16, 48x48, and 128x128 pixel dimensions to comply with Manifest V3.

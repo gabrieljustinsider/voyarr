@@ -150,6 +150,19 @@ function App() {
   const [confirmModal, setConfirmModal] = useState({ open: false, message: '', onConfirm: null, onCancel: null })
   const [promptModal, setPromptModal] = useState({ open: false, message: '', value: '', onConfirm: null, onCancel: null })
 
+  // Safely decode the user role from the local storage JWT token
+  const userRole = useMemo(() => {
+    const jwt = localStorage.getItem('voyarr_jwt')
+    if (!jwt) return 'viewer'
+    try {
+      const payload = jwt.split('.')[1]
+      const decoded = JSON.parse(atob(payload))
+      return decoded.role || 'viewer'
+    } catch {
+      return 'viewer'
+    }
+  }, [])
+
   // Custom Preferences state
   const [themeName, setThemeName] = useState('dark')
   const [uiConfig, setUiConfig] = useState({

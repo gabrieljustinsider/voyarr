@@ -4,11 +4,20 @@ document.addEventListener('DOMContentLoaded', () => {
   // Elements
   const tabBtns = document.querySelectorAll('.tab-btn');
   const tabContents = document.querySelectorAll('.tab-content');
-  const apiUrlInput = document.getElementById('apiUrlInput');
-  const apiKeyInput = document.getElementById('apiKeyInput');
-  const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+  const activeServerSelect = document.getElementById('activeServerSelect');
+  const serverListContainer = document.getElementById('serverListContainer');
+  const newServerNameInput = document.getElementById('newServerNameInput');
+  const newServerUrlInput = document.getElementById('newServerUrlInput');
+  const newServerApiKeyInput = document.getElementById('newServerApiKeyInput');
+  const addServerBtn = document.getElementById('addServerBtn');
   const settingsToast = document.getElementById('settingsToast');
   
+  const detectedServerBanner = document.getElementById('detectedServerBanner');
+  const detectedUrlText = document.getElementById('detectedUrlText');
+  const detectedIndicators = document.getElementById('detectedIndicators');
+  const addDetectedBtn = document.getElementById('addDetectedBtn');
+  const dismissDetectedBtn = document.getElementById('dismissDetectedBtn');
+
   const providerSelect = document.getElementById('providerSelect');
   const fieldSelect = document.getElementById('fieldSelect');
   const toggleBtn = document.getElementById('toggleBtn');
@@ -25,6 +34,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let currentSelector = "";
   let activeTabHost = "";
+  let servers = [];
+  let activeServerId = "";
 
   // Tab Switcher
   tabBtns.forEach(btn => {
@@ -37,10 +48,67 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  // Dynamic connection indicators analyst
+  function analyzeUrl(urlStr) {
+    try {
+      const url = new URL(urlStr);
+      const host = url.hostname.toLowerCase();
+      const proto = url.protocol.toLowerCase();
+
+      // 1. Is it secure (HTTPS)?
+      const isSecure = proto === "https:";
+      const secureBadge = isSecure 
+        ? { text: "Secure (HTTPS)", bg: "rgba(16, 185, 129, 0.08)", textCol: "#34d399", border: "rgba(16, 185, 129, 0.15)" }
+        : { text: "Insecure (HTTP)", bg: "rgba(245, 158, 11, 0.08)", textCol: "#fbbf24", border: "rgba(245, 158, 11, 0.15)" };
+
+      // 2. Is it local or remote?
+      const isLocal = host === "localhost" || 
+                      host === "127.0.0.1" || 
+                      host.endsWith(".local") || 
+                      /^127\./.test(host) || 
+                      /^10\./.test(host) || 
+                      /^192\.168\./.test(host) || 
+                      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host);
+
+      const locationBadge = isLocal
+        ? { text: "Local Server", bg: "rgba(59, 130, 246, 0.08)", textCol: "#60a5fa", border: "rgba(59, 130, 246, 0.15)" }
+        : { text: "Remote Server", bg: "rgba(139, 92, 246, 0.08)", textCol: "#a78bfa", border: "rgba(139, 92, 246, 0.15)" };
+
+      return { secureBadge, locationBadge };
+    } catch (e) {
+      return {
+        secureBadge: { text: "Insecure (HTTP)", bg: "rgba(245, 158, 11, 0.08)", textCol: "#fbbf24", border: "rgba(245, 158, 11, 0.15)" },
+        locationBadge: { text: "Local Server", bg: "rgba(59, 130, 246, 0.08)", textCol: "#60a5fa", border: "rgba(59, 130, 246, 0.15)" }
+      };
+    }
+  }
+
+  // Create indicator badge element
+  function createIndicatorBadge(badgeData) {
+    const span = document.createElement('span');
+    span.style.padding = "2px 6px";
+    span.style.borderRadius = "4px";
+    span.style.fontSize = "9px";
+    span.style.fontWeight = "600";
+    span.style.border = "1px solid " + badgeData.border;
+    span.style.backgroundColor = badgeData.bg;
+    span.style.color = badgeData.textCol;
+    span.style.display = "inline-block";
+    span.textContent = badgeData.text;
+    return span;
+  }
+
   // Load Settings from storage
   (async () => {
+    await loadSettings();
+    await probeActiveTab();
+  })();
+
+  async function loadSettings() {
     try {
       const config = await chrome.storage.local.get([
+        'voyarrServers',
+        'activeServerId',
         'voyarrApiUrl',
         'voyarrSecret',
         'pendingSelector',
@@ -48,11 +116,43 @@ document.addEventListener('DOMContentLoaded', () => {
         'savedField'
       ]);
 
-      if (config.voyarrApiUrl) apiUrlInput.value = config.voyarrApiUrl;
-      if (config.voyarrSecret) apiKeyInput.value = config.voyarrSecret;
-      
-      if (config.voyarrApiUrl && config.voyarrSecret) {
-        await testConnection(config.voyarrApiUrl, config.voyarrSecret);
+      servers = config.voyarrServers || [];
+      activeServerId = config.activeServerId || "";
+
+      // Seamless backward compatibility migration
+      if (servers.length === 0 && config.voyarrApiUrl) {
+        const migratedServer = {
+          id: 'migrated-' + Date.now(),
+          name: 'Migrated Server',
+          url: config.voyarrApiUrl.trim().replace(/\/$/, ''),
+          apiKey: config.voyarrSecret ? config.voyarrSecret.trim() : ''
+        };
+        servers.push(migratedServer);
+        activeServerId = migratedServer.id;
+        await chrome.storage.local.set({
+          voyarrServers: servers,
+          activeServerId: activeServerId
+        });
+      }
+
+      populateActiveServerSelect();
+      renderServerList();
+
+      if (activeServerId) {
+        const activeServer = servers.find(s => s.id === activeServerId);
+        if (activeServer) {
+          await chrome.storage.local.set({
+            voyarrApiUrl: activeServer.url,
+            voyarrSecret: activeServer.apiKey
+          });
+          try {
+            await testConnection(activeServer.url, activeServer.apiKey);
+          } catch (e) {
+            console.error("Active server connection failed:", e);
+          }
+        } else {
+          updateStatus(false, "Select active server");
+        }
       } else {
         updateStatus(false, "Configure settings");
       }
@@ -75,7 +175,333 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       console.error("Failed to load settings:", err);
     }
-  })();
+  }
+
+  function populateActiveServerSelect() {
+    activeServerSelect.innerHTML = "";
+    if (servers.length === 0) {
+      const opt = document.createElement('option');
+      opt.value = "";
+      opt.textContent = "-- No Servers Configured --";
+      activeServerSelect.appendChild(opt);
+      return;
+    }
+
+    servers.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = s.name;
+      if (s.id === activeServerId) {
+        opt.selected = true;
+      }
+      activeServerSelect.appendChild(opt);
+    });
+  }
+
+  function renderServerList() {
+    serverListContainer.innerHTML = "";
+    if (servers.length === 0) {
+      serverListContainer.innerHTML = `<div style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 12px 0;">No servers configured. Add one below!</div>`;
+      return;
+    }
+
+    servers.forEach(s => {
+      const card = document.createElement('div');
+      card.style.display = "flex";
+      card.style.alignItems = "center";
+      card.style.justifyContent = "space-between";
+      card.style.backgroundColor = "rgba(255, 255, 255, 0.02)";
+      card.style.padding = "6px 8px";
+      card.style.borderRadius = "6px";
+      card.style.border = "1px solid rgba(255, 255, 255, 0.05)";
+      card.style.fontSize = "11px";
+      card.style.gap = "8px";
+
+      const infoDiv = document.createElement('div');
+      infoDiv.style.flex = "1";
+      infoDiv.style.minWidth = "0";
+
+      const nameDiv = document.createElement('div');
+      nameDiv.style.fontWeight = "600";
+      nameDiv.style.color = s.id === activeServerId ? "var(--success)" : "var(--text-main)";
+      nameDiv.style.overflow = "hidden";
+      nameDiv.style.textOverflow = "ellipsis";
+      nameDiv.style.whiteSpace = "nowrap";
+      nameDiv.textContent = s.name + (s.id === activeServerId ? " (Active)" : "");
+
+      const urlDiv = document.createElement('div');
+      urlDiv.style.color = "var(--text-muted)";
+      urlDiv.style.fontSize = "9px";
+      urlDiv.style.overflow = "hidden";
+      urlDiv.style.textOverflow = "ellipsis";
+      urlDiv.style.whiteSpace = "nowrap";
+      urlDiv.textContent = s.url;
+
+      const badgesRow = document.createElement('div');
+      badgesRow.style.display = "flex";
+      badgesRow.style.gap = "4px";
+      badgesRow.style.marginTop = "4px";
+      badgesRow.style.flexWrap = "wrap";
+
+      const analysis = analyzeUrl(s.url);
+      badgesRow.appendChild(createIndicatorBadge(analysis.locationBadge));
+      badgesRow.appendChild(createIndicatorBadge(analysis.secureBadge));
+
+      if (s.latency !== undefined) {
+        let latBadge;
+        if (s.latency < 50) {
+          latBadge = { text: `Fast (${s.latency}ms)`, bg: "rgba(16, 185, 129, 0.08)", textCol: "#34d399", border: "rgba(16, 185, 129, 0.15)" };
+        } else if (s.latency < 200) {
+          latBadge = { text: `Normal (${s.latency}ms)`, bg: "rgba(255, 255, 255, 0.05)", textCol: "var(--text-muted)", border: "rgba(255, 255, 255, 0.1)" };
+        } else {
+          latBadge = { text: `Slow (${s.latency}ms)`, bg: "rgba(239, 68, 68, 0.08)", textCol: "#f87171", border: "rgba(239, 68, 68, 0.15)" };
+        }
+        badgesRow.appendChild(createIndicatorBadge(latBadge));
+      }
+
+      infoDiv.appendChild(nameDiv);
+      infoDiv.appendChild(urlDiv);
+      infoDiv.appendChild(badgesRow);
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = "btn btn-secondary";
+      deleteBtn.style.padding = "3px 6px";
+      deleteBtn.style.fontSize = "9px";
+      deleteBtn.style.borderRadius = "4px";
+      deleteBtn.style.boxShadow = "none";
+      deleteBtn.style.borderColor = "rgba(239, 68, 68, 0.2)";
+      deleteBtn.style.color = "var(--error)";
+      deleteBtn.textContent = "Delete";
+      deleteBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await deleteServer(s.id);
+      });
+
+      card.appendChild(infoDiv);
+      card.appendChild(deleteBtn);
+      serverListContainer.appendChild(card);
+    });
+  }
+
+  async function deleteServer(serverId) {
+    servers = servers.filter(s => s.id !== serverId);
+    let nextActiveId = activeServerId;
+
+    if (activeServerId === serverId) {
+      nextActiveId = servers.length > 0 ? servers[0].id : "";
+    }
+
+    activeServerId = nextActiveId;
+    
+    await chrome.storage.local.set({
+      voyarrServers: servers,
+      activeServerId: activeServerId
+    });
+
+    if (activeServerId) {
+      const activeServer = servers.find(s => s.id === activeServerId);
+      if (activeServer) {
+        await chrome.storage.local.set({
+          voyarrApiUrl: activeServer.url,
+          voyarrSecret: activeServer.apiKey
+        });
+        await testConnection(activeServer.url, activeServer.apiKey);
+      }
+    } else {
+      await chrome.storage.local.remove(['voyarrApiUrl', 'voyarrSecret']);
+      updateStatus(false, "Configure settings");
+      providerSelect.innerHTML = '<option value="">-- No Active Server --</option>';
+    }
+
+    populateActiveServerSelect();
+    renderServerList();
+  }
+
+  // Active Server Dropdown change handler
+  activeServerSelect.addEventListener('change', async () => {
+    const selectedId = activeServerSelect.value;
+    if (!selectedId) return;
+
+    activeServerId = selectedId;
+    await chrome.storage.local.set({ activeServerId: activeServerId });
+
+    const activeServer = servers.find(s => s.id === activeServerId);
+    if (activeServer) {
+      await chrome.storage.local.set({
+        voyarrApiUrl: activeServer.url,
+        voyarrSecret: activeServer.apiKey
+      });
+      renderServerList();
+      try {
+        await testConnection(activeServer.url, activeServer.apiKey);
+      } catch (e) {
+        console.error("Switched active server connection failed:", e);
+      }
+    }
+  });
+
+  // Add Server Form handler
+  addServerBtn.addEventListener('click', async () => {
+    const name = newServerNameInput.value.trim();
+    const url = newServerUrlInput.value.trim().replace(/\/$/, '');
+    const key = newServerApiKeyInput.value.trim();
+
+    if (!name || !url || !key) {
+      showToast(settingsToast, "Please fill in all fields", false);
+      return;
+    }
+
+    addServerBtn.disabled = true;
+    addServerBtn.innerText = "Testing Server...";
+
+    try {
+      const { latencyMs, providers } = await testConnection(url, key);
+      
+      const newServer = {
+        id: 'server-' + Date.now(),
+        name: name,
+        url: url,
+        apiKey: key,
+        latency: latencyMs
+      };
+
+      servers.push(newServer);
+      activeServerId = newServer.id;
+
+      await chrome.storage.local.set({
+        voyarrServers: servers,
+        activeServerId: activeServerId,
+        voyarrApiUrl: url,
+        voyarrSecret: key
+      });
+
+      showToast(settingsToast, "Server added and connected!", true);
+      
+      newServerNameInput.value = "";
+      newServerUrlInput.value = "";
+      newServerApiKeyInput.value = "";
+
+      populateActiveServerSelect();
+      renderServerList();
+      populateProviders(providers);
+
+    } catch (err) {
+      showToast(settingsToast, "Connection failed. Verify URL/Key.", false);
+      updateStatus(false, "Disconnected");
+    } finally {
+      addServerBtn.disabled = false;
+      addServerBtn.innerText = "Add & Test Server";
+    }
+  });
+
+  // Probe active tab for Voyarr Server
+  async function probeActiveTab() {
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tabs || !tabs[0] || !tabs[0].url) return;
+
+      const activeUrl = new URL(tabs[0].url);
+      if (activeUrl.protocol !== "http:" && activeUrl.protocol !== "https:") return;
+
+      const origin = activeUrl.origin;
+
+      // Check if we already have this server configured
+      const isAlreadyConfigured = servers.some(s => {
+        try {
+          return new URL(s.url).origin === origin;
+        } catch(e) {
+          return s.url.includes(origin) || origin.includes(s.url);
+        }
+      });
+
+      if (isAlreadyConfigured) return;
+
+      // Ping /api/health to auto-detect
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 1500);
+      const pingStart = performance.now();
+
+      try {
+        const res = await fetch(`${origin}/api/health`, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.status === "healthy") {
+            const latency = Math.round(performance.now() - pingStart);
+            showDetectedServer(origin, latency);
+          }
+        }
+      } catch (err) {
+        // Fallback check on direct /health
+        try {
+          const fallbackController = new AbortController();
+          const fallbackTimeout = setTimeout(() => fallbackController.abort(), 1500);
+          const fallbackStart = performance.now();
+          const fallbackRes = await fetch(`${origin}/health`, { signal: fallbackController.signal });
+          clearTimeout(fallbackTimeout);
+
+          if (fallbackRes.ok) {
+            const data = await fallbackRes.json();
+            if (data && data.status === "healthy") {
+              const latency = Math.round(performance.now() - fallbackStart);
+              showDetectedServer(origin, latency);
+            }
+          }
+        } catch (e) {}
+      }
+    } catch (e) {
+      console.error("Probing active tab error:", e);
+    }
+  }
+
+  function showDetectedServer(origin, latencyMs) {
+    detectedUrlText.textContent = origin;
+    detectedIndicators.innerHTML = "";
+
+    const analysis = analyzeUrl(origin);
+    
+    // Add location badge
+    detectedIndicators.appendChild(createIndicatorBadge(analysis.locationBadge));
+    
+    // Add security badge
+    detectedIndicators.appendChild(createIndicatorBadge(analysis.secureBadge));
+
+    // Add latency badge
+    let latencyBadge;
+    if (latencyMs < 50) {
+      latencyBadge = { text: `Fast (${latencyMs}ms)`, bg: "rgba(16, 185, 129, 0.08)", textCol: "#34d399", border: "rgba(16, 185, 129, 0.15)" };
+    } else if (latencyMs < 200) {
+      latencyBadge = { text: `Normal (${latencyMs}ms)`, bg: "rgba(255, 255, 255, 0.05)", textCol: "var(--text-muted)", border: "rgba(255, 255, 255, 0.1)" };
+    } else {
+      latencyBadge = { text: `Slow (${latencyMs}ms)`, bg: "rgba(239, 68, 68, 0.08)", textCol: "#f87171", border: "rgba(239, 68, 68, 0.15)" };
+    }
+    detectedIndicators.appendChild(createIndicatorBadge(latencyBadge));
+
+    detectedServerBanner.style.display = "flex";
+
+    // Setup action targets
+    addDetectedBtn.onclick = async () => {
+      // Direct user to Settings tab and pre-fill form
+      tabBtns.forEach(b => b.classList.remove('active'));
+      tabContents.forEach(c => c.classList.remove('active'));
+      
+      const settingsTabBtn = document.querySelector('[data-tab="settings-tab"]');
+      const settingsContent = document.getElementById('settings-tab');
+      if (settingsTabBtn) settingsTabBtn.classList.add('active');
+      if (settingsContent) settingsContent.classList.add('active');
+
+      newServerNameInput.value = "Detected Server";
+      newServerUrlInput.value = origin;
+      newServerApiKeyInput.focus();
+
+      detectedServerBanner.style.display = "none";
+    };
+
+    dismissDetectedBtn.onclick = () => {
+      detectedServerBanner.style.display = "none";
+    };
+  }
 
   function updateMatchBadge(count) {
     if (!matchCountBadge) return;
@@ -91,35 +517,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Save & Test Settings
-  saveSettingsBtn.addEventListener('click', async () => {
-    const url = apiUrlInput.value.trim().replace(/\/$/, '');
-    const key = apiKeyInput.value.trim();
-
-    if (!url || !key) {
-      showToast(settingsToast, "Please enter both fields", false);
-      return;
-    }
-
-    saveSettingsBtn.disabled = true;
-    saveSettingsBtn.innerText = "Testing Connection...";
-    
-    try {
-      const providers = await testConnection(url, key);
-      await chrome.storage.local.set({ voyarrApiUrl: url, voyarrSecret: key });
-      showToast(settingsToast, "Settings saved and connected!", true);
-      populateProviders(providers);
-    } catch (err) {
-      showToast(settingsToast, "Connection failed. Check URL/Key.", false);
-    } finally {
-      saveSettingsBtn.disabled = false;
-      saveSettingsBtn.innerText = "Save & Test Connection";
-    }
-  });
-
   // Test Connection helper (returns promise)
   async function testConnection(url, key) {
     updateStatus(false, "Testing...");
+    const startTime = performance.now();
     try {
       const res = await fetch(`${url}/providers`, {
         method: 'GET',
@@ -130,9 +531,18 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       if (!res.ok) throw new Error("Unauthorized or server error");
       const providers = await res.json();
-      updateStatus(true, "Connected");
+      const latencyMs = Math.round(performance.now() - startTime);
+      updateStatus(true, `Connected (${latencyMs}ms)`);
       populateProviders(providers);
-      return providers;
+      
+      // Update latency in local object if matching
+      const s = servers.find(srv => srv.url === url);
+      if (s) {
+        s.latency = latencyMs;
+        await chrome.storage.local.set({ voyarrServers: servers });
+      }
+      
+      return { providers, latencyMs };
     } catch (err) {
       updateStatus(false, "Disconnected");
       throw err;

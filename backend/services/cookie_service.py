@@ -13,40 +13,10 @@ class CookieService:
         Attempts to make a lightweight request to the provider to test if the cookie is still active.
         """
         try:
-            parsed = urllib.parse.urlparse(test_url)
-            hostname = parsed.hostname.lower() if parsed.hostname else ""
-
-            try:
-                import ipaddress
-
-                if hostname.startswith("0x"):
-                    ip_int = int(hostname, 16)
-                elif hostname.startswith("0") and hostname.isdigit():
-                    ip_int = int(hostname, 8)
-                elif hostname.isdigit():
-                    ip_int = int(hostname)
-                else:
-                    ip_int = None
-                if ip_int is not None and (
-                    ipaddress.ip_address(ip_int).is_loopback
-                    or ipaddress.ip_address(ip_int).is_private
-                ):
-                    print(f"SSRF blocked: Disallowed internal numeric IP {hostname}")
-                    return False
-            except ValueError:
-                pass
-
-            if hostname in [
-                "localhost",
-                "127.0.0.1",
-                "0.0.0.0",  # nosec B104
-                "169.254.169.254",
-                "::1",
-                "[::1]",
-            ] or hostname.endswith((".internal", ".nip.io", ".xip.io", ".sslip.io")):
-                print(f"SSRF blocked: Disallowed internal hostname {hostname}")
-                return False
-        except Exception:
+            from utils import validate_url_ssrf
+            validate_url_ssrf(test_url)
+        except Exception as ssrf_err:
+            print(f"Cookie validation blocked: {ssrf_err}")
             return False
 
         headers = {

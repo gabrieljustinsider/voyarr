@@ -256,6 +256,34 @@
       </div>
     </div>
 
+    <!-- Active Server Bar -->
+    <div class="form-group">
+      <div style="display: flex; align-items: center; justify-content: space-between; background-color: var(--bg-secondary); padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 11px; gap: 8px;">
+        <span style="font-weight: 500; color: var(--text-muted); white-space: nowrap;">Active Server:</span>
+        <select id="activeServerSelect" style="flex: 1; padding: 2px 6px; font-size: 11px; border: 1px solid rgba(255,255,255,0.08); background-color: var(--bg-primary); height: 24px; border-radius: 4px; color: var(--text-main); font-family: inherit; outline: none; cursor: pointer;">
+          <!-- Dynamically populated -->
+        </select>
+      </div>
+    </div>
+
+    <!-- Detected Server Banner -->
+    <div id="detectedServerBanner" style="display: none; background: rgba(99, 102, 241, 0.08); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; font-size: 11px; animation: fadeIn 0.3s ease; flex-direction: column; gap: 6px;">
+      <div style="font-weight: 600; color: #a855f7; display: flex; align-items: center; gap: 4px;">
+        <span>📡 Detected Voyarr Server!</span>
+      </div>
+      <div style="color: var(--text-main); font-family: monospace; font-size: 10px; word-break: break-all;" id="detectedUrlText">http://localhost:8000</div>
+      
+      <!-- Indicators Row -->
+      <div style="display: flex; gap: 4px; flex-wrap: wrap;" id="detectedIndicators">
+        <!-- Badges dynamically added -->
+      </div>
+      
+      <div style="display: flex; gap: 6px; margin-top: 2px;">
+        <button id="addDetectedBtn" class="btn" style="flex: 2; padding: 5px; font-size: 10px; border-radius: 4px; height: auto; box-shadow: none;">Add & Connect</button>
+        <button id="dismissDetectedBtn" class="btn btn-secondary" style="flex: 1; padding: 5px; font-size: 10px; border-radius: 4px; height: auto;">Dismiss</button>
+      </div>
+    </div>
+
     <!-- Navigation Tabs -->
     <div class="tabs">
       <button class="tab-btn active" data-tab="map-tab">Remote Map</button>
@@ -265,7 +293,7 @@
     <!-- Map Tab -->
     <div class="tab-content active" id="map-tab">
       <div class="form-group">
-        <label for="providerSelect">Target Provider</label>
+        <label for="providerSelect">Target Scraper Provider</label>
         <select id="providerSelect">
           <option value="">-- Load Providers in Settings --</option>
         </select>
@@ -302,17 +330,25 @@
 
     <!-- Settings Tab -->
     <div class="tab-content" id="settings-tab">
-      <div class="form-group">
-        <label for="apiUrlInput">Voyarr Server URL</label>
-        <input type="text" id="apiUrlInput" placeholder="http://localhost:8000" />
+      <!-- Configured Servers List -->
+      <div class="form-group" style="gap: 4px;">
+        <label>Configured Servers</label>
+        <div id="serverListContainer" style="display: flex; flex-direction: column; gap: 6px; max-height: 120px; overflow-y: auto; padding-right: 2px;">
+          <!-- Dynamically populated list of server cards -->
+        </div>
       </div>
 
-      <div class="form-group">
-        <label for="apiKeyInput">Master API Key</label>
-        <input type="password" id="apiKeyInput" placeholder="Enter API / Master Key" />
+      <div style="border-top: 1px dashed var(--border-color); margin: 4px 0;"></div>
+
+      <!-- Add New Server Form -->
+      <div class="form-group" style="gap: 6px;">
+        <label style="font-weight: 600;">Add Target Server</label>
+        <input type="text" id="newServerNameInput" placeholder="Name (e.g. Local Server, VPS)" style="padding: 8px 10px; font-size: 12px;" />
+        <input type="text" id="newServerUrlInput" placeholder="URL (e.g. http://localhost:8000)" style="padding: 8px 10px; font-size: 12px;" />
+        <input type="password" id="newServerApiKeyInput" placeholder="Master API Key" style="padding: 8px 10px; font-size: 12px;" />
       </div>
 
-      <button id="saveSettingsBtn" class="btn">Save & Test Connection</button>
+      <button id="addServerBtn" class="btn" style="padding: 9px; font-size: 12px;">Add & Test Server</button>
       <div id="settingsToast" class="toast-msg"></div>
     </div>
   </div>

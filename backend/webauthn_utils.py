@@ -80,7 +80,7 @@ def resolve_ip_location(ip_address: str) -> str:
         return "Local Host (Development)"
     
     # Hash the IP deterministically to select a location
-    ip_hash = int(hashlib.md5(ip_address.encode()).hexdigest(), 16)
+    ip_hash = int(hashlib.sha256(ip_address.encode()).hexdigest(), 16)
     idx = ip_hash % len(MOCK_LOCATIONS)
     return MOCK_LOCATIONS[idx]
 

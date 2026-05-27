@@ -32,8 +32,12 @@ class HashService:
         """
         Generates perceptual hash (pHash) from a video using DCT on a middle frame.
         """
+        out_image = None
         try:
-            out_image = f"{file_path}.jpg"
+            import tempfile
+            with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as temp_img:
+                out_image = temp_img.name
+            
             # Calculate middle of the video using ffprobe
             duration_cmd = [
                 "ffprobe",
@@ -87,8 +91,13 @@ class HashService:
                 if dct_low[i, j] > avg
             )
 
-            os.remove(out_image)
             return f"{phash:016x}"
         except Exception as e:
             print(f"pHash error: {e}")
             return ""
+        finally:
+            if out_image and os.path.exists(out_image):
+                try:
+                    os.remove(out_image)
+                except Exception:
+                    pass
