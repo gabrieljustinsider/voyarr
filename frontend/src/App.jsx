@@ -4,11 +4,12 @@ import {
   CssBaseline, AppBar, Toolbar, Typography, Container, Tabs, Tab, Box, 
   Paper, Snackbar, Alert, Dialog, DialogTitle, DialogContent, DialogActions, 
   Button, IconButton, FormControl, InputLabel, Select, MenuItem, Switch, 
-  FormControlLabel, Divider, Grid, TextField, CircularProgress
+  FormControlLabel, Divider, Grid, TextField, CircularProgress, Chip
 } from '@mui/material'
 import LogoutIcon from '@mui/icons-material/Logout'
 import SettingsIcon from '@mui/icons-material/Settings'
 import TuneIcon from '@mui/icons-material/Tune'
+import packageJson from '../package.json'
 
 // Synchronously load Login to keep initial login paint instant
 import Login from './components/Login'
@@ -551,9 +552,50 @@ function App() {
       <CssBaseline />
       <AppBar position="static" elevation={0} sx={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
         <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: '800', letterSpacing: '-0.5px' }}>
-            Voyarr Media Manager
-          </Typography>
+          <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
+              <Typography
+                variant="h6"
+                component="div"
+                sx={{
+                  fontFamily: "'Outfit', sans-serif",
+                  fontWeight: 900,
+                  letterSpacing: '1.5px',
+                  background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
+              >
+                VOYARR
+              </Typography>
+              <Typography
+                variant="caption"
+                sx={{
+                  fontFamily: "'Outfit', sans-serif",
+                  fontWeight: 500,
+                  letterSpacing: '1.5px',
+                  color: 'rgba(148, 163, 184, 0.6)',
+                  fontSize: '0.65rem',
+                  textTransform: 'uppercase',
+                }}
+              >
+                Media Manager
+              </Typography>
+            </Box>
+            <Chip
+              label={`v${packageJson.version}`}
+              size="small"
+              sx={{
+                height: 20,
+                fontSize: '0.6rem',
+                fontWeight: 700,
+                fontFamily: "'Outfit', sans-serif",
+                background: 'rgba(99, 102, 241, 0.12)',
+                color: '#a78bfa',
+                border: '1px solid rgba(139, 92, 246, 0.25)',
+              }}
+            />
+          </Box>
 
           {/* Settings Tune Button */}
           <IconButton color="inherit" onClick={handleOpenPrefDialog} title="Interface Preferences" sx={{ mr: 1.5 }}>

@@ -22,7 +22,7 @@ Voyarr handles sensitive credentials for third-party media providers and secures
 - **Single Sign-On (SSO) Linking:** Users can link third-party identity providers (Google, GitHub, Discord) for secure fast-access OAuth login. Built-in lockout safeguards prevent unlinking an SSO provider if it is the user's last remaining authentication method.
 - **User Authentication & RBAC:** Native user registration features a secure bootstrapping workflow. The very first registration request on a fresh database automatically creates an `"admin"` user. Thereafter, registration is completely locked down and requires either an Admin bearer token (JWT) or the `MASTER_KEY` passed via the `X-Voyarr-Api-Key` HTTP header.
 - **CORS:** Cross-Origin Resource Sharing is restricted via the `CORS_ORIGINS` environment variable to prevent unauthorized web clients from interacting with your local API.
-- **SSRF Protection:** All URL proxying and downloading mechanisms rigorously evaluate hostnames and IP addresses to prevent Server-Side Request Forgery against internal infrastructure.
+- **SSRF Protection:** All URL proxying and synchronization mechanisms rigorously evaluate hostnames and IP addresses to prevent Server-Side Request Forgery against internal infrastructure.
 
 ## Reporting a Vulnerability
 

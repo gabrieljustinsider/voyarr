@@ -15,12 +15,13 @@ import {
   CircularProgress, 
   InputAdornment, 
   IconButton,
-  Grid
+  Grid,
+  Chip
 } from '@mui/material'
 import FingerprintIcon from '@mui/icons-material/Fingerprint'
-import VpnKeyIcon from '@mui/icons-material/VpnKey'
 import LockIcon from '@mui/icons-material/Lock'
 import PersonIcon from '@mui/icons-material/Person'
+import packageJson from '../../package.json'
 
 // SVG Branded Logos for SSO
 const GoogleSvg = () => (
@@ -49,6 +50,11 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   
+  // First-user admin setup states
+  const [hasUsers, setHasUsers] = useState(true)
+  const [setupLoading, setSetupLoading] = useState(false)
+  const [confirmPassword, setConfirmPassword] = useState('')
+
   // Custom states for passkey and SSO
   const [passkeyLoading, setPasskeyLoading] = useState(false)
   const [ssoOpen, setSsoOpen] = useState(false)
@@ -175,6 +181,7 @@ export default function Login() {
         if (res.ok) {
           const data = await res.json()
           setAuthConfig(data)
+          if (data.has_users === false) setHasUsers(false)
 
           // Attempt autologin if bypass is enabled
           if (data.auth_bypass_enabled || data.auth_bypass_proxy_header_enabled) {
@@ -201,6 +208,52 @@ export default function Login() {
     }
     fetchAuthConfig()
   }, [API_BASE])
+
+  // Handle first-user admin registration
+  const handleSetup = async (e) => {
+    if (e) e.preventDefault()
+    setError('')
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.')
+      return
+    }
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.')
+      return
+    }
+    setSetupLoading(true)
+    try {
+      const res = await fetch(`${API_BASE}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, role: 'admin' })
+      })
+      if (res.ok) {
+        const formData = new URLSearchParams()
+        formData.append('username', username)
+        formData.append('password', password)
+        const loginRes = await fetch(`${API_BASE}/auth/token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: formData.toString()
+        })
+        if (loginRes.ok) {
+          const loginData = await loginRes.json()
+          localStorage.setItem('voyarr_jwt', loginData.access_token)
+          setSnackbar({ open: true, message: 'Admin account created! Signing you in...', severity: 'success' })
+          setTimeout(() => { window.location.reload() }, 800)
+        }
+      } else {
+        const errData = await res.json()
+        setError(errData.detail || 'Failed to create admin account.')
+      }
+    } catch (err) {
+      console.error('Setup error:', err)
+      setError('Network error during setup.')
+    } finally {
+      setSetupLoading(false)
+    }
+  }
 
   // Handle standard Username & Password form login
   const handleLogin = async (e) => {
@@ -410,35 +463,159 @@ export default function Login() {
           transform: 'translateX(-50%)',
           width: '60%',
           height: '4px',
-          background: 'linear-gradient(90deg, transparent, #3f51b5, #00e676, transparent)',
-          opacity: 0.6
+          background: 'linear-gradient(90deg, transparent, #6366f1, #a855f7, transparent)',
+          opacity: 0.7
         }} />
 
         <Box sx={{ mb: 3, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <Box sx={{ 
-            p: 1.5, 
-            mb: 1.5,
-            borderRadius: '50%', 
-            background: 'rgba(63, 81, 181, 0.1)',
-            border: '1px solid rgba(63, 81, 181, 0.3)',
-            display: 'inline-flex',
-            color: '#3f51b5'
-          }}>
-            <VpnKeyIcon sx={{ fontSize: 28 }} />
+          <Box
+            component="img"
+            src="/app_icon.png"
+            alt="Voyarr"
+            sx={{
+              width: 64,
+              height: 64,
+              mb: 1.5,
+              borderRadius: '16px',
+              filter: 'drop-shadow(0 0 12px rgba(99, 102, 241, 0.4))'
+            }}
+          />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+            <Typography
+              variant="h5"
+              sx={{
+                fontFamily: "'Outfit', sans-serif",
+                fontWeight: 900,
+                letterSpacing: '1.5px',
+                background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}
+            >
+              VOYARR
+            </Typography>
+            <Chip
+              label={`v${packageJson.version}`}
+              size="small"
+              sx={{
+                height: 20,
+                fontSize: '0.65rem',
+                fontWeight: 700,
+                fontFamily: "'Outfit', sans-serif",
+                background: 'rgba(99, 102, 241, 0.12)',
+                color: '#a78bfa',
+                border: '1px solid rgba(139, 92, 246, 0.25)',
+              }}
+            />
           </Box>
-          <Typography variant="h5" sx={{ fontWeight: '700', letterSpacing: '0.5px' }} align="center">
-            Voyarr Media Server
-          </Typography>
-          <Typography variant="caption" color="textSecondary" align="center" sx={{ mt: 0.5, opacity: 0.7 }}>
-            Please sign in to continue to your dashboard
+          <Typography
+            variant="subtitle2"
+            sx={{
+              fontFamily: "'Outfit', sans-serif",
+              fontWeight: 500,
+              letterSpacing: '2px',
+              color: 'rgba(148, 163, 184, 0.7)',
+              fontSize: '0.7rem',
+              textTransform: 'uppercase',
+            }}
+          >
+            {hasUsers ? 'Media Server' : 'Initial Setup'}
           </Typography>
         </Box>
 
         {error && (
-          <Alert severity="error" sx={{ mb: 3, borderRadius: '10px', fontSize: '0.875rem' }}>
+          <Alert severity="error" sx={{ mb: 2, borderRadius: '10px', fontSize: '0.875rem' }}>
             {error}
           </Alert>
         )}
+
+        {/* ── First-User Admin Setup Flow ── */}
+        {!hasUsers ? (
+          <form onSubmit={handleSetup}>
+            <Typography variant="body2" align="center" sx={{ mb: 2, opacity: 0.7, color: 'text.secondary' }}>
+              Welcome! Create your administrator account to get started.
+            </Typography>
+            <TextField
+              fullWidth
+              label="Admin Username"
+              margin="normal"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              placeholder="e.g. administrator"
+              required
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <PersonIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
+                  </InputAdornment>
+                ),
+                sx: { borderRadius: '10px' }
+              }}
+            />
+            <TextField
+              fullWidth
+              type="password"
+              label="Password"
+              margin="normal"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="Min. 8 characters"
+              required
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <LockIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
+                  </InputAdornment>
+                ),
+                sx: { borderRadius: '10px' }
+              }}
+            />
+            <TextField
+              fullWidth
+              type="password"
+              label="Confirm Password"
+              margin="normal"
+              value={confirmPassword}
+              onChange={e => setConfirmPassword(e.target.value)}
+              placeholder="Re-enter password"
+              required
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <LockIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
+                  </InputAdornment>
+                ),
+                sx: { borderRadius: '10px' }
+              }}
+            />
+            <Button
+              fullWidth
+              type="submit"
+              variant="contained"
+              disabled={setupLoading}
+              sx={{
+                mt: 3,
+                mb: 1,
+                py: 1.2,
+                borderRadius: '10px',
+                textTransform: 'none',
+                fontWeight: '600',
+                background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
+                boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #4f46e5 0%, #9333ea 100%)',
+                }
+              }}
+            >
+              {setupLoading ? <CircularProgress size={22} color="inherit" /> : 'Create Admin Account'}
+            </Button>
+          </form>
+        ) : (
+        /* ── Standard Sign-In Form ── */
+        <>
+        <Typography variant="body2" align="center" sx={{ mb: 1, opacity: 0.7, color: 'text.secondary' }}>
+          Please sign in to continue to your dashboard
+        </Typography>
 
         <form onSubmit={handleLogin}>
           <TextField 
@@ -619,6 +796,8 @@ export default function Login() {
         )}
         </>
         )}
+        </>
+      )}
       </Paper>
 
       {/* Simulated SSO Dialog */}

@@ -211,6 +211,7 @@ def get_auth_config(db: Session = Depends(get_db)):
         return default
 
     return {
+        "has_users": db.query(User).count() > 0,
         "passkeys_enabled": get_bool_setting("passkeys_enabled", True),
         "sso_enabled": get_bool_setting("sso_enabled", False),
         "oidc_enabled": get_bool_setting("oidc_enabled", False),

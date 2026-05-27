@@ -1,6 +1,17 @@
 // Voyarr Companion Popup Logic
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Set version badge dynamically from chrome extension manifest
+  const extVersionSpan = document.getElementById('extVersion');
+  if (extVersionSpan) {
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifest) {
+      const manifest = chrome.runtime.getManifest();
+      extVersionSpan.textContent = `v${manifest.version}`;
+    } else {
+      extVersionSpan.textContent = 'v1.14.1'; // Fallback
+    }
+  }
+
   // Elements
   const tabBtns = document.querySelectorAll('.tab-btn');
   const tabContents = document.querySelectorAll('.tab-content');

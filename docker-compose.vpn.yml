@@ -1,3 +1,4 @@
+name: voyarr-vpn
 services:
   vpn:
     image: qmcgaw/gluetun:latest

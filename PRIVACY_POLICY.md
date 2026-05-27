@@ -19,7 +19,7 @@ The Voyarr software, running on your server, stores and processes the following 
 *   **Password Manager Tokens:** Connection tokens for 1Password and Bitwarden are similarly encrypted at rest via AES-256-GCM and stored in the secure Vault.
 *   **User Accounts:** If you utilize the Multi-User RBAC system, hashed passwords for your created users are stored in the database.
 *   **Configuration Data:** Settings, download rules, schedules, provider configurations, and other operational data are stored in your database.
-*   **Media Metadata:** Information about media files, such as titles, performers, tags, and file hashes (ohash/phash), is stored in your database. This data is either scraped from third-party sites at your direction or generated from your local files.
+*   **Media Metadata:** Information about media files, such as titles, performers, tags, and file hashes (ohash/phash), is stored in your database. This data is either generated from your local files, or securely collected from third-party sites at your explicit direction (via configured administrative scraping tools).
 *   **Session & API Keys:** Session cookies for providers and API keys you generate for third-party access are stored in your database.
 
 ## 3. Browser Extension

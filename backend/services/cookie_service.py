@@ -3,7 +3,6 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from models import SessionCookie
 import re
-import urllib.parse
 
 
 class CookieService:

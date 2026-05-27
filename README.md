@@ -1,13 +1,13 @@
 # Voyarr
 
-**Voyarr** is a self-hosted media management ecosystem designed to handle subscriptions, metadata scraping, and automated downloads from adult websites. It integrates with **ThePornDB**, **Stash**, and **StashDB**, featuring a remote-control browser extension for dynamic metadata mapping.
+**Voyarr** is a self-hosted media player and library management ecosystem designed for your adult video collections. Stream videos directly from your adult video service subscriptions and organize your personal media library all in one place.
 
 📖 **Looking for a non-technical, step-by-step user guide? Check out our complete [User Guide & Tutorial](USER_GUIDE.md)!**
 🛠️ **Running into issues? Check out the Troubleshooting Guide for common errors and fixes.**
 
 ## 🚀 Overview
 
-Voyarr automates the tedious parts of managing a local media library. From automatically queueing videos based on performer rules to upgrading existing files when a higher resolution becomes available, Voyarr is your automated media assistant.
+Voyarr automates the tedious parts of managing a local media library. Watch and stream content directly from your favorite adult video service subscriptions, manage your extensive collections seamlessly, and enjoy an immersive, unified viewing experience in a single platform.
 
 ## 🏗️ System Architecture
 
@@ -21,25 +21,26 @@ Voyarr automates the tedious parts of managing a local media library. From autom
 
 ## 🔍 Core Features
 
-1. **Robust Task Queue:** Uses Celery and Redis to track long-running downloads. Supports pause/resume and persists through container restarts.
-2. **Advanced Filtering & Rules:** Set multi-criteria rules (Performers, Categories, Resolution) to automate the queueing of specific content.
-3. **Mass Rip Workflow:** Provide a channel/performer URL to automatically scrape all videos, evaluate them against your rules, and queue them.
-4. **Quality Upgrade:** Automatically detects if a queued video is a higher resolution (e.g., 4K) than a local file (e.g., 1080p) and upgrades it.
-5. **Reverse Regex Matching Engine:** Scans your `/media` folder and automatically extracts metadata (Title, Performers, Resolution) from existing files based on configurable naming patterns.
-6. **True Perceptual Hashing (phash):** Uses FFmpeg to extract frames and calculates DCT visual hashes to detect visually similar or duplicate videos.
-7. **Multi-Drive Storage:** Spread your library across multiple hard drives seamlessly using comma-separated Docker volume mappings.
-8. **Multi-User RBAC:** Create restricted user accounts for friends and family without exposing your Master Key or admin privileges.
-9. **Remote Mapping Extension:** A Chrome browser extension with a "Map Mode" UI allowing you to click on elements on live websites to generate CSS selectors for site scraping recipes.
-10. **Discord Bot Portal:** Remotely trigger Celery scrape tasks, search the library, and add downloads directly via Discord Slash Commands.
-11. **Automated Transcoding Engine:** Run background FFmpeg pipelines to convert video libraries to lightweight codecs (e.g. H.265) and set target resolutions.
-12. **Outbound Webhooks & Notifications:** Send real-time notifications to external endpoints for downloads, scans, and transcode completions.
-13. **Cron Scrape Schedules:** Schedule automated periodic channel scans and page rips via custom cron-expression schedules.
-14. **System Backup & Recovery:** Export complete PostgreSQL schema records and media metadata configurations.
-15. **Media Requests Portal:** Allow standard or guest users to request downloads via a centralized portal with admin approval queues.
-16. **Video Chapters:** Generate, browse, and edit time-indexed chapter boundaries with sub-tag descriptors directly in the local library.
-17. **Performer Facial Recognition Clustering:** Group visually matching faces using DBSCAN clustering, auto-identifying unknown actors and extracting face portrait thumbnails.
-18. **AI-Driven Auto-Chaptering:** Utilize frame-based scene change detection combined with AI Vision models (Ollama/Llava or OpenAI GPT-4o) to automatically segment videos into logical chapters with descriptive titles.
-19. **Granular Queue Priority & Controls:** Adjust priorities, pause, resume, or cancel active tasks inside Celery-managed download, transcoding, and recording streams in real-time.
+1. **Additional Admin Features:** Comprehensive operational toolsets for advanced library syncing, network routing, and automated media management, restricted to administrators.
+2. **Robust Task Queue:** Uses Celery and Redis to track long-running background tasks. Supports pause/resume and persists through container restarts.
+3. **Advanced Filtering & Rules:** Set multi-criteria rules (Performers, Categories, Resolution) to automate the organization of specific content.
+4. **Bulk Sync Workflow:** Provide a channel/performer URL to automatically sync metadata, evaluate videos against your rules, and organize them.
+5. **Quality Upgrade:** Automatically detects if a queued video is a higher resolution (e.g., 4K) than a local file (e.g., 1080p) and upgrades it.
+6. **Reverse Regex Matching Engine:** Scans your `/media` folder and automatically extracts metadata (Title, Performers, Resolution) from existing files based on configurable naming patterns.
+7. **True Perceptual Hashing (phash):** Uses FFmpeg to extract frames and calculates DCT visual hashes to detect visually similar or duplicate videos.
+8. **Multi-Drive Storage:** Spread your library across multiple hard drives seamlessly using comma-separated Docker volume mappings.
+9. **Multi-User RBAC:** Create restricted user accounts for friends and family without exposing your Master Key or admin privileges.
+10. **Remote Mapping Extension:** A Chrome browser extension with a "Map Mode" UI allowing you to click on elements on live websites to generate CSS selectors for site integration recipes.
+11. **Discord Bot Portal:** Remotely trigger advanced admin tasks, search the library, and manage media directly via Discord Slash Commands.
+12. **Automated Transcoding Engine:** Run background FFmpeg pipelines to convert video libraries to lightweight codecs (e.g. H.265) and set target resolutions.
+13. **Outbound Webhooks & Notifications:** Send real-time notifications to external endpoints for library scans, processing, and transcode completions.
+14. **Cron Schedules:** Schedule automated periodic channel scans and synchronization via custom cron-expression schedules.
+15. **System Backup & Recovery:** Export complete PostgreSQL schema records and media metadata configurations.
+16. **Media Requests Portal:** Allow standard or guest users to request media additions via a centralized portal with admin approval queues.
+17. **Video Chapters:** Generate, browse, and edit time-indexed chapter boundaries with sub-tag descriptors directly in the local library.
+18. **Performer Facial Recognition Clustering:** Group visually matching faces using DBSCAN clustering, auto-identifying unknown actors and extracting face portrait thumbnails.
+19. **AI-Driven Auto-Chaptering:** Utilize frame-based scene change detection combined with AI Vision models (Ollama/Llava or OpenAI GPT-4o) to automatically segment videos into logical chapters with descriptive titles.
+20. **Granular Queue Priority & Controls:** Adjust priorities, pause, resume, or cancel active tasks inside Celery-managed transcoding and processing streams in real-time.
 20. **Peer-to-Peer (P2P) Syncing & Reconciling:** Exchange CSS scraper recipes and reconcile library watch status/tags securely between remote Voyarr nodes over HTTP/HTTPS tunnels.
 21. **Relational Studio Database Modeling:** Uses a fully normalized PostgreSQL `studios` model, providing robust metadata structures and tag relations.
 22. **Bulk Duplicate Merging Engine:** Resolve multiple visual duplicates programmatically using similarity-based algorithms (`KEEP_HIGHEST_QUALITY`, `KEEP_OLDEST`, `KEEP_NEWEST`).
@@ -121,26 +122,13 @@ Toggle any method ON or OFF from the admin dashboard. Disabled methods are hidde
 
 ## 🐳 Docker Configuration
 
-Voyarr is designed as a highly modular, containerized application run via Docker Compose. The stack partitions tasks into specialized services to ensure high performance, security, and stability:
-
-* **`db` (Postgres 15 Database Engine)**:
-  - **Purpose**: The central source of truth. Stores all user accounts, site recipes, metadata schemas, library records, preferences, and system logs.
-  - **Security**: Keeps host port `5432` commented out by default, ensuring your database remains 100% private and isolated inside the internal Docker bridge network (`voyarr_network`).
-* **`redis` (Cache & Celery Broker)**:
-  - **Purpose**: A high-performance, in-memory database. It acts as the message queue broker that hands background tasks from the FastAPI backend to the Celery workers, and caches short-lived system states.
-  - **Security**: Kept completely isolated internally (host port `6379` commented out by default).
-* **`backend` (FastAPI Core Web Server)**:
-  - **Purpose**: The central brain of the application. It handles all REST API requests, security middleware (JWT, SSO, Passkeys), user authorization checks (RBAC), and manages inbound/outbound P2P metadata syncs.
-  - **Routing & Docs**: Operates internally on port `8000`. Exposes the interactive Swagger API documentation page securely via Nginx relative routing (`/api/docs`) when `ROOT_PATH=/api` is set.
-* **`celery_worker` (Background Executor / The Muscle)**:
-  - **Purpose**: Asynchronously processes all heavy, time-consuming tasks (such as downloading media, calculating perceptual media hashes, running site scrapers, and transcoding files) to ensure the web UI remains highly responsive.
-* **`celery_beat` (Clock Scheduler / The Alarm)**:
-  - **Purpose**: Watches the clock to trigger automated schedules. It uses negligible resources and does not execute heavy tasks itself; instead, it drops scheduled alert messages (e.g. daily database backups, automated scraper intervals, and periodic P2P database syncs) into the Redis queue at exact intervals for the workers to pick up.
-* **`frontend` (Nginx & React UI Gateway)**:
-  - **Purpose**: Serves the pre-compiled, responsive React web interface (Progressive Web App). It also acts as the **reverse proxy gateway** (using Nginx), listening on your `FRONTEND_PORT` (defaults to `80`) and proxying all `/api` requests internally directly to `backend:8000` to completely bypass browser CORS security blocks.
-* **`browserless` (Headless Scraping Browser - Optional Add-on)**:
-  - **Purpose**: Runs a headless instance of Chromium. Used by `celery_worker` to successfully scrape modern, javascript-heavy sites and bypass security blocks.
-  - **Modularity**: Because it occupies 4.6 GB of disk space, it is fully optional. If you do not use automated scraping, you can comment it out in `docker-compose.yml` (or stop its container in your NAS GUI) to instantly reclaim that space. Alternatively, you can point your `.env` to a cloud-based browserless service to keep your local NAS footprint at zero!
+Voyarr is designed to be run via Docker Compose. The stack includes:
+* `db`: PostgreSQL 15 database.
+* `redis`: Redis 7 for the Celery message broker and cache.
+* `backend`: FastAPI Python application.
+* `celery_worker`: Background task worker for downloads, phash calculation, and transcoding tasks.
+* `celery_beat`: Cron scheduler executing periodic system events (e.g. database backups, scheduled P2P synchronizations).
+* `frontend`: Vite-powered React PWA served on port 3000.
 
 ## ⚙️ Initial Setup
 
@@ -221,18 +209,11 @@ Open `.env` and configure the following parameters:
   PUID=1000
   PGID=1000
   ```
-* **Ports**: Under *Host Ports Configuration*, you can control how your containers are exposed on your host server network:
-  - **Auto-Allocation (Recommended)**: Leave `BACKEND_PORT=`, `FRONTEND_PORT=`, `REDIS_PORT=`, and `POSTGRES_PORT=` **blank/empty**.
+* **Ports**: Under *Host Ports Configuration*, you have two options:
+  - **Auto-Allocation (Recommended)**: Leave `PORT=`, `FRONTEND_PORT=`, `REDIS_PORT=`, and `POSTGRES_PORT=` **blank/empty**.
     * *On Synology (Container Manager)*: Synology will automatically select unused ports on your NAS, **remember them permanently**, and maintain the assignment across restarts and container upgrades.
     * *On CLI*: Docker will assign random ports. Check them via `docker compose ps` and, if desired, add them to your `.env` to lock them in.
-  - **Static Allocation**: Specify static ports (e.g., `BACKEND_PORT=32785`, `FRONTEND_PORT=32786`) if you already know they are free.
-
-  > [!TIP]
-  > **🔒 Network Isolation & Security Best Practices:**
-  > * **Database & Redis Ports (`REDIS_PORT` / `POSTGRES_PORT`)**: Always leave these blank/empty. Voyarr's containers communicate with Postgres and Redis over a private, isolated Docker network bridge (`voyarr_network`). Exposing these ports on your host is completely unnecessary and opens up an unwanted security surface unless you are explicitly trying to connect a desktop client (like pgAdmin or RedisInsight) to manage them.
-  > * **Backend Port (`BACKEND_PORT`)**: If you only use the standard web application UI, exposing the backend port to your host is also completely optional! The frontend container's Nginx proxy handles all `/api` requests by routing them internally over Docker's bridge network directly to `backend:8000`. You only need to expose `BACKEND_PORT` to your host if you are using the Voyarr Chrome extension or bookmarklet (so they can reach the API directly), or if you want direct access to the raw OpenAPI swagger documentation.
-  > * **Interactive API Documentation & Subpaths**: If you wish to access the interactive API Swagger documentation securely through your Nginx reverse proxy subpath (`http://<nas-ip>:<frontend-port>/api/docs`) without exposing the backend port to the host at all, set `ROOT_PATH=/api` in your `.env`. This tells FastAPI that it is running behind an Nginx prefix, and it will automatically strip the `/api` prefix from requests, generating all interactive testing buttons and docs assets cleanly and securely!
-
+  - **Static Allocation**: Specify static ports (e.g., `PORT=8000`, `FRONTEND_PORT=3000`) if you already know they are free.
 
 ### 3. Choose Your Deployment Method
 

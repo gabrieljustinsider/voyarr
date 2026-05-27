@@ -1,3 +1,4 @@
+name: voyarr-dev
 services:
   backend:
     build:

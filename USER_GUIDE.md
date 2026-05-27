@@ -20,13 +20,12 @@ Welcome to **Voyarr**! This guide is written to help you set up and get the most
 
 ## 🌟 What is Voyarr?
 
-Think of **Voyarr** as your own private, smart streaming platform. If you subscribe to multiple media websites, creators, or studios, managing your accounts and downloads manually can be a headache. 
+Think of **Voyarr** as your own private, smart media player and library manager. If you subscribe to multiple adult video websites, creators, or studios, managing your accounts and watching your content across different platforms can be a headache. 
 
-Voyarr does all the heavy lifting:
-- **Organizes**: Scrapes premium metadata (titles, performers, tags, studios) and matches them to your files.
-- **Automates**: You can set simple "rules" (like *"If performer is Alice and quality is 4K, download immediately"*).
-- **Cleans**: Finds duplicate files, transcodes videos to smaller sizes using modern compression, and visualizes chapters.
-- **Connects**: Uses the **Voyarr Lens** browser extension to let you click on elements on live websites to teach your server how to read them!
+Voyarr unifies your experience:
+- **Streams**: Watch videos directly from your adult video service subscriptions seamlessly in one central place.
+- **Organizes**: Acts as a comprehensive library manager for your entire adult video collection.
+- **Connects**: Brings all of your premium platforms together without needing to switch between different websites.
 
 ---
 
@@ -109,7 +108,7 @@ TZ=America/New_York
 
 ## 🔑 Your First Login & Creating an Admin Account
 
-Once the container finishes starting up, open your web browser and go to `http://<your-server-ip>:80` (or the custom `FRONTEND_PORT` you assigned in your `.env` file, e.g. `32786`).
+Once the container finishes starting up, open your web browser and go to `http://<your-server-ip>:3000` (or the port assigned to your frontend).
 
 1. **Bootstrap Admin**: Since the database is completely empty on your first start, the very first user registration is **automatically granted full Administrator permissions**.
 2. **Immediate Lockout**: As soon as you finish registering this first account, public registration is **immediately disabled globally**. Nobody else can visit your site and create an account.
@@ -120,27 +119,27 @@ Once the container finishes starting up, open your web browser and go to `http:/
 ## 🖥️ Tour of the Web App & Core Workflows
 
 ### 1. Adding a Media Provider (Website Integration)
-A "Provider" is any website you want to scrape or download from.
+A "Provider" is any website you want to sync or manage.
 - Navigate to **Providers > Add New Provider**.
 - Enter the site domain (e.g., `creatorplace.com`) and your custom options.
 - Under the **Credentials** section, you can enter your site username/password, or paste your logged-in browser session cookies. 
 - *Note: Voyarr stores all passwords and credentials using high-security AES-256 encryption. They are safe and secure inside your local database.*
 
-### 2. Setting Up Automated Download Rules
-Rules tell Voyarr exactly what you want it to capture.
-- Go to **Rules > Add Download Rule**.
+### 2. Setting Up Automated Organization Rules
+Rules tell Voyarr exactly what you want it to organize.
+- Go to **Rules > Add Organization Rule**.
 - Define your criteria. For example:
   - **Include Performer**: `Jane Doe`
   - **Resolution Filter**: `1080p` or `4K`
-  - **Action**: `Queue & Download`
-- Save the rule. When you scrape channels, any videos matching these rules will automatically start downloading in the background.
+  - **Action**: `Queue & Sync`
+- Save the rule. When you sync channels, any videos matching these rules will automatically start syncing in the background.
 
-### 3. Running a "Mass Rip"
-If you find a performer or channel with hundreds of videos, you can scrape and queue them all at once:
-- Paste the Performer's URL into the **Mass Rip** search bar.
-- Click **Analyze**. Voyarr will scrape all the videos on the page, index their metadata, and show you a list.
+### 3. Running a "Bulk Sync"
+If you find a performer or channel with hundreds of videos, you can sync them all at once:
+- Paste the Performer's URL into the **Bulk Sync** search bar.
+- Click **Analyze**. Voyarr will sync all the videos on the page, index their metadata, and show you a list.
 - Click **Run Quality Check**. Voyarr will cross-reference the list with your local library. If you already have a video in `1080p` but the site has it in `4K`, it will flag it as an **Upgrade Opportunity**!
-- Click **Start Queue** to automate the entire download process.
+- Click **Start Queue** to automate the entire integration process.
 
 ---
 
@@ -177,7 +176,7 @@ To bypass this limit, Voyarr includes a universal **Bookmarklet Companion**:
 
 ## 🎯 Mastering "Map Mode" (Point-and-Click Selector Mapping)
 
-Have you ever wondered how scraper tools extract the Title, Performer, and Video URLs from a web page? They use "CSS Selectors," which are directional codes telling the computer exactly where to find text inside a web page's structure.
+Have you ever wondered how data extraction tools find the Title, Performer, and Video URLs from a web page? They use "CSS Selectors," which are directional codes telling the computer exactly where to find text inside a web page's structure.
 
 Historically, finding these required looking at HTML code. **Voyarr Lens** changes this completely with **Map Mode**—a point-and-click visual mapper.
 
@@ -250,7 +249,7 @@ Backups are critical to ensuring that you never lose your library lists, custom 
 
 ## 🛡️ Routing Traffic Through a VPN (Optional)
 
-If you want to hide your scraping and downloading traffic from your ISP, Voyarr includes native support for routing its internal traffic through a Gluetun VPN sidecar.
+If you want to hide your system traffic from your ISP, Voyarr includes native support for routing its internal traffic through a Gluetun VPN sidecar.
 
 ### Step 1: Configure Your VPN Credentials
 Open your `.env` file and scroll down to **5. VPN SIDECAR (GLUETUN) & BROWSERLESS CONFIGURATION**. Uncomment the variables and fill in your VPN provider's details:
@@ -283,18 +282,18 @@ Look for a message saying `Healthy` or `VPN connection established`. If the VPN 
 Voyarr contains powerful, built-in global controls and a **Role-Based Access Control (RBAC)** permission system designed to protect resources and restrict system access.
 
 ### Global Feature Controls
-As an administrator, you can enable or disable three core app modules globally from the **Settings > Global Feature Toggles** panel:
+As an administrator, you can enable or disable three core app modules (including additional admin features) globally from the **Settings > Global Feature Toggles** panel:
 1. **Streaming**: Allows users to watch content directly in their browser or cast to media players. (Enabled by default).
-2. **Scraping**: Allows querying provider channels and updating metadata. (Disabled by default).
-3. **Ripping**: Allows downloading media content to physical server storage. (Disabled by default).
+2. **Scraping (Admin Feature)**: Allows querying provider channels and updating metadata. (Disabled by default).
+3. **Ripping (Admin Feature)**: Allows administrative users to archive media content to physical server storage. (Disabled by default).
 
 If a feature is globally disabled, all associated background workers and API endpoints are fully blocked, and warning banners are displayed in the corresponding user dashboard screens.
 
 ### Per-User Permission Policies
 Admins can grant granular, individual permissions to standard accounts:
 - **Can Stream**: Grants access to playback routes.
-- **Can Scrape**: Grants access to scan directories, retrieve metadata, and manage recipes.
-- **Can Rip**: Grants access to execute direct and queued media downloads.
+- **Can Scrape (Admin Delegation)**: Grants access to scan directories, retrieve metadata, and manage recipes.
+- **Can Rip (Admin Delegation)**: Grants access to execute direct and queued administrative media processing.
 
 ### Security Audit Logging
 To keep track of administrative changes, Voyarr automatically records all security-sensitive actions in the **Admin Audit Logs**:
@@ -398,8 +397,8 @@ Once your bot is running and you have registered your commands with Discord, you
 | :--- | :--- | :--- | :--- |
 | **`/search`** | `query` (required) | Any | Searches your local Voyarr library for a matching title and returns the result and resolution. |
 | **`/request`** | `title` (required), `url` (optional) | Any | Submits a media request directly into the Voyarr admin dashboard for approval. |
-| **`/scrape`** | `url` (required) | User / Admin | Triggers a background metadata scrape job for the given URL. *(Requires the "Scraping" feature to be globally enabled).* |
-| **`/add`** | `url` (required), `title` (optional) | Admin Only | Instantly queues the provided URL for downloading. *(Requires the "Scraping" feature to be globally enabled).* |
+| **`/scrape`** | `url` (required) | Admin Only | Triggers an advanced administrative metadata sync job for the given URL. *(Admin restricted feature).* |
+| **`/add`** | `url` (required), `title` (optional) | Admin Only | Instantly queues the provided URL for administrative processing. *(Admin restricted feature).* |
 
 ---
 
@@ -443,5 +442,4 @@ While Voyarr securely encrypts all credentials in its database, you might prefer
 3. Select your provider:
    - **1Password**: Enter your 1Password Connect API URL and Token.
    - **Bitwarden**: Enter your Bitwarden CLI REST API endpoint.
-4. Once connected, whenever you add a new "Provider" (Website) to Voyarr, you can simply type the name of the vault item. Voyarr will securely fetch the login session when it needs to scrape, without ever saving the password to its own database!
-
+4. Once connected, whenever you add a new "Provider" (Website) to Voyarr, you can simply type the name of the vault item. Voyarr will securely fetch the login session when it needs to sync data, without ever saving the password to its own database!

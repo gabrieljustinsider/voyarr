@@ -2,7 +2,7 @@
 
 ## **🚀 Overview**
 
-**Voyarr** is a self-hosted (Docker/Self-Hosted) media management ecosystem designed to handle subscriptions, metadata scraping, and automated downloads from adult websites. It integrates with **Stash**, **StashDB**, and **ThePornDB**, featuring a remote-control browser extension for dynamic metadata mapping.
+**Voyarr** is a self-hosted (Docker/Self-Hosted) media player and library management ecosystem designed for your adult video collections. Stream videos directly from your adult video service subscriptions and organize your personal media library all in one place.
 
 ## **🏗️ System Architecture**
 
@@ -18,28 +18,28 @@ The database consists of 22 fully-integrated relational tables handling authenti
 
 | Table | Purpose |
 | :---- | :---- |
-| **users** | Handles multi-user Role-Based Access Control (RBAC) credentials and system states. |
-| **providers** | Defines provider domains, scraping configurations, separators, and default download limits. |
-| **site_recipes** | Holds visual CSS, XPath, and Regex selectors mapped via the "Map Mode" browser extension. |
-| **vault** | Secure AES-256-GCM encrypted key-value store for credential secrets (passwords, session cookies). |
+| **api_keys** | Hashed API tokens for external integrations such as third-party APIs and the Discord Bot backend. |
 | **credentials** | Maps external credential sync sources (manual, 1Password Connect, Bitwarden CLI REST) and custom limits. |
-| **media_entries** | Relational metadata index storing scraped titles, performers, tags, and original site references. |
-| **settings** | Application key-value global system variables and preferences. |
-| **local_files** | Tracks local storage paths, file sizes, resolutions, and media entry mapping status. |
-| **download_queue** | Active Celery download worker queues containing progress meters, speeds, file sizes, and retry tracking. |
 | **custom_lists** | User-defined categorized arrays of performers, categories, or tags used in rule logic. |
-| **download_rules** | Custom automated rule engines mapping visual and metadata criteria to download, skip, or queue actions. |
-| **library_entries** | Primary indices of physical files, storing titles, durations, ohash, visual phash, and comprehensive metadata. |
-| **video_chapters** | Stores time-indexed chapter boundaries, titles, and sub-tags within local library videos. |
-| **duplicate_entries** | Tracks duplicate detections by comparing perceptual visual hashes and scoring similarity percentages. |
 | **download_preferences** | Granular preferences per provider including target resolutions, auto-tagging, and multdrive paths. |
+| **download_queue** | Active Celery download worker queues containing progress meters, speeds, file sizes, and retry tracking. |
+| **download_rules** | Custom automated rule engines mapping visual and metadata criteria to download, skip, or queue actions. |
+| **duplicate_entries** | Tracks duplicate detections by comparing perceptual visual hashes and scoring similarity percentages. |
+| **library_entries** | Primary indices of physical files, storing titles, durations, ohash, visual phash, and comprehensive metadata. |
+| **local_files** | Tracks local storage paths, file sizes, resolutions, and media entry mapping status. |
+| **media_entries** | Relational metadata index storing scraped titles, performers, tags, and original site references. |
+| **media_requests** | Internal media requests portal allowing restricted users to submit requests for admin approval. |
 | **metadata_cache** | Scraped entity cache for external databases (ThePornDB / StashDB) to reduce API overhead. |
+| **providers** | Defines provider domains, scraping configurations, separators, and default download limits. |
 | **scrape_schedules** | Handles cron-driven automated tasks for scanning folders or running periodic site-wide channel rips. |
 | **session_cookies** | Manages browser cookie text pools, download rate metrics, and validation limits. |
-| **api_keys** | Hashed API tokens for external integrations such as third-party APIs and the Discord Bot backend. |
+| **settings** | Application key-value global system variables and preferences. |
+| **site_recipes** | Holds visual CSS, XPath, and Regex selectors mapped via the "Map Mode" browser extension. |
 | **transcoding_queue** | Tracks background FFmpeg transcoding tasks (status, target codecs e.g., H.265, progress, details). |
+| **users** | Handles multi-user Role-Based Access Control (RBAC) credentials and system states. |
+| **vault** | Secure AES-256-GCM encrypted key-value store for credential secrets (passwords, session cookies). |
+| **video_chapters** | Stores time-indexed chapter boundaries, titles, and sub-tags within local library videos. |
 | **webhooks** | Manages outbound webhooks triggered by library, transcode, and download lifecycle events. |
-| **media_requests** | Internal media requests portal allowing restricted users to submit requests for admin approval. |
 
 ## **🏷️ Naming & File Management**
 
@@ -61,11 +61,11 @@ To ensure safe, permission-isolated operations, Voyarr strictly limits where it 
 
 ## **🔍 Core Features**
 
-1. **Scrape-Only Mode:** Harvests metadata and links (thumbnails/trailers) without downloading video.  
-2. **Advanced Filtering:** Multi-criteria rules to automate the download of specific content.  
-3. **Mass Rip Workflow:** Scrape media list (with metadata progress) → Filter → Match Local → Download/Upgrade.  
+1. **Additional Admin Features:** Comprehensive operational toolsets for advanced network proxying, synchronization, and automated media management (strictly restricted via RBAC).
+2. **Advanced Filtering:** Multi-criteria rules to automate the organization of specific content.  
+3. **Bulk Sync Workflow:** Sync media lists → Filter → Match Local → Organize/Upgrade.  
 4. **Remote Mapping:** Browser extension "Map Mode" to visually pick CSS selectors on a live site to update Regex.  
-5. **Quality Upgrade:** Detects if a higher resolution version of a local file is available and offers redownload.  
+5. **Quality Upgrade:** Detects if a higher resolution version of a local file is available and offers an upgrade.  
 6. **Progress Indicators:** Inline progress bars with percentage, current size, and total size for all measurable tasks.
 
 ## **🔗 Integrations**
