@@ -85,14 +85,8 @@ services:
       # - ${HOST_MEDIA_PATH_3:-./media_alt2}:/media/storage_alt2  # Optional additional media path. Uncomment if needed.
     # ports:
     #   - "${BACKEND_PORT:-8000}:8000" # Optional: Uncomment to expose the raw API to your host network.
-    #                                  # Currently commented out to prevent bind conflicts on port 8000 (very common on NAS/VPS hosts)
-    #                                  # and to enforce network isolation. The frontend container's Nginx proxy routes
-    #                                  # all traffic internally over the private bridge.
-    #                                  #
-    #                                  # 💡 USE CASES TO UNCOMMENT:
-    #                                  # 1. You use the Voyarr Chrome extension or bookmarklet.
-    #                                  # 2. You use custom external automation scripts or direct webhook triggers.
-    #                                  # 3. You want to view the raw interactive Swagger API docs (http://<host-ip>:<port>/docs).
+    #                                  # For security isolation details, troubleshooting, and specific use cases
+    #                                  # for uncommenting, see the Ports section in README.md or Section 7 in TROUBLESHOOTING.md.
     depends_on:
       db:
         condition: service_healthy
