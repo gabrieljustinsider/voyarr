@@ -40,6 +40,7 @@ async def event_generator(request: Request):
     redis_client = aioredis.from_url(redis_url)
     pubsub = redis_client.pubsub()
     await pubsub.subscribe("notifications")
+    last_ping = asyncio.get_event_loop().time()
     try:
         while True:
             if await request.is_disconnected():
@@ -50,6 +51,13 @@ async def event_generator(request: Request):
             if message:
                 data = message["data"].decode("utf-8")
                 yield f"data: {data}\n\n"
+            
+            # Send keep-alive comment every 15 seconds to prevent reverse proxy (Nginx) 504 Gateway Timeout
+            now = asyncio.get_event_loop().time()
+            if now - last_ping > 15.0:
+                yield ": ping\n\n"
+                last_ping = now
+                
             await asyncio.sleep(0.1)
     finally:
         await pubsub.unsubscribe("notifications")

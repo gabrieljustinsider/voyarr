@@ -190,11 +190,11 @@ export default function PathPicker({
             label={label}
             helperText={helperText}
             InputProps={{
-              ...params.InputProps,
+              ...(params.InputProps || {}),
               endAdornment: (
                 <React.Fragment>
                   {loading ? <CircularProgress color="inherit" size={20} /> : null}
-                  {params.InputProps.endAdornment}
+                  {params.InputProps?.endAdornment}
                 </React.Fragment>
               ),
             }}
