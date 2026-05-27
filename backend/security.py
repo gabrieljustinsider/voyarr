@@ -4,7 +4,7 @@ from cryptography.fernet import Fernet
 from dotenv import load_dotenv
 import secrets
 import hashlib
-from passlib.context import CryptContext
+import bcrypt
 from jose import jwt
 from datetime import datetime, timedelta, timezone
 
@@ -23,7 +23,6 @@ else:
     cipher: typing.Any = None
 
 # JWT & Password Hashing Configuration
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 JWT_SECRET = os.getenv("SECRET_KEY")
 if not JWT_SECRET or JWT_SECRET == "your_secret_key_here":  # nosec B105
     print(
@@ -52,13 +51,17 @@ def decrypt_data(encrypted_data: str) -> str:
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     pre_hashed = hashlib.sha256(plain_password.encode("utf-8")).hexdigest()
-    return pwd_context.verify(pre_hashed, hashed_password)
+    try:
+        return bcrypt.checkpw(pre_hashed.encode("utf-8"), hashed_password.encode("utf-8"))
+    except Exception:
+        return False
 
 
 def get_password_hash(password: str) -> str:
     # Pre-hash using SHA-256 hex digest to avoid bcrypt's 72-byte limit
     pre_hashed = hashlib.sha256(password.encode("utf-8")).hexdigest()
-    return pwd_context.hash(pre_hashed)
+    hashed = bcrypt.hashpw(pre_hashed.encode("utf-8"), bcrypt.gensalt())
+    return hashed.decode("utf-8")
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
