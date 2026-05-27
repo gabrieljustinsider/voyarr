@@ -10,6 +10,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const newServerUrlInput = document.getElementById('newServerUrlInput');
   const newServerApiKeyInput = document.getElementById('newServerApiKeyInput');
   const addServerBtn = document.getElementById('addServerBtn');
+  const scanNetworkBtn = document.getElementById('scanNetworkBtn');
+  const localScanResultsContainer = document.getElementById('localScanResultsContainer');
   const settingsToast = document.getElementById('settingsToast');
   
   const detectedServerBanner = document.getElementById('detectedServerBanner');
@@ -393,6 +395,140 @@ document.addEventListener('DOMContentLoaded', () => {
       addServerBtn.innerText = "Add & Test Server";
     }
   });
+
+  // Scan Network Button click handler
+  scanNetworkBtn.addEventListener('click', async () => {
+    await scanLocalNetwork();
+  });
+
+  // Local network subnet discovery scan
+  async function scanLocalNetwork() {
+    scanNetworkBtn.disabled = true;
+    scanNetworkBtn.innerText = "Scanning...";
+    
+    // Clear and display results container
+    localScanResultsContainer.innerHTML = `<div style="font-size: 10px; color: var(--text-muted); text-align: center; padding: 6px 0;">Pinging local IP ranges on port 8000...</div>`;
+    localScanResultsContainer.style.display = "flex";
+
+    try {
+      let baseSubnets = ["192.168.1", "192.168.0", "10.0.0"];
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tabs && tabs[0] && tabs[0].url) {
+        try {
+          const tabUrl = new URL(tabs[0].url);
+          const parts = tabUrl.hostname.split('.');
+          if (parts.length === 4 && !isNaN(parts[0])) {
+            const currentSubnet = `${parts[0]}.${parts[1]}.${parts[2]}`;
+            if (!baseSubnets.includes(currentSubnet)) {
+              baseSubnets.unshift(currentSubnet);
+            }
+          }
+        } catch(e) {}
+      }
+
+      let foundServers = [];
+      const scanHosts = Array.from({ length: 60 }, (_, i) => i + 1); // 1 to 60 is representative & runs extremely fast!
+      
+      for (const subnet of baseSubnets) {
+        const batchSize = 15;
+        for (let b = 0; b < scanHosts.length; b += batchSize) {
+          const batch = scanHosts.slice(b, b + batchSize);
+          await Promise.all(batch.map(async (host) => {
+            const ip = `${subnet}.${host}`;
+            const targetUrl = `http://${ip}:8000`;
+            
+            // Skip scanning if already added
+            if (servers.some(s => s.url.includes(ip))) return;
+
+            try {
+              const controller = new AbortController();
+              const timer = setTimeout(() => controller.abort(), 400);
+              
+              const res = await fetch(`${targetUrl}/api/health`, { 
+                signal: controller.signal 
+              });
+              clearTimeout(timer);
+
+              if (res.ok) {
+                const data = await res.json();
+                if (data && data.status === "healthy") {
+                  foundServers.push(targetUrl);
+                }
+              }
+            } catch(e) {
+              // Try direct health fallback check
+              try {
+                const fallbackController = new AbortController();
+                const fallbackTimer = setTimeout(() => fallbackController.abort(), 400);
+                const res = await fetch(`${targetUrl}/health`, { signal: fallbackController.signal });
+                clearTimeout(fallbackTimer);
+                if (res.ok) {
+                  const data = await res.json();
+                  if (data && data.status === "healthy") {
+                    foundServers.push(targetUrl);
+                  }
+                }
+              } catch(err) {}
+            }
+          }));
+        }
+      }
+
+      // Render scan results list
+      localScanResultsContainer.innerHTML = "";
+      if (foundServers.length === 0) {
+        localScanResultsContainer.innerHTML = `<div style="font-size: 10px; color: var(--text-muted); text-align: center; padding: 6px 0;">No active local nodes detected.</div>`;
+      } else {
+        foundServers.forEach(srvUrl => {
+          const srvDiv = document.createElement('div');
+          srvDiv.style.display = "flex";
+          srvDiv.style.alignItems = "center";
+          srvDiv.style.justifyContent = "space-between";
+          srvDiv.style.backgroundColor = "rgba(16, 185, 129, 0.04)";
+          srvDiv.style.border = "1px solid rgba(16, 185, 129, 0.15)";
+          srvDiv.style.padding = "6px 8px";
+          srvDiv.style.borderRadius = "6px";
+          srvDiv.style.fontSize = "10px";
+          srvDiv.style.gap = "6px";
+
+          const info = document.createElement('span');
+          info.style.fontWeight = "600";
+          info.style.color = "#34d399";
+          info.style.overflow = "hidden";
+          info.style.textOverflow = "ellipsis";
+          info.style.whiteSpace = "nowrap";
+          info.textContent = `📡 Found: ${srvUrl}`;
+
+          const addBtn = document.createElement('button');
+          addBtn.className = "btn";
+          addBtn.style.padding = "3px 6px";
+          addBtn.style.fontSize = "9px";
+          addBtn.style.borderRadius = "4px";
+          addBtn.style.boxShadow = "none";
+          addBtn.style.height = "auto";
+          addBtn.style.lineHeight = "1";
+          addBtn.textContent = "Connect";
+          addBtn.addEventListener('click', () => {
+            newServerNameInput.value = "Discovered Server";
+            newServerUrlInput.value = srvUrl;
+            newServerApiKeyInput.focus();
+            localScanResultsContainer.style.display = "none";
+            localScanResultsContainer.innerHTML = "";
+          });
+
+          srvDiv.appendChild(info);
+          srvDiv.appendChild(addBtn);
+          localScanResultsContainer.appendChild(srvDiv);
+        });
+      }
+    } catch(err) {
+      console.error("Local network scan error:", err);
+      localScanResultsContainer.innerHTML = `<div style="font-size: 10px; color: var(--error); text-align: center; padding: 6px 0;">Scan failed: ${err.message}</div>`;
+    } finally {
+      scanNetworkBtn.disabled = false;
+      scanNetworkBtn.innerText = "Scan Local";
+    }
+  }
 
   // Probe active tab for Voyarr Server
   async function probeActiveTab() {

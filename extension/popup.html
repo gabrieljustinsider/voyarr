@@ -348,7 +348,16 @@
         <input type="password" id="newServerApiKeyInput" placeholder="Master API Key" style="padding: 8px 10px; font-size: 12px;" />
       </div>
 
-      <button id="addServerBtn" class="btn" style="padding: 9px; font-size: 12px;">Add & Test Server</button>
+      <div style="display: flex; gap: 8px;">
+        <button id="addServerBtn" class="btn" style="flex: 2; padding: 9px; font-size: 12px;">Add & Test Server</button>
+        <button id="scanNetworkBtn" class="btn btn-secondary" style="flex: 1; padding: 9px; font-size: 11px;">Scan Local</button>
+      </div>
+
+      <!-- Scan Network Results Container -->
+      <div id="localScanResultsContainer" style="display: none; margin-top: 6px; flex-direction: column; gap: 4px;">
+        <!-- Dynamically loaded list of discovered local server elements -->
+      </div>
+
       <div id="settingsToast" class="toast-msg"></div>
     </div>
   </div>

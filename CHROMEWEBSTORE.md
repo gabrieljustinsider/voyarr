@@ -47,6 +47,13 @@ The Chrome Web Store review team requires explicit, plain-English justifications
 | **`contextMenus`** | `"contextMenus"` | Registers the "Start Voyarr Map Mode" context menu option to trigger mapping directly from any right-click. |
 | **`tabs`** | `"tabs"` | Reads the active tab URL to resolve the site hostname, which is required to map selectors to the correct provider. |
 
+### **Host Permissions (Scoped Subnets)**
+The extension declares scoped host permissions to allow cross-origin XMLHttpRequests (`fetch`) to standard **local private subnets**:
+* `http://localhost/*` & `http://127.0.0.1/*`: Allows connecting and mapping selectors to a Voyarr server instance running locally on the development machine.
+* `http://192.168.*/*`, `http://10.*/*`, & `http://172.*/*` (RFC 1918 ranges): Allows performing discovery scans to automatically detect active self-hosted Voyarr server instances running on the user's home network or private LAN.
+
+This scopes network access strictly to self-hosted private servers and adheres to least-privilege principles, keeping user data safe.
+
 ---
 
 ## **🔒 Privacy & Data Use Disclosures**
@@ -59,7 +66,11 @@ The Chrome Web Store review team requires explicit, plain-English justifications
 
 ## **📈 Version History**
 
-### **v1.14.0** (Current Release)
+### **v1.14.1** (Current Release)
+* Added local network scanning and subnet pinging to automatically discover active self-hosted Voyarr server nodes running on port 8000 on the private LAN.
+* Implemented secure, least-privilege default host permissions in manifest.json to allow scanning RFC 1918 subnets securely without global all-URL requirements.
+
+### **v1.14.0**
 * Added multi-server connection support allowing seamless switching between local and remote Voyarr server instances directly from any popup tab.
 * Designed an elegant glassmorphic server management dashboard to easily add, test, configure, and delete Voyarr instances.
 * Engineered a fully backward-compatible automated settings storage migration path ensuring existing configurations upgrade gracefully with zero connection loss.
