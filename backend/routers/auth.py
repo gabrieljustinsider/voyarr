@@ -137,6 +137,12 @@ def register_user(user: UserCreate, request: Request, db: Session = Depends(get_
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=400, detail="Username already registered")
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Database write failed. Check your system folder permissions (PUID/PGID). Error: {str(e)}"
+        )
     return {
         "message": "User created successfully",
         "username": db_user.username,

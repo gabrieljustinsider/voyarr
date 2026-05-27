@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const manifest = chrome.runtime.getManifest();
       extVersionSpan.textContent = `v${manifest.version}`;
     } else {
-      extVersionSpan.textContent = 'v1.15.0'; // Fallback
+      extVersionSpan.textContent = 'v1.15.2'; // Fallback
     }
   }
 
