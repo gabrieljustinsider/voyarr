@@ -51,11 +51,25 @@ def decrypt_data(encrypted_data: str) -> str:
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    # First, try verifying using the SHA-256 pre-hash
+    pre_hashed = hashlib.sha256(plain_password.encode("utf-8")).hexdigest()
+    try:
+        if pwd_context.verify(pre_hashed, hashed_password):
+            return True
+    except Exception:
+        pass
+
+    # Fallback: try verifying the plain password directly (for legacy non-pre-hashed passwords)
+    try:
+        return pwd_context.verify(plain_password, hashed_password)
+    except Exception:
+        return False
 
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    # Pre-hash using SHA-256 hex digest to avoid bcrypt's 72-byte limit
+    pre_hashed = hashlib.sha256(password.encode("utf-8")).hexdigest()
+    return pwd_context.hash(pre_hashed)
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
