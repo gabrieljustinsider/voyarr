@@ -216,7 +216,7 @@ Open `.env` and configure the following parameters:
   - **Static Allocation**: Specify static ports (e.g., `PORT=8000`, `FRONTEND_PORT=3000`) if you already know they are free.
 
   > [!NOTE]
-  > **Secure Database Access**: By default, the PostgreSQL database port (`POSTGRES_PORT`) is bound strictly to the local loopback interface (`127.0.0.1`). This isolates the database from raw LAN access while facilitating encrypted management connections via SSH Tunneling (e.g., using DBeaver). For complete connection instructions, see [Section 9 in TROUBLESHOOTING.md](file:///Users/morenicano/Documents/coding/projects/gabrieljustinsider/voyarr/TROUBLESHOOTING.md#9-securely-connecting-to-the-postgresql-database-dbeaver-via-ssh-tunnel).
+  > **Secure Database Access**: By default, the PostgreSQL database port (`POSTGRES_PORT`) is bound strictly to the local loopback interface (`127.0.0.1`). This isolates the database from raw LAN access while facilitating encrypted management connections via SSH Tunneling (e.g., using DBeaver). For complete connection instructions, see [Section 9 in TROUBLESHOOTING.md](TROUBLESHOOTING.md#9-securely-connecting-to-the-postgresql-database-dbeaver-via-ssh-tunnel).
 
 ### 3. Choose Your Deployment Method
 
