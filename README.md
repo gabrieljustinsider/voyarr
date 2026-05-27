@@ -351,16 +351,15 @@ docker run -d \
 ```
 
 ##### 6. Build and Run Vite Frontend
-* **Build frontend image** (specifying backend server address):
+* **Build frontend image**:
   ```bash
-  docker build -t voyarr-frontend --build-arg VITE_API_BASE_URL=http://localhost:8000 ./frontend
+  docker build -t voyarr-frontend ./frontend
   ```
 * **Run frontend container**:
   ```bash
   docker run -d \
     --name voyarr-frontend \
     --network voyarr_network \
-    -e TZ=America/New_York \
     -p 3000:80 \
     voyarr-frontend
   ```
