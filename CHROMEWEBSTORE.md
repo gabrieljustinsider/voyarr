@@ -59,7 +59,10 @@ The Chrome Web Store review team requires explicit, plain-English justifications
 
 ## **📈 Version History**
 
-### **v1.16.5** (Current Release)
+### **v1.16.6** (Current Release)
+* **Bug Fix**: Fixed a critical backend 500 error on Stash sync endpoint by removing an invalid leftover debug print statement referencing non-existent `db_utils.SessionLocal`.
+
+### **v1.16.5**
 * **UI & Defaults**: Updated Stash synchronization integration to use Stash's official logo next to the app name and default Stash connection port to port 9999.
 
 ### **v1.16.4**

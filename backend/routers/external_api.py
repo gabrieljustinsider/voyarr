@@ -461,13 +461,7 @@ def sync_stats_with_stash(
         headers["ApiKey"] = req.stash_api_key
 
     with get_db_session() as db:
-        import db_utils
-
-        print(
-            f"DEBUG SYNC - db_utils.SessionLocal inside endpoint: {db_utils.SessionLocal}"
-        )
         local_entries = db.query(LibraryEntry).all()
-        print(f"DEBUG SYNC - local_entries count: {len(local_entries)}")
         synced_count = 0
         updated_local = 0
         updated_stash = 0
