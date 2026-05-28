@@ -17,6 +17,7 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import TuneIcon from '@mui/icons-material/Tune'
 import LanIcon from '@mui/icons-material/Lan'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
+import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import { apiFetch } from '../api'
 import PathPicker from './PathPicker'
 import InlineTextField from './InlineTextField'
@@ -168,6 +169,10 @@ export default function Settings() {
   const [generatedKey, setGeneratedKey] = useState(null)
   const [masterKeyInput, setMasterKeyInput] = useState(localStorage.getItem('voyarr_api_key') || '')
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, keyId: null })
+  const handleCopyKey = () => {
+    navigator.clipboard.writeText(generatedKey || '')
+    setSnackbar({ open: true, message: 'API Key copied to clipboard!', severity: 'success' })
+  }
   const [diagnosticLoading, setDiagnosticLoading] = useState(false)
   const [diagnosticResult, setDiagnosticResult] = useState(null)
   const [showProxyUrl, setShowProxyUrl] = useState(false)
@@ -1733,9 +1738,23 @@ export default function Settings() {
         <DialogTitle>API Key Generated</DialogTitle>
         <DialogContent dividers>
           <Alert severity="warning" sx={{ mb: 2 }}>Please copy this key now. For your security, it will never be shown again!</Alert>
-          <TextField fullWidth value={generatedKey || ''} InputProps={{ readOnly: true }} />
+          <TextField 
+            fullWidth 
+            value={generatedKey || ''} 
+            InputProps={{ 
+              readOnly: true,
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton onClick={handleCopyKey} edge="end" color="primary" title="Copy to Clipboard">
+                    <ContentCopyIcon />
+                  </IconButton>
+                </InputAdornment>
+              )
+            }} 
+          />
         </DialogContent>
         <DialogActions>
+          <Button onClick={handleCopyKey} variant="outlined" color="primary" startIcon={<ContentCopyIcon />}>Copy Key</Button>
           <Button variant="contained" onClick={() => setGeneratedKey(null)}>I have copied it</Button>
         </DialogActions>
       </Dialog>
