@@ -665,7 +665,7 @@ function App() {
               </Typography>
             </Box>
             <Chip
-              label={`v${packageJson.version}`}
+              label={`v${import.meta.env.VOYARR_VERSION || packageJson.version}`}
               size="small"
               sx={{
                 height: 20,
