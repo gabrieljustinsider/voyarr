@@ -740,6 +740,10 @@ export default function Settings() {
         setSnackbar({ open: true, message: `Failed: ${err.detail}`, severity: 'error' })
       }
     } catch (err) {
+            console.error(err)
+      setSnackbar({ open: true, message: 'Network error creating user.', severity: 'error' })
+    }
+  }
   const mediaPaths = useMemo(() => {
     if (!settings.media_root_path) return []
     return settings.media_root_path.split(',').map(p => p.trim()).filter(Boolean)
@@ -763,6 +767,16 @@ export default function Settings() {
 
   return (
     <Box>
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>Browser Extension Integration</Typography>
+        <Typography variant="body2" sx={{ mb: 2 }} color="textSecondary">
+          Connect your Voyarr Lens browser extension to easily map CSS selectors on live websites.
+        </Typography>
+        <Divider sx={{ mb: 2 }} />
+        
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3 }}>
+          <Box sx={{ p: 2, flex: 1, backgroundColor: 'rgba(33, 150, 243, 0.1)', borderRadius: 1, border: '1px solid #2196f3' }}>
+            <Typography variant="subtitle2" color="info.main" gutterBottom style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <strong>1. Chrome / Edge Extension (Standard)</strong>
             </Typography>
             <Typography variant="body2">

@@ -59,7 +59,10 @@ The Chrome Web Store review team requires explicit, plain-English justifications
 
 ## **📈 Version History**
 
-### **v1.16.1** (Current Release)
+### **v1.16.2** (Current Release)
+* **Bug Fixes**: Minor UI corrections and stability improvements.
+
+### **v1.16.1**
 * **Security Update**: Removed the legacy `bcrypt` dependency and migrated to `argon2-cffi` for enhanced password hashing.
 
 ### **v1.15.0**
