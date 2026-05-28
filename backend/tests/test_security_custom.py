@@ -13,17 +13,17 @@ def test_password_hashing_success():
     pw_hash = get_password_hash(pw)
     
     assert pw_hash != pw
-    assert pw_hash.startswith("$2")  # Bcrypt hashes start with $2a$ or $2b$
+    assert pw_hash.startswith("$argon2id$")  # Argon2 hashes start with $argon2id$
     
     assert verify_password(pw, pw_hash) is True
     assert verify_password("wrong_password", pw_hash) is False
 
-def test_long_password_no_truncation_no_value_error():
-    """Verify that passwords longer than 72 characters are hashed and verified perfectly without triggering bcrypt's ValueError."""
-    # A password of 100 characters should hash successfully because we pre-hash using SHA-512 raw digest
+def test_long_password_native_argon2():
+    """Verify that long passwords of 100+ characters are handled natively and hashed/verified perfectly by Argon2."""
     long_pw = "p" * 100
     pw_hash = get_password_hash(long_pw)
     
+    assert pw_hash.startswith("$argon2id$")
     assert verify_password(long_pw, pw_hash) is True
     
     # Also verify that a slightly different long password does not match

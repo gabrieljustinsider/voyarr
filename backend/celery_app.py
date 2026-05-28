@@ -1,20 +1,27 @@
 import os
-from celery import Celery
-from celery.schedules import crontab
+from typing import Any
+from celery import Celery  # type: ignore
+from celery.schedules import crontab  # type: ignore
 from utils import initialize_network_settings
-from celery.signals import task_prerun, worker_process_init
+from celery.signals import task_prerun, worker_process_init  # type: ignore
 
 
-@worker_process_init.connect
-def init_worker_network_settings(*args, **kwargs):
+@worker_process_init.connect  # type: ignore
+def init_worker_network_settings(*args: Any, **kwargs: Any) -> None:
     try:
         initialize_network_settings()
     except Exception as e:
         print(f"Error initializing worker network settings: {e}")
 
 
-@task_prerun.connect
-def on_task_prerun(sender=None, task_id=None, task=None, *args, **kwargs):
+@task_prerun.connect  # type: ignore
+def on_task_prerun(
+    sender: Any = None,
+    task_id: Any = None,
+    task: Any = None,
+    *args: Any,
+    **kwargs: Any,
+) -> None:
     """
     Ensure network configurations are fresh before executing any background task.
     """
@@ -47,7 +54,7 @@ celery_app = Celery(
     ],
 )
 
-celery_app.conf.update(
+celery_app.conf.update(  # type: ignore
     task_serializer="json",
     accept_content=["json"],
     result_serializer="json",
@@ -64,7 +71,7 @@ celery_app.conf.update(
     },
 )
 
-celery_app.conf.beat_schedule = {
+celery_app.conf.beat_schedule = {  # type: ignore
     "process-schedules-every-minute": {
         "task": "tasks.schedule_tasks.process_schedules",
         "schedule": crontab(minute="*"),

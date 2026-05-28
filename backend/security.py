@@ -7,6 +7,7 @@ import hashlib
 from argon2 import PasswordHasher
 from jose import jwt
 from datetime import datetime, timedelta, timezone
+from typing import Any, Dict
 
 load_dotenv()
 
@@ -23,12 +24,13 @@ else:
     cipher: typing.Any = None
 
 # JWT & Password Hashing Configuration
-JWT_SECRET = os.getenv("SECRET_KEY")
-if not JWT_SECRET or JWT_SECRET == "your_secret_key_here":  # nosec B105
+_secret_key = os.getenv("SECRET_KEY")
+if not _secret_key or _secret_key == "your_secret_key_here":  # nosec B105
     print(
         "WARNING: Using an ephemeral fallback SECRET_KEY. Sessions will invalidate on restart. Please set a secure SECRET_KEY in your .env file!"
     )
-    JWT_SECRET = secrets.token_urlsafe(32)
+    _secret_key = secrets.token_urlsafe(32)
+JWT_SECRET: str = _secret_key
 ALGORITHM = "HS256"
 
 
@@ -62,7 +64,7 @@ def get_password_hash(password: str) -> str:
     return ph.hash(password)
 
 
-def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
+def create_access_token(data: Dict[str, Any], expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta

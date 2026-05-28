@@ -198,7 +198,7 @@ class DownloadQueue(Base):
     )
     url = Column(Text, nullable=False)
     status = Column(String(50), default="pending", index=True)
-    progress_percentage = Column(DECIMAL(5, 2), default=0)
+    progress_percentage = Column(DECIMAL(5, 2), default=0)  # type: ignore
     file_size = Column(BIGINT)
     speed = Column(String(20))
     retry_count = Column(Integer, default=0)
@@ -350,7 +350,7 @@ class DuplicateEntry(Base):
         nullable=False,
         index=True,
     )
-    similarity_score = Column(DECIMAL(5, 2))  # 0-100% similarity
+    similarity_score = Column(DECIMAL(5, 2))  # type: ignore # 0-100% similarity
     reason = Column(
         String(255)
     )  # Why it's marked as duplicate (e.g., "same_hash", "similar_metadata")
@@ -484,7 +484,7 @@ class TranscodingQueue(Base):
     status = Column(String(50), default="pending", index=True)
     target_codec = Column(String(20), default="h265")
     target_resolution = Column(String(20), nullable=True)
-    progress_percentage = Column(DECIMAL(5, 2), default=0.0)
+    progress_percentage = Column(DECIMAL(5, 2), default=0.0)  # type: ignore
     priority = Column(Integer, default=0, index=True)
     celery_task_id = Column(String(255), nullable=True)
     pid = Column(Integer, nullable=True)
@@ -799,4 +799,3 @@ class MassRipSession(Base):
     updated_at = Column(
         TIMESTAMP, default=func.current_timestamp(), onupdate=func.current_timestamp()
     )
-

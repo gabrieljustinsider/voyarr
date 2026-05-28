@@ -7,13 +7,13 @@ class CredentialCreate(BaseModel):
     provider_id: int
     username: str
     password: str
-    custom_limits: dict | None = None
+    custom_limits: Dict[str, Any] | None = None
 
 
 class CredentialResponse(BaseModel):
     id: int
     provider_id: int
-    custom_limits: dict | None = None
+    custom_limits: Dict[str, Any] | None = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

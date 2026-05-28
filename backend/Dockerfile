@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.12-slim-bookworm
 
 # Set environment variables for Python runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -9,7 +9,7 @@ WORKDIR /app
 # Install system dependencies
 # ffmpeg is strictly required for FFmpeg/Mutagen perceptual hashing (phash)
 # build-essential and libpq-dev are needed to compile psycopg2-binary
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     ffmpeg \
     build-essential \
     libpq-dev \

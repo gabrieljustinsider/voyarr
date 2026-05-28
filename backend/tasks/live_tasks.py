@@ -2,15 +2,16 @@ import os
 import time
 import subprocess  # nosec B404
 from datetime import datetime, timezone
-from celery import shared_task
+from celery import shared_task  # type: ignore
 from models import LiveStream, Vault, LibraryEntry, Provider
 from security import decrypt_data
 from db_utils import get_db_session
 import shutil
+from typing import Any
 
 
 @shared_task(bind=True)
-def record_live_stream_task(self, stream_id: int):
+def record_live_stream_task(self: Any, stream_id: int) -> None:
     """Background task to record live HLS streams using streamlink with Vault-secured credentials."""
     with get_db_session() as db:
         stream = db.query(LiveStream).filter(LiveStream.id == stream_id).first()
@@ -19,8 +20,8 @@ def record_live_stream_task(self, stream_id: int):
             return
 
         # Double check status is recording
-        if stream.status != "recording":
-            stream.status = "recording"
+        if str(stream.status) != "recording":
+            stream.status = "recording"  # type: ignore
             db.commit()
 
         # Set up directories
@@ -30,13 +31,13 @@ def record_live_stream_task(self, stream_id: int):
         os.makedirs(live_dir, exist_ok=True)
 
         # Generate filename
-        safe_name = "".join([c if c.isalnum() else "_" for c in stream.name])
+        safe_name = "".join([c if c.isalnum() else "_" for c in str(stream.name)])
         filename = (
             f"{safe_name}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.mp4"
         )
         out_path = os.path.realpath(os.path.join(live_dir, filename))
 
-        stream.current_output_path = out_path
+        stream.current_output_path = out_path  # type: ignore
         db.commit()
 
         # Gather authentication from Vault
@@ -56,13 +57,13 @@ def record_live_stream_task(self, stream_id: int):
         )
 
         # Build streamlink command
-        cmd = ["streamlink", "--hls-live-restart", stream.url, "best", "-o", out_path]
+        cmd: list[str] = ["streamlink", "--hls-live-restart", str(stream.url), "best", "-o", out_path]
 
         # Resolve provider from URL domain to find linked credentials / cookies
         matched_provider = None
         from urllib.parse import urlparse
         try:
-            parsed_url = urlparse(stream.url)
+            parsed_url = urlparse(str(stream.url))
             domain = parsed_url.netloc.lower()
             if domain.startswith("www."):
                 domain = domain[4:]
@@ -90,8 +91,8 @@ def record_live_stream_task(self, stream_id: int):
                     entity_id=cookie_obj.id,
                     key="cookie_text"
                 ).first()
-                if vault_cookie and vault_cookie.encrypted_value:
-                    cookies_val = decrypt_data(vault_cookie.encrypted_value)
+                if vault_cookie and vault_cookie.encrypted_value:  # type: ignore
+                    cookies_val = decrypt_data(str(vault_cookie.encrypted_value))
                     if cookies_val:
                         cmd.extend(["--http-cookie", cookies_val])
                         cookies_injected = True
@@ -100,20 +101,20 @@ def record_live_stream_task(self, stream_id: int):
             cred_obj = db.query(Credential).filter(Credential.provider_id == matched_provider.id).first()
             if cred_obj:
                 vault_items = db.query(Vault).filter_by(entity_type="credential", entity_id=cred_obj.id).all()
-                vault_dict = {item.key: decrypt_data(item.encrypted_value) for item in vault_items if item.encrypted_value}
+                vault_dict = {str(item.key): decrypt_data(str(item.encrypted_value)) for item in vault_items if item.encrypted_value}  # type: ignore
                 user = vault_dict.get("username")
                 pwd = vault_dict.get("password")
                 if user and pwd:
                     # Streamlink plugins often accept credentials as custom args or HTTP basic auth
                     cmd.extend(["--http-header", f"Authorization=Basic {user}:{pwd}"])
 
-        if cookie_entry and cookie_entry.encrypted_value and not cookies_injected:
-            cookies_val = decrypt_data(cookie_entry.encrypted_value)
+        if cookie_entry and cookie_entry.encrypted_value and not cookies_injected:  # type: ignore
+            cookies_val = decrypt_data(str(cookie_entry.encrypted_value))
             if cookies_val:
                 cmd.extend(["--http-cookie", cookies_val])
 
-        if header_entry and header_entry.encrypted_value:
-            headers_val = decrypt_data(header_entry.encrypted_value)
+        if header_entry and header_entry.encrypted_value:  # type: ignore
+            headers_val = decrypt_data(str(header_entry.encrypted_value))
             if headers_val:
                 for h in headers_val.split(";"):
                     if "=" in h:
@@ -124,7 +125,7 @@ def record_live_stream_task(self, stream_id: int):
         with get_db_session() as db:
             stream = db.query(LiveStream).filter(LiveStream.id == stream_id).first()
             if stream:
-                stream.status = "failed"
+                stream.status = "failed"  # type: ignore
                 db.commit()
             print("Error: streamlink is not installed in the system environment.")
             return
@@ -136,14 +137,14 @@ def record_live_stream_task(self, stream_id: int):
         with get_db_session() as db:
             stream = db.query(LiveStream).filter(LiveStream.id == stream_id).first()
             if stream:
-                stream.pid = proc.pid
-                stream.celery_task_id = self.request.id
+                stream.pid = proc.pid  # type: ignore
+                stream.celery_task_id = self.request.id  # type: ignore
                 db.commit()
     except Exception as e:
         with get_db_session() as db:
             stream = db.query(LiveStream).filter(LiveStream.id == stream_id).first()
             if stream:
-                stream.status = "failed"
+                stream.status = "failed"  # type: ignore
                 db.commit()
             print(f"Exception starting streamlink: {e}")
             return
@@ -166,10 +167,10 @@ def record_live_stream_task(self, stream_id: int):
                     proc.wait()
                     break
 
-                if stream.status == "paused":
+                if str(stream.status) == "paused":
                     # Suspended by SIGSTOP, wait without updating elapsed
                     pass
-                elif stream.status != "recording":
+                elif str(stream.status) != "recording":
                     print(
                         f"Stop requested, status is {stream.status}. Terminating process."
                     )
@@ -187,8 +188,8 @@ def record_live_stream_task(self, stream_id: int):
 
                     elapsed = int(time.time() - start_time)
 
-                    stream.written_size = file_size
-                    stream.elapsed_seconds = elapsed
+                    stream.written_size = file_size  # type: ignore
+                    stream.elapsed_seconds = elapsed  # type: ignore
                     db.commit()
 
             time.sleep(5)
@@ -240,7 +241,7 @@ def record_live_stream_task(self, stream_id: int):
             try:
                 from services.notification_service import NotificationService
 
-                NotificationService.check_and_notify_favorites(db, new_entry)
+                NotificationService.check_and_notify_favorites(db, new_entry)  # type: ignore
                 NotificationService.notify_global(
                     db,
                     "task_completed",
@@ -252,11 +253,11 @@ def record_live_stream_task(self, stream_id: int):
                     f"Error sending live recording completion notification: {notif_err}"
                 )
 
-            stream.status = "idle"
+            stream.status = "idle"  # type: ignore
             print(f"Successfully finished recording and indexed: {new_entry.title}")
         else:
             # Empty or invalid
-            stream.status = "failed"
+            stream.status = "failed"  # type: ignore
             print(
                 f"Recording finished but output file was too small or missing ({final_size} bytes)."
             )
@@ -276,7 +277,7 @@ def record_live_stream_task(self, stream_id: int):
         db.commit()
 
 
-def get_media_roots_fallback():
+def get_media_roots_fallback() -> str:
     """Parse media roots helper similar to utils."""
     try:
         from models import Settings
@@ -285,7 +286,7 @@ def get_media_roots_fallback():
             setting = (
                 db.query(Settings).filter(Settings.key == "media_root_path").first()
             )
-            if setting and setting.value:
+            if setting and setting.value:  # type: ignore
                 paths = [p.strip() for p in setting.value.split(",") if p.strip()]
                 if paths:
                     return os.path.realpath(os.path.expanduser(paths[0]))

@@ -21,11 +21,7 @@ def rate_limit(max_requests: int = 10, window_seconds: int = 60):
 
         # SECURITY: Rate limit on the route pattern (e.g. /api/{id}) instead of the raw URL path.
         # This prevents an attacker from exhausting Redis memory by spraying random path parameters.
-        route_path = (
-            request.scope.get("route").path
-            if request.scope.get("route")
-            else request.url.path
-        )
+        route_path = getattr(request.scope.get("route"), "path", request.url.path)
         key = f"rate_limit:{client_ip}:{route_path}"
 
         try:

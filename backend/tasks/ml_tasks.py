@@ -4,29 +4,30 @@ import os
 from celery_app import celery_app
 from db_utils import get_db_session
 from models import LibraryEntry
+from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
 
-@celery_app.task(bind=True, name="tasks.ml_tasks.cluster_faces_task")
-def cluster_faces_task(self, library_entry_id: int, frame_skip: int = 30):
+@celery_app.task(bind=True, name="tasks.ml_tasks.cluster_faces_task")  # type: ignore
+def cluster_faces_task(self: Any, library_entry_id: int, frame_skip: int = 30) -> dict[str, Any] | None:
     """
     Extract frames from a video, detect and encode faces,
     and cluster them to identify unique performers.
     """
-    import cv2
-    import face_recognition
-    from sklearn.cluster import DBSCAN
+    import cv2  # type: ignore
+    import face_recognition  # type: ignore
+    from sklearn.cluster import DBSCAN  # type: ignore
 
     with get_db_session() as db:
         entry = (
             db.query(LibraryEntry).filter(LibraryEntry.id == library_entry_id).first()
         )
-        if not entry or not entry.file_path:
+        if not entry or not entry.file_path:  # type: ignore
             logger.error(f"Entry {library_entry_id} not found or missing file path.")
             return
 
-        video_path = entry.file_path
+        video_path = str(entry.file_path)
 
     logger.info(f"Starting facial clustering for {video_path}")
 
@@ -35,9 +36,9 @@ def cluster_faces_task(self, library_entry_id: int, frame_skip: int = 30):
         logger.error(f"Cannot open video {video_path}")
         return
 
-    encodings = []
-    timestamps = []
-    face_crops = []
+    encodings: list[Any] = []
+    timestamps: list[float] = []
+    face_crops: list[Any] = []
 
     fps = cap.get(cv2.CAP_PROP_FPS)
     if not fps or fps != fps:  # Check for NaN/Zero
@@ -55,12 +56,12 @@ def cluster_faces_task(self, library_entry_id: int, frame_skip: int = 30):
                 # Convert OpenCV BGR to RGB
                 rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-                face_locations = face_recognition.face_locations(rgb_frame)
+                face_locations: list[Any] = face_recognition.face_locations(rgb_frame)  # type: ignore
                 if face_locations:
-                    face_encodings = face_recognition.face_encodings(
+                    face_encodings: list[Any] = face_recognition.face_encodings(  # type: ignore
                         rgb_frame, face_locations
                     )
-                    for location, encoding in zip(face_locations, face_encodings):
+                    for location, encoding in zip(face_locations, face_encodings):  # type: ignore
                         encodings.append(encoding)
                         timestamps.append(round(frame_count / fps, 2))
 
@@ -68,10 +69,10 @@ def cluster_faces_task(self, library_entry_id: int, frame_skip: int = 30):
                         top, right, bottom, left = location
                         h, w, _ = frame.shape
                         # Expand bounding box slightly for a better portrait crop
-                        top = max(0, top - 30)
-                        bottom = min(h, bottom + 30)
-                        left = max(0, left - 30)
-                        right = min(w, right + 30)
+                        top = max(0, int(top) - 30)
+                        bottom = min(h, int(bottom) + 30)
+                        left = max(0, int(left) - 30)
+                        right = min(w, int(right) + 30)
                         face_crops.append(frame[top:bottom, left:right])
 
             frame_count += 1
@@ -84,12 +85,12 @@ def cluster_faces_task(self, library_entry_id: int, frame_skip: int = 30):
 
     # Cluster faces using DBSCAN (eps=0.5 is standard for face_recognition distance)
     dbscan = DBSCAN(eps=0.5, min_samples=3, metric="euclidean")
-    dbscan.fit(encodings)
+    dbscan.fit(encodings)  # type: ignore
 
     faces_dir = os.path.join(os.path.dirname(video_path), f".faces_{library_entry_id}")
     os.makedirs(faces_dir, exist_ok=True)
 
-    cluster_results = {}
+    cluster_results: dict[str, Any] = {}
     for label in set(dbscan.labels_):
         if label == -1:
             continue  # Skip unclustered noise
@@ -114,10 +115,10 @@ def cluster_faces_task(self, library_entry_id: int, frame_skip: int = 30):
         )
         if entry_update:
             # Create a copy to ensure SQLAlchemy detects the change to the JSON column
-            meta = (entry_update.entry_metadata or {}).copy()
+            meta = dict(cast(dict[str, Any], entry_update.entry_metadata) or {})
             meta["facial_clusters"] = cluster_results
-            entry_update.entry_metadata = meta
-            entry_update.has_facial_clusters = len(cluster_results) > 0
+            entry_update.entry_metadata = meta  # type: ignore
+            entry_update.has_facial_clusters = len(cluster_results) > 0  # type: ignore
             db.commit()
 
     return cluster_results

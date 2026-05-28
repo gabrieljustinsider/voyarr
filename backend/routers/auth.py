@@ -16,7 +16,7 @@ from security import (
 )
 from datetime import timedelta
 from pydantic import BaseModel, Field
-from typing import Literal
+from typing import Literal, Any
 from jose import jwt, JWTError
 from rate_limiter import rate_limit
 from dependencies import verify_api_key
@@ -27,14 +27,17 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 
 
-def create_user_session(user, response: Response):
+def create_user_session(user: User, response: Response) -> dict[str, str]:
     """Generate JWT access token and set HTTP-only session cookie for a user."""
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.username, "role": user.role},
+        data={"sub": str(user.username), "role": str(user.role)},
         expires_delta=access_token_expires,
     )
-    samesite = os.getenv("COOKIE_SAMESITE", "lax").lower()
+    samesite_env = os.getenv("COOKIE_SAMESITE", "lax").lower()
+    samesite: Literal["lax", "strict", "none"] = "lax"
+    if samesite_env in ("lax", "strict", "none"):
+        samesite = samesite_env  # type: ignore
     secure = os.getenv("COOKIE_SECURE", "false").lower() == "true"
     response.set_cookie(
         key="access_token",
@@ -45,7 +48,7 @@ def create_user_session(user, response: Response):
         samesite=samesite,
         secure=secure,
     )
-    return {"access_token": access_token, "token_type": "bearer", "role": user.role}  # nosec B105
+    return {"access_token": access_token, "token_type": "bearer", "role": str(user.role)}  # nosec B105
 
 
 class UserCreate(BaseModel):
@@ -57,7 +60,7 @@ class UserCreate(BaseModel):
 @router.post(
     "/register", dependencies=[Depends(rate_limit(max_requests=5, window_seconds=60))]
 )
-def register_user(user: UserCreate, request: Request, db: Session = Depends(get_db)):
+def register_user(user: UserCreate, request: Request, db: Session = Depends(get_db)) -> dict[str, str]:
     # SECURITY: Prevent unauthorized user registration
     user_count = db.query(User).count()
     if user_count > 0:
@@ -104,7 +107,7 @@ def register_user(user: UserCreate, request: Request, db: Session = Depends(get_
         
         # Log administrative registration action
         actor_username = "System (First User)"
-        actor_id = None
+        actor_id: str | None = None
         if user_count > 0:
             api_key = request.headers.get("X-Voyarr-Api-Key")
             auth_header = request.headers.get("Authorization")
@@ -115,10 +118,10 @@ def register_user(user: UserCreate, request: Request, db: Session = Depends(get_
                 token = auth_header.split(" ")[1]
                 try:
                     payload = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
-                    actor_username = payload.get("sub") or "Admin User"
+                    actor_username = str(payload.get("sub") or "Admin User")
                     actor_user = db.query(User).filter(User.username == actor_username).first()
                     if actor_user:
-                        actor_id = actor_user.id
+                        actor_id = str(actor_user.id)
                 except Exception:
                     actor_username = "Admin User"
                     
@@ -129,9 +132,9 @@ def register_user(user: UserCreate, request: Request, db: Session = Depends(get_
             admin_username=actor_username,
             action="register_user",
             details={
-                "created_user_id": db_user.id,
-                "created_username": db_user.username,
-                "role": db_user.role
+                "created_user_id": str(db_user.id),
+                "created_username": str(db_user.username),
+                "role": str(db_user.role)
             }
         )
     except IntegrityError:
@@ -145,8 +148,8 @@ def register_user(user: UserCreate, request: Request, db: Session = Depends(get_
         )
     return {
         "message": "User created successfully",
-        "username": db_user.username,
-        "role": db_user.role,
+        "username": str(db_user.username),
+        "role": str(db_user.role),
     }
 
 
@@ -157,25 +160,28 @@ def login_for_access_token(
     response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
-):
+) -> dict[str, str]:
     user = db.query(User).filter(User.username == form_data.username).first()
-    if not user or not verify_password(form_data.password, user.password_hash):
+    if not user or not verify_password(form_data.password, str(user.password_hash)):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    if not user.is_active:
+    if not bool(user.is_active):
         raise HTTPException(status_code=400, detail="Inactive user account")
 
     return create_user_session(user, response)
 
 
 @router.post("/logout")
-def logout(response: Response):
+def logout(response: Response) -> dict[str, str]:
     """Clears the session cookie."""
-    samesite = os.getenv("COOKIE_SAMESITE", "lax").lower()
+    samesite_env = os.getenv("COOKIE_SAMESITE", "lax").lower()
+    samesite: Literal["lax", "strict", "none"] = "lax"
+    if samesite_env in ("lax", "strict", "none"):
+        samesite = samesite_env  # type: ignore
     secure = os.getenv("COOKIE_SECURE", "false").lower() == "true"
 
     response.delete_cookie(
@@ -186,7 +192,7 @@ def logout(response: Response):
 
 def get_current_user(
     token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
-):
+) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -194,15 +200,16 @@ def get_current_user(
     )
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
+        sub = payload.get("sub")
+        if not sub or not isinstance(sub, str):
             raise credentials_exception
+        username: str = sub
     except JWTError:
         raise credentials_exception
     user = db.query(User).filter(User.username == username).first()
     if user is None:
         raise credentials_exception
-    if not user.is_active:
+    if not bool(user.is_active):
         raise HTTPException(status_code=400, detail="Inactive user account")
     return user
 
@@ -231,11 +238,11 @@ def autologin(
     request: Request,
     response: Response,
     db: Session = Depends(get_db),
-):
+) -> dict[str, Any]:
     """Evaluate authentication bypass criteria and auto-login if conditions are met."""
     def get_setting(key: str) -> str | None:
         setting = db.query(Settings).filter(Settings.key == key).first()
-        return setting.value if setting else None
+        return str(setting.value) if setting and setting.value is not None else None  # type: ignore
 
     # 1. Reverse Proxy Header Trust
     proxy_enabled = (get_setting("auth_bypass_proxy_header_enabled") or "").lower() == "true"
@@ -257,9 +264,9 @@ def autologin(
                 db.add(user)
                 db.commit()
                 db.refresh(user)
-            if user.is_active:
+            if bool(user.is_active):
                 result = create_user_session(user, response)
-                result["username"] = user.username
+                result["username"] = str(user.username)
                 result["method"] = "proxy_header"
                 return result
 
@@ -288,9 +295,9 @@ def autologin(
                         continue
                 if is_trusted:
                     user = db.query(User).filter(User.username == default_username).first()
-                    if user and user.is_active:
+                    if user and bool(user.is_active):
                         result = create_user_session(user, response)
-                        result["username"] = user.username
+                        result["username"] = str(user.username)
                         result["method"] = "trusted_subnet"
                         return result
             except ValueError:
@@ -308,7 +315,10 @@ class UserPermissionsUpdate(BaseModel):
 
 
 @router.get("/users")
-def list_users(auth_info: dict = Depends(verify_api_key), db: Session = Depends(get_db)):
+def list_users(
+    auth_info: dict[str, Any] = Depends(verify_api_key),
+    db: Session = Depends(get_db)
+) -> list[dict[str, Any]]:
     if auth_info.get("type") == "jwt":
         if auth_info.get("role") != "admin":
             raise HTTPException(status_code=403, detail="Admin privileges required")
@@ -318,10 +328,10 @@ def list_users(auth_info: dict = Depends(verify_api_key), db: Session = Depends(
     users = db.query(User).all()
     return [
         {
-            "id": u.id,
-            "username": u.username,
-            "role": u.role,
-            "is_active": u.is_active,
+            "id": str(u.id),
+            "username": str(u.username),
+            "role": str(u.role),
+            "is_active": bool(u.is_active),
             "created_at": u.created_at,
             "permissions": u.permissions or {"can_stream": True, "can_scrape": False, "can_rip": False}
         }
@@ -333,20 +343,20 @@ def list_users(auth_info: dict = Depends(verify_api_key), db: Session = Depends(
 def update_user_permissions(
     user_id: str,
     payload: UserPermissionsUpdate,
-    auth_info: dict = Depends(verify_api_key),
+    auth_info: dict[str, Any] = Depends(verify_api_key),
     db: Session = Depends(get_db)
-):
+) -> dict[str, str]:
     actor_username = "Unknown"
-    actor_id = None
+    actor_id: str | None = None
     if auth_info.get("type") == "master_key":
         actor_username = "Master Key"
     elif auth_info.get("type") == "jwt":
         if auth_info.get("role") != "admin":
             raise HTTPException(status_code=403, detail="Admin privileges required")
-        actor_username = auth_info.get("user")
+        actor_username = str(auth_info.get("user") or "Admin User")
         actor_user = db.query(User).filter(User.username == actor_username).first()
         if actor_user:
-            actor_id = actor_user.id
+            actor_id = str(actor_user.id)
     else:
         raise HTTPException(status_code=403, detail="Forbidden")
 
@@ -355,7 +365,7 @@ def update_user_permissions(
         raise HTTPException(status_code=404, detail="User not found")
 
     # Lockout protection: prevent downgrading the last admin in the system
-    if target_user.role == "admin" and payload.role != "admin":
+    if str(target_user.role) == "admin" and payload.role != "admin":
         admin_count = db.query(User).filter(User.role == "admin").count()
         if admin_count <= 1:
             raise HTTPException(
@@ -363,11 +373,11 @@ def update_user_permissions(
                 detail="Lockout Protection: Cannot downgrade the sole administrator account to prevent complete system lockout."
             )
 
-    old_role = target_user.role
+    old_role = str(target_user.role)
     old_permissions = target_user.permissions or {"can_stream": True, "can_scrape": False, "can_rip": False}
 
-    target_user.role = payload.role
-    target_user.permissions = payload.permissions
+    target_user.role = payload.role  # type: ignore
+    target_user.permissions = payload.permissions  # type: ignore
     db.commit()
     db.refresh(target_user)
 
@@ -379,8 +389,8 @@ def update_user_permissions(
         admin_username=actor_username,
         action="update_user_permissions",
         details={
-            "target_user_id": target_user.id,
-            "target_username": target_user.username,
+            "target_user_id": str(target_user.id),
+            "target_username": str(target_user.username),
             "old_role": old_role,
             "new_role": payload.role,
             "old_permissions": old_permissions,
@@ -391,7 +401,10 @@ def update_user_permissions(
 
 
 @router.get("/admin-logs")
-def list_admin_logs(auth_info: dict = Depends(verify_api_key), db: Session = Depends(get_db)):
+def list_admin_logs(
+    auth_info: dict[str, Any] = Depends(verify_api_key),
+    db: Session = Depends(get_db)
+) -> list[dict[str, Any]]:
     if auth_info.get("type") == "jwt":
         if auth_info.get("role") != "admin":
             raise HTTPException(status_code=403, detail="Admin privileges required")
@@ -402,10 +415,10 @@ def list_admin_logs(auth_info: dict = Depends(verify_api_key), db: Session = Dep
     logs = db.query(AdminLog).order_by(AdminLog.timestamp.desc()).limit(100).all()
     return [
         {
-            "id": log.id,
-            "admin_id": log.admin_id,
-            "admin_username": log.admin_username,
-            "action": log.action,
+            "id": int(log.id) if log.id is not None else None,  # type: ignore
+            "admin_id": str(log.admin_id) if log.admin_id is not None else None,  # type: ignore
+            "admin_username": str(log.admin_username),
+            "action": str(log.action),
             "details": log.details,
             "timestamp": log.timestamp
         }

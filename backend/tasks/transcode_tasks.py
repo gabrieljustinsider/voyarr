@@ -2,19 +2,20 @@ import os
 import subprocess  # nosec B404
 import logging
 import re
-import ffmpeg
+import ffmpeg  # type: ignore
 from datetime import datetime, timezone
 from celery_app import celery_app
 from db_utils import get_db_session
 from models import TranscodingQueue, LibraryEntry
 from services.webhook_service import WebhookService
 from services.off_peak_service import OffPeakService
+from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
 
-@celery_app.task(bind=True, name="tasks.transcode_tasks.transcode_video_task")
-def transcode_video_task(self, transcode_job_id: int):
+@celery_app.task(bind=True, name="tasks.transcode_tasks.transcode_video_task")  # type: ignore
+def transcode_video_task(self: Any, transcode_job_id: int) -> None:
     """
     Celery task to transcode a video file to a more efficient codec.
     """
@@ -40,21 +41,21 @@ def transcode_video_task(self, transcode_job_id: int):
             .filter(LibraryEntry.id == job.library_entry_id)
             .first()
         )
-        if not library_entry or not os.path.exists(library_entry.file_path):
-            job.status = "failed"
-            job.details = f"Library entry or file not found: {library_entry.file_path if library_entry else 'N/A'}"
+        if not library_entry or not library_entry.file_path or not os.path.exists(str(library_entry.file_path)):  # type: ignore
+            job.status = "failed"  # type: ignore
+            job.details = f"Library entry or file not found: {library_entry.file_path if library_entry else 'N/A'}"  # type: ignore
             db.commit()
             return
 
-        job.status = "running"
-        job.progress_percentage = 0.0
-        job.celery_task_id = self.request.id
-        job.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        job.status = "running"  # type: ignore
+        job.progress_percentage = 0.0  # type: ignore
+        job.celery_task_id = self.request.id  # type: ignore
+        job.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)  # type: ignore
         db.commit()
 
-        input_path = library_entry.file_path
+        input_path = str(library_entry.file_path)
         file_dir, file_name = os.path.split(input_path)
-        file_base, file_ext = os.path.splitext(file_name)
+        file_base, _ = os.path.splitext(file_name)
 
         # Define output path for the new transcoded file
         output_filename = f"{file_base}.{job.target_codec}.mkv"
@@ -66,18 +67,18 @@ def transcode_video_task(self, transcode_job_id: int):
             logger.info(f"Starting transcode for {input_path} to {output_path}")
 
             # Get media duration for progress calculation
-            probe = ffmpeg.probe(input_path)
+            probe = ffmpeg.probe(input_path)  # type: ignore
             try:
                 duration = float(probe["format"].get("duration", 0))
             except (KeyError, TypeError, ValueError):
                 duration = 0.0
 
             # Build FFmpeg command
-            stream = ffmpeg.input(input_path)
-            stream = ffmpeg.output(
-                stream,
+            stream = ffmpeg.input(input_path)  # type: ignore
+            stream = ffmpeg.output(  # type: ignore
+                stream,  # type: ignore
                 temp_output_path,
-                vcodec="libx265" if job.target_codec == "h265" else "libaom-av1",
+                vcodec="libx265" if str(job.target_codec) == "h265" else "libaom-av1",
                 acodec="copy",  # Copy audio track without re-encoding
                 **{
                     "crf": 28
@@ -85,18 +86,18 @@ def transcode_video_task(self, transcode_job_id: int):
             )
 
             # Compile command and run via subprocess to capture real-time stderr
-            args = ffmpeg.compile(stream, overwrite_output=True)
+            args = ffmpeg.compile(stream, overwrite_output=True)  # type: ignore
             process = subprocess.Popen(  # nosec B603
                 args, stderr=subprocess.PIPE, universal_newlines=True
             )
 
             # Save the process ID to allow pause/resume/cancel
-            job.pid = process.pid
+            job.pid = process.pid  # type: ignore
             db.commit()
 
             time_regex = re.compile(r"time=(\d+):(\d+):(\d+\.\d+)")
             last_progress = 0.0
-            error_log = []
+            error_log: list[str] = []
 
             for line in process.stderr or []:
                 error_log.append(line)
@@ -120,15 +121,15 @@ def transcode_video_task(self, transcode_job_id: int):
                     if progress - last_progress >= 5.0:
                         # Re-fetch job to check if cancelled or paused
                         db.refresh(job)
-                        if job.status == "cancelled":
+                        if str(job.status) == "cancelled":
                             logger.info(
                                 f"Transcode job {transcode_job_id} cancelled by user."
                             )
                             process.terminate()
                             return
 
-                        job.progress_percentage = progress
-                        job.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+                        job.progress_percentage = progress  # type: ignore
+                        job.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)  # type: ignore
                         db.commit()
                         last_progress = progress
 
@@ -148,32 +149,32 @@ def transcode_video_task(self, transcode_job_id: int):
 
             # Store old file info and update library entry
             old_file_path = library_entry.file_path
-            old_file_size = library_entry.file_size
+            old_file_size = int(cast(int, library_entry.file_size)) if library_entry.file_size is not None else 0  # type: ignore
 
-            library_entry.file_path = output_path
-            library_entry.file_size = new_file_size
+            library_entry.file_path = output_path  # type: ignore
+            library_entry.file_size = new_file_size  # type: ignore
 
             # Invalidate old hashes since the file binary and potentially visual frames have changed
-            library_entry.ohash = None
-            library_entry.phash = None
-            library_entry.entry_metadata = (library_entry.entry_metadata or {}).copy()
-            library_entry.entry_metadata["previous_file"] = {
+            library_entry.ohash = None  # type: ignore
+            library_entry.phash = None  # type: ignore
+            library_entry.entry_metadata = (library_entry.entry_metadata or {}).copy()  # type: ignore 
+            library_entry.entry_metadata["previous_file"] = {  # type: ignore
                 "path": old_file_path,
                 "size": old_file_size,
             }
 
             # Update job status
-            job.status = "completed"
-            job.progress_percentage = 100.0
-            job.details = f"Transcoded successfully. New size: {new_file_size} bytes."
+            job.status = "completed"  # type: ignore
+            job.progress_percentage = 100.0  # type: ignore
+            job.details = f"Transcoded successfully. New size: {new_file_size} bytes."  # type: ignore
             db.commit()
 
             # Clean up old file
-            if old_file_path != output_path and os.path.exists(old_file_path):
-                os.remove(old_file_path)
+            if str(old_file_path) != output_path and os.path.exists(str(old_file_path)):
+                os.remove(str(old_file_path))
 
             # Trigger Webhook
-            WebhookService.trigger(
+            WebhookService.trigger(  # type: ignore
                 "transcode.completed",
                 {
                     "library_entry_id": library_entry.id,
@@ -211,10 +212,10 @@ def transcode_video_task(self, transcode_job_id: int):
                 .first()
             )
             if job:
-                job.status = "failed"
-                job.details = str(e)
+                job.status = "failed"  # type: ignore
+                job.details = str(e)  # type: ignore
                 db.commit()
-            logger.error(f"FFmpeg error for {input_path}: {job.details}")
+            logger.error(f"FFmpeg error for {input_path}: {str(e)}")
 
             # Clean up temp file on failure
             if os.path.exists(temp_output_path):
@@ -235,8 +236,8 @@ def transcode_video_task(self, transcode_job_id: int):
             raise e
 
 
-@celery_app.task(bind=True, name="tasks.transcode_tasks.generate_hls_task")
-def generate_hls_task(self, library_entry_id: int):
+@celery_app.task(bind=True, name="tasks.transcode_tasks.generate_hls_task")  # type: ignore
+def generate_hls_task(self: Any, library_entry_id: int) -> str | None:
     """
     Generates an HLS playlist and transport stream segments for direct web streaming.
     """
@@ -244,12 +245,12 @@ def generate_hls_task(self, library_entry_id: int):
         entry = (
             db.query(LibraryEntry).filter(LibraryEntry.id == library_entry_id).first()
         )
-        if not entry or not entry.file_path or not os.path.exists(entry.file_path):
+        if not entry or not entry.file_path or not os.path.exists(str(entry.file_path)):  # type: ignore
             logger.error(f"Entry {library_entry_id} not found or missing file path.")
             return
 
         # SECURITY: Use absolute path to prevent FFmpeg option injection if file starts with "-"
-        video_path = os.path.abspath(entry.file_path)
+        video_path = os.path.abspath(str(entry.file_path))
 
     hls_dir = f"{video_path}.hls"
     os.makedirs(hls_dir, exist_ok=True)
@@ -262,7 +263,7 @@ def generate_hls_task(self, library_entry_id: int):
     logger.info(f"Starting HLS generation for {video_path}")
 
     try:
-        cmd = [
+        cmd: list[str] = [
             "ffmpeg",
             "-y",
             "-i",

@@ -1,5 +1,5 @@
-from celery import shared_task
-from celery.schedules import crontab
+from celery import shared_task  # type: ignore
+from celery.schedules import crontab  # type: ignore
 from celery_app import celery_app
 from models import MediaEntry, DownloadQueue, LibraryEntry
 from db_utils import get_db_session
@@ -7,21 +7,22 @@ import os
 import shutil
 from utils import get_media_roots
 from celery_utils import single_instance_task
+from typing import Any
 
 
-@celery_app.on_after_configure.connect
-def setup_periodic_tasks(sender, **kwargs):
+@celery_app.on_after_configure.connect  # type: ignore
+def setup_periodic_tasks(sender: Any, **kwargs: Any) -> None:
     # Schedule the cleanup task to run automatically every night at midnight
     sender.add_periodic_task(
         crontab(hour=0, minute=0),
-        cleanup_abandoned_media.s(),
+        cleanup_abandoned_media.s(),  # type: ignore
         name="Nightly abandoned media and orphaned face/HLS directory cleanup",
     )
 
 
 @shared_task
 @single_instance_task(timeout_seconds=3600)
-def cleanup_abandoned_media():
+def cleanup_abandoned_media() -> None:
     with get_db_session() as db:
         # Find all MediaEntry IDs currently referenced by the download queue
         active_media_ids = db.query(DownloadQueue.media_entry_id).filter(
@@ -42,7 +43,7 @@ def cleanup_abandoned_media():
                 if not os.path.exists(root_dir):
                     continue
 
-                for dirpath, dirnames, filenames in os.walk(root_dir):
+                for dirpath, dirnames, _ in os.walk(root_dir):
                     for dirname in dirnames:
                         full_path = os.path.join(dirpath, dirname)
 

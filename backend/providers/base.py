@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any, cast
 import requests
 from bs4 import BeautifulSoup
 import re
@@ -24,7 +24,7 @@ class ProviderBase(ABC):
         pass
 
     @abstractmethod
-    def scrape_metadata(self, url: str) -> Dict:
+    def scrape_metadata(self, url: str) -> Dict[str, Any]:
         """Scrape metadata from a media page."""
         pass
 
@@ -46,18 +46,18 @@ class ProviderBase(ABC):
 
     def extract_with_xpath(self, soup: BeautifulSoup, xpath: str) -> List[str]:
         """Extract text using XPath (requires lxml)."""
-        from lxml import html
+        from lxml import html  # type: ignore
 
-        tree = html.fromstring(str(soup))
-        elements = tree.xpath(xpath)
-        results = []
+        tree = cast(Any, html.fromstring(str(soup)))  # type: ignore
+        elements = cast(List[Any], tree.xpath(xpath))  # type: ignore
+        results: List[str] = []
         for elem in elements:
             if isinstance(elem, str):
                 results.append(elem.strip())
             elif hasattr(elem, "text_content"):
-                results.append(elem.text_content().strip())
-            elif hasattr(elem, "text") and elem.text:
-                results.append(elem.text.strip())
+                results.append(str(elem.text_content()).strip())
+            elif hasattr(elem, "text") and getattr(elem, "text"):
+                results.append(str(getattr(elem, "text")).strip())
             else:
                 results.append(str(elem).strip())
         return results
@@ -67,12 +67,12 @@ class ProviderBase(ABC):
         matches = re.findall(pattern, text, re.IGNORECASE)
         return matches
 
-    def build_filename(self, metadata: Dict, pattern: str) -> str:
+    def build_filename(self, metadata: Dict[str, Any], pattern: str) -> str:
         """Build filename based on naming pattern."""
         try:
             from collections import defaultdict
 
-            safe_metadata = defaultdict(lambda: "unknown", metadata)
+            safe_metadata: defaultdict[str, Any] = defaultdict(lambda: "unknown", metadata)
             return pattern.format_map(safe_metadata)
         except Exception:
             return f"{metadata.get('title', 'unknown')}.mp4"

@@ -2,29 +2,30 @@ import os
 import time
 import tempfile
 import yt_dlp
-from celery import shared_task
+from celery import shared_task  # type: ignore
 from models import DownloadQueue, LibraryEntry, SessionCookie, Vault, Settings
 from security import decrypt_data
 from services.media_tagger import MediaTagger
 from services.hash_service import HashService
 from utils import get_media_roots, get_default_download_path
 from db_utils import get_db_session
+from typing import Any, cast
 
 
 @shared_task(bind=True)
-def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
+def real_download_task(self: Any, task_id: int, prefs_dict: dict[str, Any], metadata: dict[str, Any]) -> None:
     with get_db_session() as db:
         task = db.query(DownloadQueue).filter(DownloadQueue.id == task_id).first()
         if not task:
             return
 
-        task.status = "running"
-        task.celery_task_id = self.request.id
+        task.status = "running"  # type: ignore
+        task.celery_task_id = self.request.id  # type: ignore
         db.commit()
 
         # Fetch advanced yt-dlp integrations
         global_settings = {
-            s.key: s.value
+            str(s.key): str(s.value)
             for s in db.query(Settings)
             .filter(
                 Settings.key.in_(
@@ -44,12 +45,12 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
         }
 
         # Respect the custom_base_path from provider preferences, or fallback to default
-        base_path = prefs_dict.get("custom_base_path")
+        base_path = str(prefs_dict.get("custom_base_path")) if prefs_dict.get("custom_base_path") else None
 
         # SECURITY: Prevent path traversal and arbitrary file writes in custom_base_path
         if base_path:
             is_valid_base = False
-            real_base_path = os.path.realpath(base_path)
+            real_base_path = os.path.realpath(str(base_path))
             media_roots = get_media_roots()
             for root in media_roots:
                 try:
@@ -73,15 +74,15 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
         last_db_check = [time.time()]
         last_progress_update = [time.time()]
 
-        def progress_hook(d):
+        def progress_hook(d: dict[str, Any]) -> None:
             if d["status"] == "downloading":
                 # Poll the database every 2 seconds for Pause/Cancel signals
                 if time.time() - last_db_check[0] > 2.0:
                     db.refresh(task)
                     last_db_check[0] = time.time()
-                    if task.status == "paused":
+                    if task and str(task.status) == "paused":
                         raise Exception("Task paused by user")
-                    if task.status == "cancelled":
+                    if task and str(task.status) == "cancelled":
                         raise Exception("Task cancelled by user")
 
                 p_str = d.get("_percent_str", "0%").replace("%", "").strip()
@@ -90,17 +91,17 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
                     try:
                         clean_p = "".join(c for c in p_str if c.isdigit() or c == ".")
                         if clean_p:
-                            task.progress_percentage = float(clean_p)
+                            task.progress_percentage = float(clean_p)  # type: ignore
                             db.commit()
                             last_progress_update[0] = time.time()
                     except ValueError:
                         pass
             elif d["status"] == "finished":
-                task.progress_percentage = 100.0
+                task.progress_percentage = 100.0  # type: ignore
                 db.commit()
 
-        resolution_pref = (
-            prefs_dict.get("preferred_resolution", "1080p")
+        resolution_pref = str(
+            prefs_dict.get("preferred_resolution", "1080p")  # type: ignore
             .replace("p", "")
             .replace("4K", "2160")
             .replace("8K", "4320")
@@ -108,10 +109,10 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
         )
 
         format_str = f"bestvideo[height<={resolution_pref}]+bestaudio/best"
-        if global_settings.get("yt_custom_format"):
+        if global_settings.get("yt_custom_format") is not None:
             format_str = str(global_settings.get("yt_custom_format"))
 
-        ydl_opts = {
+        ydl_opts: dict[str, Any] = {
             "format": format_str,
             "outtmpl": f"{base_path}/%(title)s.%(ext)s",
             "progress_hooks": [progress_hook],
@@ -132,7 +133,7 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
         if global_settings.get("yt_live_streams") == "true":
             ydl_opts["live_from_start"] = True
 
-        if global_settings.get("yt_browser_cookies"):
+        if global_settings.get("yt_browser_cookies") is not None:
             ydl_opts["cookiesfrombrowser"] = (
                 global_settings.get("yt_browser_cookies"),
             )
@@ -159,18 +160,19 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
             if vault_entry:
                 fd, cookie_temp_path = tempfile.mkstemp(suffix=".txt", text=True)
                 with os.fdopen(fd, "w") as f:
-                    f.write(decrypt_data(vault_entry.encrypted_value))
+                    f.write(decrypt_data(str(vault_entry.encrypted_value)))
                 ydl_opts["cookiefile"] = cookie_temp_path
 
+        filename = ""
         try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(task.url, download=True)
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:  # type: ignore
+                info = ydl.extract_info(str(task.url), download=True)
 
                 extractor = info.get("extractor", "generic")
                 method_used = f"yt-dlp ({extractor})"
                 if cookie_temp_path:
                     method_used += " [Cookies]"
-                task.extraction_method = method_used
+                task.extraction_method = method_used  # type: ignore
                 db.commit()
 
                 filename = ydl.prepare_filename(info)
@@ -205,7 +207,7 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
                 )
 
                 try:
-                    new_entry.phash = HashService.generate_phash(filename)
+                    new_entry.phash = HashService.generate_phash(filename)  # type: ignore
                 except Exception as e:
                     print(f"Warning: Failed to generate phash for {filename}: {str(e)}")
                 db.add(new_entry)
@@ -224,17 +226,17 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
                 db.add(history)
                 if prefs_dict.get("append_metadata"):
                     try:
-                        MediaTagger.tag_file(new_entry.file_path, metadata)
+                        MediaTagger.tag_file(str(new_entry.file_path), metadata)
                     except Exception as e:
                         print(f"Warning: Failed to tag file {filename}: {str(e)}")
 
-                task.status = "completed"
+                task.status = "completed"  # type: ignore
                 db.commit()
 
                 try:
                     from services.notification_service import NotificationService
 
-                    NotificationService.check_and_notify_favorites(db, new_entry)
+                    NotificationService.check_and_notify_favorites(db, new_entry)  # type: ignore
                     NotificationService.notify_global(
                         db,
                         "task_completed",
@@ -252,7 +254,7 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
                 return
 
             # Clean up failed download fragments
-            if "filename" in locals():
+            if filename:
                 for ext in ["", ".part", ".ytdl", ".temp"]:
                     temp_file = filename + ext
                     if os.path.exists(temp_file):
@@ -261,22 +263,22 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
                         except Exception as rm_err:
                             print(f"Failed to remove {temp_file}: {rm_err}")
 
+            should_retry = False
             try:
-                should_retry = False
                 task = (
                     db.query(DownloadQueue).filter(DownloadQueue.id == task_id).first()
                 )
                 if task:
-                    max_retries = prefs_dict.get("max_retries", 3)
+                    max_retries = int(prefs_dict.get("max_retries", 3))
                     if self.request.retries < max_retries:
-                        task.status = "pending"
+                        task.status = "pending"  # type: ignore
                         db.commit()
                         print(
                             f"Download failed, retrying ({self.request.retries + 1}/{max_retries})..."
                         )
                         should_retry = True
                     else:
-                        task.status = "failed"
+                        task.status = "failed"  # type: ignore
                         db.commit()
                         print(
                             f"Download failed permanently after {max_retries} retries: {str(e)}"
@@ -328,41 +330,43 @@ def real_download_task(self, task_id: int, prefs_dict: dict, metadata: dict):
 
 
 @shared_task(bind=True)
-def mass_rip_task(self, session_id: int):
+def mass_rip_task(self: Any, session_id: int) -> None:
     import re
     import requests
-    from models import MassRipSession, Provider, DownloadPreference, SessionCookie, DownloadRule, CustomList, MediaEntry, DownloadQueue
+    from models import MassRipSession, DownloadPreference, SessionCookie, DownloadRule, CustomList, MediaEntry, DownloadQueue
     from db_utils import get_db_session
-    from routers.download import evaluate_duplicate_quality, evaluate_rules, validate_url_ssrf
+    from routers.download import evaluate_duplicate_quality, evaluate_rules, validate_url_ssrf  # type: ignore
     
     with get_db_session() as db:
         session = db.query(MassRipSession).filter(MassRipSession.id == session_id).first()
         if not session:
             return
         
-        session.status = "running"
-        session.celery_task_id = self.request.id
+        session.status = "running"  # type: ignore
+        session.celery_task_id = self.request.id  # type: ignore
         db.commit()
         
         provider_id = session.provider_id
-        url_str = session.url
-        criteria = session.criteria or {}
+        url_str = str(session.url)
+        criteria: dict[str, Any] = cast(dict[str, Any], session.criteria) if session.criteria else {}  # type: ignore
         
-        provider = db.query(Provider).filter(Provider.id == provider_id).first()
+        # provider = db.query(Provider).filter(Provider.id == provider_id).first()
         prefs = db.query(DownloadPreference).filter(DownloadPreference.provider_id == provider_id).first()
         
-        ydl_opts = {"extract_flat": True, "quiet": True}
+        ydl_opts: dict[str, Any] = {"extract_flat": True, "quiet": True}
         if prefs:
-            if getattr(prefs, "proxy_url", None):
-                ydl_opts["proxy"] = prefs.proxy_url
-            if getattr(prefs, "sleep_requests", None):
-                ydl_opts["sleep_requests"] = float(prefs.sleep_requests)
+            proxy_url = getattr(prefs, "proxy_url", None)
+            if proxy_url is not None and str(proxy_url):  # type: ignore
+                ydl_opts["proxy"] = str(proxy_url)
+            sleep_req = getattr(prefs, "sleep_requests", None)
+            if sleep_req is not None:
+                ydl_opts["sleep_requests"] = float(str(sleep_req))
                 
         cookie_obj = db.query(SessionCookie).filter(
             SessionCookie.provider_id == provider_id,
             SessionCookie.status == "active"
         ).first()
-        cookie_text = cookie_obj.cookie_text if cookie_obj else None
+        cookie_text = str(cookie_obj.cookie_text) if cookie_obj and cookie_obj.cookie_text is not None else None  # type: ignore
         
         cookie_file_path = None
         if cookie_text:
@@ -371,10 +375,10 @@ def mass_rip_task(self, session_id: int):
                 f.write(cookie_text)
             ydl_opts["cookiefile"] = cookie_file_path
             
-        extracted_videos = []
+        extracted_videos: list[dict[str, Any]] = []
         used_method = "yt-dlp"
         try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:  # type: ignore
                 info = ydl.extract_info(url_str, download=False)
                 if info and "entries" in info:
                     extractor = info.get("extractor", "generic")
@@ -395,7 +399,7 @@ def mass_rip_task(self, session_id: int):
                         "url": info.get("url") or info.get("webpage_url") or url_str,
                         "metadata": {"title": info.get("title", "Unknown")}
                     })
-        except Exception as e:
+        except Exception:
             try:
                 resp = requests.get(url_str, timeout=15, allow_redirects=False)
                 hrefs = re.findall(r'href=[\'"]?([^\'" >]+)', resp.text)
@@ -403,22 +407,22 @@ def mass_rip_task(self, session_id: int):
                     if "/video/" in href.lower() or "/watch/" in href.lower() or ".mp4" in href.lower():
                         full_url = href if href.startswith("http") else url_str.rstrip("/") + "/" + href.lstrip("/")
                         extracted_videos.append({"url": full_url, "metadata": {"title": "Unknown"}})
-            except Exception as inner_err:
-                session.status = "failed"
+            except Exception:
+                session.status = "failed"  # type: ignore
                 db.commit()
                 return
         finally:
-            if cookie_file_path and os.path.exists(cookie_file_path):
+            if cookie_file_path and os.path.exists(str(cookie_file_path)):
                 os.remove(cookie_file_path)
                 
-        session.total_videos = len(extracted_videos)
+        session.total_videos = len(extracted_videos)  # type: ignore
         db.commit()
         
-        prefs_dict = {
-            "preferred_resolution": prefs.preferred_resolution if prefs else "1080p",
-            "append_metadata": prefs.append_metadata if prefs else False,
-            "custom_base_path": getattr(prefs, "custom_base_path", None) if prefs else None,
-            "proxy_url": getattr(prefs, "proxy_url", None) if prefs else None,
+        prefs_dict: dict[str, Any] = {
+            "preferred_resolution": str(prefs.preferred_resolution) if prefs else "1080p",  # type: ignore
+            "append_metadata": bool(prefs.append_metadata) if prefs else False,  # type: ignore
+            "custom_base_path": str(getattr(prefs, "custom_base_path", "")) if prefs and getattr(prefs, "custom_base_path", None) is not None else None,  # type: ignore
+            "proxy_url": str(getattr(prefs, "proxy_url", "")) if prefs and getattr(prefs, "proxy_url", None) is not None else None,  # type: ignore
             "cookie_text": cookie_text,
         }
         
@@ -427,55 +431,55 @@ def mass_rip_task(self, session_id: int):
             (DownloadRule.scope == "global") | (DownloadRule.scope == f"provider:{provider_id}")
         ).all()
         
-        list_ids = [rule.criteria["in_list"] for rule in rules if rule.criteria and "in_list" in rule.criteria]
-        custom_lists_query = db.query(CustomList).filter(CustomList.id.in_(list_ids)).all() if list_ids else []
+        list_ids = [rule.criteria["in_list"] for rule in rules if rule.criteria and "in_list" in rule.criteria]  # type: ignore
+        custom_lists_query = db.query(CustomList).filter(CustomList.id.in_(list_ids)).all() if list_ids else []  # type: ignore
         custom_lists_map = {cl.id: cl for cl in custom_lists_query}
         
         for video in extracted_videos:
             db.refresh(session)
-            while session.status == "paused":
+            while str(session.status) == "paused":
                 time.sleep(2.0)
                 db.refresh(session)
                 
-            if session.status == "stopped":
+            if str(session.status) == "stopped":
                 break
                 
             if not video["url"]:
-                session.processed_videos += 1
-                session.skipped_videos += 1
+                session.processed_videos = int(session.processed_videos) + 1  # type: ignore
+                session.skipped_videos = int(session.skipped_videos) + 1  # type: ignore
                 db.commit()
                 continue
                 
-            meta = video["metadata"]
+            meta: dict[str, Any] = video["metadata"]
             try:
-                validate_url_ssrf(video["url"])
+                validate_url_ssrf(str(video["url"]))
             except Exception:
-                session.processed_videos += 1
-                session.skipped_videos += 1
+                session.processed_videos = int(session.processed_videos) + 1  # type: ignore
+                session.skipped_videos = int(session.skipped_videos) + 1  # type: ignore
                 db.commit()
                 continue
                 
-            title_raw = meta.get("title")
-            title = title_raw[0] if isinstance(title_raw, list) and title_raw else str(title_raw or "Unknown")
+            title_raw: Any = meta.get("title")
+            title: str = str(title_raw[0]) if isinstance(title_raw, list) and len(title_raw) > 0 else str(title_raw or "Unknown")  # type: ignore
             
             max_items = criteria.get("max_items")
-            if max_items and session.processed_videos >= int(max_items):
-                session.processed_videos += 1
-                session.skipped_videos += 1
+            if max_items and int(cast(int, session.processed_videos)) >= int(max_items):  # type: ignore
+                session.processed_videos = int(session.processed_videos) + 1  # type: ignore
+                session.skipped_videos = int(session.skipped_videos) + 1  # type: ignore
                 db.commit()
                 continue
                 
-            dupe_check = evaluate_duplicate_quality(db, prefs, title, meta)
-            if not dupe_check.get("proceed"):
-                session.processed_videos += 1
-                session.skipped_videos += 1
+            dupe_check: dict[str, Any] = evaluate_duplicate_quality(db, prefs, str(title), meta)  # type: ignore
+            if not dupe_check.get("proceed"):  # type: ignore
+                session.processed_videos = int(session.processed_videos) + 1  # type: ignore
+                session.skipped_videos = int(session.skipped_videos) + 1  # type: ignore
                 db.commit()
                 continue
                 
-            action = evaluate_rules(db, meta, rules, custom_lists_map)
-            if action == "skip":
-                session.processed_videos += 1
-                session.skipped_videos += 1
+            action = evaluate_rules(db, meta, rules, custom_lists_map)  # type: ignore
+            if action == "skip":  # type: ignore
+                session.processed_videos = int(session.processed_videos) + 1  # type: ignore
+                session.skipped_videos = int(session.skipped_videos) + 1  # type: ignore
                 db.commit()
                 continue
                 
@@ -483,9 +487,9 @@ def mass_rip_task(self, session_id: int):
                 DownloadQueue.url == video["url"],
                 DownloadQueue.status.in_(["pending", "running", "queued"])
             ).first()
-            if existing_queue:
-                session.processed_videos += 1
-                session.skipped_videos += 1
+            if existing_queue:  # type: ignore
+                session.processed_videos = int(session.processed_videos) + 1  # type: ignore
+                session.skipped_videos = int(session.skipped_videos) + 1  # type: ignore
                 db.commit()
                 continue
                 
@@ -501,17 +505,17 @@ def mass_rip_task(self, session_id: int):
                 status="pending",
                 progress_percentage=0.0,
                 extraction_method=used_method,
-            )
+            )  # type: ignore
             queue.media_entry = media
             db.add(queue)
             db.flush()
             
-            real_download_task.delay(queue.id, prefs_dict, meta)
+            real_download_task.delay(queue.id, prefs_dict, meta)  # type: ignore
             
-            session.processed_videos += 1
-            session.queued_videos += 1
+            session.processed_videos = int(session.processed_videos) + 1  # type: ignore
+            session.queued_videos = int(session.queued_videos) + 1  # type: ignore
             db.commit()
             
-        if session.status != "stopped":
-            session.status = "completed"
+        if str(session.status) != "stopped":
+            session.status = "completed"  # type: ignore
             db.commit()

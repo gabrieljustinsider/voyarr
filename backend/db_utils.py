@@ -1,6 +1,7 @@
 from contextlib import contextmanager
 import database
-from typing import Optional, Any
+from typing import Optional, Any, cast
+from sqlalchemy.orm import Session
 
 
 @contextmanager
@@ -16,7 +17,7 @@ def get_db_session():
         db.close()
 
 
-def get_or_create_studio_by_name(db, studio_name: str) -> Optional[int]:
+def get_or_create_studio_by_name(db: Session, studio_name: str) -> Optional[int]:
     if not studio_name:
         return None
     studio_name = studio_name.strip()
@@ -27,16 +28,16 @@ def get_or_create_studio_by_name(db, studio_name: str) -> Optional[int]:
     # Case-insensitive query
     studio = db.query(Studio).filter(Studio.name.ilike(studio_name)).first()
     if studio:
-        return studio.id
+        return cast(int, studio.id)
     else:
         # Create a new studio profile
         studio = Studio(name=studio_name)
         db.add(studio)
         db.flush()
-        return studio.id
+        return cast(int, studio.id)
 
 
-def run_schema_migrations(engine):
+def run_schema_migrations(engine: Any) -> None:
     import logging
     logger = logging.getLogger(__name__)
     from sqlalchemy import text
@@ -249,7 +250,7 @@ def run_schema_migrations(engine):
                 logger.warning(f"Failed to create mass_rip_sessions table: {e}")
 
 
-def is_feature_enabled(db, feature: str, user: Optional[Any] = None) -> bool:
+def is_feature_enabled(db: Session, feature: str, user: Optional[Any] = None) -> bool:
     if user is not None and getattr(user, "role", None) == "admin":
         return True
 
@@ -270,25 +271,30 @@ def is_feature_enabled(db, feature: str, user: Optional[Any] = None) -> bool:
         return False
 
     if user is not None:
-        permissions = getattr(user, "permissions", None) or {}
-        if isinstance(permissions, str):
+        permissions = getattr(user, "permissions", None)
+        permissions_dict: dict[str, Any] = {}
+        if isinstance(permissions, dict):
+            permissions_dict = cast(dict[str, Any], permissions)
+        elif isinstance(permissions, str):
             import json
             try:
-                permissions = json.loads(permissions)
+                parsed = json.loads(permissions)
+                if isinstance(parsed, dict):
+                    permissions_dict = cast(dict[str, Any], parsed)
             except Exception:
-                permissions = {}
+                pass
 
         if feature == "streaming":
-            return permissions.get("can_stream", True)
+            return bool(permissions_dict.get("can_stream", True))
         elif feature == "scraping":
-            return permissions.get("can_scrape", False)
+            return bool(permissions_dict.get("can_scrape", False))
         elif feature == "ripping":
-            return permissions.get("can_rip", False)
+            return bool(permissions_dict.get("can_rip", False))
 
     return True
 
 
-def check_feature_permission(db, feature: str, user: Optional[Any] = None):
+def check_feature_permission(db: Session, feature: str, user: Optional[Any] = None) -> None:
     from fastapi import HTTPException
     if not is_feature_enabled(db, feature, user):
         raise HTTPException(
@@ -297,7 +303,7 @@ def check_feature_permission(db, feature: str, user: Optional[Any] = None):
         )
 
 
-def log_admin_action(db, admin_id: Optional[str], admin_username: str, action: str, details: dict):
+def log_admin_action(db: Session, admin_id: Optional[str], admin_username: str, action: str, details: dict[str, Any]) -> None:
     from models import AdminLog
     try:
         log_entry = AdminLog(

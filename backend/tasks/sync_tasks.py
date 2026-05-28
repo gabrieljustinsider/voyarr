@@ -1,27 +1,28 @@
 import logging
 import requests
-from celery import shared_task
-from celery.schedules import crontab
+from celery import shared_task  # type: ignore
+from celery.schedules import crontab  # type: ignore
 from celery_app import celery_app
 from db_utils import get_db_session
 from models import LibraryEntry, Vault, UserVideoStats
 from security import decrypt_data
+from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
 
-@celery_app.on_after_configure.connect
-def setup_periodic_tasks(sender, **kwargs):
+@celery_app.on_after_configure.connect  # type: ignore
+def setup_periodic_tasks(sender: Any, **kwargs: Any) -> None:
     # Run the StashDB fingerprint sync daemon every 6 hours
     sender.add_periodic_task(
         crontab(minute=0, hour="*/6"),
-        sync_fingerprints_to_stashdb.s(),
+        sync_fingerprints_to_stashdb.s(),  # type: ignore
         name="Continuous StashDB Fingerprint Syncing",
     )
 
 
 @shared_task
-def sync_fingerprints_to_stashdb():
+def sync_fingerprints_to_stashdb() -> int | None:
     """
     Background daemon to automatically and continuously push
     calculated hashes (OSHASH, PHASH) to StashDB.
@@ -33,11 +34,11 @@ def sync_fingerprints_to_stashdb():
             .first()
         )
 
-        if not vault_entry or not vault_entry.encrypted_value:
+        if not vault_entry or vault_entry.encrypted_value is None:  # type: ignore
             logger.info("StashDB API key not configured. Skipping background sync.")
             return
 
-        api_key = decrypt_data(vault_entry.encrypted_value)
+        api_key = decrypt_data(str(vault_entry.encrypted_value))
         if not api_key:
             return
 
@@ -56,14 +57,14 @@ def sync_fingerprints_to_stashdb():
             if synced_count >= 50:
                 break
 
-            meta = entry.entry_metadata or {}
+            meta: dict[str, Any] = dict(cast(dict[str, Any], entry.entry_metadata)) if entry.entry_metadata else {}  # type: ignore
             if "stashdb_synced" in meta:
                 continue  # Already successfully synced or marked unmatchable
 
             scene_id = meta.get("stashdb_scene_id")
 
             # 1. Attempt to find the global StashDB Scene ID if unknown
-            if not scene_id and entry.ohash:
+            if not scene_id and entry.ohash:  # type: ignore
                 query = """
                 query SearchScenesByFingerprint($hash: String!) {
                     findScenes(scene_filter: { fingerprints: { value: $hash, modifier: INCLUDES } }) {
@@ -74,7 +75,7 @@ def sync_fingerprints_to_stashdb():
                 try:
                     res = requests.post(
                         "https://stashdb.org/graphql",
-                        json={"query": query, "variables": {"hash": entry.ohash}},
+                        json={"query": query, "variables": {"hash": str(entry.ohash)}},
                         headers=headers,
                         timeout=10,
                     )
@@ -94,7 +95,7 @@ def sync_fingerprints_to_stashdb():
             if not scene_id:
                 # Mark as unmatchable temporarily so we don't get stuck infinitely hammering StashDB
                 meta["stashdb_synced"] = "failed_no_scene_match"
-                entry.entry_metadata = meta.copy()
+                entry.entry_metadata = meta.copy()  # type: ignore
                 db.commit()
                 continue
 
@@ -102,12 +103,12 @@ def sync_fingerprints_to_stashdb():
             from routers.external_api import submit_stashdb_fingerprint
             from routers.external_api import FingerprintSubmitRequest
 
-            for algo, f_hash in [("OSHASH", entry.ohash), ("PHASH", entry.phash)]:
-                if f_hash and f_hash != "0000000000000000":
+            for algo, f_hash in cast(list[tuple[str, Any]], [("OSHASH", entry.ohash), ("PHASH", entry.phash)]):
+                if f_hash and f_hash != "0000000000000000":  # type: ignore
                     try:
                         submit_stashdb_fingerprint(
                             req=FingerprintSubmitRequest(
-                                scene_id=scene_id, hash=f_hash, algorithm=algo
+                                scene_id=str(scene_id) if scene_id else "", hash=str(f_hash), algorithm=str(algo)
                             ),
                             x_api_key=api_key,
                         )
@@ -117,7 +118,7 @@ def sync_fingerprints_to_stashdb():
             # 3. Mark the record as fully synced
             meta["stashdb_scene_id"] = scene_id
             meta["stashdb_synced"] = True
-            entry.entry_metadata = meta.copy()
+            entry.entry_metadata = meta.copy()  # type: ignore
             db.commit()
             synced_count += 1
 
@@ -131,8 +132,8 @@ def sync_fingerprints_to_stashdb():
 
 @shared_task
 def sync_user_stats_with_stash_task(
-    user_id: int, stash_url: str, stash_api_key: str = None
-):
+    user_id: int, stash_url: str, stash_api_key: str | None = None
+) -> dict[str, Any]:
     """Two-way sync of watch counts, climax counts (O-meter), and timestamps with Stash App."""
     from sqlalchemy.orm import defer
 
@@ -144,9 +145,9 @@ def sync_user_stats_with_stash_task(
         local_entries = (
             db.query(LibraryEntry)
             .options(
-                defer(LibraryEntry.entry_metadata),
-                defer(LibraryEntry.performers),
-                defer(LibraryEntry.tags),
+                defer(LibraryEntry.entry_metadata),  # type: ignore
+                defer(LibraryEntry.performers),  # type: ignore
+                defer(LibraryEntry.tags),  # type: ignore
             )
             .yield_per(50)
         )
@@ -164,12 +165,12 @@ def sync_user_stats_with_stash_task(
                 .first()
             )
 
-            local_plays = stats.play_count if stats else 0
-            local_climaxes = stats.climax_count if stats else 0
+            local_plays = int(cast(int, stats.play_count)) if stats and stats.play_count is not None else 0  # type: ignore
+            local_climaxes = int(cast(int, stats.climax_count)) if stats and stats.climax_count is not None else 0  # type: ignore
 
             stash_scene = None
 
-            if entry.ohash:
+            if entry.ohash:  # type: ignore
                 fp_query = """
                 query FindScene($hash: String!) {
                   findScenes(scene_filter: { fingerprints: { value: $hash, modifier: INCLUDES } }) {
@@ -184,7 +185,7 @@ def sync_user_stats_with_stash_task(
                 try:
                     res = requests.post(
                         f"{stash_url.rstrip('/')}/graphql",
-                        json={"query": fp_query, "variables": {"hash": entry.ohash}},
+                        json={"query": fp_query, "variables": {"hash": str(entry.ohash)}},
                         headers=headers,
                         timeout=5,
                     )
@@ -200,7 +201,7 @@ def sync_user_stats_with_stash_task(
                 except Exception:
                     pass
 
-            if not stash_scene and entry.title:
+            if not stash_scene and entry.title:  # type: ignore
                 title_query = """
                 query FindSceneByTitle($title: String!) {
                   findScenes(scene_filter: { title: { value: $title, modifier: EQUALS } }) {
@@ -217,7 +218,7 @@ def sync_user_stats_with_stash_task(
                         f"{stash_url.rstrip('/')}/graphql",
                         json={
                             "query": title_query,
-                            "variables": {"title": entry.title},
+                            "variables": {"title": str(entry.title)},
                         },
                         headers=headers,
                         timeout=5,
@@ -254,8 +255,8 @@ def sync_user_stats_with_stash_task(
                     )
                     db.add(stats)
                 else:
-                    stats.play_count = merged_plays
-                    stats.climax_count = merged_climaxes
+                    stats.play_count = merged_plays  # type: ignore
+                    stats.climax_count = merged_climaxes  # type: ignore
                 updated_local += 1
 
             if merged_plays > stash_plays or merged_climaxes > stash_climaxes:

@@ -1,6 +1,7 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 import os
+from typing import Callable, Awaitable
 from jose import jwt
 from security import JWT_SECRET, ALGORITHM
 from database import engine
@@ -78,7 +79,7 @@ from utils import initialize_network_settings
 initialize_network_settings()
 
 app = FastAPI(
-    title="Voyarr API", version="1.16.2", root_path=os.getenv("ROOT_PATH", "")
+    title="Voyarr API", version="1.16.3", root_path=os.getenv("ROOT_PATH", "")
 )
 
 # CORS
@@ -101,7 +102,9 @@ app.add_middleware(SessionMiddleware, secret_key=JWT_SECRET)
 
 # Middleware to translate JWT to API Key for unified route protection
 @app.middleware("http")
-async def jwt_to_api_key_middleware(request: Request, call_next):
+async def jwt_to_api_key_middleware(
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+) -> Response:
     auth_header = request.headers.get("Authorization")
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header.split(" ")[1]

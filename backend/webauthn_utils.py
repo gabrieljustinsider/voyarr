@@ -2,6 +2,7 @@ import base64
 import hashlib
 import json
 import secrets
+from typing import Dict, Any, List
 
 # AAGUID Metadata dictionary mapping standard authenticators
 AAGUID_METADATA = {
@@ -85,7 +86,7 @@ def resolve_ip_location(ip_address: str) -> str:
     return MOCK_LOCATIONS[idx]
 
 
-def generate_registration_options(user_id: str, username: str, rp_id: str = "localhost") -> dict:
+def generate_registration_options(user_id: str, username: str, rp_id: str = "localhost") -> Dict[str, Any]:
     """Generates options for navigator.credentials.create in frontend."""
     challenge = base64.b64encode(secrets.token_bytes(32)).decode("utf-8").replace("=", "")
     
@@ -114,7 +115,7 @@ def generate_registration_options(user_id: str, username: str, rp_id: str = "loc
     }
 
 
-def generate_assertion_options(allowed_credentials: list, rp_id: str = "localhost") -> dict:
+def generate_assertion_options(allowed_credentials: List[str], rp_id: str = "localhost") -> Dict[str, Any]:
     """Generates options for navigator.credentials.get in frontend."""
     challenge = base64.b64encode(secrets.token_bytes(32)).decode("utf-8").replace("=", "")
     
@@ -148,7 +149,7 @@ def verify_client_data_challenge(client_data_json_b64: str, expected_challenge: 
         return False
 
 
-def get_aaguid_metadata(aaguid: str) -> dict:
+def get_aaguid_metadata(aaguid: str) -> Dict[str, Any]:
     """Resolves standard brand name, provider, and icon SVGs from aaguid."""
     if not aaguid:
         return {
@@ -212,4 +213,3 @@ def verify_assertion_signature(
     except Exception as e:
         print(f"WebAuthn signature verification failed: {e}")
         return False
-

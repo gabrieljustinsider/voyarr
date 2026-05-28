@@ -1,14 +1,15 @@
 import requests
 import json
 from datetime import datetime, timezone
-from celery import shared_task
+from celery import shared_task  # type: ignore
 from croniter import croniter
 from db_utils import get_db_session
 from models import PeerNode, PeerSyncLog, Provider, SiteRecipe, LibraryEntry, Settings
+from typing import Any, cast
 
 
 @shared_task
-def sync_with_peer_task(peer_id: int):
+def sync_with_peer_task(peer_id: int) -> None:
     """
     Executes outbound sync process with a trusted peer:
     1. Dynamic connection ping
@@ -23,12 +24,12 @@ def sync_with_peer_task(peer_id: int):
             print(f"P2P Sync Error: Peer node {peer_id} not found.")
             return
 
-        peer.status = "syncing"
+        peer.status = "syncing"  # type: ignore
         db.commit()
 
-        api_headers = {
-            "x-api-key": peer.outbound_key,
-            "X-P2P-Token": peer.outbound_key,
+        api_headers: dict[str, str] = {
+            "x-api-key": str(peer.outbound_key),
+            "X-P2P-Token": str(peer.outbound_key),
             "Content-Type": "application/json",
         }
         peer_url = peer.peer_url.rstrip("/")
@@ -58,7 +59,7 @@ def sync_with_peer_task(peer_id: int):
             pulled_providers = pull_data.get("providers", [])
             pulled_recipes = pull_data.get("recipes", [])
 
-            if peer.recipe_sync_mode == "manual_review":
+            if str(peer.recipe_sync_mode) == "manual_review":
                 # Hold in Proposed review queue inside Settings
                 proposed_setting = (
                     db.query(Settings)
@@ -66,7 +67,7 @@ def sync_with_peer_task(peer_id: int):
                     .first()
                 )
                 if proposed_setting:
-                    proposed_list = json.loads(proposed_setting.value)
+                    proposed_list: list[dict[str, Any]] = json.loads(str(proposed_setting.value))
                 else:
                     proposed_list = []
                     proposed_setting = Settings(key="p2p_proposed_recipes", value="[]")
@@ -77,7 +78,7 @@ def sync_with_peer_task(peer_id: int):
                     item for item in proposed_list if item.get("peer_id") != peer.id
                 ]
 
-                proposed_item = {
+                proposed_item: dict[str, Any] = {
                     "peer_id": peer.id,
                     "peer_name": peer.name,
                     "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -86,7 +87,7 @@ def sync_with_peer_task(peer_id: int):
                     "status": "pending",
                 }
                 proposed_list.append(proposed_item)
-                proposed_setting.value = json.dumps(proposed_list)
+                proposed_setting.value = json.dumps(proposed_list)  # type: ignore
                 recipes_synced_count = len(pulled_recipes)
                 db.commit()
                 print(
@@ -104,10 +105,10 @@ def sync_with_peer_task(peer_id: int):
                         db.query(Provider).filter(Provider.name == prov_name).first()
                     )
                     if not db_prov:
-                        p_details = next(
+                        p_details = cast(dict[str, Any], next(
                             (p for p in pulled_providers if p.get("name") == prov_name),
-                            {},
-                        )
+                            cast(dict[str, Any], {}),
+                        ))
                         db_prov = Provider(
                             name=prov_name,
                             base_url=p_details.get(
@@ -163,7 +164,7 @@ def sync_with_peer_task(peer_id: int):
             local_providers = db.query(Provider).all()
             local_recipes = db.query(SiteRecipe).all()
 
-            providers_payload = []
+            providers_payload: list[dict[str, Any]] = []
             for p in local_providers:
                 providers_payload.append(
                     {
@@ -177,7 +178,7 @@ def sync_with_peer_task(peer_id: int):
                     }
                 )
 
-            recipes_payload = []
+            recipes_payload: list[dict[str, Any]] = []
             for r in local_recipes:
                 prov = db.query(Provider).filter(Provider.id == r.provider_id).first()
                 if not prov:
@@ -205,14 +206,14 @@ def sync_with_peer_task(peer_id: int):
             local_entries_query = db.query(LibraryEntry)
 
             # Filter by privacy scope if specified
-            if peer.library_scope == "specific_providers":
+            if str(peer.library_scope) == "specific_providers":
                 allowed_ids = peer.allowed_providers or []
                 local_entries_query = local_entries_query.filter(
-                    LibraryEntry.provider_id.in_(allowed_ids)
+                    LibraryEntry.provider_id.in_(cast(list[Any], allowed_ids))
                 )
 
             local_entries = local_entries_query.all()
-            entries_payload = []
+            entries_payload: list[dict[str, Any]] = []
             for entry in local_entries:
                 prov = (
                     db.query(Provider).filter(Provider.id == entry.provider_id).first()
@@ -276,21 +277,21 @@ def sync_with_peer_task(peer_id: int):
                     modified = False
 
                     # Merge performers
-                    new_perfs = update.get("new_performers") or []
+                    new_perfs: list[str] = update.get("new_performers") or []
                     if new_perfs:
-                        current_perfs = target_entry.performers or []
+                        current_perfs = cast(list[str], target_entry.performers) or []
                         merged_perfs = list(set(current_perfs + new_perfs))
                         if len(merged_perfs) > len(current_perfs):
-                            target_entry.performers = merged_perfs
+                            target_entry.performers = merged_perfs  # type: ignore
                             modified = True
 
                     # Merge tags
-                    new_tags = update.get("new_tags") or []
+                    new_tags: list[str] = update.get("new_tags") or []
                     if new_tags:
-                        current_tags = target_entry.tags or []
+                        current_tags = cast(list[str], target_entry.tags) or []
                         merged_tags = list(set(current_tags + new_tags))
                         if len(merged_tags) > len(current_tags):
-                            target_entry.tags = merged_tags
+                            target_entry.tags = merged_tags  # type: ignore
                             modified = True
 
                     # Update resolution if peer recommended a better one
@@ -300,9 +301,7 @@ def sync_with_peer_task(peer_id: int):
                         modified = True
 
                     if modified:
-                        target_entry.last_updated = datetime.now(timezone.utc).replace(
-                            tzinfo=None
-                        )
+                        target_entry.last_updated = datetime.now(timezone.utc).replace(tzinfo=None)  # type: ignore
                         media_synced_count += 1
 
             db.commit()
@@ -316,8 +315,8 @@ def sync_with_peer_task(peer_id: int):
             print(f"P2P Sync Exception on peer {peer_id}: {error_msg}")
 
         # 5. LOG RESULTS & UPDATE PEER STATUS
-        peer.status = "active" if sync_status == "success" else "error"
-        peer.last_sync_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        peer.status = "active" if sync_status == "success" else "error"  # type: ignore
+        peer.last_sync_at = datetime.now(timezone.utc).replace(tzinfo=None)  # type: ignore
 
         # Write Log Entry
         sync_log = PeerSyncLog(
@@ -333,7 +332,7 @@ def sync_with_peer_task(peer_id: int):
 
 
 @shared_task
-def p2p_sync_scheduler():
+def p2p_sync_scheduler() -> None:
     """
     Periodic task to scan active peers, parse schedules (using croniter),
     and dispatch sync tasks to workers.
@@ -346,33 +345,33 @@ def p2p_sync_scheduler():
 
         for peer in peers:
             # Check if sync is due
-            if peer.next_run is None or peer.next_run <= now:
+            if peer.next_run is None or peer.next_run <= now:  # type: ignore
                 print(
                     f"P2P Sync Scheduler: Triggering automated sync for '{peer.name}' (Schedule: {peer.sync_schedule})"
                 )
 
                 # Dispatch background celery worker execution
-                sync_with_peer_task.delay(peer.id)
+                sync_with_peer_task.delay(peer.id)  # type: ignore
 
                 # Calculate next run cycle
                 cron_str = None
-                if peer.sync_schedule == "daily":
+                if str(peer.sync_schedule) == "daily":
                     cron_str = "0 2 * * *"
-                elif peer.sync_schedule == "weekly":
+                elif str(peer.sync_schedule) == "weekly":
                     cron_str = "0 2 * * 0"
                 else:
                     # Custom cron expression
                     cron_str = peer.sync_schedule
 
                 try:
-                    iter_cron = croniter(cron_str, now)
-                    peer.next_run = iter_cron.get_next(datetime)
+                    iter_cron = croniter(str(cron_str), now)
+                    peer.next_run = iter_cron.get_next(datetime)  # type: ignore
                 except Exception as cron_err:
                     print(
                         f"P2P Sync Scheduler Error parsing cron '{cron_str}' for peer {peer.id}: {cron_err}"
                     )
                     # Deactivate automated sync on cron parsing errors to avoid endless looping
-                    peer.sync_schedule = "manual"
-                    peer.status = "error"
+                    peer.sync_schedule = "manual"  # type: ignore
+                    peer.status = "error"  # type: ignore
 
             db.commit()

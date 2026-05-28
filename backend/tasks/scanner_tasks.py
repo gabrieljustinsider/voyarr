@@ -1,16 +1,16 @@
 import os
 import re
-from celery import shared_task
+from celery import shared_task  # type: ignore
 from models import LibraryEntry, Provider
 from services.hash_service import HashService
 from services.media_tagger import MediaTagger
-from typing import Optional
+from typing import Any, Optional, cast
 from utils import get_media_roots
 from db_utils import get_db_session, get_or_create_studio_by_name
 
 
 @shared_task
-def scan_library_task(directory: Optional[str], provider_id: int):
+def scan_library_task(directory: Optional[str], provider_id: int) -> dict[str, Any]:
     """
     Scans target directories, reverse-engineers metadata from filenames
     using the Provider's naming pattern, calculates hashes, and saves to DB.
@@ -18,25 +18,25 @@ def scan_library_task(directory: Optional[str], provider_id: int):
     with get_db_session() as db:
         try:
             provider = db.query(Provider).filter(Provider.id == provider_id).first()
-            if not provider or not provider.naming_pattern:
+            if not provider or not provider.naming_pattern:  # type: ignore
                 return {"error": "Provider or naming pattern not found"}
 
-            cached_studio_id = get_or_create_studio_by_name(db, provider.name)
+            cached_studio_id = get_or_create_studio_by_name(db, str(provider.name))
 
             # Transform the Voyarr naming pattern (e.g., {title}_{performers}) into a Regex pattern
-            pattern = provider.naming_pattern
+            pattern = str(provider.naming_pattern)
             pattern = pattern.replace("{title}", "(?P<title>.*?)")
             pattern = pattern.replace("{performers}", "(?P<performers>.*?)")
             pattern = pattern.replace("{resolution}", "(?P<resolution>.*?)")
 
-            cached_provider_id = provider.id
-            cached_separator = provider.separator
+            cached_provider_id = int(cast(int, provider.id)) if provider.id else provider_id  # type: ignore
+            cached_separator = str(provider.separator) if provider.separator else "_"  # type: ignore
 
             regex = re.compile(pattern)
             processed = 0
 
             media_roots = get_media_roots()
-            target_dirs = []
+            target_dirs: list[str] = []
             if directory:
                 real_dir = os.path.realpath(directory)
                 is_valid = any(
@@ -118,7 +118,7 @@ def scan_library_task(directory: Optional[str], provider_id: int):
                                     NotificationService,
                                 )
 
-                                NotificationService.check_and_notify_favorites(
+                                NotificationService.check_and_notify_favorites(  # type: ignore
                                     db, entry
                                 )
                             except Exception as fav_err:
@@ -149,7 +149,7 @@ def scan_library_task(directory: Optional[str], provider_id: int):
 
 
 @shared_task
-def process_missing_hashes_task():
+def process_missing_hashes_task() -> dict[str, Any]:
     """
     Scans the database for LibraryEntries missing either an ohash or phash
     and attempts to regenerate them based on the local file.
@@ -160,9 +160,9 @@ def process_missing_hashes_task():
         entries = (
             db.query(LibraryEntry)
             .options(
-                defer(LibraryEntry.entry_metadata),
-                defer(LibraryEntry.performers),
-                defer(LibraryEntry.tags),
+                defer(LibraryEntry.entry_metadata),  # type: ignore
+                defer(LibraryEntry.performers),  # type: ignore
+                defer(LibraryEntry.tags),  # type: ignore
             )
             .filter((LibraryEntry.phash.is_(None)) | (LibraryEntry.phash == ""))
             .yield_per(50)
@@ -171,10 +171,10 @@ def process_missing_hashes_task():
         processed = 0
         for entry in entries:
             try:
-                if os.path.exists(entry.file_path):
-                    if not entry.ohash or entry.ohash == "0000000000000000":
-                        entry.ohash = HashService.generate_ohash(entry.file_path)
-                    entry.phash = HashService.generate_phash(entry.file_path)
+                if os.path.exists(str(entry.file_path)):  # type: ignore
+                    if not entry.ohash or entry.ohash == "0000000000000000":  # type: ignore
+                        entry.ohash = HashService.generate_ohash(str(entry.file_path))  # type: ignore
+                    entry.phash = HashService.generate_phash(str(entry.file_path))  # type: ignore
                     db.commit()
                     processed += 1
             except Exception as e:

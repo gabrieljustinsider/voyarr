@@ -5,18 +5,19 @@ import socket
 from fastapi import HTTPException
 from db_utils import get_db_session
 from models import Settings
+from typing import Any, List
 
 
-def get_media_roots():
+def get_media_roots() -> List[str]:
     """Parse the media_root_path setting from DB, fallback to CONTAINER_MEDIA_PATHS env var, and return a list of all configured media roots. Resolves symlinks and normalizes paths."""
-    db_paths = None
+    db_paths: str | None = None
     try:
         with get_db_session() as db:
             setting = (
                 db.query(Settings).filter(Settings.key == "media_root_path").first()
             )
-            if setting and setting.value:
-                db_paths = setting.value
+            if setting and setting.value is not None:
+                db_paths = str(setting.value)
     except Exception as e:
         print(f"Error fetching media_root_path from DB: {e}")
 
@@ -25,7 +26,7 @@ def get_media_roots():
 
     # Split by comma, strip whitespace, remove empty entries, and normalize paths
     paths = [p.strip() for p in db_paths.split(",") if p.strip()]
-    normalized_roots = []
+    normalized_roots: List[str] = []
     for p in paths:
         real_p = os.path.realpath(os.path.expanduser(p))
         if real_p not in normalized_roots:
@@ -34,13 +35,13 @@ def get_media_roots():
     return normalized_roots
 
 
-def get_primary_root():
+def get_primary_root() -> str:
     """Return the primary (first) configured media root as the default fallback."""
     roots = get_media_roots()
     return roots[0] if roots else "/media/storage"
 
 
-def get_default_download_path():
+def get_default_download_path() -> str:
     """Return the default download path configured in environment or based on primary root."""
     env_path = os.getenv("DEFAULT_DOWNLOAD_PATH")
     if env_path:
@@ -59,8 +60,8 @@ def initialize_network_settings():
         from security import decrypt_data
 
         proxy_enabled = False
-        proxy_url = None
-        user_agent = None
+        proxy_url: str | None = None
+        user_agent: str | None = None
 
         with get_db_session() as db:
             # Query standard settings
@@ -72,7 +73,7 @@ def initialize_network_settings():
                 if s.key == "global_proxy_enabled":
                     proxy_enabled = s.value == "true"
                 elif s.key == "global_user_agent":
-                    user_agent = s.value
+                    user_agent = str(s.value) if s.value is not None else None
 
             # Query secure settings from Vault
             db_vault = (
@@ -83,9 +84,9 @@ def initialize_network_settings():
                 )
                 .first()
             )
-            if db_vault and db_vault.encrypted_value:
+            if db_vault and db_vault.encrypted_value is not None:
                 try:
-                    proxy_url = decrypt_data(db_vault.encrypted_value)
+                    proxy_url = decrypt_data(str(db_vault.encrypted_value))
                 except Exception as ex:
                     print(f"Error decrypting global_proxy_url: {ex}")
                     proxy_url = None
@@ -97,15 +98,15 @@ def initialize_network_settings():
                     .filter(Settings.key == "global_proxy_url")
                     .first()
                 )
-                if db_proxy_url_setting:
-                    proxy_url = db_proxy_url_setting.value
+                if db_proxy_url_setting and db_proxy_url_setting.value is not None:
+                    proxy_url = str(db_proxy_url_setting.value)
 
         # Apply proxy environments dynamically
         if proxy_enabled and proxy_url:
-            os.environ["HTTP_PROXY"] = proxy_url
-            os.environ["HTTPS_PROXY"] = proxy_url
-            os.environ["ALL_PROXY"] = proxy_url
-            os.environ["GLOBAL_PROXY_URL"] = proxy_url
+            os.environ["HTTP_PROXY"] = str(proxy_url)
+            os.environ["HTTPS_PROXY"] = str(proxy_url)
+            os.environ["ALL_PROXY"] = str(proxy_url)
+            os.environ["GLOBAL_PROXY_URL"] = str(proxy_url)
             os.environ["GLOBAL_PROXY_ENABLED"] = "true"
         else:
             # Purge dynamic variables from environment safely
@@ -116,8 +117,8 @@ def initialize_network_settings():
             os.environ.pop("GLOBAL_PROXY_ENABLED", None)
 
         # Apply global User-Agent environment dynamically
-        if user_agent:
-            os.environ["DEFAULT_USER_AGENT"] = user_agent
+        if user_agent is not None:
+            os.environ["DEFAULT_USER_AGENT"] = str(user_agent)
         else:
             os.environ.pop("DEFAULT_USER_AGENT", None)
 
@@ -140,7 +141,7 @@ def validate_url_ssrf(url_str: str):
         hostname = parsed.hostname.lower() if parsed.hostname else ""
 
         try:
-            def is_disallowed_ip(ip_str_or_obj):
+            def is_disallowed_ip(ip_str_or_obj: Any) -> bool:
                 try:
                     ip_obj = (
                         ipaddress.ip_address(ip_str_or_obj)
@@ -152,7 +153,7 @@ def validate_url_ssrf(url_str: str):
                     if isinstance(ip_obj, ipaddress.IPv6Address) and ip_obj.ipv4_mapped:
                         ip_obj = ip_obj.ipv4_mapped
 
-                    return (
+                    return bool(
                         ip_obj.is_loopback
                         or ip_obj.is_private
                         or ip_obj.is_link_local

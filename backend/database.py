@@ -5,14 +5,16 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
+db_url = os.getenv("DATABASE_URL")
+if not db_url:
     db_user = os.getenv("POSTGRES_USER") or "voyarr_user"
     db_pass = os.getenv("POSTGRES_PASSWORD") or "password"
     db_host = os.getenv("POSTGRES_HOST") or "db"
     db_port = os.getenv("POSTGRES_PORT") or "5432"
     db_name = os.getenv("POSTGRES_DB") or "voyarr"
-    DATABASE_URL = f"postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
+    db_url = f"postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
+
+DATABASE_URL = db_url
 
 # Dialect-aware connection pooling to optimize performance and prevent starvation
 if DATABASE_URL.startswith("sqlite"):

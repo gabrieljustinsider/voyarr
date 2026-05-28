@@ -51,23 +51,26 @@ def main():
     ssl_cert_path = os.getenv("SSL_CERT_PATH")
     ssl_key_path = os.getenv("SSL_KEY_PATH")
     
-    run_kwargs = {
-        "app": "main:app",
-        "host": host,
-        "port": port,
-        "log_level": "info",
-        "proxy_headers": True,
-        "forwarded_allow_ips": "*"
-    }
+    ssl_certfile = None
+    ssl_keyfile = None
     
     if ssl_cert_path and ssl_key_path and os.path.exists(ssl_cert_path) and os.path.exists(ssl_key_path):
-        run_kwargs["ssl_certfile"] = ssl_cert_path
-        run_kwargs["ssl_keyfile"] = ssl_key_path
+        ssl_certfile = ssl_cert_path
+        ssl_keyfile = ssl_key_path
         logger.info("Starting uvicorn with SSL/TLS enabled.")
     elif ssl_cert_path or ssl_key_path:
         logger.warning("SSL configuration incomplete or files not found. Starting without SSL.")
 
-    uvicorn.run(**run_kwargs)
+    uvicorn.run(
+        "main:app",
+        host=host,
+        port=port,
+        log_level="info",
+        proxy_headers=True,
+        forwarded_allow_ips="*",
+        ssl_certfile=ssl_certfile,
+        ssl_keyfile=ssl_keyfile
+    )
 
 if __name__ == "__main__":
     main()

@@ -10,7 +10,7 @@ from services.hash_service import HashService
 from db_utils import get_db_session
 
 
-def rescan_missing_hashes():
+def rescan_missing_hashes() -> None:
     """
     Scans the database for LibraryEntries missing either an ohash or phash
     and attempts to regenerate them based on the local file.
@@ -24,9 +24,9 @@ def rescan_missing_hashes():
         entries = (
             db.query(LibraryEntry)
             .options(
-                defer(LibraryEntry.entry_metadata),
-                defer(LibraryEntry.performers),
-                defer(LibraryEntry.tags),
+                defer(LibraryEntry.entry_metadata),  # type: ignore
+                defer(LibraryEntry.performers),  # type: ignore
+                defer(LibraryEntry.tags),  # type: ignore
             )
             .filter(
                 or_(
@@ -42,7 +42,7 @@ def rescan_missing_hashes():
         found_any = False
         for entry in entries:
             found_any = True
-            if not os.path.exists(entry.file_path):
+            if not os.path.exists(str(entry.file_path)):
                 print(
                     f"File missing on disk for entry #{entry.id} ({entry.title}), skipping."
                 )
@@ -50,18 +50,18 @@ def rescan_missing_hashes():
 
             updated = False
 
-            if not entry.ohash or entry.ohash == "":
+            if not entry.ohash or entry.ohash == "":  # type: ignore
                 print(f"Generating ohash for {entry.file_path}...")
                 try:
-                    entry.ohash = HashService.generate_ohash(entry.file_path)
+                    entry.ohash = HashService.generate_ohash(str(entry.file_path))  # type: ignore
                     updated = True
                 except Exception as e:
                     print(f"Failed to generate ohash: {e}")
 
-            if not entry.phash or entry.phash == "":
+            if not entry.phash or entry.phash == "":  # type: ignore
                 print(f"Generating phash for {entry.file_path}...")
                 try:
-                    entry.phash = HashService.generate_phash(entry.file_path)
+                    entry.phash = HashService.generate_phash(str(entry.file_path))  # type: ignore
                     updated = True
                 except Exception as e:
                     print(f"Failed to generate phash: {e}")

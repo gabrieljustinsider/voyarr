@@ -1,20 +1,21 @@
 import os
 import json
 from datetime import datetime, timezone
-from celery import shared_task
+from celery import shared_task  # type: ignore
 from models import Base
 from routers.backup import CustomJSONEncoder
 from utils import get_primary_root
 from db_utils import get_db_session
 from celery_utils import single_instance_task
+from typing import Any
 
 
 @shared_task
 @single_instance_task(timeout_seconds=3600)
-def automated_backup():
+def automated_backup() -> None:
     with get_db_session() as db:
         try:
-            data = {
+            data: dict[str, Any] = {
                 "type": "full",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "version": "1.0",

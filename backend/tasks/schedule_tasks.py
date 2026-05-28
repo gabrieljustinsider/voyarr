@@ -1,16 +1,17 @@
 import os
 import requests
-from celery import shared_task
+from celery import shared_task  # type: ignore
 from models import ScrapeSchedule
 from datetime import datetime, timezone
 from croniter import croniter
 from db_utils import get_db_session
 from celery_utils import single_instance_task
+from typing import cast
 
 
 @shared_task
 @single_instance_task(timeout_seconds=55)
-def process_schedules():
+def process_schedules() -> None:
     with get_db_session() as db:
         try:
             now = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -34,40 +35,38 @@ def process_schedules():
 
                     # Calculate and save the next run cycle BEFORE execution to prevent infinite loops on failure
                     try:
-                        iter_cron = croniter(schedule.cron_expression, now)
-                        schedule.next_run = iter_cron.get_next(datetime)
-                        schedule.last_run = now
+                        iter_cron = croniter(str(schedule.cron_expression), now)
+                        schedule.next_run = iter_cron.get_next(datetime)  # type: ignore
+                        schedule.last_run = now  # type: ignore
                     except Exception as cron_err:
-                        schedule.is_active = False
-                        schedule.last_run_status = "error"
-                        schedule.last_run_details = (
-                            f"Invalid cron expression, deactivated. Error: {cron_err}"
-                        )
+                        schedule.is_active = False  # type: ignore
+                        schedule.last_run_status = "error"  # type: ignore
+                        schedule.last_run_details = f"Invalid cron expression, deactivated. Error: {cron_err}"  # type: ignore
                         db.commit()
                         continue
 
                     db.commit()
 
                     # Call the internal FastAPI mass_rip endpoint to ingest the target URL and run it against rules
-                    if hasattr(schedule, "target_url") and schedule.target_url:
+                    if hasattr(schedule, "target_url") and schedule.target_url:  # type: ignore
                         response = requests.post(
                             f"{api_base}/download/mass_rip",
                             json={
-                                "provider_id": schedule.provider_id,
-                                "url": schedule.target_url,
-                                "action": schedule.action,
+                                "provider_id": int(cast(int, schedule.provider_id)),
+                                "url": str(schedule.target_url),
+                                "action": str(schedule.action),
                             },
                             headers={"X-Voyarr-Api-Key": api_key},
                             timeout=120,
                         )
                         response.raise_for_status()
 
-                    schedule.last_run_status = "success"
-                    schedule.last_run_details = "Triggered successfully"
+                    schedule.last_run_status = "success"  # type: ignore
+                    schedule.last_run_details = "Triggered successfully"  # type: ignore
                     db.commit()
                 except Exception as e:
-                    schedule.last_run_status = "error"
-                    schedule.last_run_details = str(e)
+                    schedule.last_run_status = "error"  # type: ignore
+                    schedule.last_run_details = str(e)  # type: ignore
                     db.commit()
                     print(f"Error executing schedule {schedule.id}: {str(e)}")
         except Exception as e:
@@ -75,7 +74,7 @@ def process_schedules():
 
 
 @shared_task
-def auto_sync_credentials():
+def auto_sync_credentials() -> None:
     with get_db_session() as db:
         try:
             from models import Settings
@@ -89,8 +88,8 @@ def auto_sync_credentials():
                 db.query(Settings).filter(Settings.key == "pm_sync_direction").first()
             )
 
-            interval = interval_setting.value if interval_setting else "disabled"
-            direction = direction_setting.value if direction_setting else "pull"
+            interval = str(interval_setting.value) if interval_setting and interval_setting.value is not None else "disabled"  # type: ignore
+            direction = str(direction_setting.value) if direction_setting and direction_setting.value is not None else "pull"  # type: ignore
 
             if direction not in ["pull", "push"]:
                 direction = "pull"

@@ -1,8 +1,9 @@
-from celery import shared_task
+from celery import shared_task  # type: ignore
 import os
 from models import LibraryEntry, DuplicateEntry
 from db_utils import get_db_session
 from celery_utils import single_instance_task
+from typing import Any, cast
 
 try:
     import imagehash
@@ -10,7 +11,7 @@ except ImportError:
     imagehash = None
 
 
-def merge_duplicate_pair(db, keep_id: int, delete_id: int):
+def merge_duplicate_pair(db: Any, keep_id: int, delete_id: int) -> bool:
     """
     Merges metadata from delete_id into keep_id, deletes the physical file of delete_id,
     and removes the delete_id from the database.
@@ -23,31 +24,31 @@ def merge_duplicate_pair(db, keep_id: int, delete_id: int):
 
     # Merge metadata
     # 1. Tags
-    keep_tags = set(keep_entry.tags or [])
-    delete_tags = set(delete_entry.tags or [])
-    keep_entry.tags = list(keep_tags.union(delete_tags))
+    keep_tags = set(cast(list[str], keep_entry.tags) or [])
+    delete_tags = set(cast(list[str], delete_entry.tags) or [])
+    keep_entry.tags = list(keep_tags.union(delete_tags))  # type: ignore
 
     # 2. Performers
-    keep_performers = set(keep_entry.performers or [])
-    delete_performers = set(delete_entry.performers or [])
-    keep_entry.performers = list(keep_performers.union(delete_performers))
+    keep_performers = set(cast(list[str], keep_entry.performers) or [])
+    delete_performers = set(cast(list[str], delete_entry.performers) or [])
+    keep_entry.performers = list(keep_performers.union(delete_performers))  # type: ignore
 
     # 3. Studio
     if not keep_entry.studio_id and delete_entry.studio_id:
         keep_entry.studio_id = delete_entry.studio_id
 
     # 4. JSON metadata (shallow merge)
-    keep_meta = dict(keep_entry.entry_metadata or {})
-    delete_meta = delete_entry.entry_metadata or {}
+    keep_meta = dict(cast(dict[str, Any], keep_entry.entry_metadata) or {})
+    delete_meta = cast(dict[str, Any], delete_entry.entry_metadata) or {}
     for k, v in delete_meta.items():
         if k not in keep_meta or keep_meta[k] is None:
             keep_meta[k] = v
-    keep_entry.entry_metadata = keep_meta
+    keep_entry.entry_metadata = keep_meta  # type: ignore
 
     # Delete physical file
-    if delete_entry.file_path and os.path.exists(delete_entry.file_path):
+    if delete_entry.file_path and os.path.exists(str(delete_entry.file_path)):
         try:
-            os.remove(delete_entry.file_path)
+            os.remove(str(delete_entry.file_path))
         except Exception as e:
             print(f"Warning: could not delete file {delete_entry.file_path}: {e}")
 
@@ -60,7 +61,7 @@ def merge_duplicate_pair(db, keep_id: int, delete_id: int):
 
 @shared_task
 @single_instance_task(timeout_seconds=3600)
-def scan_for_duplicates():
+def scan_for_duplicates() -> None:
     """
     Iterates through the library comparing perceptual hashes.
     Populates the duplicate_entries table for user review.
@@ -100,8 +101,8 @@ def scan_for_duplicates():
                     continue
 
                 try:
-                    hash1 = imagehash.hex_to_hash(entry1.phash)
-                    hash2 = imagehash.hex_to_hash(entry2.phash)
+                    hash1 = imagehash.hex_to_hash(str(entry1.phash))
+                    hash2 = imagehash.hex_to_hash(str(entry2.phash))
 
                     # 64-bit hash max difference is 64
                     diff = hash1 - hash2
