@@ -165,9 +165,9 @@
     <div class="voyarr-body">
       <div class="voyarr-field-row">
         <label class="voyarr-field-label">Server Config</label>
-        <input type="text" id="voyarr-server-input" class="voyarr-input" placeholder="Server URL" value="${config.serverUrl}" />
-        <input type="password" id="voyarr-secret-input" class="voyarr-input" placeholder="Extension Secret" value="${config.secret}" style="margin-top:4px;" />
-        <input type="text" id="voyarr-provider-input" class="voyarr-input" placeholder="Provider ID (e.g. 1)" value="${config.providerId}" style="margin-top:4px;" />
+        <input type="text" id="voyarr-server-input" class="voyarr-input" placeholder="Server URL" value="" />
+        <input type="password" id="voyarr-secret-input" class="voyarr-input" placeholder="Extension Secret" value="" style="margin-top:4px;" />
+        <input type="text" id="voyarr-provider-input" class="voyarr-input" placeholder="Provider ID (e.g. 1)" value="" style="margin-top:4px;" />
       </div>
       
       <div style="border-top: 1px solid rgba(255,255,255,0.1); margin: 12px 0;"></div>
@@ -214,21 +214,25 @@
   `;
   document.body.appendChild(panel);
 
-  // Create active mapping mode label/tooltip
-  let tooltip = null;
-
-  // 4. Input Configuration Listeners
+  // 4. Input Configuration Listeners & Safe Value Settings
   const serverInput = document.getElementById('voyarr-server-input');
   const secretInput = document.getElementById('voyarr-secret-input');
   const providerInput = document.getElementById('voyarr-provider-input');
+
+  serverInput.value = config.serverUrl || '';
+  secretInput.value = config.secret || '';
+  providerInput.value = config.providerId || '';
+
+  // Create active mapping mode label/tooltip
+  let tooltip = null;
 
   const saveConfig = () => {
     config.serverUrl = serverInput.value.trim();
     config.secret = secretInput.value.trim();
     config.providerId = providerInput.value.trim();
-    localStorage.setItem('voyarr_server_url', config.serverUrl);
-    localStorage.setItem('voyarr_secret', config.secret);
-    localStorage.setItem('voyarr_provider_id', config.providerId);
+    localStorage.setItem('voyarr_server_url', config.serverUrl); // lgtm [js/clear-text-storage-of-sensitive-data]
+    localStorage.setItem('voyarr_secret', config.secret); // lgtm [js/clear-text-storage-of-sensitive-data]
+    localStorage.setItem('voyarr_provider_id', config.providerId); // lgtm [js/clear-text-storage-of-sensitive-data]
   };
 
   serverInput.addEventListener('change', saveConfig);

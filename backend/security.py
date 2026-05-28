@@ -4,7 +4,7 @@ from cryptography.fernet import Fernet
 from dotenv import load_dotenv
 import secrets
 import hashlib
-import bcrypt
+from argon2 import PasswordHasher
 from jose import jwt
 from datetime import datetime, timedelta, timezone
 
@@ -49,19 +49,17 @@ def decrypt_data(encrypted_data: str) -> str:
         return ""  # Safe fallback to prevent leaking encrypted ciphertexts or bypassing encryption wrappers
 
 
+ph = PasswordHasher()
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    pre_hashed = hashlib.sha256(plain_password.encode("utf-8")).hexdigest()
     try:
-        return bcrypt.checkpw(pre_hashed.encode("utf-8"), hashed_password.encode("utf-8"))
+        return ph.verify(hashed_password, plain_password)
     except Exception:
         return False
 
 
 def get_password_hash(password: str) -> str:
-    # Pre-hash using SHA-256 hex digest to avoid bcrypt's 72-byte limit
-    pre_hashed = hashlib.sha256(password.encode("utf-8")).hexdigest()
-    hashed = bcrypt.hashpw(pre_hashed.encode("utf-8"), bcrypt.gensalt())
-    return hashed.decode("utf-8")
+    return ph.hash(password)
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:

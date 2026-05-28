@@ -66,11 +66,36 @@ def create_credential(cred: CredentialCreate, db: Session = Depends(get_db)):
         )
 
 
+@router.get("")
+def list_credentials(db: Session = Depends(get_db)):
+    creds = db.query(Credential).all()
+    out = []
+    for cred in creds:
+        vault_items = db.query(Vault).filter_by(entity_type="credential", entity_id=cred.id).all()
+        vault_dict = {item.key: decrypt_data(item.encrypted_value) for item in vault_items}
+        out.append({
+            "id": cred.id,
+            "provider_id": cred.provider_id,
+            "username": vault_dict.get("username", ""),
+            "password": vault_dict.get("password", ""),
+            "custom_limits": cred.custom_limits or {},
+            "sync_source": cred.sync_source,
+            "created_at": cred.created_at,
+        })
+    return out
+
+
 @router.get("/{provider_id}")
 def get_credentials(provider_id: int, db: Session = Depends(get_db)):
     cred = db.query(Credential).filter(Credential.provider_id == provider_id).first()
     if not cred:
-        raise HTTPException(status_code=404, detail="Credentials not found")
+        return {
+            "provider_id": provider_id,
+            "username": "",
+            "password": "",
+            "custom_limits": {},
+            "sync_source": "manual",
+        }
 
     vault_items = (
         db.query(Vault).filter_by(entity_type="credential", entity_id=cred.id).all()
@@ -81,9 +106,22 @@ def get_credentials(provider_id: int, db: Session = Depends(get_db)):
         "provider_id": provider_id,
         "username": vault_dict.get("username", ""),
         "password": vault_dict.get("password", ""),
-        "custom_limits": cred.custom_limits,
+        "custom_limits": cred.custom_limits or {},
         "sync_source": cred.sync_source,
     }
+
+
+@router.delete("/{provider_id}")
+def delete_credential(provider_id: int, db: Session = Depends(get_db)):
+    cred = db.query(Credential).filter(Credential.provider_id == provider_id).first()
+    if not cred:
+        raise HTTPException(status_code=404, detail="Credential not found")
+    
+    # Remove from Vault
+    db.query(Vault).filter_by(entity_type="credential", entity_id=cred.id).delete()
+    db.delete(cred)
+    db.commit()
+    return {"message": "Credential deleted successfully"}
 
 
 @router.post(

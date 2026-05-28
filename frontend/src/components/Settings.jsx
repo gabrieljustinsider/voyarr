@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Box, Typography, TextField, Button, Paper, Grid, Snackbar, Alert, Divider, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Select, MenuItem, FormControl, InputLabel, Tabs, Tab, Switch, FormControlLabel, InputAdornment } from '@mui/material'
+import { Box, Typography, TextField, Button, Paper, Grid, Snackbar, Alert, Divider, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Select, MenuItem, FormControl, InputLabel, Tabs, Tab, Switch, FormControlLabel, InputAdornment, Autocomplete, Chip } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
 import SyncIcon from '@mui/icons-material/Sync'
 import Visibility from '@mui/icons-material/Visibility'
@@ -63,6 +63,59 @@ function TabPanel(props) {
       )}
     </div>
   );
+}
+
+function PillListInput({ label, value, onChange, placeholder = "Type and press enter..." }) {
+  const [inputValue, setInputValue] = useState('')
+  const pills = useMemo(() => {
+    if (!value) return []
+    return value.split(',').map(v => v.trim()).filter(Boolean)
+  }, [value])
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && inputValue.trim()) {
+      e.preventDefault()
+      const newPill = inputValue.trim()
+      if (!pills.includes(newPill)) {
+        const updated = [...pills, newPill].join(',')
+        onChange(updated)
+      }
+      setInputValue('')
+    }
+  }
+
+  const handleDelete = (pillToDelete) => {
+    const updated = pills.filter(p => p !== pillToDelete).join(',')
+    onChange(updated)
+  }
+
+  return (
+    <Box sx={{ mt: 1.5, mb: 1.5 }}>
+      <TextField
+        fullWidth
+        label={label}
+        placeholder={placeholder}
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        onKeyDown={handleKeyDown}
+        helperText="Press Enter to add items to the list"
+        InputProps={{
+          startAdornment: pills.length > 0 ? (
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, p: 0.5 }}>
+              {pills.map((pill) => (
+                <Chip
+                  key={pill}
+                  label={pill}
+                  onDelete={() => handleDelete(pill)}
+                  size="small"
+                />
+              ))}
+            </Box>
+          ) : null
+        }}
+      />
+    </Box>
+  )
 }
 
 export default function Settings() {
@@ -131,6 +184,64 @@ export default function Settings() {
   const [mockSsoOpen, setMockSsoOpen] = useState(false)
   const [mockSsoProvider, setMockSsoProvider] = useState('')
   const [mockSsoEmail, setMockSsoEmail] = useState('')
+
+  const [settingsTab, setSettingsTab] = useState(0)
+
+  // Local preferences state for UI Customizations
+  const [themeName, setThemeName] = useState('dark')
+  const [uiConfig, setUiConfig] = useState({
+    showFavorites: true,
+    showStudios: true,
+    showAnalytics: true,
+    showLive: true
+  })
+  const [isTvMode, setIsTvMode] = useState(false)
+
+  // Load preferences from DB on mount
+  useEffect(() => {
+    const loadUserPreferences = async () => {
+      try {
+        const res = await apiFetch('/user/stats/preferences')
+        if (res.ok) {
+          const data = await res.json()
+          setThemeName(data.theme || 'dark')
+          if (data.ui_config) {
+            setUiConfig({
+              showFavorites: data.ui_config.showFavorites !== false,
+              showStudios: data.ui_config.showStudios !== false,
+              showAnalytics: data.ui_config.showAnalytics !== false,
+              showLive: data.ui_config.showLive !== false
+            })
+            setIsTvMode(data.ui_config.isTvMode || false)
+          }
+        }
+      } catch (e) {
+        console.error(e)
+      }
+    }
+    loadUserPreferences()
+  }, [])
+
+  const saveUserPreferences = async (newTheme, newUi, newTv) => {
+    try {
+      const res = await apiFetch('/user/stats/preferences', {
+        method: 'POST',
+        body: JSON.stringify({
+          theme: newTheme,
+          ui_config: { ...newUi, isTvMode: newTv }
+        })
+      })
+      if (res.ok) {
+        setThemeName(newTheme)
+        setUiConfig(newUi)
+        setIsTvMode(newTv)
+        setSnackbar({ open: true, message: 'User UI customizations saved successfully!', severity: 'success' })
+        window.dispatchEvent(new CustomEvent('preferences-updated'))
+      }
+    } catch (e) {
+      console.error(e)
+    }
+  }
 
   const fetchPasskeys = async () => {
     try {
@@ -201,7 +312,10 @@ export default function Settings() {
   const handleExecuteMockSso = async () => {
     setMockSsoOpen(false)
     try {
-      const providerUserId = `${mockSsoProvider}_usr_${Math.random().toString(36).substring(2, 10)}`
+      const array = new Uint32Array(1);
+      window.crypto.getRandomValues(array);
+      const randomStr = array[0].toString(36).substring(0, 8);
+      const providerUserId = `${mockSsoProvider}_usr_${randomStr}`
       const payload = {
         provider: mockSsoProvider,
         provider_user_id: providerUserId,
@@ -626,373 +740,29 @@ export default function Settings() {
         setSnackbar({ open: true, message: `Failed: ${err.detail}`, severity: 'error' })
       }
     } catch (err) {
-      console.error(err)
-      setSnackbar({ open: true, message: 'Network error creating user.', severity: 'error' })
+  const mediaPaths = useMemo(() => {
+    if (!settings.media_root_path) return []
+    return settings.media_root_path.split(',').map(p => p.trim()).filter(Boolean)
+  }, [settings.media_root_path])
+
+  const handleRemoveMediaPath = (pathToRemove) => {
+    const updated = mediaPaths.filter(p => p !== pathToRemove).join(',')
+    setSettings(prev => ({ ...prev, media_root_path: updated }))
+    handleSave('media_root_path', updated)
+  }
+
+  const handleAddMediaPath = (newPath) => {
+    if (!newPath) return
+    const cleaned = newPath.trim()
+    if (!mediaPaths.includes(cleaned)) {
+      const updated = [...mediaPaths, cleaned].join(',')
+      setSettings(prev => ({ ...prev, media_root_path: updated }))
+      handleSave('media_root_path', updated)
     }
   }
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>Application Settings</Typography>
-      
-      <Paper sx={{ p: 3, mb: 3, border: '1px solid #ff9800' }}>
-        <Typography variant="h6" color="warning.main" gutterBottom>Security: API Master Key</Typography>
-        <Typography variant="body2" sx={{ mb: 2 }}>
-          Your Master Key is required to communicate with the backend. It is stored securely in your browser's local storage and is never bundled in the source code.
-        </Typography>
-        <Grid container spacing={2}>
-          <Grid item xs={12} md={10}>
-            <TextField fullWidth type="password" label="Master Key" value={masterKeyInput} onChange={e => setMasterKeyInput(e.target.value)} />
-          </Grid>
-          <Grid item xs={12} md={2}>
-            <Button fullWidth variant="contained" color="warning" onClick={handleSaveMasterKey}>Save Key</Button>
-          </Grid>
-        </Grid>
-      </Paper>
-
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>Storage & Paths</Typography>
-        <Divider sx={{ mb: 2 }} />
-        <Grid container spacing={3} alignItems="center">
-          <Grid item xs={12} md={10}>
-            <PathPicker
-              label="Docker Media Root Mapping(s)"
-              value={settings.media_root_path || ''}
-              onChange={(val) => setSettings(prev => ({ ...prev, media_root_path: val }))}
-              helperText="The physical directory path(s) where downloads will be organized inside the container. Comma-separate for multiple paths. (Note: Must match your container's CONTAINER_MEDIA_PATHS environment variable)"
-            />
-          </Grid>
-          <Grid item xs={12} md={2}>
-            <Button fullWidth variant="contained" onClick={() => handleSave('media_root_path', settings.media_root_path)}>Save</Button>
-          </Grid>
-
-          <Grid item xs={12} md={10}>
-            <PathPicker
-              label="Default Download Destination"
-              value={settings.download_destination || ''}
-              onChange={(val) => setSettings(prev => ({ ...prev, download_destination: val }))}
-              helperText="Sub-directory where new, unprocessed files are initially downloaded."
-            />
-          </Grid>
-          <Grid item xs={12} md={2}>
-            <Button fullWidth variant="contained" onClick={() => handleSave('download_destination', settings.download_destination)}>Save</Button>
-          </Grid>
-
-          <Grid item xs={12} md={10}>
-            <PathPicker
-              label="Permanent Library Folder"
-              value={settings.library_folder || ''}
-              onChange={(val) => setSettings(prev => ({ ...prev, library_folder: val }))}
-              helperText="Directory where organized and tagged media is permanently stored."
-            />
-          </Grid>
-          <Grid item xs={12} md={2}>
-            <Button fullWidth variant="contained" onClick={() => handleSave('library_folder', settings.library_folder)}>Save</Button>
-          </Grid>
-
-          <Grid item xs={12} md={10}>
-            <PathPicker
-              label="Existing Media Scan Target"
-              value={settings.scan_folder || ''}
-              onChange={(val) => setSettings(prev => ({ ...prev, scan_folder: val }))}
-              helperText="Directory targeted by the Reverse Regex Engine when searching for existing local files."
-            />
-          </Grid>
-          <Grid item xs={12} md={2}>
-            <Button fullWidth variant="contained" onClick={() => handleSave('scan_folder', settings.scan_folder)}>Save</Button>
-          </Grid>
-        </Grid>
-      </Paper>
-
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>Network & Proxy Configuration</Typography>
-        <Typography variant="body2" sx={{ mb: 2 }} color="textSecondary">
-          Configure a global proxy or custom User-Agent to bypass provider scrapers, download streams geo-restricted in your region, or mask outbound metadata requests.
-        </Typography>
-        <Divider sx={{ mb: 2 }} />
-        <Grid container spacing={3} alignItems="center">
-          <Grid item xs={12}>
-            <FormControlLabel 
-              control={
-                <Switch 
-                  checked={settings.global_proxy_enabled === 'true'} 
-                  onChange={e => handleToggleSetting('global_proxy_enabled', e.target.checked)} 
-                />
-              } 
-              label="Route Outbound Traffic via Proxy" 
-            />
-          </Grid>
-
-          {settings.global_proxy_enabled === 'true' && (
-            <Grid item xs={12} md={10}>
-              <TextField 
-                fullWidth 
-                size="small" 
-                type={showProxyUrl ? 'text' : 'password'}
-                label="Global Proxy Connection URL" 
-                name="global_proxy_url" 
-                value={settings.global_proxy_url || ''} 
-                onChange={handleChange} 
-                helperText="Supports SOCKS5, HTTP, and HTTPS protocols. Example: socks5://username:password@12.34.56.78:1080" 
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        aria-label="toggle proxy url visibility"
-                        onClick={() => setShowProxyUrl(!showProxyUrl)}
-                        edge="end"
-                      >
-                        {showProxyUrl ? <VisibilityOff /> : <Visibility />}
-                      </IconButton>
-                    </InputAdornment>
-                  )
-                }}
-              />
-            </Grid>
-          )}
-          {settings.global_proxy_enabled === 'true' && (
-            <Grid item xs={12} md={2}>
-              <Button fullWidth variant="contained" onClick={() => handleSave('global_proxy_url', settings.global_proxy_url)}>Save URL</Button>
-            </Grid>
-          )}
-
-          <Grid item xs={12} md={10}>
-            <TextField 
-              fullWidth 
-              size="small" 
-              label="Custom Outbound User-Agent String" 
-              name="global_user_agent" 
-              value={settings.global_user_agent || ''} 
-              onChange={handleChange} 
-              helperText="Overrides the default Python requests and Playwright browser headers. Leave blank for default browser signature." 
-            />
-          </Grid>
-          <Grid item xs={12} md={2}>
-            <Button fullWidth variant="contained" onClick={() => handleSave('global_user_agent', settings.global_user_agent)}>Save Agent</Button>
-          </Grid>
-
-          <Grid item xs={12}>
-            <Divider sx={{ my: 1 }} />
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 1 }}>
-              <Typography variant="subtitle1">Outbound Network Diagnostics</Typography>
-              <Button 
-                variant="outlined" 
-                color="secondary" 
-                startIcon={<SyncIcon className={diagnosticLoading ? 'spin-animation' : ''} />} 
-                onClick={handleRunDiagnostic}
-                disabled={diagnosticLoading}
-              >
-                {diagnosticLoading ? 'Testing Connections...' : 'Run Routing Diagnostics'}
-              </Button>
-            </Box>
-          </Grid>
-
-          {diagnosticResult && (
-            <Grid item xs={12}>
-              <Paper variant="outlined" sx={{ p: 2, backgroundColor: 'rgba(255, 255, 255, 0.02)', borderColor: 'rgba(255, 255, 255, 0.12)' }}>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={4}>
-                    <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Outbound Health Status</Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
-                      <Box 
-                        sx={{ 
-                          width: 10, 
-                          height: 10, 
-                          borderRadius: '50%', 
-                          mr: 1, 
-                          backgroundColor: 
-                            diagnosticResult.status === 'online' ? '#4caf50' : 
-                            diagnosticResult.status === 'degraded' ? '#ff9800' : '#f44336'
-                        }} 
-                      />
-                      <Typography variant="body2" sx={{ fontWeight: 'bold', textTransform: 'capitalize' }}>
-                        {diagnosticResult.status}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={12} sm={4}>
-                    <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Public Exit IP</Typography>
-                    <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 'bold', mt: 0.5 }}>
-                      {diagnosticResult.public_ip}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={12} sm={4}>
-                    <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Response Latency</Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold', mt: 0.5 }}>
-                      {diagnosticResult.latency_ms > 0 ? `${diagnosticResult.latency_ms} ms` : 'N/A'}
-                    </Typography>
-                  </Grid>
-
-                  <Grid item xs={12}>
-                    <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Outbound Traffic Routing</Typography>
-                    <Typography variant="body2" sx={{ mt: 0.5 }}>
-                      {diagnosticResult.proxy_configured ? (
-                        diagnosticResult.proxy_working ? (
-                          <span style={{ color: '#4caf50' }}>✓ Securely routed via external proxy Exit Node</span>
-                        ) : (
-                          <span style={{ color: '#f44336' }}>✗ Proxy configured but connection failed! (Bypassed or offline)</span>
-                        )
-                      ) : (
-                        <span style={{ color: '#ff9800' }}>⚠ Routing directly via standard local network (Bypassing proxies)</span>
-                      )}
-                    </Typography>
-                  </Grid>
-
-                  {diagnosticResult.error && (
-                    <Grid item xs={12}>
-                      <Typography variant="caption" color="error" sx={{ display: 'block' }}>Connection Error Details</Typography>
-                      <Typography variant="body2" color="error" sx={{ fontFamily: 'monospace', mt: 0.5 }}>
-                        {diagnosticResult.error}
-                      </Typography>
-                    </Grid>
-                  )}
-                </Grid>
-              </Paper>
-            </Grid>
-          )}
-        </Grid>
-      </Paper>
-
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>yt-dlp Advanced Integrations</Typography>
-        <Typography variant="body2" sx={{ mb: 2 }} color="textSecondary">
-          Unlock native yt-dlp features. Note: Some features may override Voyarr's default behaviors.
-        </Typography>
-        <Divider sx={{ mb: 2 }} />
-        <Grid container spacing={3} alignItems="center">
-          <Grid item xs={12} md={6}>
-            <FormControlLabel control={<Switch checked={settings.yt_write_subs === 'true'} onChange={e => handleToggleSetting('yt_write_subs', e.target.checked)} />} label="Download Subtitles" />
-            <br />
-            <FormControlLabel control={<Switch checked={settings.yt_write_thumbs === 'true'} onChange={e => handleToggleSetting('yt_write_thumbs', e.target.checked)} />} label="Download Thumbnails" />
-            <br />
-            <FormControlLabel control={<Switch checked={settings.yt_sponsorblock === 'true'} onChange={e => handleToggleSetting('yt_sponsorblock', e.target.checked)} />} label="SponsorBlock Removal" />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <FormControlLabel control={<Switch checked={settings.yt_live_streams === 'true'} onChange={e => handleToggleSetting('yt_live_streams', e.target.checked)} />} label="Live Stream Support" />
-            <br />
-            <FormControlLabel control={<Switch checked={settings.yt_native_playlists === 'true'} onChange={e => handleToggleSetting('yt_native_playlists', e.target.checked)} />} label="Native Playlist Downloading" />
-          </Grid>
-
-          <Grid item xs={12} md={10}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Native Browser Cookie Extraction</InputLabel>
-              <Select name="yt_browser_cookies" value={settings.yt_browser_cookies || ''} label="Native Browser Cookie Extraction" onChange={handleChange}>
-                <MenuItem value=""><em>Disabled</em></MenuItem>
-                <MenuItem value="chrome">Chrome</MenuItem>
-                <MenuItem value="firefox">Firefox</MenuItem>
-                <MenuItem value="edge">Edge</MenuItem>
-                <MenuItem value="opera">Opera</MenuItem>
-                <MenuItem value="safari">Safari</MenuItem>
-                <MenuItem value="brave">Brave</MenuItem>
-                <MenuItem value="vivaldi">Vivaldi</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} md={2}>
-            <Button fullWidth variant="contained" onClick={() => handleSave('yt_browser_cookies', settings.yt_browser_cookies)}>Save</Button>
-          </Grid>
-
-          <Grid item xs={12} md={10}>
-            <TextField 
-              fullWidth 
-              size="small" 
-              label="Advanced Format/Codec Selection" 
-              name="yt_custom_format" 
-              value={settings.yt_custom_format || ''} 
-              onChange={handleChange} 
-              helperText="Overrides preferred resolution. e.g., 'bestvideo[vcodec^=av1]+bestaudio/best'" 
-            />
-          </Grid>
-          <Grid item xs={12} md={2}>
-            <Button fullWidth variant="contained" onClick={() => handleSave('yt_custom_format', settings.yt_custom_format)}>Save</Button>
-          </Grid>
-        </Grid>
-      </Paper>
-
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>Global Download Defaults</Typography>
-        <Divider sx={{ mb: 2 }} />
-        <Grid container spacing={3} alignItems="center">
-          <Grid item xs={12} md={4}>
-            <TextField fullWidth type="number" label="Max Concurrent Downloads" name="concurrent_downloads" value={settings.concurrent_downloads || ''} onChange={handleChange} />
-          </Grid>
-          <Grid item xs={12} md={2}>
-            <Button fullWidth variant="contained" onClick={() => handleSave('concurrent_downloads', settings.concurrent_downloads)}>Save</Button>
-          </Grid>
-
-          <Grid item xs={12} md={4}>
-            <TextField fullWidth type="number" label="Global Speed Limit (Kbps)" name="global_speed_limit_kbps" value={settings.global_speed_limit_kbps || ''} onChange={handleChange} helperText="Set 0 for unlimited" />
-          </Grid>
-          <Grid item xs={12} md={2}>
-            <Button fullWidth variant="contained" onClick={() => handleSave('global_speed_limit_kbps', settings.global_speed_limit_kbps)}>Save</Button>
-          </Grid>
-          
-          <Grid item xs={12} md={4}>
-            <TextField fullWidth label="Default Preferred Resolution" name="default_resolution" value={settings.default_resolution || ''} onChange={handleChange} />
-          </Grid>
-          <Grid item xs={12} md={2}>
-            <Button fullWidth variant="contained" onClick={() => handleSave('default_resolution', settings.default_resolution)}>Save</Button>
-          </Grid>
-        </Grid>
-      </Paper>
-
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>External API Integrations</Typography>
-        <Divider sx={{ mb: 2 }} />
-        <Grid container spacing={3} alignItems="center">
-          <Grid item xs={12} md={10}>
-            <TextField fullWidth type="password" label="ThePornDB API Key" name="tpdb_api_key" value={settings.tpdb_api_key || ''} onChange={handleChange} />
-          </Grid>
-          <Grid item xs={12} md={2}>
-            <Button fullWidth variant="contained" onClick={() => handleSave('tpdb_api_key', settings.tpdb_api_key)}>Save</Button>
-          </Grid>
-          <Grid item xs={12} md={10}>
-            <TextField fullWidth type="password" label="StashDB API Key" name="stashdb_api_key" value={settings.stashdb_api_key || ''} onChange={handleChange} />
-          </Grid>
-          <Grid item xs={12} md={2}>
-            <Button fullWidth variant="contained" onClick={() => handleSave('stashdb_api_key', settings.stashdb_api_key)}>Save</Button>
-          </Grid>
-        </Grid>
-      </Paper>
-
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>Discord Webhook Security</Typography>
-        <Divider sx={{ mb: 2 }} />
-        <Grid container spacing={3} alignItems="center">
-          <Grid item xs={12} md={10}>
-            <TextField 
-              fullWidth 
-              label="Allowed Discord User IDs" 
-              name="discord_allowed_users" 
-              value={settings.discord_allowed_users || ''} 
-              onChange={handleChange} 
-              helperText="Comma-separated list of Discord user IDs allowed to run slash commands. If empty, all users are authorized." 
-            />
-          </Grid>
-          <Grid item xs={12} md={2}>
-            <Button fullWidth variant="contained" onClick={() => handleSave('discord_allowed_users', settings.discord_allowed_users)}>Save</Button>
-          </Grid>
-        </Grid>
-      </Paper>
-
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>Browser Extension Integration</Typography>
-        <Divider sx={{ mb: 2 }} />
-        <Grid container spacing={3} alignItems="center">
-          <Grid item xs={12} md={8}>
-            <TextField fullWidth label="Extension Secret Key" name="extension_secret" value={settings.extension_secret || ''} onChange={handleChange} helperText="Used to securely authenticate the browser extension with your Voyarr backend." />
-          </Grid>
-          <Grid item xs={12} md={2}>
-            <Button fullWidth variant="outlined" color="secondary" onClick={generateExtensionSecret}>Generate Key</Button>
-          </Grid>
-          <Grid item xs={12} md={2}>
-            <Button fullWidth variant="contained" onClick={() => handleSave('extension_secret', settings.extension_secret)}>Save</Button>
-          </Grid>
-        </Grid>
-        
-        <Box sx={{ mt: 3, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3 }}>
-          <Box sx={{ p: 2, flex: 1, backgroundColor: 'rgba(25, 118, 210, 0.1)', borderRadius: 1, border: '1px solid #1976d2' }}>
-            <Typography variant="subtitle2" color="primary" gutterBottom>
               <strong>1. Chrome / Edge Extension (Standard)</strong>
             </Typography>
             <Typography variant="body2">

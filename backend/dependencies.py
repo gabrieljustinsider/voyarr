@@ -34,6 +34,10 @@ async def verify_api_key(
     if not token:
         token = request.cookies.get("access_token")
 
+    # 2b. Check for JWT in query parameters (WebSockets auth)
+    if not token:
+        token = request.query_params.get("token")
+
     if token:
         try:
             payload = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])

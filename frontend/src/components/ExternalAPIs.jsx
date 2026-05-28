@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Box, Button, Card, CardContent, TextField, Typography, 
   Alert, CircularProgress, Tabs, Tab, Table, TableBody, TableCell,
@@ -24,6 +24,40 @@ export default function ExternalAPIs() {
   const [performerBio, setPerformerBio] = useState(null)
   const [openBioDialog, setOpenBioDialog] = useState(false)
   const [bioLoading, setBioLoading] = useState(false)
+
+  // Load API keys from global settings on mount
+  useEffect(() => {
+    const loadGlobalSettings = async () => {
+      try {
+        const response = await apiFetch('/settings')
+        if (response.ok) {
+          const data = await response.json()
+          if (data.tpdb_api_key) setTpdbKey(data.tpdb_api_key)
+          if (data.stashdb_api_key) setStashdbKey(data.stashdb_api_key)
+        }
+      } catch (error) {
+        console.error('Failed to load global API keys in ExternalAPIs:', error)
+      }
+    }
+    loadGlobalSettings()
+  }, [])
+
+  // Save key globally
+  const handleSaveGlobalKey = async (key, value) => {
+    try {
+      const response = await apiFetch('/settings', {
+        method: 'POST',
+        body: JSON.stringify({ key, value })
+      })
+      if (response.ok) {
+        setMessage(`API Key saved to global settings!`)
+      } else {
+        setMessage('Failed to save API key globally')
+      }
+    } catch (error) {
+      setMessage(`Error saving key: ${error.message}`)
+    }
+  }
 
   const handleTabChange = (e, value) => {
     setTabValue(value)
@@ -194,15 +228,23 @@ export default function ExternalAPIs() {
         <Card sx={{ mb: 3 }}>
           <CardContent>
             <Typography variant="h6" gutterBottom>ThePornDB Configuration</Typography>
-            <TextField
-              fullWidth
-              label="API Key"
-              type="password"
-              value={tpdbKey}
-              onChange={(e) => setTpdbKey(e.target.value)}
-              margin="normal"
-            />
-            <Typography variant="caption" color="textSecondary">
+            <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', mt: 2 }}>
+              <TextField
+                fullWidth
+                label="API Key"
+                type="password"
+                value={tpdbKey}
+                onChange={(e) => setTpdbKey(e.target.value)}
+              />
+              <Button 
+                variant="contained" 
+                onClick={() => handleSaveGlobalKey('tpdb_api_key', tpdbKey)}
+                sx={{ whiteSpace: 'nowrap' }}
+              >
+                Save Globally
+              </Button>
+            </Box>
+            <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mt: 1 }}>
               Get your API key from <a href="https://theporndb.net" target="_blank" rel="noreferrer">theporndb.net</a>
             </Typography>
           </CardContent>
@@ -283,15 +325,23 @@ export default function ExternalAPIs() {
         <Card sx={{ mb: 3 }}>
           <CardContent>
             <Typography variant="h6" gutterBottom>StashDB Configuration</Typography>
-            <TextField
-              fullWidth
-              label="API Key"
-              type="password"
-              value={stashdbKey}
-              onChange={(e) => setStashdbKey(e.target.value)}
-              margin="normal"
-            />
-            <Typography variant="caption" color="textSecondary">
+            <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', mt: 2 }}>
+              <TextField
+                fullWidth
+                label="API Key"
+                type="password"
+                value={stashdbKey}
+                onChange={(e) => setStashdbKey(e.target.value)}
+              />
+              <Button 
+                variant="contained" 
+                onClick={() => handleSaveGlobalKey('stashdb_api_key', stashdbKey)}
+                sx={{ whiteSpace: 'nowrap' }}
+              >
+                Save Globally
+              </Button>
+            </Box>
+            <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mt: 1 }}>
               Get your API key from <a href="https://stashdb.org" target="_blank" rel="noreferrer">stashdb.org</a>
             </Typography>
           </CardContent>

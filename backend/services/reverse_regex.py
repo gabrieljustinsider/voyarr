@@ -23,7 +23,25 @@ class ReverseRegexMatcher:
         return re.compile(f"^{regex_str}$", re.IGNORECASE)
 
     def scan_directory(self, directory: str, provider_id: int, pattern: str) -> dict:
-        if not os.path.exists(directory):
+        # SECURITY: Prevent path traversal and arbitrary file reads outside of media roots
+        from utils import get_media_roots
+        try:
+            real_dir = os.path.realpath(directory)
+        except Exception:
+            return {"error": f"Invalid directory path: {directory}"}
+
+        is_valid_base = False
+        for root_dir in get_media_roots():
+            try:
+                if os.path.commonpath([root_dir, real_dir]) == root_dir:
+                    is_valid_base = True
+                    break
+            except ValueError:
+                continue
+        if not is_valid_base:
+            return {"error": f"Access denied: directory '{directory}' is outside configured media roots."}
+
+        if not os.path.exists(real_dir):  # lgtm [py/path-injection]
             return {"error": f"Directory not found: {directory}"}
 
         regex = self.pattern_to_regex(pattern)
@@ -31,7 +49,7 @@ class ReverseRegexMatcher:
         matched = 0
         errors = []
 
-        for root, _, files in os.walk(directory):
+        for root, _, files in os.walk(real_dir):  # lgtm [py/path-injection]
             for file in files:
                 if not file.lower().endswith((".mp4", ".mkv", ".avi", ".mov", ".webm")):
                     continue
@@ -91,7 +109,7 @@ class ReverseRegexMatcher:
                         tags=tags,
                         file_path=file_path,
                         resolution=resolution,
-                        file_size=os.path.getsize(file_path),
+                        file_size=os.path.getsize(file_path),  # lgtm [py/path-injection]
                         entry_metadata=data,
                         adheres_to_naming_scheme=adheres,
                         has_metadata_match=has_metadata,

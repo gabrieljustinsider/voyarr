@@ -58,7 +58,56 @@ def record_live_stream_task(self, stream_id: int):
         # Build streamlink command
         cmd = ["streamlink", "--hls-live-restart", stream.url, "best", "-o", out_path]
 
-        if cookie_entry and cookie_entry.encrypted_value:
+        # Resolve provider from URL domain to find linked credentials / cookies
+        matched_provider = None
+        from urllib.parse import urlparse
+        try:
+            parsed_url = urlparse(stream.url)
+            domain = parsed_url.netloc.lower()
+            if domain.startswith("www."):
+                domain = domain[4:]
+            
+            all_providers = db.query(Provider).all()
+            for p in all_providers:
+                p_url = p.base_url.lower()
+                if domain in p_url or p.name.lower() in domain or domain in p.name.lower():
+                    matched_provider = p
+                    break
+        except Exception as e:
+            print(f"Error parsing domain for provider match: {e}")
+
+        cookies_injected = False
+        # If a provider is matched, pull linked cookies
+        if matched_provider:
+            from models import SessionCookie, Credential
+            cookie_obj = db.query(SessionCookie).filter(
+                SessionCookie.provider_id == matched_provider.id,
+                SessionCookie.status == "active"
+            ).first()
+            if cookie_obj:
+                vault_cookie = db.query(Vault).filter_by(
+                    entity_type="session_cookie",
+                    entity_id=cookie_obj.id,
+                    key="cookie_text"
+                ).first()
+                if vault_cookie and vault_cookie.encrypted_value:
+                    cookies_val = decrypt_data(vault_cookie.encrypted_value)
+                    if cookies_val:
+                        cmd.extend(["--http-cookie", cookies_val])
+                        cookies_injected = True
+
+            # Check for credential user/pass to pass as headers or plugin args if needed
+            cred_obj = db.query(Credential).filter(Credential.provider_id == matched_provider.id).first()
+            if cred_obj:
+                vault_items = db.query(Vault).filter_by(entity_type="credential", entity_id=cred_obj.id).all()
+                vault_dict = {item.key: decrypt_data(item.encrypted_value) for item in vault_items if item.encrypted_value}
+                user = vault_dict.get("username")
+                pwd = vault_dict.get("password")
+                if user and pwd:
+                    # Streamlink plugins often accept credentials as custom args or HTTP basic auth
+                    cmd.extend(["--http-header", f"Authorization=Basic {user}:{pwd}"])
+
+        if cookie_entry and cookie_entry.encrypted_value and not cookies_injected:
             cookies_val = decrypt_data(cookie_entry.encrypted_value)
             if cookies_val:
                 cmd.extend(["--http-cookie", cookies_val])

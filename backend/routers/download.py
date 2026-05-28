@@ -238,6 +238,52 @@ def check_limits_and_cookies(db: Session, provider_id: int):
             if current_downloads >= int(max_concurrent):
                 return False, "Concurrent download limit reached"
 
+        # Time-span limits checking
+        from datetime import datetime, timedelta
+        from models import MediaEntry
+
+        def count_downloads(hours: float) -> int:
+            since = datetime.now() - timedelta(hours=hours)
+            return (
+                db.query(DownloadQueue)
+                .join(MediaEntry, DownloadQueue.media_entry_id == MediaEntry.id)
+                .filter(MediaEntry.provider_id == provider_id)
+                .filter(DownloadQueue.created_at >= since)
+                .count()
+            )
+
+        # Check hourly
+        hourly_limit = limits.get("hourly_downloads") or limits.get("limit_hourly")
+        if hourly_limit and count_downloads(1) >= int(hourly_limit):
+            return False, "Hourly download limit reached"
+
+        # Check daily
+        daily_limit = limits.get("daily_downloads") or limits.get("limit_daily")
+        if daily_limit and count_downloads(24) >= int(daily_limit):
+            return False, "Daily download limit reached"
+
+        # Check weekly
+        weekly_limit = limits.get("weekly_downloads") or limits.get("limit_weekly")
+        if weekly_limit and count_downloads(168) >= int(weekly_limit):
+            return False, "Weekly download limit reached"
+
+        # Check monthly
+        monthly_limit = limits.get("monthly_downloads") or limits.get("limit_monthly")
+        if monthly_limit and count_downloads(720) >= int(monthly_limit):
+            return False, "Monthly download limit reached"
+
+        # Check generic periodic limits
+        # periodic_limits format: [{"hours": 12, "limit": 5}, {"hours": 48, "limit": 20}]
+        periodic_limits = limits.get("periodic_limits")
+        if periodic_limits and isinstance(periodic_limits, list):
+            for pl in periodic_limits:
+                if isinstance(pl, dict):
+                    hours = pl.get("hours") or pl.get("period_hours")
+                    limit = pl.get("limit") or pl.get("max_downloads")
+                    if hours is not None and limit is not None:
+                        if count_downloads(float(hours)) >= int(limit):
+                            return False, f"Periodic limit reached ({limit} downloads per {hours} hours)"
+
     # Check session cookies
     active_cookie = (
         db.query(SessionCookie)
@@ -518,259 +564,98 @@ def stream_download_queue(request: Request):
 
 class MassRipRequest(BaseModel):
     provider_id: int
-    url: HttpUrl
+    url: str
     action: Optional[str] = "metadata_and_download"
+    criteria: Optional[Dict[str, Any]] = None
 
 
 @router.post("/mass_rip", dependencies=[Depends(check_ripping_permission)])
 def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
     """
-    Parses a channel/performer page, evaluates rules, and queues videos.
+    Asynchronously parses a channel/performer page, evaluates rules, and queues videos.
     """
-    # SECURITY: Prevent SSRF via the download engine
-    url_str = str(req.url)
-    validate_url_ssrf(url_str)
+    # SECURITY: Prevent SSRF
+    validate_url_ssrf(req.url)
 
-    # 1. Fetch provider
     provider = db.query(Provider).filter(Provider.id == req.provider_id).first()
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
 
-    prefs = (
-        db.query(DownloadPreference)
-        .filter(DownloadPreference.provider_id == req.provider_id)
-        .first()
+    from models import MassRipSession
+    session = MassRipSession(
+        provider_id=req.provider_id,
+        url=req.url,
+        criteria=req.criteria or {},
+        status="pending"
     )
+    db.add(session)
+    db.commit()
+    db.refresh(session)
 
-    # Extract URLs and metadata using yt-dlp's flat extraction
-    ydl_opts = {"extract_flat": True, "quiet": True}
-    if prefs:
-        if getattr(prefs, "proxy_url", None):
-            ydl_opts["proxy"] = prefs.proxy_url
-        if getattr(prefs, "sleep_requests", None):
-            ydl_opts["sleep_requests"] = float(prefs.sleep_requests)
+    # Fire Celery task
+    from tasks.download_tasks import mass_rip_task
+    mass_rip_task.delay(session.id)
 
-    cookie_obj = (
-        db.query(SessionCookie)
-        .filter(
-            SessionCookie.provider_id == req.provider_id,
-            SessionCookie.status == "active",
-        )
-        .first()
-    )
-    cookie_text = cookie_obj.cookie_text if cookie_obj else None
+    return session
 
-    cookie_file_path = None
-    if cookie_text:
-        fd, cookie_file_path = tempfile.mkstemp(suffix=".txt")
-        with os.fdopen(fd, "w") as f:
-            f.write(cookie_text)
-        ydl_opts["cookiefile"] = cookie_file_path
 
-    used_method = "yt-dlp"
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url_str, download=False)
+@router.get("/mass_rip/sessions")
+def get_mass_rip_sessions(db: Session = Depends(get_db)):
+    from models import MassRipSession
+    return db.query(MassRipSession).order_by(MassRipSession.created_at.desc()).all()
 
-        extracted_videos = []
-        if info and "entries" in info:
-            extractor = info.get("extractor", "generic")
-            used_method = f"yt-dlp ({extractor})"
-            for entry in info["entries"]:
-                if not entry:
-                    continue
-                url = entry.get("url") or entry.get("webpage_url")
-                if url:
-                    extracted_videos.append(
-                        {
-                            "url": url,
-                            "metadata": {"title": entry.get("title", "Unknown")},
-                        }
-                    )
-        elif info:
-            extractor = info.get("extractor", "generic")
-            used_method = f"yt-dlp ({extractor})"
-            extracted_videos.append(
-                {
-                    "url": info.get("url") or info.get("webpage_url") or url_str,
-                    "metadata": {"title": info.get("title", "Unknown")},
-                }
-            )
 
-        # Hardened Fallback: If yt-dlp returns nothing, try a naive HTML scrape
-        if not extracted_videos:
-            used_method = "html_scrape"
-            resp = requests.get(url_str, timeout=15, allow_redirects=False)
-            hrefs = re.findall(r'href=[\'"]?([^\'" >]+)', resp.text)
-            for href in set(hrefs):
-                if (
-                    "/video/" in href.lower()
-                    or "/watch/" in href.lower()
-                    or ".mp4" in href.lower()
-                ):
-                    full_url = (
-                        href
-                        if href.startswith("http")
-                        else url_str.rstrip("/") + "/" + href.lstrip("/")
-                    )
-                    extracted_videos.append(
-                        {"url": full_url, "metadata": {"title": "Unknown"}}
-                    )
+@router.get("/mass_rip/sessions/{session_id}")
+def get_mass_rip_session(session_id: int, db: Session = Depends(get_db)):
+    from models import MassRipSession
+    session = db.query(MassRipSession).filter(MassRipSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return session
 
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to extract URLs: {str(e)}")
-    finally:
-        if cookie_file_path and os.path.exists(cookie_file_path):
-            os.remove(cookie_file_path)
 
-    queued_count = 0
-    skipped_count = 0
-    tasks_to_fire = []
+@router.post("/mass_rip/sessions/{session_id}/pause")
+def pause_mass_rip(session_id: int, db: Session = Depends(get_db)):
+    from models import MassRipSession
+    session = db.query(MassRipSession).filter(MassRipSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    session.status = "paused"
+    db.commit()
+    return session
 
-    # Prepare prefs_dict once to avoid re-querying in a loop
-    prefs_dict = {
-        "preferred_resolution": prefs.preferred_resolution if prefs else "1080p",
-        "append_metadata": prefs.append_metadata if prefs else False,
-        "custom_base_path": getattr(prefs, "custom_base_path", None) if prefs else None,
-        "proxy_url": getattr(prefs, "proxy_url", None) if prefs else None,
-        "download_subtitles": getattr(prefs, "download_subtitles", True)
-        if prefs
-        else True,
-        "download_thumbnails": getattr(prefs, "download_thumbnails", True)
-        if prefs
-        else True,
-        "concurrent_fragments": getattr(prefs, "concurrent_fragments", 5)
-        if prefs
-        else 5,
-        "min_sleep_interval": float(getattr(prefs, "min_sleep_interval", 2.0))
-        if prefs
-        else 2.0,
-        "max_sleep_interval": float(getattr(prefs, "max_sleep_interval", 5.0))
-        if prefs
-        else 5.0,
-        "cookie_text": cookie_text,
-    }
 
-    rules = (
-        db.query(DownloadRule)
-        .filter(
-            DownloadRule.is_active,
-            (DownloadRule.scope == "global")
-            | (DownloadRule.scope == "session")
-            | (DownloadRule.scope == f"provider:{req.provider_id}"),
-        )
-        .all()
-    )
+@router.post("/mass_rip/sessions/{session_id}/resume")
+def resume_mass_rip(session_id: int, db: Session = Depends(get_db)):
+    from models import MassRipSession
+    session = db.query(MassRipSession).filter(MassRipSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    session.status = "running"
+    db.commit()
+    return session
 
-    # Pre-fetch custom lists to avoid N+1 queries in evaluate_rules
-    list_ids = [
-        rule.criteria["in_list"]
-        for rule in rules
-        if rule.criteria and "in_list" in rule.criteria
-    ]
-    custom_lists_query = (
-        db.query(CustomList).filter(CustomList.id.in_(list_ids)).all()
-        if list_ids
-        else []
-    )
-    custom_lists_map = {cl.id: cl for cl in custom_lists_query}
 
-    for video in extracted_videos:
-        if not video["url"]:
-            continue
-        meta = video["metadata"]
+@router.post("/mass_rip/sessions/{session_id}/stop")
+def stop_mass_rip(session_id: int, db: Session = Depends(get_db)):
+    from models import MassRipSession
+    session = db.query(MassRipSession).filter(MassRipSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    session.status = "stopped"
+    db.commit()
+    return session
 
-        # SECURITY: Prevent SSRF via extracted URLs
-        try:
-            validate_url_ssrf(video["url"])
-        except HTTPException:
-            skipped_count += 1
-            continue
 
-        title_raw = meta.get("title")
-        title = (
-            title_raw[0]
-            if isinstance(title_raw, list) and title_raw
-            else str(title_raw or "Unknown")
-        )
-
-        # 1.5 Duplicate Checking
-        dupe_check = evaluate_duplicate_quality(db, prefs, title, meta)
-        if not dupe_check.get("proceed"):
-            skipped_count += 1
-            continue
-
-        # 2. Evaluate Rules
-        action = evaluate_rules(db, meta, rules, custom_lists_map)
-        if action == "skip":
-            skipped_count += 1
-            continue
-
-        # 2.2 Check Active Download Queue for Duplicates
-        existing_queue = (
-            db.query(DownloadQueue.id)
-            .filter(
-                DownloadQueue.url == video["url"],
-                DownloadQueue.status.in_(["pending", "running", "queued"]),
-            )
-            .first()
-        )
-        if existing_queue:
-            skipped_count += 1
-            continue
-
-        # 2.5 Check Limits
-        can_download, limit_result = check_limits_and_cookies(db, req.provider_id)
-        if not can_download:
-            action = "queue"
-
-        # 3. Add to session, but don't commit yet
-        media = MediaEntry(
-            provider_id=req.provider_id,
-            title=title,
-            performers=meta.get("performers", []),
-            tags=meta.get("tags", []),
-            media_metadata=meta,
-        )
-
-        if req.action in ["metadata_and_download", "download_only"]:
-            queue = DownloadQueue(
-                url=video["url"],
-                status="pending" if action != "queue" else "queued",
-                progress_percentage=0.0,
-                extraction_method=used_method,
-            )
-            queue.media_entry = media
-            db.add(queue)
-            db.flush()
-
-            # 4. Defer Celery task until after commit
-            if action != "queue":
-                if isinstance(limit_result, SessionCookie):
-                    limit_result.downloads_used += 1
-                tasks_to_fire.append({"queue_id": queue.id, "meta": meta})
-
-            queued_count += 1
-        else:
-            db.add(media)
-            skipped_count += 1
-
-    # Commit all new entries in a single transaction
-    try:
-        db.commit()
-    except Exception:
-        db.rollback()
-        raise
-
-    # Now that the queue items have IDs, dispatch the Celery tasks
-    for task_info in tasks_to_fire:
-        real_download_task.delay(task_info["queue_id"], prefs_dict, task_info["meta"])
-
-    return {
-        "message": f"Mass rip completed. Queued: {queued_count}, Skipped: {skipped_count}",
-        "queued": queued_count,
-        "skipped": skipped_count,
-    }
+@router.delete("/mass_rip/sessions/{session_id}")
+def delete_mass_rip_session(session_id: int, db: Session = Depends(get_db)):
+    from models import MassRipSession
+    session = db.query(MassRipSession).filter(MassRipSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    db.delete(session)
+    db.commit()
+    return {"message": "Session deleted"}
 
 
 @router.post("/extract-stream", dependencies=[Depends(check_ripping_permission)])

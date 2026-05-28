@@ -168,8 +168,8 @@ export default function NotificationSettings() {
 
       <Grid container spacing={3}>
         {/* Personal Preferences Card */}
-        <Grid item xs={12} md={6}>
-          <Card sx={{ height: '100%', background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <Grid item xs={12}>
+          <Card sx={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.05)' }}>
             <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
               <Typography variant="h6" sx={{ fontWeight: '700' }}>Your Notification Channels</Typography>
               <Typography variant="body2" sx={{ opacity: 0.7 }}>
@@ -183,7 +183,7 @@ export default function NotificationSettings() {
                   <TaskAltIcon fontSize="small" color="primary" /> Task Completed Alerts
                 </Typography>
                 <Typography variant="caption" sx={{ opacity: 0.6, display: 'block', mb: 1 }}>
-                  Fires when downloads, library scans, transcodes, or backups finish.
+                  Fires when a queued download completes processing or metadata syncing finishes.
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 3 }}>
                   <FormControlLabel
@@ -238,80 +238,6 @@ export default function NotificationSettings() {
                   />
                 </Box>
               </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Recent Notification Log */}
-        <Grid item xs={12} md={6}>
-          <Card sx={{ height: '100%', background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column' }}>
-            <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h6" sx={{ fontWeight: '700' }}>Recent Notifications</Typography>
-                {history.some(h => !h.read) && (
-                  <Button 
-                    startIcon={<MarkEmailReadIcon />} 
-                    size="small" 
-                    variant="outlined"
-                    onClick={() => handleMarkRead()}
-                  >
-                    Mark All As Read
-                  </Button>
-                )}
-              </Box>
-              <Divider />
-
-              {history.length === 0 ? (
-                <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', p: 4 }}>
-                  <Typography variant="body2" sx={{ opacity: 0.5 }}>No recent notification history.</Typography>
-                </Box>
-              ) : (
-                <List sx={{ flexGrow: 1, overflowY: 'auto', maxH: '300px' }}>
-                  {history.map((log) => (
-                    <ListItem 
-                      key={log.id} 
-                      alignItems="flex-start" 
-                      sx={{ 
-                        opacity: log.read ? 0.6 : 1, 
-                        borderLeft: log.read ? 'none' : '4px solid #1976d2',
-                        background: log.read ? 'transparent' : 'rgba(255,255,255,0.02)',
-                        mb: 1,
-                        borderRadius: '6px'
-                      }}
-                      secondaryAction={
-                        !log.read && (
-                          <Tooltip title="Mark as read">
-                            <IconButton size="small" onClick={() => handleMarkRead([log.id])}>
-                              <MarkEmailReadIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        )
-                      }
-                    >
-                      <ListItemIcon sx={{ minWidth: 40 }}>
-                        {log.event_type === 'favorite_updated' ? (
-                          <FavoriteBorderIcon color="error" />
-                        ) : (
-                          <TaskAltIcon color="primary" />
-                        )}
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={log.title}
-                        secondary={
-                          <>
-                            <Typography component="span" variant="body2" sx={{ color: 'text.primary', display: 'block' }}>
-                              {log.message}
-                            </Typography>
-                            <Typography component="span" variant="caption" sx={{ opacity: 0.5 }}>
-                              {new Date(log.created_at).toLocaleString()}
-                            </Typography>
-                          </>
-                        }
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              )}
             </CardContent>
           </Card>
         </Grid>

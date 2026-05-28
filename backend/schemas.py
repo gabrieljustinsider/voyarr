@@ -167,11 +167,13 @@ class CookieCreate(BaseModel):
     provider_id: int
     cookie_text: str
     download_limit: Optional[int] = None
+    name: Optional[str] = None
 
 
 class CookieResponse(BaseModel):
     id: int
     provider_id: int
+    name: Optional[str] = None
     status: str
     downloads_used: int
     download_limit: Optional[int] = None

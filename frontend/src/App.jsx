@@ -4,11 +4,14 @@ import {
   CssBaseline, AppBar, Toolbar, Typography, Container, Tabs, Tab, Box, 
   Paper, Snackbar, Alert, Dialog, DialogTitle, DialogContent, DialogActions, 
   Button, IconButton, FormControl, InputLabel, Select, MenuItem, Switch, 
-  FormControlLabel, Divider, Grid, TextField, CircularProgress, Chip
+  FormControlLabel, Divider, Grid, TextField, CircularProgress, Chip,
+  Badge, Avatar, Menu, Popover, List, ListItem, ListItemText
 } from '@mui/material'
 import LogoutIcon from '@mui/icons-material/Logout'
 import SettingsIcon from '@mui/icons-material/Settings'
 import TuneIcon from '@mui/icons-material/Tune'
+import NotificationsIcon from '@mui/icons-material/Notifications'
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline'
 import packageJson from '../package.json'
 
 // Synchronously load Login to keep initial login paint instant
@@ -151,6 +154,12 @@ function App() {
   const [confirmModal, setConfirmModal] = useState({ open: false, message: '', onConfirm: null, onCancel: null })
   const [promptModal, setPromptModal] = useState({ open: false, message: '', value: '', onConfirm: null, onCancel: null })
 
+  // Interactive notifications state
+  const [notifications, setNotifications] = useState([])
+  const [notificationAnchorEl, setNotificationAnchorEl] = useState(null)
+  const [userMenuAnchorEl, setUserMenuAnchorEl] = useState(null)
+  const [helpModalOpen, setHelpModalOpen] = useState(false)
+
   // Safely decode the user role from the local storage JWT token
   const userRole = useMemo(() => {
     const jwt = localStorage.getItem('voyarr_jwt')
@@ -163,6 +172,23 @@ function App() {
       return 'viewer'
     }
   }, [])
+
+  const userName = useMemo(() => {
+    const jwt = localStorage.getItem('voyarr_jwt')
+    if (!jwt) return 'Viewer'
+    try {
+      const payload = jwt.split('.')[1]
+      const decoded = JSON.parse(atob(payload))
+      return decoded.sub || 'Admin'
+    } catch {
+      return 'Viewer'
+    }
+  }, [])
+
+  const initials = useMemo(() => {
+    if (!userName) return 'V'
+    return userName.slice(0, 2).toUpperCase()
+  }, [userName])
 
   // Custom Preferences state
   const [themeName, setThemeName] = useState('dark')
@@ -348,7 +374,7 @@ function App() {
     return () => abortController.abort()
   }, [isLoggedIn, fetchProviders, fetchQueue, loadPreferences])
 
-  // Notifications SSE stream to trigger global MUI Snackbars
+  // Notifications SSE stream to trigger global MUI Snackbars and populate notifications list
   useEffect(() => {
     if (!isLoggedIn) return
 
@@ -372,6 +398,14 @@ function App() {
             if (line.startsWith('data: ')) {
               try {
                 const notif = JSON.parse(line.substring(6))
+                const notifId = notif.id || `notif-${Date.now()}-${window.crypto.getRandomValues(new Uint32Array(1))[0]}`
+                const newNotif = {
+                  ...notif,
+                  id: notifId,
+                  read: false,
+                  timestamp: new Date()
+                }
+                setNotifications(prev => [newNotif, ...prev].slice(0, 50))
                 window.dispatchEvent(new CustomEvent('show-toast', { 
                   detail: { 
                     message: `${notif.title}: ${notif.message}`, 
@@ -586,7 +620,7 @@ function App() {
           <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <Box 
               component="img" 
-              src="/app_icon.svg" 
+              src="/app_icon.png" 
               alt="Voyarr Logo" 
               sx={{ 
                 height: 32, 
@@ -643,14 +677,150 @@ function App() {
             />
           </Box>
 
-          {/* Settings Tune Button */}
-          <IconButton color="inherit" onClick={handleOpenPrefDialog} title="Interface Preferences" sx={{ mr: 1.5 }}>
-            <TuneIcon />
+          {/* Interactive Notification Bell */}
+          <IconButton color="inherit" onClick={(e) => setNotificationAnchorEl(e.currentTarget)} title="Notifications" sx={{ mr: 1.5 }}>
+            <Badge badgeContent={notifications.filter(n => !n.read).length} color="secondary">
+              <NotificationsIcon />
+            </Badge>
           </IconButton>
 
-          <IconButton color="inherit" onClick={handleLogout} title="Logout">
-            <LogoutIcon />
+          {/* User Profile Avatar Dropdown Menu */}
+          <IconButton onClick={(e) => setUserMenuAnchorEl(e.currentTarget)} sx={{ p: 0 }}>
+            <Avatar 
+              sx={{ 
+                bgcolor: 'primary.main', 
+                color: 'background.default', 
+                fontWeight: 'bold', 
+                fontSize: '0.9rem',
+                width: 36, 
+                height: 36,
+                border: '2px solid rgba(255,255,255,0.2)'
+              }}
+            >
+              {initials}
+            </Avatar>
           </IconButton>
+
+          {/* Notifications Popover */}
+          <Popover
+            open={Boolean(notificationAnchorEl)}
+            anchorEl={notificationAnchorEl}
+            onClose={() => {
+              setNotificationAnchorEl(null)
+              setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+            }}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+            PaperProps={{
+              sx: {
+                width: 320,
+                maxHeight: 400,
+                borderRadius: '16px',
+                background: 'rgba(30, 30, 40, 0.95)',
+                backdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                overflowY: 'auto',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.5)'
+              }
+            }}
+          >
+            <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+              <Typography variant="subtitle1" fontWeight="bold">Notifications</Typography>
+              {notifications.length > 0 && (
+                <Button 
+                  size="small" 
+                  onClick={() => setNotifications([])} 
+                  sx={{ textTransform: 'none', fontSize: '0.75rem', p: 0, minWidth: 0 }}
+                >
+                  Clear all
+                </Button>
+              )}
+            </Box>
+            <List disablePadding>
+              {notifications.length === 0 ? (
+                <ListItem sx={{ py: 3, justifyContent: 'center' }}>
+                  <Typography variant="body2" color="text.secondary">No new notifications</Typography>
+                </ListItem>
+              ) : (
+                notifications.map((n) => (
+                  <ListItem key={n.id} divider sx={{ py: 1.5, px: 2, borderColor: 'rgba(255,255,255,0.05)' }}>
+                    <ListItemText
+                      primary={
+                        <Typography variant="subtitle2" fontWeight="bold" color="primary.main">
+                          {n.title}
+                        </Typography>
+                      }
+                      secondary={
+                        <Box sx={{ mt: 0.5 }}>
+                          <Typography variant="body2" color="text.primary" sx={{ wordBreak: 'break-word' }}>
+                            {n.message}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                            {new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                          </Typography>
+                        </Box>
+                      }
+                    />
+                  </ListItem>
+                ))
+              )}
+            </List>
+          </Popover>
+
+          {/* User Menu Dropdown */}
+          <Menu
+            anchorEl={userMenuAnchorEl}
+            open={Boolean(userMenuAnchorEl)}
+            onClose={() => setUserMenuAnchorEl(null)}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+            PaperProps={{
+              sx: {
+                width: 220,
+                borderRadius: '16px',
+                background: 'rgba(30, 30, 40, 0.95)',
+                backdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.5)'
+              }
+            }}
+          >
+            <Box sx={{ px: 2.5, py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+              <Typography variant="subtitle2" fontWeight="bold">{userName}</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>Role: {userRole}</Typography>
+            </Box>
+            <MenuItem 
+              onClick={() => {
+                setUserMenuAnchorEl(null)
+                handleOpenPrefDialog()
+              }}
+              sx={{ py: 1.25, px: 2.5, display: 'flex', gap: 1.5 }}
+            >
+              <TuneIcon fontSize="small" />
+              <Typography variant="body2">User Settings</Typography>
+            </MenuItem>
+            <MenuItem 
+              onClick={() => {
+                setUserMenuAnchorEl(null)
+                setHelpModalOpen(true)
+              }}
+              sx={{ py: 1.25, px: 2.5, display: 'flex', gap: 1.5 }}
+            >
+              <HelpOutlineIcon fontSize="small" />
+              <Typography variant="body2">Help & Docs</Typography>
+            </MenuItem>
+            <Divider sx={{ my: 0.5, borderColor: 'rgba(255,255,255,0.08)' }} />
+            <MenuItem 
+              onClick={() => {
+                setUserMenuAnchorEl(null)
+                handleLogout()
+              }}
+              sx={{ py: 1.25, px: 2.5, color: 'error.main', display: 'flex', gap: 1.5 }}
+            >
+              <LogoutIcon fontSize="small" color="error" />
+              <Typography variant="body2">Sign Out</Typography>
+            </MenuItem>
+          </Menu>
         </Toolbar>
       </AppBar>
       <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
@@ -924,6 +1094,32 @@ function App() {
           <Button variant="contained" color="primary" onClick={() => { promptModal.onConfirm?.(promptModal.value); setPromptModal({ ...promptModal, open: false }) }}>
             Confirm
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Help Dialog Modal */}
+      <Dialog 
+        open={helpModalOpen} 
+        onClose={() => setHelpModalOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '20px',
+            background: 'rgba(30, 30, 40, 0.95)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255,255,255,0.08)'
+          }
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 'bold' }}>Voyarr Help & Documentation</DialogTitle>
+        <DialogContent dividers sx={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+          <Suspense fallback={<CircularProgress />}>
+            <HelpArea userRole={userRole} />
+          </Suspense>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setHelpModalOpen(false)} variant="contained">Close</Button>
         </DialogActions>
       </Dialog>
     </ThemeProvider>

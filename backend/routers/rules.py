@@ -40,6 +40,33 @@ def get_rules(db: Session = Depends(get_db)):
     return db.query(DownloadRule).all()
 
 
+@router.get("/{rule_id}")
+def get_rule(rule_id: int, db: Session = Depends(get_db)):
+    from fastapi import HTTPException
+    rule = db.query(DownloadRule).filter(DownloadRule.id == rule_id).first()
+    if not rule:
+        raise HTTPException(status_code=404, detail="Rule not found")
+    return rule
+
+
+@router.put("/{rule_id}")
+def update_rule(rule_id: int, rule: RuleCreate, db: Session = Depends(get_db)):
+    from fastapi import HTTPException
+    db_rule = db.query(DownloadRule).filter(DownloadRule.id == rule_id).first()
+    if not db_rule:
+        raise HTTPException(status_code=404, detail="Rule not found")
+    
+    db_rule.name = rule.name
+    db_rule.criteria = rule.criteria
+    db_rule.action = rule.action
+    db_rule.scope = rule.scope
+    db_rule.is_active = rule.is_active
+    
+    db.commit()
+    db.refresh(db_rule)
+    return db_rule
+
+
 @router.delete("/{rule_id}")
 def delete_rule(rule_id: int, db: Session = Depends(get_db)):
     rule = db.query(DownloadRule).filter(DownloadRule.id == rule_id).first()
@@ -61,3 +88,40 @@ def create_custom_list(custom_list: ListCreate, db: Session = Depends(get_db)):
 @router.get("/lists")
 def get_custom_lists(db: Session = Depends(get_db)):
     return db.query(CustomList).all()
+
+
+@router.get("/lists/{list_id}")
+def get_custom_list(list_id: int, db: Session = Depends(get_db)):
+    from fastapi import HTTPException
+    custom_list = db.query(CustomList).filter(CustomList.id == list_id).first()
+    if not custom_list:
+        raise HTTPException(status_code=404, detail="Custom list not found")
+    return custom_list
+
+
+@router.put("/lists/{list_id}")
+def update_custom_list(list_id: int, custom_list: ListCreate, db: Session = Depends(get_db)):
+    from fastapi import HTTPException
+    db_list = db.query(CustomList).filter(CustomList.id == list_id).first()
+    if not db_list:
+        raise HTTPException(status_code=404, detail="Custom list not found")
+    
+    db_list.name = custom_list.name
+    db_list.item_type = custom_list.item_type
+    db_list.items = custom_list.items
+    
+    db.commit()
+    db.refresh(db_list)
+    return db_list
+
+
+@router.delete("/lists/{list_id}")
+def delete_custom_list(list_id: int, db: Session = Depends(get_db)):
+    from fastapi import HTTPException
+    custom_list = db.query(CustomList).filter(CustomList.id == list_id).first()
+    if not custom_list:
+        raise HTTPException(status_code=404, detail="Custom list not found")
+    
+    db.delete(custom_list)
+    db.commit()
+    return {"message": "Custom list deleted"}

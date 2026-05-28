@@ -176,8 +176,83 @@ def run_schema_migrations(engine):
                     pass
                 logger.warning(f"Failed to create file_naming_history table (it may already exist): {e}")
 
+        # 5. Check if session_cookies has name column, if not, add it
+        try:
+            conn.execute(text("SELECT name FROM session_cookies LIMIT 1"))
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            try:
+                conn.execute(text("ALTER TABLE session_cookies ADD COLUMN name VARCHAR(255)"))
+                conn.commit()
+                logger.info("Database migration successfully added 'name' to 'session_cookies'.")
+            except Exception as e:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                logger.warning(f"Failed to add name column to session_cookies (it may already exist): {e}")
+
+        # 6. Check if mass_rip_sessions table exists, if not, create it
+        try:
+            conn.execute(text("SELECT id FROM mass_rip_sessions LIMIT 1"))
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            if dialect_name == "postgresql":
+                create_table_sql = """
+                CREATE TABLE mass_rip_sessions (
+                    id SERIAL PRIMARY KEY,
+                    provider_id INTEGER NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+                    url TEXT NOT NULL,
+                    criteria JSONB,
+                    status VARCHAR(50) DEFAULT 'pending',
+                    total_videos INTEGER DEFAULT 0,
+                    processed_videos INTEGER DEFAULT 0,
+                    queued_videos INTEGER DEFAULT 0,
+                    skipped_videos INTEGER DEFAULT 0,
+                    celery_task_id VARCHAR(255),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+                """
+            else:
+                create_table_sql = """
+                CREATE TABLE mass_rip_sessions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    provider_id INTEGER NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+                    url TEXT NOT NULL,
+                    criteria TEXT,
+                    status VARCHAR(50) DEFAULT 'pending',
+                    total_videos INTEGER DEFAULT 0,
+                    processed_videos INTEGER DEFAULT 0,
+                    queued_videos INTEGER DEFAULT 0,
+                    skipped_videos INTEGER DEFAULT 0,
+                    celery_task_id VARCHAR(255),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+                """
+            try:
+                conn.execute(text(create_table_sql))
+                conn.commit()
+                logger.info("Database migration successfully created 'mass_rip_sessions' table.")
+            except Exception as e:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                logger.warning(f"Failed to create mass_rip_sessions table: {e}")
+
 
 def is_feature_enabled(db, feature: str, user: Optional[Any] = None) -> bool:
+    if user is not None and getattr(user, "role", None) == "admin":
+        return True
+
     from models import Settings
     if feature == "streaming":
         setting = db.query(Settings).filter(Settings.key == "streaming_enabled").first()
@@ -195,9 +270,6 @@ def is_feature_enabled(db, feature: str, user: Optional[Any] = None) -> bool:
         return False
 
     if user is not None:
-        if getattr(user, "role", None) == "admin":
-            return True
-
         permissions = getattr(user, "permissions", None) or {}
         if isinstance(permissions, str):
             import json

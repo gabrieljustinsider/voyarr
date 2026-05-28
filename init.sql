@@ -196,6 +196,7 @@ CREATE TABLE metadata_cache (
 CREATE TABLE session_cookies (
     id SERIAL PRIMARY KEY,
     provider_id INTEGER REFERENCES providers(id) ON DELETE CASCADE,
+    name VARCHAR(255),
     site_id VARCHAR(100),
     cookie_text TEXT,
     status VARCHAR(50) DEFAULT 'active',
@@ -203,6 +204,22 @@ CREATE TABLE session_cookies (
     downloads_used INTEGER DEFAULT 0,
     duration_limit_seconds INTEGER,
     expires_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Mass rip sessions table
+CREATE TABLE mass_rip_sessions (
+    id SERIAL PRIMARY KEY,
+    provider_id INTEGER NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+    url TEXT NOT NULL,
+    criteria JSONB,
+    status VARCHAR(50) DEFAULT 'pending',
+    total_videos INTEGER DEFAULT 0,
+    processed_videos INTEGER DEFAULT 0,
+    queued_videos INTEGER DEFAULT 0,
+    skipped_videos INTEGER DEFAULT 0,
+    celery_task_id VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

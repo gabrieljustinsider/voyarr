@@ -59,7 +59,10 @@ The Chrome Web Store review team requires explicit, plain-English justifications
 
 ## **📈 Version History**
 
-### **v1.15.0** (Current Release)
+### **v1.16.1** (Current Release)
+* **Security Update**: Removed the legacy `bcrypt` dependency and migrated to `argon2-cffi` for enhanced password hashing.
+
+### **v1.15.0**
 * **Unified Brand Styling**: Restructured the popup user interface with premium glassmorphism, clean grid elements, and integrated the modern Google Font **Outfit** to match the core Voyarr server branding.
 * **Dynamic Versioning**: Added an auto-populating version badge chip directly adjacent to the main "VOYARR LENS" title, reading version metadata dynamically from the extension's runtime manifest.
 * **Multi-Server & Probing**: Expanded settings to support active multi-server environments with backward-compatible migration, instant server switching, and a visual network card list.

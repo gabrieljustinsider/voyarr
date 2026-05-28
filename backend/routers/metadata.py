@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from database import get_db
 from models import LibraryEntry
@@ -8,12 +8,94 @@ from typing import List, Optional
 import os
 from services.media_tagger import MediaTagger
 import json
+import ipaddress
+import socket
+from urllib.parse import urlparse
 
 from dependencies import verify_api_key
 
 router = APIRouter(
     prefix="/metadata", tags=["metadata"], dependencies=[Depends(verify_api_key)]
 )
+
+
+class UrlFetchRequest(BaseModel):
+    url: str
+
+
+def is_safe_url(url: str) -> bool:
+    try:
+        from utils import validate_url_ssrf
+        validate_url_ssrf(url)
+        return True
+    except Exception:
+        return False
+
+
+@router.post("/fetch-url-details")
+def fetch_url_details(req: UrlFetchRequest):
+    url = req.url
+    if not is_safe_url(url):
+        raise HTTPException(status_code=400, detail="Invalid or unsafe URL provided (SSRF protection block)")
+    
+    import requests
+    from bs4 import BeautifulSoup
+    try:
+        headers = {
+            "User-Agent": "Voyarr/1.0 (Url Metadata Extractor; +https://github.com/gabrieljustinsider/voyarr)"
+        }
+        res = requests.get(url, headers=headers, timeout=5)
+        res.raise_for_status()
+        
+        soup = BeautifulSoup(res.text, "html.parser")
+        
+        title = None
+        og_title = soup.find("meta", property="og:title")
+        if og_title and og_title.get("content"):
+            title = og_title["content"].strip()
+        if not title:
+            twitter_title = soup.find("meta", name="twitter:title")
+            if twitter_title and twitter_title.get("content"):
+                title = twitter_title["content"].strip()
+        if not title:
+            title_tag = soup.find("title")
+            if title_tag:
+                title = title_tag.text.strip()
+        if not title:
+            title = url
+            
+        description = None
+        desc_meta = soup.find("meta", name="description")
+        if desc_meta and desc_meta.get("content"):
+            description = desc_meta["content"].strip()
+        if not description:
+            og_desc = soup.find("meta", property="og:description")
+            if og_desc and og_desc.get("content"):
+                description = og_desc["content"].strip()
+                
+        favicon = None
+        for link in soup.find_all("link"):
+            rel = link.get("rel", [])
+            if isinstance(rel, str):
+                rel = [rel]
+            if any(r.lower() in ("icon", "shortcut icon", "apple-touch-icon") for r in rel):
+                href = link.get("href")
+                if href:
+                    from urllib.parse import urljoin
+                    favicon = urljoin(url, href)
+                    break
+        if not favicon:
+            from urllib.parse import urljoin
+            favicon = urljoin(url, "/favicon.ico")
+            
+        return {
+            "title": title,
+            "description": description,
+            "favicon": favicon,
+            "url": url
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch metadata: {str(e)}")
 
 
 class MetadataUpdate(BaseModel):

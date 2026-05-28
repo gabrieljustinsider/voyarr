@@ -450,6 +450,7 @@ class SessionCookie(Base):
         nullable=True,
         index=True,
     )
+    name = Column(String(255), nullable=True)
     site_id = Column(String(100), nullable=True, index=True)
     cookie_text = Column(Text, nullable=True)
     status = Column(String(50), default="active", index=True)
@@ -774,4 +775,28 @@ class SsoLink(Base):
     linked_at = Column(TIMESTAMP, default=func.current_timestamp())
 
     user = relationship("User")
+
+
+class MassRipSession(Base):
+    __tablename__ = "mass_rip_sessions"
+
+    id = Column(Integer, primary_key=True)
+    provider_id = Column(
+        Integer,
+        ForeignKey("providers.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    url = Column(Text, nullable=False)
+    criteria = Column(JSON().with_variant(JSONB, "postgresql"))  # Chosen criteria (e.g. {"resolution": "1080p", "max_items": 50, "duplicates": "skip"})
+    status = Column(String(50), default="pending")  # "pending", "running", "paused", "stopped", "completed", "failed"
+    total_videos = Column(Integer, default=0)
+    processed_videos = Column(Integer, default=0)
+    queued_videos = Column(Integer, default=0)
+    skipped_videos = Column(Integer, default=0)
+    celery_task_id = Column(String(255), nullable=True)
+    created_at = Column(TIMESTAMP, default=func.current_timestamp())
+    updated_at = Column(
+        TIMESTAMP, default=func.current_timestamp(), onupdate=func.current_timestamp()
+    )
 

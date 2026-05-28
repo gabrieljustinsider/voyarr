@@ -38,6 +38,7 @@ from routers import (
     sso,
     oidc,
     scraper,
+    deovr,
 )
 
 # Database initialization with retry logic for container environments
@@ -77,7 +78,7 @@ from utils import initialize_network_settings
 initialize_network_settings()
 
 app = FastAPI(
-    title="Voyarr API", version="1.15.5", root_path=os.getenv("ROOT_PATH", "")
+    title="Voyarr API", version="1.16.1", root_path=os.getenv("ROOT_PATH", "")
 )
 
 # CORS
@@ -194,6 +195,7 @@ app.include_router(passkeys.router)
 app.include_router(sso.router)
 app.include_router(oidc.router)
 app.include_router(scraper.router)
+app.include_router(deovr.router)
 
 
 @app.get("/")
