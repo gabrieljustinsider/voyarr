@@ -160,6 +160,13 @@ The browser companion is a highly interactive extension that connects Google Chr
 3. Enter your **Master API Key** (you can find or generate this in your web app under **Settings > Developer & API Keys**).
 4. Click **Connect**. Once connected, a green indicator will light up, showing you are ready to map!
 
+### 📡 Local Network Server Auto-Discovery (Scan Local):
+If you do not know your self-hosted server's IP address, you can use the **Scan Local** button in the popup to scan your local network:
+* **Configurable Port**: Enter the port to be scanned directly inside the port input field adjacent to the scan button (defaults to `8000`).
+* **Subnets Searched**: The scanner probes common local private networks (`192.168.1.x`, `192.168.0.x`, and `10.0.0.x`). If the active tab is running on a local numerical IP, that subnet is automatically prioritized and scanned first.
+* **Host Range & Performance**: Probes host identifiers sequentially from `.1` to `.60` in parallel batches of `15`. To ensure high performance, each probe is restricted to a fast `400ms` connection timeout.
+* **Server Verification Criteria**: An HTTP `GET` request is dispatched to `http://<ip>:<port>/api/health`, with a fallback to `http://<ip>:<port>/health`. The scanned IP is verified as a valid active Voyarr server only if it responds with a successful HTTP code (2xx) and a JSON payload containing `"status": "healthy"`.
+
 ### 🕶️ Meta Quest Browser & Mobile VR Setup (Universal Bookmarklet):
 Since the **Meta Quest Browser** runs on an isolated virtual reality OS, it does not allow you to install third-party unpacked folders from the Chrome Web Store. 
 To bypass this limit, Voyarr includes a universal **Bookmarklet Companion**:
