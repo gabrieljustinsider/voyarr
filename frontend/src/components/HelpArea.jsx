@@ -1,8 +1,9 @@
 import React from 'react';
 import { Box, Typography, Paper, Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import AdminHelpArea from './AdminHelpArea';
 
-export default function HelpArea() {
+export default function HelpArea({ userRole }) {
   return (
     <Box sx={{ p: 2 }}>
       <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold' }}>
@@ -70,6 +71,13 @@ export default function HelpArea() {
           <li>For UI rendering issues, try clearing your browser cache or adjusting the Theme in Interface Preferences.</li>
         </ul>
       </Paper>
+
+      {/* Render AdminHelpArea contextually at the bottom for admins */}
+      {userRole === 'admin' && (
+        <Box sx={{ mt: 5, borderTop: '1px solid rgba(255,255,255,0.08)', pt: 4 }}>
+          <AdminHelpArea />
+        </Box>
+      )}
     </Box>
   );
 }

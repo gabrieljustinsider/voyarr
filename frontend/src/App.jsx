@@ -480,6 +480,7 @@ function App() {
   }
 
   // Dynamic conditional Tab Panel Builder
+  // Dynamic conditional Tab Panel Builder
   const allTabs = useMemo(() => [
     { label: "Dashboard", component: <Dashboard />, visible: true },
     { label: "Library", component: <Library />, visible: true },
@@ -490,32 +491,10 @@ function App() {
     { label: "Providers", component: (
       <ProviderList 
         providers={filteredProviders} 
-        onSelectProvider={(id) => {
-          setSelectedProvider(id)
-          // Find credentials index dynamically based on visible tabs before it
-          let credsIndex = 3
-          if (uiConfig.showFavorites) credsIndex++
-          if (uiConfig.showStudios) credsIndex++
-          if (uiConfig.showLive) credsIndex++
-          if (uiConfig.showAnalytics) credsIndex++
-          setTabValue(credsIndex)
-        }}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
       />
     ), visible: true },
-    { label: "Credentials", component: (
-      selectedProvider ? (
-        <CredentialForm 
-          credentials={credentials} 
-          setCredentials={setCredentials} 
-          onSubmit={handleCredentialSubmit} 
-        />
-      ) : (
-        <Typography sx={{ p: 3 }}>Please select a provider first in the Providers tab.</Typography>
-      )
-    ), visible: true },
-    { label: "Session Cookies", component: <CookiesManager />, visible: true },
     { label: "Downloads", component: <DownloadQueue queue={queue} onRefresh={fetchQueue} />, visible: true },
     { label: "Mass Rip", component: <MassRip />, visible: true },
     { label: "Schedules", component: <ScheduleManager />, visible: true },
@@ -532,13 +511,12 @@ function App() {
     { label: "Logs", component: <LogsViewer />, visible: true },
     { label: "Scraper Tester", component: <ScraperTester />, visible: true },
     { label: "Request Manager", component: <RequestManager />, visible: true },
-    { label: "Help", component: <HelpArea />, visible: true },
-    { label: "Admin Help", component: <AdminHelpArea />, visible: userRole === 'admin' },
-  ], [uiConfig, filteredProviders, selectedProvider, credentials, queue, fetchQueue, searchQuery, handleCredentialSubmit, userRole])
+    { label: "Help", component: <HelpArea userRole={userRole} />, visible: true },
+  ], [uiConfig, filteredProviders, queue, fetchQueue, searchQuery, userRole])
 
   const visibleTabs = useMemo(() => allTabs.filter(t => t.visible), [allTabs])
 
-  // Define categorized tabs logically and alphabetically
+  // Define categorized tabs logically and alphabetically (Credentials, Session Cookies, and Admin Help are now integrated contextually)
   const categories = useMemo(() => [
     {
       id: "media",
@@ -550,7 +528,7 @@ function App() {
       id: "scraping",
       label: "Providers & Auth",
       icon: "🔑",
-      tabs: ["Providers", "Credentials", "Session Cookies", "Scraper Tester"]
+      tabs: ["Providers", "Scraper Tester"]
     },
     {
       id: "tasks",
@@ -568,7 +546,7 @@ function App() {
       id: "system",
       label: "System & Admin",
       icon: "🔧",
-      tabs: ["Adv. Preferences", "External APIs", "Settings", "P2P Sync", "Notification Settings", "Backup", "Logs", "Help", "Admin Help"]
+      tabs: ["Adv. Preferences", "External APIs", "Settings", "P2P Sync", "Notification Settings", "Backup", "Logs", "Help"]
     }
   ], []);
 
