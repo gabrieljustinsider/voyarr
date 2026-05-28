@@ -59,7 +59,13 @@ The Chrome Web Store review team requires explicit, plain-English justifications
 
 ## **📈 Version History**
 
-### **v1.16.2** (Current Release)
+### **v1.16.4** (Current Release)
+* **Bug Fix**: Fixed a critical frontend build error by resolving the non-existent `@mui/icons-material/HelpOutline` import to `@mui/icons-material/HelpOutlineOutlined` in `App.jsx`.
+
+### **v1.16.3**
+* **Maintenance**: Resolved all Pylance type diagnostics and type checker warnings across the backend.
+
+### **v1.16.2**
 * **Bug Fixes**: Minor UI corrections and stability improvements.
 
 ### **v1.16.1**

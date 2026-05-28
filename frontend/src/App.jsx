@@ -11,7 +11,7 @@ import LogoutIcon from '@mui/icons-material/Logout'
 import SettingsIcon from '@mui/icons-material/Settings'
 import TuneIcon from '@mui/icons-material/Tune'
 import NotificationsIcon from '@mui/icons-material/Notifications'
-import HelpOutlineIcon from '@mui/icons-material/HelpOutline'
+import HelpOutlineIcon from '@mui/icons-material/HelpOutlineOutlined'
 import packageJson from '../package.json'
 
 // Synchronously load Login to keep initial login paint instant
