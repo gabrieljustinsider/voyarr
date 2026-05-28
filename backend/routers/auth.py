@@ -424,3 +424,45 @@ def list_admin_logs(
         }
         for log in logs
     ]
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=8)
+
+
+@router.post("/change-password")
+def change_password(
+    req: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, str]:
+    """Change the password of the currently authenticated user."""
+    user = db.query(User).filter(User.id == current_user.id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+    if not user.password_hash or not verify_password(req.current_password, str(user.password_hash)):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect current password",
+        )
+    
+    hashed_password = get_password_hash(req.new_password)
+    user.password_hash = hashed_password
+    db.commit()
+
+    if user.role == "admin":
+        from db_utils import log_admin_action
+        log_admin_action(
+            db,
+            admin_id=str(user.id),
+            admin_username=str(user.username),
+            action="change_password",
+            details={"user_id": str(user.id), "username": str(user.username)}
+        )
+        
+    return {"message": "Password changed successfully"}
+

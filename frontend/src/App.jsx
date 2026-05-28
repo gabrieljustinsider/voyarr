@@ -47,6 +47,7 @@ const TranscodeQueue = lazy(() => import('./components/TranscodeQueue'))
 const P2PSync = lazy(() => import('./components/P2PSync'))
 const HelpArea = lazy(() => import('./components/HelpArea'))
 const AdminHelpArea = lazy(() => import('./components/AdminHelpArea'))
+const AccountSecurity = lazy(() => import('./components/AccountSecurity'))
 
 import { apiFetch, getAuthHeaders } from './api'
 import './App.css'
@@ -200,6 +201,7 @@ function App() {
   })
   const [isTvMode, setIsTvMode] = useState(false)
   const [prefDialogOpen, setPrefDialogOpen] = useState(false)
+  const [prefTab, setPrefTab] = useState(0)
 
   // Temp dialog preferences state
   const [tempTheme, setTempTheme] = useState('dark')
@@ -792,6 +794,7 @@ function App() {
             <MenuItem 
               onClick={() => {
                 setUserMenuAnchorEl(null)
+                setPrefTab(0)
                 handleOpenPrefDialog()
               }}
               sx={{ py: 1.25, px: 2.5, display: 'flex', gap: 1.5 }}
@@ -956,89 +959,110 @@ function App() {
         </Paper>
       </Container>
 
-      {/* Preferences Tuning Modal */}
-      <Dialog open={prefDialogOpen} onClose={() => setPrefDialogOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: 'bold' }}>UI Customization & Themes</DialogTitle>
-        <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-          
-          {/* Theme Selector */}
-          <FormControl fullWidth size="small">
-            <InputLabel>Visual Theme Palette</InputLabel>
-            <Select
-              value={tempTheme}
-              label="Visual Theme Palette"
-              onChange={(e) => setTempTheme(e.target.value)}
-            >
-              <MenuItem value="light">Vanilla Light Mode</MenuItem>
-              <MenuItem value="dark">Vanilla Dark Mode</MenuItem>
-              <MenuItem value="midnight_cyber">Midnight Cyber (Cyan/Neon)</MenuItem>
-              <MenuItem value="sunset_rose">Sunset Rose (Peach/Warm Plums)</MenuItem>
-              <MenuItem value="emerald_obsidian">Emerald Obsidian (Emerald/Deep dark)</MenuItem>
-              <MenuItem value="ocean_glass">Ocean Glassmorphism (Ocean/Translucent)</MenuItem>
-              <MenuItem value="crimson_obsidian">Crimson Obsidian (High contrast Red/Black)</MenuItem>
-            </Select>
-          </FormControl>
+      <Dialog open={prefDialogOpen} onClose={() => setPrefDialogOpen(false)} maxWidth={prefTab === 1 ? "sm" : "xs"} fullWidth>
+        <DialogTitle sx={{ fontWeight: 'bold' }}>User Settings</DialogTitle>
+        <Box sx={{ px: 3 }}>
+          <Tabs value={prefTab} onChange={(e, val) => setPrefTab(val)} sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+            <Tab label="Appearance & Tabs" sx={{ textTransform: 'none' }} />
+            <Tab label="Account Security" sx={{ textTransform: 'none' }} />
+          </Tabs>
+        </Box>
+        <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, minHeight: prefTab === 1 ? 400 : 'auto' }}>
+          {prefTab === 0 ? (
+            <>
+              {/* Theme Selector */}
+              <FormControl fullWidth size="small">
+                <InputLabel>Visual Theme Palette</InputLabel>
+                <Select
+                  value={tempTheme}
+                  label="Visual Theme Palette"
+                  onChange={(e) => setTempTheme(e.target.value)}
+                >
+                  <MenuItem value="light">Vanilla Light Mode</MenuItem>
+                  <MenuItem value="dark">Vanilla Dark Mode</MenuItem>
+                  <MenuItem value="midnight_cyber">Midnight Cyber (Cyan/Neon)</MenuItem>
+                  <MenuItem value="sunset_rose">Sunset Rose (Peach/Warm Plums)</MenuItem>
+                  <MenuItem value="emerald_obsidian">Emerald Obsidian (Emerald/Deep dark)</MenuItem>
+                  <MenuItem value="ocean_glass">Ocean Glassmorphism (Ocean/Translucent)</MenuItem>
+                  <MenuItem value="crimson_obsidian">Crimson Obsidian (High contrast Red/Black)</MenuItem>
+                </Select>
+              </FormControl>
 
-          {/* TV Breakpoints toggle */}
-          <FormControlLabel
-            control={
-              <Switch
-                checked={tempTvMode}
-                onChange={(e) => setTempTvMode(e.target.checked)}
+              {/* TV Breakpoints toggle */}
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={tempTvMode}
+                    onChange={(e) => setTempTvMode(e.target.checked)}
+                  />
+                }
+                label="Optimized Smart TV Layout (Widescreen targets)"
               />
-            }
-            label="Optimized Smart TV Layout (Widescreen targets)"
-          />
 
-          <Divider sx={{ my: 1 }} />
-          
-          <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Conditional Feature Tabs</Typography>
-          
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={tempUiConfig.showFavorites}
-                  onChange={(e) => setTempUiConfig({ ...tempUiConfig, showFavorites: e.target.checked })}
+              <Divider sx={{ my: 1 }} />
+              
+              <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Conditional Feature Tabs</Typography>
+              
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={tempUiConfig.showFavorites}
+                      onChange={(e) => setTempUiConfig({ ...tempUiConfig, showFavorites: e.target.checked })}
+                    />
+                  }
+                  label="Enable Favorites Hub"
                 />
-              }
-              label="Enable Favorites Hub"
-            />
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={tempUiConfig.showStudios}
-                  onChange={(e) => setTempUiConfig({ ...tempUiConfig, showStudios: e.target.checked })}
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={tempUiConfig.showStudios}
+                      onChange={(e) => setTempUiConfig({ ...tempUiConfig, showStudios: e.target.checked })}
+                    />
+                  }
+                  label="Enable Studios Profiles"
                 />
-              }
-              label="Enable Studios Profiles"
-            />
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={tempUiConfig.showLive}
-                  onChange={(e) => setTempUiConfig({ ...tempUiConfig, showLive: e.target.checked })}
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={tempUiConfig.showLive}
+                      onChange={(e) => setTempUiConfig({ ...tempUiConfig, showLive: e.target.checked })}
+                    />
+                  }
+                  label="Enable Live Streams capture"
                 />
-              }
-              label="Enable Live Streams capture"
-            />
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={tempUiConfig.showAnalytics}
-                  onChange={(e) => setTempUiConfig({ ...tempUiConfig, showAnalytics: e.target.checked })}
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={tempUiConfig.showAnalytics}
+                      onChange={(e) => setTempUiConfig({ ...tempUiConfig, showAnalytics: e.target.checked })}
+                    />
+                  }
+                  label="Enable Analytics dashboard"
                 />
-              }
-              label="Enable Analytics dashboard"
-            />
-          </Box>
-
+              </Box>
+            </>
+          ) : (
+            <Suspense fallback={
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress />
+              </Box>
+            }>
+              <AccountSecurity setSnackbar={setSnackbar} />
+            </Suspense>
+          )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setPrefDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleSavePrefDialog} variant="contained" color="primary">
-            Apply & Save
-          </Button>
+          {prefTab === 0 ? (
+            <>
+              <Button onClick={() => setPrefDialogOpen(false)}>Cancel</Button>
+              <Button onClick={handleSavePrefDialog} variant="contained" color="primary">
+                Apply & Save
+              </Button>
+            </>
+          ) : (
+            <Button onClick={() => setPrefDialogOpen(false)} variant="contained">Close</Button>
+          )}
         </DialogActions>
       </Dialog>
 
