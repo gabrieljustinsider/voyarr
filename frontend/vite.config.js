@@ -20,7 +20,6 @@ const getHttpsConfig = () => {
 };
 
 export default defineConfig({
-  envPrefix: ['VITE_', 'VOYARR_'],
   plugins: [
     react(),
     VitePWA({

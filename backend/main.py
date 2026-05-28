@@ -78,10 +78,8 @@ from utils import initialize_network_settings
 
 initialize_network_settings()
 
-VOYARR_VERSION = "1.16.8"
-
 app = FastAPI(
-    title="Voyarr API", version=os.getenv("VOYARR_VERSION", VOYARR_VERSION), root_path=os.getenv("ROOT_PATH", "")
+    title="Voyarr API", version="1.16.8", root_path=os.getenv("ROOT_PATH", "")
 )
 
 # CORS

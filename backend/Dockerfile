@@ -1,4 +1,6 @@
 FROM python:3.12-slim-bookworm
+LABEL version="1.16.8"
+LABEL org.opencontainers.image.version="1.16.8"
 
 # Set environment variables for Python runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \

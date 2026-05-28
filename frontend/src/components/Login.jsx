@@ -501,7 +501,7 @@ export default function Login() {
               VOYARR
             </Typography>
             <Chip
-              label={`v${import.meta.env.VOYARR_VERSION || packageJson.version}`}
+              label={`v${packageJson.version}`}
               size="small"
               sx={{
                 height: 20,

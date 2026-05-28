@@ -55,14 +55,14 @@ def main():
             f.write("\n")
         print(f"Updated {ext_manifest_path}")
 
-    # 5. Update backend/main.py VOYARR_VERSION constant
+    # 5. Update backend/main.py FastAPI instantiation version
     backend_main_path = os.path.join(root_dir, "backend", "main.py")
     if os.path.exists(backend_main_path):
         with open(backend_main_path, "r") as f:
             content = f.read()
         
-        # Match VOYARR_VERSION = "..."
-        pattern = r'(VOYARR_VERSION\s*=\s*")[^"]*(")'
+        # Match app = FastAPI(..., version="...")
+        pattern = r'(app\s*=\s*FastAPI\([^)]*version\s*=\s*")[^"]*(")'
         new_content, count = re.subn(pattern, rf'\g<1>{version}\g<2>', content)
         
         if count > 0:
@@ -70,56 +70,45 @@ def main():
                 f.write(new_content)
             print(f"Updated {backend_main_path}")
         else:
-            print(f"Warning: Could not find VOYARR_VERSION constant definition in {backend_main_path}")
+            print(f"Warning: Could not find version parameter in FastAPI instantiation in {backend_main_path}")
 
-    # 5b. Update environment files (.env and .env.example)
-    env_paths = [os.path.join(root_dir, ".env.example"), os.path.join(root_dir, ".env")]
-    for env_path in env_paths:
-        if os.path.exists(env_path):
-            with open(env_path, "r") as f:
-                lines = f.readlines()
+    # 5b. Update backend/Dockerfile and frontend/Dockerfile version LABELs
+    dockerfiles = [
+        os.path.join(root_dir, "backend", "Dockerfile"),
+        os.path.join(root_dir, "frontend", "Dockerfile")
+    ]
+    for df_path in dockerfiles:
+        if os.path.exists(df_path):
+            with open(df_path, "r") as f:
+                content = f.read()
             
-            found = False
-            new_lines = []
-            for line in lines:
-                if line.startswith("VOYARR_VERSION="):
-                    new_lines.append(f"VOYARR_VERSION={version}\n")
-                    found = True
-                else:
+            # Match LABEL version="..."
+            pattern_ver = r'(LABEL\s+version\s*=\s*")[^"]*(")'
+            content, count1 = re.subn(pattern_ver, rf'\g<1>{version}\g<2>', content)
+            
+            # Match LABEL org.opencontainers.image.version="..."
+            pattern_oci = r'(LABEL\s+org\.opencontainers\.image\.version\s*=\s*")[^"]*(")'
+            content, count2 = re.subn(pattern_oci, rf'\g<1>{version}\g<2>', content)
+            
+            if count1 > 0 or count2 > 0:
+                with open(df_path, "w") as f:
+                    f.write(content)
+                print(f"Updated {df_path}")
+            else:
+                # If labels are not found, let's append them under the base image
+                # In backend Dockerfile, append after line 1: FROM python:...
+                # In frontend Dockerfile, append after line 22: FROM nginx:alpine
+                lines = content.splitlines(keepends=True)
+                new_lines = []
+                for line in lines:
                     new_lines.append(line)
-            
-            # If not found, append under backend config
-            if not found:
-                new_lines_with_append = []
-                appended = False
-                for line in new_lines:
-                    new_lines_with_append.append(line)
-                    if line.strip() == "# Backend Configuration" and not appended:
-                        new_lines_with_append.append(f"VOYARR_VERSION={version}\n")
-                        appended = True
-                if not appended:
-                    new_lines_with_append.append(f"\nVOYARR_VERSION={version}\n")
-                new_lines = new_lines_with_append
+                    if line.startswith("FROM python:") or line.startswith("FROM nginx:"):
+                        new_lines.append(f'LABEL version="{version}"\n')
+                        new_lines.append(f'LABEL org.opencontainers.image.version="{version}"\n')
                 
-            with open(env_path, "w") as f:
-                f.writelines(new_lines)
-            print(f"Updated {env_path}")
-
-    # 5c. Update docker-compose.yml VOYARR_VERSION environment variables
-    docker_compose_path = os.path.join(root_dir, "docker-compose.yml")
-    if os.path.exists(docker_compose_path):
-        with open(docker_compose_path, "r") as f:
-            content = f.read()
-        
-        pattern = r'(VOYARR_VERSION=\$\{VOYARR_VERSION:-)[^}]*(\})'
-        new_content, count = re.subn(pattern, rf'\g<1>{version}\g<2>', content)
-        
-        if count > 0:
-            with open(docker_compose_path, "w") as f:
-                f.write(new_content)
-            print(f"Updated {docker_compose_path}")
-        else:
-            print(f"Warning: Could not find VOYARR_VERSION variables in {docker_compose_path}")
+                with open(df_path, "w") as f:
+                    f.writelines(new_lines)
+                print(f"Added version LABELs to {df_path}")
 
     # 6. Update package-lock.json files
     print("Regenerating package-lock.json files to sync locks...")
