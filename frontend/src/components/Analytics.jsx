@@ -7,7 +7,6 @@ import {
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import FavoriteIcon from '@mui/icons-material/Favorite'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
-import CloudSyncIcon from '@mui/icons-material/CloudSync'
 import AssessmentIcon from '@mui/icons-material/Assessment'
 import { 
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, 
@@ -21,7 +20,7 @@ export default function Analytics() {
   const [error, setError] = useState(null)
 
   // Stash sync states
-  const [stashUrl, setStashUrl] = useState('http://localhost:9000')
+  const [stashUrl, setStashUrl] = useState('http://localhost:9999')
   const [stashApiKey, setStashApiKey] = useState('')
   const [syncing, setSyncing] = useState(false)
   const [syncResult, setSyncResult] = useState(null)
@@ -297,7 +296,11 @@ export default function Analytics() {
         border: '1px solid rgba(144, 202, 249, 0.15)'
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-          <CloudSyncIcon color="primary" sx={{ fontSize: 32 }} />
+          <img 
+            src="https://avatars.githubusercontent.com/u/24867479?s=200&v=4" 
+            alt="Stash Logo" 
+            style={{ width: 32, height: 32, borderRadius: '6px', objectFit: 'cover' }} 
+          />
           <Typography variant="h5" sx={{ fontWeight: '800' }}>Stash App Two-Way Sync</Typography>
         </Box>
         
@@ -331,7 +334,13 @@ export default function Analytics() {
               variant="contained" 
               color="primary" 
               size="large"
-              startIcon={<CloudSyncIcon />}
+              startIcon={
+                <img 
+                  src="https://avatars.githubusercontent.com/u/24867479?s=200&v=4" 
+                  alt="Stash Logo" 
+                  style={{ width: 20, height: 20, borderRadius: '4px', objectFit: 'cover' }} 
+                />
+              }
               onClick={handleSyncStash}
               disabled={syncing}
             >

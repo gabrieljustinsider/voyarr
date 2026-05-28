@@ -59,7 +59,10 @@ The Chrome Web Store review team requires explicit, plain-English justifications
 
 ## **📈 Version History**
 
-### **v1.16.4** (Current Release)
+### **v1.16.5** (Current Release)
+* **UI & Defaults**: Updated Stash synchronization integration to use Stash's official logo next to the app name and default Stash connection port to port 9999.
+
+### **v1.16.4**
 * **Bug Fix**: Fixed a critical frontend build error by resolving the non-existent `@mui/icons-material/HelpOutline` import to `@mui/icons-material/HelpOutlineOutlined` in `App.jsx`.
 
 ### **v1.16.3**

@@ -569,7 +569,7 @@ def test_stash_stats_sync(mock_requests_post):
     response = client.post(
         "/external-api/stash/sync-stats",
         json={
-            "stash_url": "http://example.com:9000",
+            "stash_url": "http://example.com:9999",
             "stash_api_key": "dummy_stash_key",
         },
     )
