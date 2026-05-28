@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const newServerApiKeyInput = document.getElementById('newServerApiKeyInput');
   const addServerBtn = document.getElementById('addServerBtn');
   const scanNetworkBtn = document.getElementById('scanNetworkBtn');
+  const scanPortInput = document.getElementById('scanPortInput');
   const localScanResultsContainer = document.getElementById('localScanResultsContainer');
   const settingsToast = document.getElementById('settingsToast');
   
@@ -126,7 +127,8 @@ document.addEventListener('DOMContentLoaded', () => {
         'voyarrSecret',
         'pendingSelector',
         'pendingSelectorCount',
-        'savedField'
+        'savedField',
+        'scanPort'
       ]);
 
       servers = config.voyarrServers || [];
@@ -168,6 +170,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       } else {
         updateStatus(false, "Configure settings");
+      }
+
+      if (scanPortInput) {
+        scanPortInput.value = config.scanPort || "8000";
       }
 
       if (config.savedField) {
@@ -412,13 +418,27 @@ document.addEventListener('DOMContentLoaded', () => {
     await scanLocalNetwork();
   });
 
+  if (scanPortInput) {
+    scanPortInput.addEventListener('change', async () => {
+      let val = parseInt(scanPortInput.value, 10);
+      if (isNaN(val) || val < 1 || val > 65535) {
+        val = 8000;
+        scanPortInput.value = "8000";
+      }
+      await chrome.storage.local.set({ scanPort: val.toString() });
+    });
+  }
+
   // Local network subnet discovery scan
   async function scanLocalNetwork() {
     scanNetworkBtn.disabled = true;
     scanNetworkBtn.innerText = "Scanning...";
+
+    const scanPort = scanPortInput ? parseInt(scanPortInput.value, 10) : 8000;
+    const port = isNaN(scanPort) || scanPort < 1 || scanPort > 65535 ? 8000 : scanPort;
     
     // Clear and display results container
-    localScanResultsContainer.innerHTML = `<div style="font-size: 10px; color: var(--text-muted); text-align: center; padding: 6px 0;">Pinging local IP ranges on port 8000...</div>`;
+    localScanResultsContainer.innerHTML = `<div style="font-size: 10px; color: var(--text-muted); text-align: center; padding: 6px 0;">Pinging local IP ranges on port ${port}...</div>`;
     localScanResultsContainer.style.display = "flex";
 
     try {
@@ -446,7 +466,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const batch = scanHosts.slice(b, b + batchSize);
           await Promise.all(batch.map(async (host) => {
             const ip = `${subnet}.${host}`;
-            const targetUrl = `http://${ip}:8000`;
+            const targetUrl = `http://${ip}:${port}`;
             
             // Skip scanning if already added
             if (servers.some(s => s.url.includes(ip))) return;

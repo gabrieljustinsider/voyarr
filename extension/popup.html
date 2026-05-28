@@ -351,9 +351,10 @@
         <input type="password" id="newServerApiKeyInput" placeholder="Master API Key" style="padding: 8px 10px; font-size: 12px;" />
       </div>
 
-      <div style="display: flex; gap: 8px;">
+      <div style="display: flex; gap: 8px; align-items: stretch;">
         <button id="addServerBtn" class="btn" style="flex: 2; padding: 9px; font-size: 12px;">Add & Test Server</button>
-        <button id="scanNetworkBtn" class="btn btn-secondary" style="flex: 1; padding: 9px; font-size: 11px;">Scan Local</button>
+        <input type="number" id="scanPortInput" value="8000" placeholder="Port" style="width: 55px; padding: 8px 4px; font-size: 11px; text-align: center; border-radius: 8px; min-width: 0;" />
+        <button id="scanNetworkBtn" class="btn btn-secondary" style="flex: 1.2; padding: 9px; font-size: 11px;">Scan Local</button>
       </div>
 
       <!-- Scan Network Results Container -->
