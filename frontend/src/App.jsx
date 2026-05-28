@@ -538,6 +538,59 @@ function App() {
 
   const visibleTabs = useMemo(() => allTabs.filter(t => t.visible), [allTabs])
 
+  // Define categorized tabs logically and alphabetically
+  const categories = useMemo(() => [
+    {
+      id: "media",
+      label: "Library & Media",
+      icon: "🎬",
+      tabs: ["Dashboard", "Library", "Favorites", "Studios", "Live Streams", "Analytics", "Request Manager"]
+    },
+    {
+      id: "scraping",
+      label: "Providers & Auth",
+      icon: "🔑",
+      tabs: ["Providers", "Credentials", "Session Cookies", "Scraper Tester"]
+    },
+    {
+      id: "tasks",
+      label: "Tasks & Downloads",
+      icon: "📥",
+      tabs: ["Downloads", "Mass Rip", "Schedules", "Transcode Queue"]
+    },
+    {
+      id: "data",
+      label: "Data & Rules",
+      icon: "🤖",
+      tabs: ["Rules & Lists", "Duplicates", "Metadata"]
+    },
+    {
+      id: "system",
+      label: "System & Admin",
+      icon: "🔧",
+      tabs: ["Adv. Preferences", "External APIs", "Settings", "P2P Sync", "Notification Settings", "Backup", "Logs", "Help", "Admin Help"]
+    }
+  ], []);
+
+  // Compute active category and sub-tabs dynamically based on current flat tabValue
+  const currentTab = visibleTabs[tabValue >= visibleTabs.length ? 0 : tabValue];
+  const currentTabLabel = currentTab?.label;
+
+  const activeCategory = useMemo(() => {
+    if (!currentTabLabel) return categories[0];
+    const cat = categories.find(c => c.tabs.includes(currentTabLabel));
+    return cat || categories[0];
+  }, [currentTabLabel, categories]);
+
+  const activeCategorySubTabs = useMemo(() => {
+    return visibleTabs.filter(t => activeCategory.tabs.includes(t.label));
+  }, [visibleTabs, activeCategory]);
+
+  const activeSubTabIndex = useMemo(() => {
+    const idx = activeCategorySubTabs.findIndex(t => t.label === currentTabLabel);
+    return idx >= 0 ? idx : 0;
+  }, [activeCategorySubTabs, currentTabLabel]);
+
   if (!isLoggedIn) {
     return (
       <ThemeProvider theme={currentMuiTheme}>
@@ -553,6 +606,21 @@ function App() {
       <AppBar position="static" elevation={0} sx={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
         <Toolbar>
           <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box 
+              component="img" 
+              src="/app_icon.svg" 
+              alt="Voyarr Logo" 
+              sx={{ 
+                height: 32, 
+                width: 32, 
+                borderRadius: '8px', 
+                boxShadow: '0 2px 8px rgba(99, 102, 241, 0.3)',
+                transition: 'transform 0.3s ease',
+                '&:hover': {
+                  transform: 'rotate(15deg) scale(1.1)'
+                }
+              }} 
+            />
             <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
               <Typography
                 variant="h6"
@@ -616,28 +684,125 @@ function App() {
           border: '1px solid rgba(255,255,255,0.05)'
         }}>
           <Tabs 
-            value={tabValue >= visibleTabs.length ? 0 : tabValue} 
-            onChange={(e, newValue) => setTabValue(newValue)} 
-            aria-label="voyarr tabs" 
+            value={categories.findIndex(c => c.id === activeCategory.id)} 
+            onChange={(e, newValue) => {
+              const targetCat = categories[newValue];
+              const firstSub = visibleTabs.find(t => targetCat.tabs.includes(t.label));
+              if (firstSub) {
+                const globalIdx = visibleTabs.findIndex(vt => vt.label === firstSub.label);
+                setTabValue(globalIdx >= 0 ? globalIdx : 0);
+              }
+            }} 
+            aria-label="voyarr categories" 
             variant="scrollable" 
             scrollButtons="auto"
             sx={{
-              borderBottom: '1px solid rgba(255,255,255,0.08)',
+              borderBottom: '1px solid rgba(255,255,255,0.06)',
+              mb: 2.5,
               '& .MuiTabs-indicator': {
                 height: '3px',
-                borderRadius: '3px'
+                borderRadius: '3px',
+                background: 'linear-gradient(90deg, #6366f1 0%, #a855f7 100%)'
               }
             }}
           >
-            {visibleTabs.map(t => <Tab key={t.label} label={t.label} sx={{ fontWeight: 'bold' }} />)}
+            {categories.map((cat) => {
+              const hasVisibleSubTabs = visibleTabs.some(t => cat.tabs.includes(t.label));
+              if (!hasVisibleSubTabs) return null;
+              return (
+                <Tab 
+                  key={cat.id} 
+                  label={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography component="span" sx={{ fontSize: '1.2rem', lineHeight: 1 }}>{cat.icon}</Typography>
+                      <Typography component="span" sx={{ fontWeight: 800, fontSize: '0.85rem', letterSpacing: '0.5px' }}>{cat.label}</Typography>
+                    </Box>
+                  } 
+                  sx={{ 
+                    py: 1.5,
+                    minHeight: 48,
+                    color: 'rgba(255,255,255,0.5)',
+                    transition: 'all 0.3s ease',
+                    '&.Mui-selected': {
+                      color: '#ffffff',
+                      textShadow: '0 0 10px rgba(168, 85, 247, 0.4)'
+                    },
+                    '&:hover': {
+                      color: '#ffffff',
+                      background: 'rgba(255,255,255,0.02)'
+                    }
+                  }} 
+                />
+              );
+            })}
           </Tabs>
-          <Box sx={{ mt: 3 }}>
+
+          {/* Sub-tabs list styled as modern premium chips */}
+          <Box sx={{ 
+            display: 'flex', 
+            flexWrap: 'wrap', 
+            gap: 1, 
+            mb: 3.5, 
+            p: 1.25, 
+            borderRadius: '14px', 
+            background: 'rgba(0,0,0,0.15)', 
+            border: '1px solid rgba(255,255,255,0.03)' 
+          }}>
+            {activeCategorySubTabs.map((t) => {
+              const isSelected = t.label === currentTabLabel;
+              return (
+                <Chip
+                  key={t.label}
+                  label={t.label}
+                  onClick={() => {
+                    const globalIdx = visibleTabs.findIndex(vt => vt.label === t.label);
+                    setTabValue(globalIdx >= 0 ? globalIdx : 0);
+                  }}
+                  sx={{
+                    fontWeight: isSelected ? 800 : 600,
+                    fontSize: '0.78rem',
+                    px: 1,
+                    height: 32,
+                    background: isSelected 
+                      ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(168, 85, 247, 0.15) 100%)' 
+                      : 'transparent',
+                    color: isSelected ? '#c084fc' : 'rgba(255,255,255,0.55)',
+                    border: isSelected 
+                      ? '1px solid rgba(168, 85, 247, 0.35)' 
+                      : '1px solid rgba(255,255,255,0.06)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                    '&:hover': {
+                      background: isSelected 
+                        ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.22) 0%, rgba(168, 85, 247, 0.22) 100%)' 
+                        : 'rgba(255,255,255,0.05)',
+                      color: '#ffffff',
+                      border: isSelected ? '1px solid rgba(168, 85, 247, 0.45)' : '1px solid rgba(255,255,255,0.12)'
+                    }
+                  }}
+                />
+              );
+            })}
+          </Box>
+
+          <Box sx={{ mt: 1 }}>
             <Suspense fallback={
               <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
                 <CircularProgress />
               </Box>
             }>
-              {visibleTabs[tabValue >= visibleTabs.length ? 0 : tabValue]?.component}
+              <Box 
+                key={tabValue}
+                sx={{ 
+                  animation: 'voyarrFadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+                  '@keyframes voyarrFadeIn': {
+                    '0%': { opacity: 0, transform: 'translateY(6px)' },
+                    '100%': { opacity: 1, transform: 'translateY(0)' }
+                  }
+                }}
+              >
+                {visibleTabs[tabValue >= visibleTabs.length ? 0 : tabValue]?.component}
+              </Box>
             </Suspense>
           </Box>
         </Paper>
