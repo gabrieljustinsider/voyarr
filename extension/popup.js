@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const scanPortInput = document.getElementById('scanPortInput');
   const localScanResultsContainer = document.getElementById('localScanResultsContainer');
   const settingsToast = document.getElementById('settingsToast');
+  const sslTroubleCard = document.getElementById('sslTroubleCard');
   
   const detectedServerBanner = document.getElementById('detectedServerBanner');
   const detectedUrlText = document.getElementById('detectedUrlText');
@@ -499,7 +500,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     foundServers.push(targetUrl);
                   }
                 }
-              } catch(err) {}
+              } catch(err) {
+                // Try subdirectory proxy fallback check (e.g. /voyarr/health)
+                try {
+                  const subDirController = new AbortController();
+                  const subDirTimer = setTimeout(() => subDirController.abort(), 400);
+                  const res = await fetch(`${targetUrl}/voyarr/health`, { signal: subDirController.signal });
+                  clearTimeout(subDirTimer);
+                  if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.status === "healthy") {
+                      foundServers.push(`${targetUrl}/voyarr`);
+                    }
+                  }
+                } catch(subErr) {}
+              }
             }
           }));
         }
@@ -709,9 +724,19 @@ document.addEventListener('DOMContentLoaded', () => {
         await chrome.storage.local.set({ voyarrServers: servers });
       }
       
+      if (sslTroubleCard) {
+        sslTroubleCard.style.display = "none";
+      }
+      
       return { providers, latencyMs };
     } catch (err) {
       updateStatus(false, "Disconnected");
+      
+      // Diagnose SSL/CORS issues on HTTPS connections
+      if (url.startsWith("https://") && sslTroubleCard) {
+        sslTroubleCard.style.display = "flex";
+      }
+      
       throw err;
     }
   }

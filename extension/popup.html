@@ -362,6 +362,21 @@
         <!-- Dynamically loaded list of discovered local server elements -->
       </div>
 
+      <!-- SSL / Connection Troubleshooting Warning Card -->
+      <div id="sslTroubleCard" style="display: none; margin-top: 10px; background-color: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2); padding: 8px 10px; border-radius: 8px; font-size: 10px; flex-direction: column; gap: 4px;">
+        <div style="font-weight: 600; color: #f87171; display: flex; align-items: center; gap: 4px;">
+          <span>🔒 SSL/Connection Troubleshooting:</span>
+        </div>
+        <div style="color: var(--text-muted); line-height: 1.4;">
+          If connecting to a local server over HTTPS with a self-signed certificate:
+          <ol style="margin: 4px 0 0 12px; padding: 0;">
+            <li>Open the server URL directly in a browser tab.</li>
+            <li>Click "Advanced" and then "Proceed" to trust the certificate.</li>
+            <li>Re-test the connection here.</li>
+          </ol>
+        </div>
+      </div>
+
       <div id="settingsToast" class="toast-msg"></div>
     </div>
   </div>
