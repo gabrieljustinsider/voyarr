@@ -16,7 +16,15 @@ def override_verify_api_key():
     return {"type": "master_key"}
 
 
-app.dependency_overrides[verify_api_key] = override_verify_api_key
+import pytest
+
+# Override auth dependency in a clean fixture
+@pytest.fixture(autouse=True)
+def setup_dependencies():
+    orig_overrides = dict(app.dependency_overrides)
+    app.dependency_overrides[verify_api_key] = override_verify_api_key
+    yield
+    app.dependency_overrides = orig_overrides
 
 client = TestClient(app)
 

@@ -6,25 +6,19 @@ from pydantic import BaseModel
 from typing import Optional, Dict, Any
 from sqlalchemy.orm.attributes import flag_modified
 
-from dependencies import verify_api_key
+from dependencies import verify_api_key, require_permission
 from utils import validate_url_ssrf
 
-def check_scraper_feature_permission(
-    auth_info: dict = Depends(verify_api_key),
-    db: Session = Depends(get_db)
-):
-    from db_utils import check_feature_permission
-    from models import User
-    user = None
-    if auth_info.get("type") == "jwt" and auth_info.get("user"):
-        user = db.query(User).filter(User.username == auth_info.get("user")).first()
-    check_feature_permission(db, "scraping", user)
-
+parse_router = APIRouter(
+    prefix="/scraper",
+    tags=["scraper"],
+    dependencies=[Depends(verify_api_key)]
+)
 
 router = APIRouter(
     prefix="/scraper",
     tags=["scraper"],
-    dependencies=[Depends(verify_api_key), Depends(check_scraper_feature_permission)]
+    dependencies=[Depends(verify_api_key), Depends(require_permission("scraping", "edit"))]
 )
 
 
@@ -170,5 +164,99 @@ def test_scraper(req: ScraperTestRequest, db: Session = Depends(get_db)):
     }
 
 
+class UrlParseRequest(BaseModel):
+    url: str
 
 
+@parse_router.post("/parse-url")
+def parse_url(
+    req: UrlParseRequest,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission("scraping", "view"))
+):
+    # 2. SSRF Protection
+    validate_url_ssrf(req.url)
+
+    # 3. Fetch URL content using BeautifulSoup
+    try:
+        import requests
+        import urllib.parse
+        from bs4 import BeautifulSoup
+        import os
+
+        session = requests.Session()
+        global_ua = os.getenv("DEFAULT_USER_AGENT", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+        session.headers.update({"User-Agent": global_ua})
+
+        response = session.get(req.url, timeout=10)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.content, "html.parser")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to fetch content from URL: {str(e)}")
+
+    # 4. Domain & Recipe resolution
+    parsed_url = urllib.parse.urlparse(req.url)
+    domain = parsed_url.netloc.lower()
+    
+    # Try to find provider
+    provider = db.query(Provider).filter(Provider.base_url.ilike(f"%{domain}%")).first()
+    metadata = {}
+
+    if provider:
+        recipe = db.query(SiteRecipe).filter(SiteRecipe.provider_id == provider.id).first()
+        if recipe:
+            from services.scraper import DynamicScraper as ScraperService
+            scraper = ScraperService(recipe)
+            metadata = scraper.parse(str(soup))
+
+    # 5. Fallback generic meta & OpenGraph scraping
+    from services.scraper import DynamicScraper
+    dummy = DynamicScraper(None)
+    fallback = dummy._fallback_extract(soup)
+
+    # Combine results
+    for k, v in fallback.items():
+        if not metadata.get(k):
+            metadata[k] = v
+
+    # 6. Format lists and clean text
+    performers = []
+    if metadata.get("performers"):
+        raw_p = metadata["performers"]
+        if isinstance(raw_p, list):
+            performers = [p.strip() for p in raw_p if p.strip()]
+        elif isinstance(raw_p, str):
+            performers = [p.strip() for p in raw_p.split(",") if p.strip()]
+            
+    tags = []
+    if metadata.get("tags"):
+        raw_t = metadata["tags"]
+        if isinstance(raw_t, list):
+            tags = [t.strip() for t in raw_t if t.strip()]
+        elif isinstance(raw_t, str):
+            tags = [t.strip() for t in raw_t.split(",") if t.strip()]
+
+    description = str(metadata.get("description", "")).strip()
+    title = str(metadata.get("title", "")).strip()
+    thumbnail_url = str(metadata.get("thumbnail_url", "")).strip()
+
+    # Studio extraction
+    studio = ""
+    if metadata.get("studio"):
+        studio = str(metadata["studio"]).strip()
+    elif metadata.get("studio_name"):
+        studio = str(metadata["studio_name"]).strip()
+
+    return {
+        "status": "success",
+        "url": req.url,
+        "provider_id": provider.id if provider else None,
+        "metadata": {
+            "title": title,
+            "studio": studio,
+            "performers": performers,
+            "tags": tags,
+            "description": description,
+            "thumbnail_url": thumbnail_url
+        }
+    }

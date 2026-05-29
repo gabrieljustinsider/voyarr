@@ -34,6 +34,7 @@ class User(Base):
         JSON().with_variant(JSONB, "postgresql"),
         default=lambda: {"can_stream": True, "can_scrape": False, "can_rip": False}
     )
+    last_login_at = Column(TIMESTAMP, nullable=True)
 
 
 class AdminLog(Base):
@@ -65,6 +66,43 @@ class Provider(Base):
     supported_methods = Column(
         JSON().with_variant(JSONB, "postgresql"), default=list
     )  # e.g., ["yt-dlp", "cookies", "direct", "api"]
+
+
+class SubscriptionTier(Base):
+    __tablename__ = "subscription_tiers"
+
+    id = Column(Integer, primary_key=True)
+    provider_id = Column(Integer, ForeignKey("providers.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    level = Column(Integer, default=0)
+    price = Column(DECIMAL(10, 2), nullable=True)
+    features = Column(JSON().with_variant(JSONB, "postgresql"), default=list)
+    created_at = Column(TIMESTAMP, default=func.current_timestamp())
+
+    provider = relationship("Provider", backref="tiers")
+
+
+class Subscription(Base):
+    __tablename__ = "subscriptions"
+
+    id = Column(Integer, primary_key=True)
+    provider_id = Column(Integer, ForeignKey("providers.id", ondelete="CASCADE"), nullable=False, index=True)
+    tier_id = Column(Integer, ForeignKey("subscription_tiers.id", ondelete="SET NULL"), nullable=True)
+    user_id = Column(String(64), ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
+    status = Column(String(50), default="active") # active, expired, cancelled, trial
+    is_trial = Column(Boolean, default=False)
+    trial_start = Column(TIMESTAMP, nullable=True)
+    trial_end = Column(TIMESTAMP, nullable=True)
+    start_date = Column(TIMESTAMP, nullable=True)
+    end_date = Column(TIMESTAMP, nullable=True)
+    biller = Column(String(255), nullable=True)
+    billing_cycle = Column(String(50), nullable=True) # monthly, yearly
+    cost = Column(DECIMAL(10, 2), nullable=True)
+    created_at = Column(TIMESTAMP, default=func.current_timestamp())
+    updated_at = Column(TIMESTAMP, default=func.current_timestamp(), onupdate=func.current_timestamp())
+
+    provider = relationship("Provider")
+    tier = relationship("SubscriptionTier")
 
 
 class SiteRecipe(Base):
@@ -207,6 +245,7 @@ class DownloadQueue(Base):
     extraction_method = Column(
         String(100), nullable=True
     )  # e.g. "yt-dlp", "html_scrape"
+    user_id = Column(String(64), nullable=True)
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
     updated_at = Column(TIMESTAMP, default=func.current_timestamp())
 
@@ -795,6 +834,7 @@ class MassRipSession(Base):
     queued_videos = Column(Integer, default=0)
     skipped_videos = Column(Integer, default=0)
     celery_task_id = Column(String(255), nullable=True)
+    user_id = Column(String(64), nullable=True)
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
     updated_at = Column(
         TIMESTAMP, default=func.current_timestamp(), onupdate=func.current_timestamp()

@@ -205,6 +205,69 @@ class ProviderResponse(ProviderBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class SubscriptionTierBase(BaseModel):
+    provider_id: int
+    name: str
+    level: Optional[int] = 0
+    price: Optional[float] = None
+    features: Optional[List[str]] = None
+
+class SubscriptionTierCreate(SubscriptionTierBase):
+    pass
+
+class SubscriptionTierUpdate(BaseModel):
+    name: Optional[str] = None
+    level: Optional[int] = None
+    price: Optional[float] = None
+    features: Optional[List[str]] = None
+
+class SubscriptionTierResponse(SubscriptionTierBase):
+    id: int
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SubscriptionBase(BaseModel):
+    provider_id: int
+    tier_id: Optional[int] = None
+    user_id: Optional[str] = None
+    status: Optional[str] = "active"
+    is_trial: Optional[bool] = False
+    trial_start: Optional[datetime] = None
+    trial_end: Optional[datetime] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    biller: Optional[str] = None
+    billing_cycle: Optional[str] = None
+    cost: Optional[float] = None
+
+class SubscriptionCreate(SubscriptionBase):
+    pass
+
+class SubscriptionUpdate(BaseModel):
+    provider_id: Optional[int] = None
+    tier_id: Optional[int] = None
+    user_id: Optional[str] = None
+    status: Optional[str] = None
+    is_trial: Optional[bool] = None
+    trial_start: Optional[datetime] = None
+    trial_end: Optional[datetime] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    biller: Optional[str] = None
+    billing_cycle: Optional[str] = None
+    cost: Optional[float] = None
+
+class SubscriptionResponse(SubscriptionBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+
+class EmailParseRequest(BaseModel):
+    email_text: str
+
 class PeerNodeCreate(BaseModel):
     name: str
     peer_url: str

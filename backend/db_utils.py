@@ -54,9 +54,9 @@ def run_schema_migrations(engine: Any) -> None:
                 pass
             try:
                 if dialect_name == "postgresql":
-                    conn.execute(text("ALTER TABLE users ADD COLUMN permissions JSONB DEFAULT '{\"can_stream\": true, \"can_scrape\": false, \"can_rip\": false}'::jsonb"))
+                    conn.execute(text("ALTER TABLE users ADD COLUMN permissions JSONB DEFAULT '{\"library\": \"view\", \"streaming\": \"view\", \"scraping\": \"none\", \"ripping\": \"none\", \"requests\": \"view\", \"settings\": \"none\", \"billing\": \"none\", \"providers\": \"none\", \"lens_access\": \"none\", \"lens_features\": \"none\"}'::jsonb"))
                 else:
-                    conn.execute(text("ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT '{\"can_stream\": true, \"can_scrape\": false, \"can_rip\": false}'"))
+                    conn.execute(text("ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT '{\"library\": \"view\", \"streaming\": \"view\", \"scraping\": \"none\", \"ripping\": \"none\", \"requests\": \"view\", \"settings\": \"none\", \"billing\": \"none\", \"providers\": \"none\", \"lens_access\": \"none\", \"lens_features\": \"none\"}'"))
                 conn.commit()
                 logger.info("Database migration successfully added 'permissions' to 'users'.")
             except Exception as e:
@@ -65,6 +65,25 @@ def run_schema_migrations(engine: Any) -> None:
                 except Exception:
                     pass
                 logger.warning(f"Failed to add permissions column (it may already exist): {e}")
+
+        # 1b. Check if users table has last_login_at column, if not, add it
+        try:
+            conn.execute(text("SELECT last_login_at FROM users LIMIT 1"))
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            try:
+                conn.execute(text("ALTER TABLE users ADD COLUMN last_login_at TIMESTAMP"))
+                conn.commit()
+                logger.info("Database migration successfully added 'last_login_at' to 'users'.")
+            except Exception as e:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                logger.warning(f"Failed to add last_login_at column: {e}")
 
         # 2. Check if admin_logs table exists, if not, create it
         try:
@@ -217,6 +236,7 @@ def run_schema_migrations(engine: Any) -> None:
                     queued_videos INTEGER DEFAULT 0,
                     skipped_videos INTEGER DEFAULT 0,
                     celery_task_id VARCHAR(255),
+                    user_id VARCHAR(64),
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
@@ -234,6 +254,7 @@ def run_schema_migrations(engine: Any) -> None:
                     queued_videos INTEGER DEFAULT 0,
                     skipped_videos INTEGER DEFAULT 0,
                     celery_task_id VARCHAR(255),
+                    user_id VARCHAR(64),
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
@@ -249,11 +270,44 @@ def run_schema_migrations(engine: Any) -> None:
                     pass
                 logger.warning(f"Failed to create mass_rip_sessions table: {e}")
 
+        # 7. Check if download_queue has user_id, if not, add it
+        try:
+            conn.execute(text("SELECT user_id FROM download_queue LIMIT 1"))
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            try:
+                conn.execute(text("ALTER TABLE download_queue ADD COLUMN user_id VARCHAR(64)"))
+                conn.commit()
+                logger.info("Database migration successfully added 'user_id' to 'download_queue'.")
+            except Exception as e:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+
+        # 8. Check if mass_rip_sessions has user_id, if not, add it
+        try:
+            conn.execute(text("SELECT user_id FROM mass_rip_sessions LIMIT 1"))
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            try:
+                conn.execute(text("ALTER TABLE mass_rip_sessions ADD COLUMN user_id VARCHAR(64)"))
+                conn.commit()
+                logger.info("Database migration successfully added 'user_id' to 'mass_rip_sessions'.")
+            except Exception as e:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+
 
 def is_feature_enabled(db: Session, feature: str, user: Optional[Any] = None) -> bool:
-    if user is not None and getattr(user, "role", None) == "admin":
-        return True
-
     from models import Settings
     if feature == "streaming":
         setting = db.query(Settings).filter(Settings.key == "streaming_enabled").first()
@@ -271,6 +325,12 @@ def is_feature_enabled(db: Session, feature: str, user: Optional[Any] = None) ->
         return False
 
     if user is not None:
+        if isinstance(user, dict):
+            if user.get("type") == "master_key" or user.get("role") == "admin":
+                return True
+        elif getattr(user, "role", None) == "admin":
+            return True
+
         permissions = getattr(user, "permissions", None)
         permissions_dict: dict[str, Any] = {}
         if isinstance(permissions, dict):
@@ -285,11 +345,14 @@ def is_feature_enabled(db: Session, feature: str, user: Optional[Any] = None) ->
                 pass
 
         if feature == "streaming":
-            return bool(permissions_dict.get("can_stream", True))
+            val = permissions_dict.get("streaming", permissions_dict.get("can_stream", "view"))
+            return val in ["view", "edit"] or val is True
         elif feature == "scraping":
-            return bool(permissions_dict.get("can_scrape", False))
+            val = permissions_dict.get("scraping", permissions_dict.get("can_scrape", "none"))
+            return val in ["view", "edit"] or val is True
         elif feature == "ripping":
-            return bool(permissions_dict.get("can_rip", False))
+            val = permissions_dict.get("ripping", permissions_dict.get("can_rip", "none"))
+            return val in ["view", "edit"] or val is True
 
     return True
 

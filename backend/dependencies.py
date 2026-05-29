@@ -87,3 +87,47 @@ async def verify_api_key(
         detail="Unauthorized: Invalid API key or expired token.",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+
+def require_permission(module: str, required_level: str):
+    """
+    Dependency factory to enforce granular module-level access control.
+    Usage: current_user = Depends(require_permission("library", "edit"))
+    """
+    def permission_checker(
+        auth_info: dict[str, Any] = Depends(verify_api_key),
+        db: Session = Depends(get_db)
+    ):
+        # 1. Master Key and Admins bypass all restrictions automatically
+        if auth_info.get("type") == "master_key" or auth_info.get("role") == "admin":
+            return auth_info
+
+        username = auth_info.get("user")
+        if not username:
+            raise HTTPException(status_code=403, detail="Forbidden")
+
+        from models import User
+        user = db.query(User).filter(User.username == username).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        user_permissions = user.permissions or {}
+        
+        # 2. Extract access level, falling back to legacy formats if needed
+        user_level_str = user_permissions.get(module, "none")
+        
+        legacy_map = {"streaming": "can_stream", "scraping": "can_scrape", "ripping": "can_rip"}
+        if module in legacy_map and legacy_map[module] in user_permissions:
+            if user_permissions[legacy_map[module]] is True and user_level_str == "none":
+                user_level_str = "edit" if module != "streaming" else "view"
+        
+        # 3. Check access hierarchy
+        access_hierarchy = {"none": 0, "view": 1, "edit": 2}
+        if access_hierarchy.get(user_level_str, 0) < access_hierarchy.get(required_level, 1):
+            raise HTTPException(
+                status_code=403, 
+                detail=f"Access denied. You require '{required_level}' access to the '{module}' module."
+            )
+        
+        return user
+    return permission_checker

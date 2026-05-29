@@ -12,7 +12,7 @@ from tasks.transcode_tasks import transcode_video_task
 from pydantic import BaseModel
 from typing import Optional
 from celery_app import celery_app
-from dependencies import verify_api_key
+from dependencies import verify_api_key, require_permission
 from rate_limiter import rate_limit
 from db_utils import get_db_session
 
@@ -33,18 +33,12 @@ class TranscodeRequest(BaseModel):
 def start_transcode(
     library_entry_id: int,
     req: TranscodeRequest,
-    auth_info: dict = Depends(verify_api_key),
+    current_user = Depends(require_permission("streaming", "edit")),
     db: Session = Depends(get_db)
 ):
     """
     Adds a video from the library to the transcoding queue.
     """
-    from db_utils import check_feature_permission
-    from models import User
-    user = None
-    if auth_info.get("type") == "jwt" and auth_info.get("user"):
-        user = db.query(User).filter(User.username == auth_info.get("user")).first()
-    check_feature_permission(db, "streaming", user)
 
     library_entry = (
         db.query(LibraryEntry).filter(LibraryEntry.id == library_entry_id).first()
@@ -86,18 +80,12 @@ def start_transcode(
 @router.get("/")
 def get_transcode_jobs(
     status: Optional[str] = None,
-    auth_info: dict = Depends(verify_api_key),
+    current_user = Depends(require_permission("streaming", "view")),
     db: Session = Depends(get_db)
 ):
     """
     Retrieves all transcoding jobs, optionally filtered by status.
     """
-    from db_utils import check_feature_permission
-    from models import User
-    user = None
-    if auth_info.get("type") == "jwt" and auth_info.get("user"):
-        user = db.query(User).filter(User.username == auth_info.get("user")).first()
-    check_feature_permission(db, "streaming", user)
 
     query = db.query(TranscodingQueue).order_by(
         TranscodingQueue.priority.desc(), TranscodingQueue.created_at.asc()
@@ -108,17 +96,10 @@ def get_transcode_jobs(
 
 
 @router.get("/stream")
-def stream_transcode_queue(request: Request, auth_info: dict = Depends(verify_api_key)):
+def stream_transcode_queue(request: Request, current_user = Depends(require_permission("streaming", "view"))):
     """
     SSE stream for active transcoding tasks.
     """
-    with get_db_session() as db:
-        from db_utils import check_feature_permission
-        from models import User
-        user = None
-        if auth_info.get("type") == "jwt" and auth_info.get("user"):
-            user = db.query(User).filter(User.username == auth_info.get("user")).first()
-        check_feature_permission(db, "streaming", user)
 
     async def event_generator():
         while True:

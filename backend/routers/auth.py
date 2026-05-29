@@ -26,6 +26,41 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 
+DEFAULT_PERMISSIONS = {
+    "library": "view",
+    "streaming": "view",
+    "scraping": "none",
+    "ripping": "none",
+    "requests": "view",
+    "settings": "none",
+    "billing": "none",
+    "providers": "none",
+    "lens_access": "none",
+    "lens_features": "none"
+}
+
+
+def update_user_last_login(db: Session, user: User) -> None:
+    from datetime import datetime
+    user.last_login_at = datetime.utcnow()
+    db.commit()
+
+
+def get_daily_rip_usage(db: Session, user_id: str) -> int:
+    from sqlalchemy import func
+    from datetime import datetime, timezone
+    from models import DownloadQueue, MassRipSession
+    today = datetime.now(timezone.utc).date()
+    dq_count = db.query(DownloadQueue).filter(
+        DownloadQueue.user_id == user_id,
+        func.date(DownloadQueue.created_at) == today
+    ).count()
+    mr_count = db.query(MassRipSession).filter(
+        MassRipSession.user_id == user_id,
+        func.date(MassRipSession.created_at) == today
+    ).count()
+    return dq_count + mr_count
+
 
 def create_user_session(user: User, response: Response) -> dict[str, str]:
     """Generate JWT access token and set HTTP-only session cookie for a user."""
@@ -172,6 +207,7 @@ def login_for_access_token(
     if not bool(user.is_active):
         raise HTTPException(status_code=400, detail="Inactive user account")
 
+    update_user_last_login(db, user)
     return create_user_session(user, response)
 
 
@@ -311,7 +347,7 @@ def autologin(
 
 class UserPermissionsUpdate(BaseModel):
     role: str
-    permissions: dict[str, bool]
+    permissions: dict[str, Any]
 
 
 @router.get("/users")
@@ -333,7 +369,7 @@ def list_users(
             "role": str(u.role),
             "is_active": bool(u.is_active),
             "created_at": u.created_at,
-            "permissions": u.permissions or {"can_stream": True, "can_scrape": False, "can_rip": False}
+            "permissions": u.permissions or DEFAULT_PERMISSIONS
         }
         for u in users
     ]
@@ -374,7 +410,7 @@ def update_user_permissions(
             )
 
     old_role = str(target_user.role)
-    old_permissions = target_user.permissions or {"can_stream": True, "can_scrape": False, "can_rip": False}
+    old_permissions = target_user.permissions or DEFAULT_PERMISSIONS
 
     target_user.role = payload.role  # type: ignore
     target_user.permissions = payload.permissions  # type: ignore
@@ -466,3 +502,544 @@ def change_password(
         
     return {"message": "Password changed successfully"}
 
+
+# Admin User Management Schemas & Routes
+
+class UserUpdatePayload(BaseModel):
+    username: str
+    role: str
+    is_active: bool
+    permissions: dict[str, Any]
+
+
+class ResetPasswordRequest(BaseModel):
+    new_password: str = Field(..., min_length=8)
+
+
+class MergeUsersRequest(BaseModel):
+    source_user_id: str
+    target_user_id: str
+
+
+@router.get("/users/{user_id}")
+def get_user_details(
+    user_id: str,
+    auth_info: dict[str, Any] = Depends(verify_api_key),
+    db: Session = Depends(get_db)
+):
+    if auth_info.get("type") == "jwt":
+        if auth_info.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Admin privileges required")
+    elif auth_info.get("type") != "master_key":
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Fetch enrolled passkeys
+    from models import Passkey
+    passkeys = db.query(Passkey).filter(Passkey.user_id == user_id).all()
+    passkeys_list = [
+        {
+            "id": pk.id,
+            "name": pk.name,
+            "created_at": pk.created_at,
+            "last_used_at": pk.last_used_at,
+            "ip_address": pk.ip_address,
+            "location": pk.location,
+            "browser": pk.browser,
+            "os_name": pk.os_name,
+            "backup_eligible": pk.backup_eligible,
+            "backup_state": pk.backup_state
+        }
+        for pk in passkeys
+    ]
+
+    # Fetch connected SSO links
+    from models import SsoLink
+    sso_links = db.query(SsoLink).filter(SsoLink.user_id == user_id).all()
+    sso_list = [
+        {
+            "id": sso.id,
+            "provider": sso.provider,
+            "email": sso.email,
+            "linked_at": sso.linked_at
+        }
+        for sso in sso_links
+    ]
+
+    # Database-agnostic log filtration (avoids vendor-locked SQL operations)
+    from models import AdminLog
+    all_logs = db.query(AdminLog).order_by(AdminLog.timestamp.desc()).all()
+    filtered_logs = []
+    for log in all_logs:
+        details = log.details or {}
+        if (log.admin_id == user_id or 
+            str(details.get("target_user_id")) == user_id or 
+            str(details.get("user_id")) == user_id or 
+            str(details.get("created_user_id")) == user_id):
+            filtered_logs.append({
+                "id": log.id,
+                "admin_username": log.admin_username,
+                "action": log.action,
+                "details": details,
+                "timestamp": log.timestamp
+            })
+            if len(filtered_logs) >= 200:
+                break
+
+    daily_rip_usage = get_daily_rip_usage(db, str(user.id))
+
+    return {
+        "id": user.id,
+        "username": user.username,
+        "role": user.role,
+        "is_active": user.is_active,
+        "created_at": user.created_at,
+        "last_login_at": user.last_login_at,
+        "permissions": user.permissions or DEFAULT_PERMISSIONS,
+        "daily_rip_usage": daily_rip_usage,
+        "passkeys": passkeys_list,
+        "sso_links": sso_list,
+        "activity_logs": filtered_logs
+    }
+
+
+@router.post("/users")
+def admin_create_user(
+    payload: UserCreate,
+    auth_info: dict[str, Any] = Depends(verify_api_key),
+    db: Session = Depends(get_db)
+):
+    actor_username = "Unknown"
+    actor_id: str | None = None
+    if auth_info.get("type") == "master_key":
+        actor_username = "Master Key"
+    elif auth_info.get("type") == "jwt":
+        if auth_info.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Admin privileges required")
+        actor_username = str(auth_info.get("user") or "Admin User")
+        actor_user = db.query(User).filter(User.username == actor_username).first()
+        if actor_user:
+            actor_id = str(actor_user.id)
+    else:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    if db.query(User).filter(User.username == payload.username).first():
+        raise HTTPException(status_code=400, detail="Username already registered")
+
+    hashed_password = get_password_hash(payload.password)
+    db_user = User(
+        username=payload.username,
+        password_hash=hashed_password,
+        role=payload.role,
+        is_active=True,
+        permissions=DEFAULT_PERMISSIONS
+    )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+
+    from db_utils import log_admin_action
+    log_admin_action(
+        db,
+        admin_id=actor_id,
+        admin_username=actor_username,
+        action="admin_create_user",
+        details={"created_user_id": db_user.id, "created_username": db_user.username, "role": db_user.role}
+    )
+
+    return {
+        "id": db_user.id,
+        "username": db_user.username,
+        "role": db_user.role,
+        "is_active": db_user.is_active,
+        "created_at": db_user.created_at,
+        "permissions": db_user.permissions
+    }
+
+
+@router.put("/users/{user_id}")
+def admin_update_user(
+    user_id: str,
+    payload: UserUpdatePayload,
+    auth_info: dict[str, Any] = Depends(verify_api_key),
+    db: Session = Depends(get_db)
+):
+    actor_username = "Unknown"
+    actor_id: str | None = None
+    if auth_info.get("type") == "master_key":
+        actor_username = "Master Key"
+    elif auth_info.get("type") == "jwt":
+        if auth_info.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Admin privileges required")
+        actor_username = str(auth_info.get("user") or "Admin User")
+        actor_user = db.query(User).filter(User.username == actor_username).first()
+        if actor_user:
+            actor_id = str(actor_user.id)
+    else:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Lockout protection: prevent downgrading the last admin
+    if str(target_user.role) == "admin" and payload.role != "admin":
+        admin_count = db.query(User).filter(User.role == "admin").count()
+        if admin_count <= 1:
+            raise HTTPException(
+                status_code=400,
+                detail="Lockout Protection: Cannot downgrade the sole administrator account to prevent complete system lockout."
+            )
+
+    # Check duplicate username
+    if payload.username != target_user.username:
+        dup = db.query(User).filter(User.username == payload.username).first()
+        if dup:
+            raise HTTPException(status_code=400, detail="Username already in use")
+
+    old_username = target_user.username
+    old_role = target_user.role
+    old_permissions = target_user.permissions
+    old_active = target_user.is_active
+
+    target_user.username = payload.username
+    target_user.role = payload.role
+    target_user.is_active = payload.is_active
+    target_user.permissions = payload.permissions
+    db.commit()
+
+    from db_utils import log_admin_action
+    log_admin_action(
+        db,
+        admin_id=actor_id,
+        admin_username=actor_username,
+        action="admin_update_user",
+        details={
+            "target_user_id": user_id,
+            "old_username": old_username,
+            "new_username": payload.username,
+            "old_role": old_role,
+            "new_role": payload.role,
+            "old_permissions": old_permissions,
+            "new_permissions": payload.permissions,
+            "old_active": old_active,
+            "new_active": payload.is_active
+        }
+    )
+    return {"message": "User updated successfully"}
+
+
+@router.delete("/users/{user_id}")
+def admin_delete_user(
+    user_id: str,
+    auth_info: dict[str, Any] = Depends(verify_api_key),
+    db: Session = Depends(get_db)
+):
+    actor_username = "Unknown"
+    actor_id: str | None = None
+    if auth_info.get("type") == "master_key":
+        actor_username = "Master Key"
+    elif auth_info.get("type") == "jwt":
+        if auth_info.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Admin privileges required")
+        actor_username = str(auth_info.get("user") or "Admin User")
+        actor_user = db.query(User).filter(User.username == actor_username).first()
+        if actor_user:
+            actor_id = str(actor_user.id)
+    else:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Lockout protection
+    if str(target_user.role) == "admin":
+        admin_count = db.query(User).filter(User.role == "admin").count()
+        if admin_count <= 1:
+            raise HTTPException(status_code=400, detail="Lockout Protection: Cannot delete the sole administrator account.")
+
+    username = target_user.username
+    db.delete(target_user)
+    db.commit()
+
+    from db_utils import log_admin_action
+    log_admin_action(
+        db,
+        admin_id=actor_id,
+        admin_username=actor_username,
+        action="admin_delete_user",
+        details={"target_user_id": user_id, "target_username": username}
+    )
+    return {"message": f"User '{username}' deleted successfully"}
+
+
+@router.post("/users/{user_id}/reset-password")
+def admin_reset_password(
+    user_id: str,
+    req: ResetPasswordRequest,
+    auth_info: dict[str, Any] = Depends(verify_api_key),
+    db: Session = Depends(get_db)
+):
+    actor_username = "Unknown"
+    actor_id: str | None = None
+    if auth_info.get("type") == "master_key":
+        actor_username = "Master Key"
+    elif auth_info.get("type") == "jwt":
+        if auth_info.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Admin privileges required")
+        actor_username = str(auth_info.get("user") or "Admin User")
+        actor_user = db.query(User).filter(User.username == actor_username).first()
+        if actor_user:
+            actor_id = str(actor_user.id)
+    else:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    target_user.password_hash = get_password_hash(req.new_password)
+    db.commit()
+
+    from db_utils import log_admin_action
+    log_admin_action(
+        db,
+        admin_id=actor_id,
+        admin_username=actor_username,
+        action="admin_reset_password",
+        details={"target_user_id": user_id, "target_username": target_user.username}
+    )
+    return {"message": "Password reset successfully"}
+
+
+@router.post("/users/{user_id}/reset-mfa")
+def admin_reset_mfa(
+    user_id: str,
+    auth_info: dict[str, Any] = Depends(verify_api_key),
+    db: Session = Depends(get_db)
+):
+    actor_username = "Unknown"
+    actor_id: str | None = None
+    if auth_info.get("type") == "master_key":
+        actor_username = "Master Key"
+    elif auth_info.get("type") == "jwt":
+        if auth_info.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Admin privileges required")
+        actor_username = str(auth_info.get("user") or "Admin User")
+        actor_user = db.query(User).filter(User.username == actor_username).first()
+        if actor_user:
+            actor_id = str(actor_user.id)
+    else:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    from models import Passkey
+    deleted_count = db.query(Passkey).filter(Passkey.user_id == user_id).delete()
+    db.commit()
+
+    from db_utils import log_admin_action
+    log_admin_action(
+        db,
+        admin_id=actor_id,
+        admin_username=actor_username,
+        action="admin_reset_mfa",
+        details={"target_user_id": user_id, "target_username": target_user.username, "revoked_count": deleted_count}
+    )
+    return {"message": f"Successfully revoked {deleted_count} enrolled passkey(s)"}
+
+
+@router.post("/users/{user_id}/reset-sso")
+def admin_reset_sso(
+    user_id: str,
+    auth_info: dict[str, Any] = Depends(verify_api_key),
+    db: Session = Depends(get_db)
+):
+    actor_username = "Unknown"
+    actor_id: str | None = None
+    if auth_info.get("type") == "master_key":
+        actor_username = "Master Key"
+    elif auth_info.get("type") == "jwt":
+        if auth_info.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Admin privileges required")
+        actor_username = str(auth_info.get("user") or "Admin User")
+        actor_user = db.query(User).filter(User.username == actor_username).first()
+        if actor_user:
+            actor_id = str(actor_user.id)
+    else:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    from models import SsoLink
+    deleted_count = db.query(SsoLink).filter(SsoLink.user_id == user_id).delete()
+    db.commit()
+
+    from db_utils import log_admin_action
+    log_admin_action(
+        db,
+        admin_id=actor_id,
+        admin_username=actor_username,
+        action="admin_reset_sso",
+        details={"target_user_id": user_id, "target_username": target_user.username, "deleted_count": deleted_count}
+    )
+    return {"message": f"Successfully unlinked {deleted_count} SSO provider connection(s)"}
+
+
+@router.post("/users/merge")
+def admin_merge_users(
+    req: MergeUsersRequest,
+    auth_info: dict[str, Any] = Depends(verify_api_key),
+    db: Session = Depends(get_db)
+):
+    actor_username = "Unknown"
+    actor_id: str | None = None
+    if auth_info.get("type") == "master_key":
+        actor_username = "Master Key"
+    elif auth_info.get("type") == "jwt":
+        if auth_info.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Admin privileges required")
+        actor_username = str(auth_info.get("user") or "Admin User")
+        actor_user = db.query(User).filter(User.username == actor_username).first()
+        if actor_user:
+            actor_id = str(actor_user.id)
+    else:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    source_user = db.query(User).filter(User.id == req.source_user_id).first()
+    target_user = db.query(User).filter(User.id == req.target_user_id).first()
+
+    if not source_user or not target_user:
+        raise HTTPException(status_code=404, detail="One or both users not found")
+
+    if source_user.id == target_user.id:
+        raise HTTPException(status_code=400, detail="Cannot merge a user into themselves")
+
+    # Lockout protection
+    if str(source_user.role) == "admin" and str(target_user.role) != "admin":
+        admin_count = db.query(User).filter(User.role == "admin").count()
+        if admin_count <= 1:
+            raise HTTPException(status_code=400, detail="Lockout Protection: Cannot merge/delete the sole admin user.")
+
+    # 1. Update media requests (username string based)
+    from models import MediaRequest, AdminLog, UserVideoStats, Favorite, UserHistory, NotificationPreference, NotificationLog, UserPreference, Passkey, SsoLink
+    db.query(MediaRequest).filter(MediaRequest.requested_by == source_user.username).update(
+        {MediaRequest.requested_by: target_user.username}, synchronize_session=False
+    )
+
+    # 2. Update admin logs (username & id)
+    db.query(AdminLog).filter(AdminLog.admin_id == source_user.id).update(
+        {AdminLog.admin_id: target_user.id, AdminLog.admin_username: target_user.username}, synchronize_session=False
+    )
+
+    # 3. Update playback history
+    db.query(UserHistory).filter(UserHistory.user_id == source_user.id).update(
+        {UserHistory.user_id: target_user.id}, synchronize_session=False
+    )
+
+    # 4. Reconcile user video stats
+    source_stats = db.query(UserVideoStats).filter(UserVideoStats.user_id == source_user.id).all()
+    for stat in source_stats:
+        target_stat = db.query(UserVideoStats).filter(
+            (UserVideoStats.user_id == target_user.id) & 
+            (UserVideoStats.library_entry_id == stat.library_entry_id)
+        ).first()
+        if target_stat:
+            target_stat.play_count = (target_stat.play_count or 0) + (stat.play_count or 0)
+            target_stat.watched_duration = max(target_stat.watched_duration or 0, stat.watched_duration or 0)
+            db.delete(stat)
+        else:
+            stat.user_id = target_user.id
+
+    # 5. Reconcile favorites
+    source_favorites = db.query(Favorite).filter(Favorite.user_id == source_user.id).all()
+    for fav in source_favorites:
+        target_fav = db.query(Favorite).filter(
+            (Favorite.user_id == target_user.id) & 
+            (Favorite.item_type == fav.item_type) & 
+            (Favorite.item_id == fav.item_id)
+        ).first()
+        if target_fav:
+            db.delete(fav)
+        else:
+            fav.user_id = target_user.id
+
+    # 6. Reassign enrolled auth credentials
+    db.query(Passkey).filter(Passkey.user_id == source_user.id).update(
+        {Passkey.user_id: target_user.id}, synchronize_session=False
+    )
+    db.query(SsoLink).filter(SsoLink.user_id == source_user.id).update(
+        {SsoLink.user_id: target_user.id}, synchronize_session=False
+    )
+
+    # 7. Reassign notification logs & delete redundant configurations
+    db.query(NotificationLog).filter(NotificationLog.user_id == source_user.id).update(
+        {NotificationLog.user_id: target_user.id}, synchronize_session=False
+    )
+    db.query(NotificationPreference).filter(NotificationPreference.user_id == source_user.id).delete()
+    db.query(UserPreference).filter(UserPreference.user_id == source_user.id).delete()
+
+    # 8. Delete source user
+    db.delete(source_user)
+    db.commit()
+
+    from db_utils import log_admin_action
+    log_admin_action(
+        db,
+        admin_id=actor_id,
+        admin_username=actor_username,
+        action="merge_users",
+        details={
+            "source_user_id": req.source_user_id,
+            "source_username": source_user.username,
+            "target_user_id": req.target_user_id,
+            "target_username": target_user.username
+        }
+    )
+
+    return {"message": f"Successfully merged user '{source_user.username}' into '{target_user.username}'"}
+
+
+@router.get("/me")
+def get_current_user_profile(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    from models import Passkey, SsoLink
+    
+    # Fetch passkeys
+    passkeys = db.query(Passkey).filter(Passkey.user_id == current_user.id).all()
+    passkeys_list = [
+        {"id": pk.id, "name": pk.name, "created_at": pk.created_at}
+        for pk in passkeys
+    ]
+    
+    # Fetch SSO links
+    sso_links = db.query(SsoLink).filter(SsoLink.user_id == current_user.id).all()
+    sso_list = [
+        {"id": sso.id, "provider": sso.provider, "email": sso.email}
+        for sso in sso_links
+    ]
+    
+    daily_rip_usage = get_daily_rip_usage(db, str(current_user.id))
+
+    return {
+        "id": current_user.id,
+        "username": current_user.username,
+        "role": current_user.role,
+        "is_active": current_user.is_active,
+        "created_at": current_user.created_at,
+        "last_login_at": current_user.last_login_at,
+        "permissions": current_user.permissions or DEFAULT_PERMISSIONS,
+        "daily_rip_usage": daily_rip_usage,
+        "passkeys": passkeys_list,
+        "sso_links": sso_list
+    }

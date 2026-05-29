@@ -176,6 +176,9 @@ async def oidc_callback(request: Request, db: Session = Depends(get_db)):
     if not user.is_active:
         raise HTTPException(status_code=400, detail="User account is inactive.")
 
+    from routers.auth import update_user_last_login
+    update_user_last_login(db, user)
+
     # Generate JWT access token
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(

@@ -70,6 +70,14 @@ const themeConfigs = {
       background: { default: '#121212', paper: '#1e1e1e' }
     }
   },
+  material_light: {
+    palette: { mode: 'light', primary: { main: '#1976d2' }, secondary: { main: '#dc004e' }, background: { default: '#f5f5f5', paper: '#ffffff' } },
+    isMaterial: true
+  },
+  material_dark: {
+    palette: { mode: 'dark', primary: { main: '#90caf9' }, secondary: { main: '#f48fb1' }, background: { default: '#121212', paper: '#1e1e1e' } },
+    isMaterial: true
+  },
   midnight_cyber: {
     palette: {
       mode: 'dark',
@@ -212,6 +220,18 @@ function App() {
     showLive: true
   })
   const [tempTvMode, setTempTvMode] = useState(false)
+  const [customThemeSettings, setCustomThemeSettings] = useState({
+    mode: 'dark',
+    primary: '#90caf9',
+    secondary: '#f48fb1',
+    isMaterial: false
+  })
+  const [tempCustomThemeSettings, setTempCustomThemeSettings] = useState({
+    mode: 'dark',
+    primary: '#90caf9',
+    secondary: '#f48fb1',
+    isMaterial: false
+  })
 
   // Load preferences from DB
   const loadPreferences = useCallback(async () => {
@@ -228,6 +248,9 @@ function App() {
             showLive: data.ui_config.showLive !== false
           })
           setIsTvMode(data.ui_config.isTvMode || false)
+          if (data.ui_config.customTheme) {
+            setCustomThemeSettings(data.ui_config.customTheme)
+          }
         }
       }
     } catch (e) {
@@ -235,7 +258,7 @@ function App() {
     }
   }, [])
 
-  const savePreferences = async (newTheme, newUi, newTv) => {
+  const savePreferences = async (newTheme, newUi, newTv, newCustomTheme) => {
     try {
       const res = await apiFetch('/user/stats/preferences', {
         method: 'POST',
@@ -243,7 +266,8 @@ function App() {
           theme: newTheme,
           ui_config: {
             ...newUi,
-            isTvMode: newTv
+            isTvMode: newTv,
+            customTheme: newCustomTheme
           }
         })
       })
@@ -251,6 +275,7 @@ function App() {
         setThemeName(newTheme)
         setUiConfig(newUi)
         setIsTvMode(newTv)
+        setCustomThemeSettings(newCustomTheme)
         setSnackbar({ open: true, message: 'Interface preferences updated successfully!', severity: 'success' })
       }
     } catch (e) {
@@ -261,7 +286,22 @@ function App() {
 
   // Create MUI theme dynamically based on configurations and TV scaling mode
   const currentMuiTheme = useMemo(() => {
-    const baseConfig = themeConfigs[themeName] || themeConfigs.dark
+    let baseConfig = themeConfigs[themeName] || themeConfigs.dark
+    if (themeName === 'custom') {
+      baseConfig = {
+        palette: {
+          mode: customThemeSettings.mode,
+          primary: { main: customThemeSettings.primary },
+          secondary: { main: customThemeSettings.secondary },
+          background: {
+            default: customThemeSettings.mode === 'dark' ? '#121212' : '#f5f5f5',
+            paper: customThemeSettings.mode === 'dark' ? '#1e1e1e' : '#ffffff'
+          }
+        },
+        isMaterial: customThemeSettings.isMaterial
+      }
+    }
+
     return createTheme({
       ...baseConfig,
       breakpoints: {
@@ -279,14 +319,72 @@ function App() {
       components: {
         MuiCard: {
           styleOverrides: {
-            root: {
-              borderRadius: '16px',
-              transition: 'transform 0.2s, box-shadow 0.2s',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-              '&:hover': {
-                transform: 'translateY(-4px)',
-                boxShadow: '0 8px 30px rgba(0,0,0,0.3)'
+            root: ({ theme }) => {
+              if (baseConfig.isMaterial) {
+                return {
+                  borderRadius: '16px',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                  '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: '0 8px 30px rgba(0,0,0,0.3)'
+                  }
+                };
               }
+              return {
+                borderRadius: '16px',
+                transition: 'transform 0.2s, box-shadow 0.2s',
+                background: theme.palette.mode === 'dark' 
+                  ? 'linear-gradient(135deg, rgba(28, 37, 65, 0.4) 0%, rgba(10, 11, 16, 0.6) 100%)' 
+                  : 'linear-gradient(135deg, rgba(255, 255, 255, 0.7) 0%, rgba(240, 240, 240, 0.5) 100%)',
+                backdropFilter: 'blur(16px)',
+                border: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.05)',
+                boxShadow: theme.palette.mode === 'dark' ? '0 8px 32px 0 rgba(0, 0, 0, 0.37)' : '0 4px 20px rgba(0,0,0,0.1)',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: theme.palette.mode === 'dark' ? '0 12px 40px rgba(0,0,0,0.5)' : '0 8px 30px rgba(0,0,0,0.2)'
+                }
+              };
+            }
+          }
+        },
+        MuiPaper: {
+          styleOverrides: {
+            root: ({ theme, ownerState }) => {
+              if (baseConfig.isMaterial) return {};
+              
+              if (ownerState.variant === 'outlined') {
+                return {
+                  backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+                  borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
+                  backdropFilter: 'blur(10px)'
+                };
+              }
+              if (ownerState.elevation > 0 && ownerState.elevation < 24) {
+                 return {
+                   background: theme.palette.mode === 'dark' 
+                     ? 'linear-gradient(135deg, rgba(28, 37, 65, 0.4) 0%, rgba(10, 11, 16, 0.6) 100%)' 
+                     : 'linear-gradient(135deg, rgba(255, 255, 255, 0.7) 0%, rgba(240, 240, 240, 0.5) 100%)',
+                   backdropFilter: 'blur(16px)',
+                   border: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.05)',
+                 };
+              }
+              return {};
+            }
+          }
+        },
+        MuiDialog: {
+          styleOverrides: {
+            paper: ({ theme }) => {
+              if (baseConfig.isMaterial) return {};
+              return {
+                background: theme.palette.mode === 'dark' 
+                  ? 'linear-gradient(135deg, #1e202c 0%, #11121a 100%)' 
+                  : 'linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%)',
+                border: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0,0,0,0.1)',
+                boxShadow: theme.palette.mode === 'dark' ? '0 12px 40px rgba(0,0,0,0.6)' : '0 12px 40px rgba(0,0,0,0.2)',
+                borderRadius: '16px'
+              };
             }
           }
         },
@@ -302,7 +400,7 @@ function App() {
         }
       }
     })
-  }, [themeName, isTvMode])
+  }, [themeName, isTvMode, customThemeSettings])
 
   const fetchProviders = useCallback(async () => {
     try {
@@ -507,11 +605,12 @@ function App() {
     setTempTheme(themeName)
     setTempUiConfig(uiConfig)
     setTempTvMode(isTvMode)
+    setTempCustomThemeSettings(customThemeSettings)
     setPrefDialogOpen(true)
   }
 
   const handleSavePrefDialog = () => {
-    savePreferences(tempTheme, tempUiConfig, tempTvMode)
+    savePreferences(tempTheme, tempUiConfig, tempTvMode, tempCustomThemeSettings)
     setPrefDialogOpen(false)
   }
 
@@ -543,6 +642,7 @@ function App() {
     { label: "P2P Sync", component: <P2PSync />, visible: true },
     { label: "Notification Settings", component: <NotificationSettings />, visible: true },
     { label: "Transcode Queue", component: <TranscodeQueue />, visible: true },
+    { label: "Subscriptions", component: <SubscriptionManager />, visible: true },
     { label: "Backup", component: <BackupManager />, visible: true },
     { label: "Logs", component: <LogsViewer />, visible: true },
     { label: "Scraper Tester", component: <ScraperTester />, visible: true },
@@ -564,7 +664,7 @@ function App() {
       id: "scraping",
       label: "Providers & Auth",
       icon: "🔑",
-      tabs: ["Providers", "Scraper Tester"]
+      tabs: ["Providers", "Scraper Tester", "Subscriptions"]
     },
     {
       id: "tasks",
@@ -978,15 +1078,64 @@ function App() {
                   label="Visual Theme Palette"
                   onChange={(e) => setTempTheme(e.target.value)}
                 >
-                  <MenuItem value="light">Vanilla Light Mode</MenuItem>
-                  <MenuItem value="dark">Vanilla Dark Mode</MenuItem>
+                <MenuItem value="light">Glassmorphic Light Mode</MenuItem>
+                <MenuItem value="dark">Glassmorphic Dark Mode</MenuItem>
+                <MenuItem value="material_light">Standard Material Light</MenuItem>
+                <MenuItem value="material_dark">Standard Material Dark</MenuItem>
                   <MenuItem value="midnight_cyber">Midnight Cyber (Cyan/Neon)</MenuItem>
                   <MenuItem value="sunset_rose">Sunset Rose (Peach/Warm Plums)</MenuItem>
                   <MenuItem value="emerald_obsidian">Emerald Obsidian (Emerald/Deep dark)</MenuItem>
                   <MenuItem value="ocean_glass">Ocean Glassmorphism (Ocean/Translucent)</MenuItem>
                   <MenuItem value="crimson_obsidian">Crimson Obsidian (High contrast Red/Black)</MenuItem>
+                  <MenuItem value="custom">Custom Theme</MenuItem>
                 </Select>
               </FormControl>
+
+              {tempTheme === 'custom' && (
+                <Box sx={{ mt: 1, p: 2, border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', bgcolor: 'background.paper' }}>
+                  <Typography variant="subtitle2" gutterBottom>Custom Theme Settings</Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={3}>
+                      <FormControl fullWidth size="small">
+                        <InputLabel>Mode</InputLabel>
+                        <Select
+                          value={tempCustomThemeSettings.mode}
+                          label="Mode"
+                          onChange={(e) => setTempCustomThemeSettings({...tempCustomThemeSettings, mode: e.target.value})}
+                        >
+                          <MenuItem value="light">Light</MenuItem>
+                          <MenuItem value="dark">Dark</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    <Grid item xs={12} sm={3}>
+                      <FormControl fullWidth size="small">
+                        <InputLabel>Style</InputLabel>
+                        <Select
+                          value={tempCustomThemeSettings.isMaterial ? 'true' : 'false'}
+                          label="Style"
+                          onChange={(e) => setTempCustomThemeSettings({...tempCustomThemeSettings, isMaterial: e.target.value === 'true'})}
+                        >
+                          <MenuItem value="false">Glassmorphic</MenuItem>
+                          <MenuItem value="true">Flat Material</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    <Grid item xs={12} sm={3}>
+                      <TextField fullWidth size="small" label="Primary Color" type="color"
+                        value={tempCustomThemeSettings.primary} InputLabelProps={{ shrink: true }}
+                        onChange={(e) => setTempCustomThemeSettings({...tempCustomThemeSettings, primary: e.target.value})}
+                        sx={{ '& input': { padding: '4px 8px', height: '32px', cursor: 'pointer' } }} />
+                    </Grid>
+                    <Grid item xs={12} sm={3}>
+                      <TextField fullWidth size="small" label="Secondary Color" type="color"
+                        value={tempCustomThemeSettings.secondary} InputLabelProps={{ shrink: true }}
+                        onChange={(e) => setTempCustomThemeSettings({...tempCustomThemeSettings, secondary: e.target.value})}
+                        sx={{ '& input': { padding: '4px 8px', height: '32px', cursor: 'pointer' } }} />
+                    </Grid>
+                  </Grid>
+                </Box>
+              )}
 
               {/* TV Breakpoints toggle */}
               <FormControlLabel
@@ -1151,4 +1300,3 @@ function App() {
 }
 
 export default App
-

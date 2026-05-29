@@ -52,6 +52,17 @@ export default function HelpArea({ userRole }) {
 
       <Accordion sx={{ background: 'rgba(255,255,255,0.05)', borderRadius: '8px', mb: 1 }}>
         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+          <Typography fontWeight="bold">How do I manage my premium subscriptions and trials?</Typography>
+        </AccordionSummary>
+        <AccordionDetails>
+          <Typography>
+            Use the <strong>Subscriptions</strong> tab to view your active subscriptions, trials, and costs. You can paste a confirmation email to auto-extract billing data, or use the <strong>Voyarr Lens</strong> browser extension on the active provider's tab to securely scan and import subscription and tier details directly into Voyarr.
+          </Typography>
+        </AccordionDetails>
+      </Accordion>
+
+      <Accordion sx={{ background: 'rgba(255,255,255,0.05)', borderRadius: '8px', mb: 1 }}>
+        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
           <Typography fontWeight="bold">Can I use external password managers?</Typography>
         </AccordionSummary>
         <AccordionDetails>

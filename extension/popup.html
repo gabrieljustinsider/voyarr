@@ -290,6 +290,7 @@
     <!-- Navigation Tabs -->
     <div class="tabs">
       <button class="tab-btn active" data-tab="map-tab">Remote Map</button>
+      <button class="tab-btn" data-tab="lens-tab">Lens</button>
       <button class="tab-btn" data-tab="settings-tab">Settings</button>
     </div>
 
@@ -329,6 +330,21 @@
       </div>
       
       <div id="mapToast" class="toast-msg"></div>
+    </div>
+
+    <!-- Lens Tab -->
+    <div class="tab-content" id="lens-tab">
+      <div class="form-group">
+        <label>Voyarr Lens: Parse Subscription</label>
+        <p style="font-size: 11px; color: var(--text-muted); margin: 0; line-height: 1.4;">Scan the current tab to detect subscription and billing details. Requires permission.</p>
+        <button id="scanSubscriptionBtn" class="btn" style="margin-top: 8px;">Scan Active Tab</button>
+      </div>
+      <div id="scanResultBox" class="info-box" style="display: none; margin-top: 8px;">
+         <div class="info-box-title">Detected Info</div>
+         <div id="scanResultText" style="font-family: monospace; font-size: 10px; color: var(--text-main); margin-top: 4px; white-space: pre-wrap;"></div>
+         <button id="saveSubscriptionBtn" class="btn" style="margin-top: 8px; width: 100%;">Save to Voyarr</button>
+      </div>
+      <div id="lensToast" class="toast-msg"></div>
     </div>
 
     <!-- Settings Tab -->

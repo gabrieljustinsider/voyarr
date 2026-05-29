@@ -72,6 +72,10 @@ def setup_db_and_dependencies():
     orig_sessionlocal = database.SessionLocal
     orig_db_utils_sessionlocal = getattr(db_utils, "SessionLocal", None)
 
+    # Force environmental MASTER_KEY for this test suite
+    orig_master_key = os.environ.get("MASTER_KEY")
+    os.environ["MASTER_KEY"] = "test_master_key_1234567890_abcdef"
+
     database.engine = test_engine
     database.SessionLocal = TestSessionLocal
     db_utils.SessionLocal = TestSessionLocal
@@ -117,6 +121,11 @@ def setup_db_and_dependencies():
     database.SessionLocal = orig_sessionlocal
     if orig_db_utils_sessionlocal is not None:
         db_utils.SessionLocal = orig_db_utils_sessionlocal
+
+    if orig_master_key is not None:
+        os.environ["MASTER_KEY"] = orig_master_key
+    else:
+        os.environ.pop("MASTER_KEY", None)
 
 
 # ==============================================================================

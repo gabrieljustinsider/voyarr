@@ -13,7 +13,8 @@ from tasks.scrape_tasks import scrape_url_task
 from tasks.scanner_tasks import scan_library_task
 from db_utils import get_db_session
 
-from dependencies import verify_api_key
+from database import get_db
+from dependencies import verify_api_key, require_permission
 from routers.auth import get_current_user
 from routers.download import validate_url_ssrf
 from utils import get_media_roots
@@ -346,16 +347,11 @@ def update_stashdb(req: SyncRequest, x_api_key: Optional[str] = Header(None)):
 @router.post("/scrape")
 def trigger_scrape(
     req: ScrapeRequest,
-    auth_info: dict = Depends(verify_api_key)
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission("scraping", "edit"))
 ):
-    with get_db_session() as db:
-        from db_utils import check_feature_permission
-        from models import User
-        user = None
-        if auth_info.get("type") == "jwt" and auth_info.get("user"):
-            user = db.query(User).filter(User.username == auth_info.get("user")).first()
-        check_feature_permission(db, "scraping", user)
-
+    from db_utils import check_feature_permission
+    check_feature_permission(db, "scraping", current_user)
     validate_url_ssrf(req.url)
     task = scrape_url_task.delay(req.url, req.recipe_id)
     return {"message": "Scraping task queued", "task_id": task.id}
@@ -364,15 +360,11 @@ def trigger_scrape(
 @router.get("/scrape/stream/{task_id}")
 async def stream_scrape_task(
     task_id: str,
-    auth_info: dict = Depends(verify_api_key)
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission("scraping", "view"))
 ):
-    with get_db_session() as db:
-        from db_utils import check_feature_permission
-        from models import User
-        user = None
-        if auth_info.get("type") == "jwt" and auth_info.get("user"):
-            user = db.query(User).filter(User.username == auth_info.get("user")).first()
-        check_feature_permission(db, "scraping", user)
+    from db_utils import check_feature_permission
+    check_feature_permission(db, "scraping", current_user)
     async def event_generator():
         task = AsyncResult(task_id)
         while True:

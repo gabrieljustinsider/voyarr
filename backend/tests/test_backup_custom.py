@@ -12,8 +12,15 @@ from dependencies import verify_api_key
 from database import get_db
 
 
-# Override auth dependency
-app.dependency_overrides[verify_api_key] = lambda: {"type": "mock", "user": "admin"}
+import pytest
+
+# Override auth dependency in a clean fixture
+@pytest.fixture(autouse=True)
+def setup_dependencies():
+    orig_overrides = dict(app.dependency_overrides)
+    app.dependency_overrides[verify_api_key] = lambda: {"type": "mock", "user": "admin"}
+    yield
+    app.dependency_overrides = orig_overrides
 
 client = TestClient(app)
 

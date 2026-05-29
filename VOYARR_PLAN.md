@@ -235,15 +235,18 @@ Voyarr v1.15.0 unifies the visual identity across the web platform and browser e
 
 ---
 
-## **🚀 Future Feature Roadmap (v1.15.0+)**
+## **🚀 Future Feature Roadmap (v1.18.0+)**
 
 The following represents identified feature targets and upcoming components for subsequent releases.
 
-### **1. Real-time Multi-Instance Clustering**
-*   **Description:** Allow remote instances to act as hot-failover mirrors, sharing storage allocations and active Celery task queues in real-time.
+### **1. Distributed Worker Nodes (The "Heavy Lifting" Update)**
+*   **Description:** Build a "Remote Worker Node" system using the existing Celery/Redis architecture to offload intensive tasks (FFmpeg transcoding, AI auto-chaptering, facial recognition) to external machines, preventing the primary NAS from bottlenecking.
 
-### **2. Third-Party & User-Created Extensions**
-*   **Description:** Add support for third-party and user-created extensions to allow community contributions and custom integrations.
+### **2. Media Requests Portal**
+*   **Description:** A dedicated UI where non-admin users can browse potential channels, paste URLs, and "Request" media. Admins get a centralized approval dashboard that automatically links approved requests to user quotas, fires off mass rips, and sends interactive Discord/Webhook notifications upon completion.
 
-### **3. Distributed Worker Nodes & Add-ons**
-*   **Description:** Add node support and a specialized add-on to allow external devices to process intensive tasks (like transcoding or scraping) and report results back to the primary device.
+### **3. Third-Party Plugin & Extension Architecture**
+*   **Description:** Introduce a modular Python plugin system. A designated `/plugins` folder mapped to a Docker volume will allow users to drop in custom Python scripts for external API bridges, custom metadata scrapers, and new webhook notifiers without modifying the core codebase.
+
+### **4. Real-time Multi-Instance Clustering (High Availability)**
+*   **Description:** Expand the P2P engine into a true High Availability (HA) cluster, allowing remote instances (e.g., local and cloud) to act as hot-failover mirrors, sharing storage allocations and active Celery task queues in real-time.

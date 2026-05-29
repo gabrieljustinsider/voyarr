@@ -165,6 +165,9 @@ def login_sso(
     if not user.is_active:
         raise HTTPException(status_code=400, detail="Associated user account is inactive.")
         
+    from routers.auth import update_user_last_login
+    update_user_last_login(db, user)
+    
     # Generate access token
     ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)

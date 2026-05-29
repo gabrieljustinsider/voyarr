@@ -234,6 +234,8 @@ def login_verify(
     passkey.sign_count += 1
     
     db.commit()
+    from routers.auth import update_user_last_login
+    update_user_last_login(db, user)
     
     # Generate access token
     ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days

@@ -44,6 +44,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const matchCountBadge = document.getElementById('matchCountBadge');
   const mapToast = document.getElementById('mapToast');
   
+  // Lens Tab Elements
+  const scanSubscriptionBtn = document.getElementById('scanSubscriptionBtn');
+  const scanResultBox = document.getElementById('scanResultBox');
+  const scanResultText = document.getElementById('scanResultText');
+  const saveSubscriptionBtn = document.getElementById('saveSubscriptionBtn');
+  const lensToast = document.getElementById('lensToast');
+  let currentScannedSubscription = null;
+
   const statusDot = document.getElementById('statusDot');
   const statusText = document.getElementById('statusText');
 
@@ -923,4 +931,94 @@ document.addEventListener('DOMContentLoaded', () => {
   fieldSelect.addEventListener('change', async () => {
     await chrome.storage.local.set({ savedField: fieldSelect.value });
   });
+
+  // Lens Tab logic
+  scanSubscriptionBtn.addEventListener('click', async () => {
+    const permit = confirm("Allow Voyarr to scan this page for subscription and billing details? This may include sensitive account information on the current page.");
+    if (!permit) return;
+
+    scanSubscriptionBtn.innerText = "Scanning...";
+    scanSubscriptionBtn.disabled = true;
+
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab) throw new Error("No active tab.");
+
+      const [{ result }] = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => document.body.innerText
+      });
+
+      const serverUrl = activeServerSelect.value;
+      const activeServer = servers.find(s => s.id === serverUrl);
+      if (!activeServer || !activeServer.url) {
+        throw new Error("No active Voyarr server configured.");
+      }
+
+      const res = await fetch(`${activeServer.url}/subscriptions/parse-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Voyarr-Api-Key': activeServer.apiKey
+        },
+        body: JSON.stringify({ email_text: result || "" })
+      });
+
+      if (!res.ok) throw new Error("Backend parse failed.");
+      
+      const data = await res.json();
+      currentScannedSubscription = data.parsed_data;
+      
+      scanResultText.innerText = JSON.stringify(currentScannedSubscription, null, 2);
+      scanResultBox.style.display = "block";
+      showToast(lensToast, "Scan complete!", "success");
+
+    } catch (e) {
+      console.error(e);
+      showToast(lensToast, `Failed to scan: ${e.message}`, "error");
+    } finally {
+      scanSubscriptionBtn.innerText = "Scan Active Tab";
+      scanSubscriptionBtn.disabled = false;
+    }
+  });
+
+  saveSubscriptionBtn.addEventListener('click', async () => {
+    if (!currentScannedSubscription) return;
+
+    saveSubscriptionBtn.innerText = "Saving...";
+    saveSubscriptionBtn.disabled = true;
+
+    try {
+      const serverUrl = activeServerSelect.value;
+      const activeServer = servers.find(s => s.id === serverUrl);
+      
+      // Need providerId. We might not have it strictly, default to 1 for now.
+      const payload = {
+        provider_id: parseInt(providerSelect.value) || 1,
+        biller: currentScannedSubscription.biller,
+        billing_cycle: currentScannedSubscription.billing_cycle,
+        cost: currentScannedSubscription.cost,
+        is_trial: currentScannedSubscription.is_trial,
+        status: currentScannedSubscription.status
+      };
+
+      const res = await fetch(`${activeServer.url}/subscriptions/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Voyarr-Api-Key': activeServer.apiKey
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) throw new Error("Save failed.");
+      showToast(lensToast, "Saved successfully!", "success");
+    } catch (e) {
+      showToast(lensToast, `Save failed: ${e.message}`, "error");
+    } finally {
+      saveSubscriptionBtn.innerText = "Save to Voyarr";
+      saveSubscriptionBtn.disabled = false;
+    }
+  });
+
 });

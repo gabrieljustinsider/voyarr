@@ -12,7 +12,7 @@ from tasks.ai_tasks import auto_tag_video_task
 from tasks.transcode_tasks import generate_hls_task
 from tasks.scanner_tasks import process_missing_hashes_task
 
-from dependencies import verify_api_key
+from dependencies import verify_api_key, require_permission
 from utils import get_media_roots
 from rate_limiter import rate_limit
 
@@ -28,6 +28,7 @@ def scan_library(
     provider_id: int,
     directory: Optional[str] = None,
     db: Session = Depends(get_db),
+    current_user = Depends(require_permission("library", "edit"))
 ):
     """Scan a directory and reverse-engineer filenames into Library entries."""
 
@@ -95,8 +96,17 @@ def get_library_entries(
     page: int = 1,
     limit: int = 50,
     db: Session = Depends(get_db),
+    current_user = Depends(require_permission("library", "view"))
 ):
     query = db.query(LibraryEntry).options(defer(LibraryEntry.entry_metadata))
+
+    # Enforce restricted tags filtering server-side
+    if hasattr(current_user, "permissions") and current_user.permissions:
+        restrictions = current_user.permissions.get("restrictions", {})
+        restricted_tags = restrictions.get("tags", [])
+        for r_tag in restricted_tags:
+            query = query.filter(~LibraryEntry.tags.contains([r_tag]))
+
     if provider_id is not None:
         query = query.filter(LibraryEntry.provider_id == provider_id)
     if resolution is not None:
@@ -128,16 +138,9 @@ def get_library_entries(
 @router.get("/{entry_id}/stream")
 def stream_video(
     entry_id: int,
-    auth_info: dict = Depends(verify_api_key),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission("streaming", "view"))
 ):
-    from db_utils import check_feature_permission
-    from models import User
-    user = None
-    if auth_info.get("type") == "jwt" and auth_info.get("user"):
-        user = db.query(User).filter(User.username == auth_info.get("user")).first()
-    check_feature_permission(db, "streaming", user)
-
     file_path = (
         db.query(LibraryEntry.file_path).filter(LibraryEntry.id == entry_id).scalar()
     )
@@ -155,7 +158,7 @@ def stream_video(
     "/rescan-hashes",
     dependencies=[Depends(rate_limit(max_requests=2, window_seconds=60))],
 )
-def rescan_hashes(db: Session = Depends(get_db)):
+def rescan_hashes(db: Session = Depends(get_db), current_user = Depends(require_permission("library", "edit"))):
     task = process_missing_hashes_task.delay()
     return {
         "message": "Hash rescan started in the background. This may take a while.",
@@ -164,7 +167,7 @@ def rescan_hashes(db: Session = Depends(get_db)):
 
 
 @router.post("/{entry_id}/cluster-faces")
-def trigger_facial_clustering(entry_id: int, db: Session = Depends(get_db)):
+def trigger_facial_clustering(entry_id: int, db: Session = Depends(get_db), current_user = Depends(require_permission("library", "edit"))):
     entry = db.query(LibraryEntry).filter(LibraryEntry.id == entry_id).first()
     if not entry:
         raise HTTPException(status_code=404, detail="Library entry not found")
@@ -174,7 +177,7 @@ def trigger_facial_clustering(entry_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{entry_id}/facial-clusters")
-def get_facial_clusters(entry_id: int, db: Session = Depends(get_db)):
+def get_facial_clusters(entry_id: int, db: Session = Depends(get_db), current_user = Depends(require_permission("library", "view"))):
     entry = db.query(LibraryEntry).filter(LibraryEntry.id == entry_id).first()
     if not entry:
         raise HTTPException(status_code=404, detail="Library entry not found")
@@ -184,7 +187,7 @@ def get_facial_clusters(entry_id: int, db: Session = Depends(get_db)):
 
 @router.get("/{entry_id}/facial-clusters/{person_name}/thumbnail")
 def get_facial_cluster_thumbnail(
-    entry_id: int, person_name: str, db: Session = Depends(get_db)
+    entry_id: int, person_name: str, db: Session = Depends(get_db), current_user = Depends(require_permission("library", "view"))
 ):
     file_path = (
         db.query(LibraryEntry.file_path).filter(LibraryEntry.id == entry_id).scalar()
@@ -215,6 +218,7 @@ def rename_facial_cluster(
     person_name: str,
     req: RenameClusterRequest,
     db: Session = Depends(get_db),
+    current_user = Depends(require_permission("library", "edit"))
 ):
     entry = db.query(LibraryEntry).filter(LibraryEntry.id == entry_id).first()
     if not entry or not entry.file_path:
@@ -260,7 +264,7 @@ def rename_facial_cluster(
 
 
 @router.delete("/{entry_id}")
-def delete_library_entry(entry_id: int, db: Session = Depends(get_db)):
+def delete_library_entry(entry_id: int, db: Session = Depends(get_db), current_user = Depends(require_permission("library", "edit"))):
     entry = db.query(LibraryEntry).filter(LibraryEntry.id == entry_id).first()
     if not entry:
         raise HTTPException(status_code=404, detail="Library entry not found")
@@ -275,7 +279,7 @@ def delete_library_entry(entry_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{entry_id}/hls/generate")
-def trigger_hls_generation(entry_id: int, db: Session = Depends(get_db)):
+def trigger_hls_generation(entry_id: int, db: Session = Depends(get_db), current_user = Depends(require_permission("library", "edit"))):
     exists = db.query(LibraryEntry.id).filter(LibraryEntry.id == entry_id).scalar()
     if not exists:
         raise HTTPException(status_code=404, detail="Library entry not found")
@@ -285,7 +289,7 @@ def trigger_hls_generation(entry_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{entry_id}/hls/{filename}")
-def serve_hls_file(entry_id: int, filename: str, db: Session = Depends(get_db)):
+def serve_hls_file(entry_id: int, filename: str, db: Session = Depends(get_db), current_user = Depends(require_permission("streaming", "view"))):
     file_path = (
         db.query(LibraryEntry.file_path).filter(LibraryEntry.id == entry_id).scalar()
     )
@@ -323,7 +327,7 @@ class ManualBulkEditRequest(BaseModel):
 
 
 @router.post("/bulk-edit/manual")
-def manual_bulk_edit(req: ManualBulkEditRequest, db: Session = Depends(get_db)):
+def manual_bulk_edit(req: ManualBulkEditRequest, db: Session = Depends(get_db), current_user = Depends(require_permission("library", "edit"))):
     """Instantly add or remove tags, performers, and update studio or resolution across multiple videos."""
     entries = (
         db.query(LibraryEntry)
@@ -369,7 +373,7 @@ class AIBulkTagRequest(BaseModel):
 
 
 @router.post("/bulk-tag/ai")
-def ai_bulk_tag(req: AIBulkTagRequest, db: Session = Depends(get_db)):
+def ai_bulk_tag(req: AIBulkTagRequest, db: Session = Depends(get_db), current_user = Depends(require_permission("library", "edit"))):
     """Queue up multiple videos for automated AI tagging via the vision models."""
     entry_ids = (
         db.query(LibraryEntry.id).filter(LibraryEntry.id.in_(req.entry_ids)).all()
@@ -392,7 +396,7 @@ class RenameRequest(BaseModel):
 
 
 @router.post("/{entry_id}/rename")
-def rename_library_file(entry_id: int, req: RenameRequest, db: Session = Depends(get_db)):
+def rename_library_file(entry_id: int, req: RenameRequest, db: Session = Depends(get_db), current_user = Depends(require_permission("library", "edit"))):
     """Physically rename a video file in the library and log the action in the naming history log."""
     entry = db.query(LibraryEntry).filter(LibraryEntry.id == entry_id).first()
     if not entry:
@@ -455,7 +459,7 @@ def rename_library_file(entry_id: int, req: RenameRequest, db: Session = Depends
 
 
 @router.post("/{entry_id}/revert-rename")
-def revert_library_file_rename(entry_id: int, db: Session = Depends(get_db)):
+def revert_library_file_rename(entry_id: int, db: Session = Depends(get_db), current_user = Depends(require_permission("library", "edit"))):
     """Physically revert the last rename operation for this library entry."""
     entry = db.query(LibraryEntry).filter(LibraryEntry.id == entry_id).first()
     if not entry:
@@ -522,7 +526,7 @@ def revert_library_file_rename(entry_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{entry_id}/naming-history")
-def get_library_file_naming_history(entry_id: int, db: Session = Depends(get_db)):
+def get_library_file_naming_history(entry_id: int, db: Session = Depends(get_db), current_user = Depends(require_permission("library", "view"))):
     """Fetch the complete historical trace of file names and paths for this entry."""
     entry = db.query(LibraryEntry).filter(LibraryEntry.id == entry_id).first()
     if not entry:

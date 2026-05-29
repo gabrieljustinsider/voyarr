@@ -10,8 +10,15 @@ from main import app
 from dependencies import verify_api_key
 
 
-# Override auth dependency to allow testing router directly
-app.dependency_overrides[verify_api_key] = lambda: {"type": "mock", "user": "admin"}
+import pytest
+
+# Override auth dependency to allow testing router directly in a clean fixture
+@pytest.fixture(autouse=True)
+def setup_dependencies():
+    orig_overrides = dict(app.dependency_overrides)
+    app.dependency_overrides[verify_api_key] = lambda: {"type": "mock", "user": "admin"}
+    yield
+    app.dependency_overrides = orig_overrides
 
 client = TestClient(app)
 

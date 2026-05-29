@@ -13,6 +13,7 @@ import BusinessIcon from '@mui/icons-material/Business'
 import FavoriteIcon from '@mui/icons-material/Favorite'
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder'
 import { apiFetch } from '../api'
+import UrlParseConfirmationModal from './UrlParseConfirmationModal'
 
 export default function Studios() {
   const [studios, setStudios] = useState([])
@@ -37,11 +38,25 @@ export default function Studios() {
   })
   const [submitting, setSubmitting] = useState(false)
 
+  // URL Parsing states
+  const [parseUrl, setParseUrl] = useState('')
+  const [parseLoading, setParseLoading] = useState(false)
+  const [parsedMetadata, setParsedMetadata] = useState(null)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [urlParsingPermission, setUrlParsingPermission] = useState('edit')
+
   // Current User Info for RBAC checks
   const [currentUserRole, setCurrentUserRole] = useState('viewer')
 
   const fetchUserRole = useCallback(async () => {
     try {
+      const meRes = await apiFetch('/auth/me')
+      if (meRes.ok) {
+        const me = await meRes.json()
+        const userPerms = me.permissions || {}
+        const perm = userPerms.url_parsing || (me.role === 'admin' ? 'edit' : 'no_access')
+        setUrlParsingPermission(perm)
+      }
       const res = await apiFetch('/user/stats/preferences') // dummy call to verify login state and details
       if (res.ok) {
         // Assume admin if settings/write commands are enabled on backend or decode token if stored
@@ -165,6 +180,52 @@ export default function Studios() {
     } catch (e) {
       console.error(e)
     }
+  }
+
+  const handleParseUrl = async () => {
+    if (!parseUrl) {
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Please enter a URL to parse', severity: 'warning' } }))
+      return
+    }
+
+    if (urlParsingPermission === 'no_access') {
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'You do not have permissions to access URL parsing.', severity: 'error' } }))
+      return
+    }
+
+    setParseLoading(true)
+    try {
+      const response = await apiFetch('/scraper/parse-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: parseUrl })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setParsedMetadata(data.metadata)
+        setModalOpen(true)
+      } else {
+        const errData = await response.json().catch(() => ({}))
+        window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: `Error parsing URL: ${errData.detail || response.statusText}`, severity: 'error' } }))
+      }
+    } catch (error) {
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: `Error parsing URL: ${error.message}`, severity: 'error' } }))
+    }
+    setParseLoading(false)
+  }
+
+  const handleApplyParsedMetadata = (appliedData) => {
+    setFormData(prev => {
+      const updated = { ...prev }
+      if (appliedData.title) updated.name = appliedData.title
+      if (appliedData.description) updated.details = appliedData.details || appliedData.description
+      if (appliedData.thumbnail_url) updated.logo_url = appliedData.thumbnail_url
+      if (appliedData.tags?.length > 0) updated.tags = appliedData.tags.join(', ')
+      if (parseUrl) updated.url = parseUrl
+      return updated
+    })
+    window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Parsed metadata successfully applied!', severity: 'info' } }))
   }
 
   const handleSubmit = async (e) => {
@@ -351,6 +412,21 @@ export default function Studios() {
         <form onSubmit={handleSubmit}>
           <DialogTitle>{editingId ? 'Edit Studio Profile' : 'Add Studio Profile'}</DialogTitle>
           <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+            {urlParsingPermission !== 'no_access' && (
+              <Box sx={{ display: 'flex', gap: 1, mb: 1, p: 2, borderRadius: '10px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', alignItems: 'center' }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="Paste URL to parse studio metadata..."
+                  value={parseUrl}
+                  onChange={(e) => setParseUrl(e.target.value)}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+                />
+                <Button variant="outlined" color="secondary" onClick={handleParseUrl} disabled={parseLoading} sx={{ borderRadius: '8px', whiteSpace: 'nowrap', py: 1 }}>
+                  {parseLoading ? <CircularProgress size={18} /> : 'Parse'}
+                </Button>
+              </Box>
+            )}
             <TextField
               required
               fullWidth
@@ -427,6 +503,21 @@ export default function Studios() {
           </DialogActions>
         </form>
       </Dialog>
+
+      <UrlParseConfirmationModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        parsedData={parsedMetadata}
+        currentData={{
+          title: formData.name || '',
+          studio: '',
+          performers: [],
+          tags: formData.tags ? formData.tags.split(',').map(t => t.trim()) : [],
+          description: formData.details || ''
+        }}
+        onApply={handleApplyParsedMetadata}
+        permission={urlParsingPermission}
+      />
     </Box>
   )
 }

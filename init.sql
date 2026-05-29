@@ -270,7 +270,8 @@ CREATE TABLE users (
     role VARCHAR(50) DEFAULT 'user',
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    permissions JSONB DEFAULT '{"can_stream": true, "can_scrape": false, "can_rip": false}'::jsonb
+    last_login_at TIMESTAMP,
+    permissions JSONB DEFAULT '{"can_stream": true, "can_scrape": false, "can_rip": false, "url_parsing": "edit"}'::jsonb
 );
 
 -- Admin Audit Logs table

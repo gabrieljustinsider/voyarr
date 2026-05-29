@@ -33,7 +33,7 @@ jobs:
         run: |
           VERSION=$(grep '"version"' extension/manifest.json | head -n 1 | awk -F '"' '{print $4}')
           if [ -z "$VERSION" ]; then
-            VERSION="1.15.5"
+            VERSION="1.17.0"
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
@@ -71,7 +71,7 @@ jobs:
         run: |
           VERSION=$(grep '"version"' extension/manifest.json | head -n 1 | awk -F '"' '{print $4}')
           if [ -z "$VERSION" ]; then
-            VERSION="1.14.0"
+            VERSION="1.17.0"
           fi
           echo "Current Version: v$VERSION"
           

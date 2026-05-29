@@ -59,7 +59,13 @@ The Chrome Web Store review team requires explicit, plain-English justifications
 
 ## **📈 Version History**
 
-### **v1.16.6** (Current Release)
+### **v1.17.0** (Current Release)
+* **Granular Role-Based Access Control (RBAC)**: Expanded system permissions into a comprehensive module-level "None / View / Edit" hierarchy.
+* **Daily Rip Quotas**: Added strict, per-user daily download and mass rip limits, tracked automatically across active sessions.
+* **Custom & Material UI Themes**: Introduced "Standard Material" themes, and a dynamic "Custom Theme" generator allowing users to pick their own primary/secondary colors and toggle glassmorphism.
+* **User Management Dashboard**: Enhanced the admin user profile screen to display visual progress bars for daily quota usage.
+
+### **v1.16.6**
 * **Bug Fix**: Fixed a critical backend 500 error on Stash sync endpoint by removing an invalid leftover debug print statement referencing non-existent `db_utils.SessionLocal`.
 
 ### **v1.16.5**

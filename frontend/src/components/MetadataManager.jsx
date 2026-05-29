@@ -5,6 +5,7 @@ import {
   Chip, CircularProgress, FormControl, InputLabel, Select, MenuItem
 } from '@mui/material'
 import { apiFetch } from '../api'
+import UrlParseConfirmationModal from './UrlParseConfirmationModal'
 
 export default function MetadataManager() {
   const [entryId, setEntryId] = useState('')
@@ -12,6 +13,13 @@ export default function MetadataManager() {
   const [loading, setLoading] = useState(false)
   const [libraryEntries, setLibraryEntries] = useState([])
   const [message, setMessage] = useState('')
+
+  // URL Parsing states
+  const [parseUrl, setParseUrl] = useState('')
+  const [parseLoading, setParseLoading] = useState(false)
+  const [parsedMetadata, setParsedMetadata] = useState(null)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [urlParsingPermission, setUrlParsingPermission] = useState('edit')
 
   useEffect(() => {
     apiFetch('/library?limit=1000')
@@ -22,6 +30,19 @@ export default function MetadataManager() {
       .then(data => {
         if (Array.isArray(data)) setLibraryEntries(data)
         else if (data && data.items) setLibraryEntries(data.items)
+      })
+      .catch(console.error)
+
+    apiFetch('/auth/me')
+      .then(res => {
+        if (res.ok) return res.json()
+      })
+      .then(data => {
+        if (data) {
+          const userPerms = data.permissions || {}
+          const perm = userPerms.url_parsing || (data.role === 'admin' ? 'edit' : 'no_access')
+          setUrlParsingPermission(perm)
+        }
       })
       .catch(console.error)
   }, [])
@@ -134,7 +155,58 @@ export default function MetadataManager() {
     } catch (error) {
       setMessage(`Error: ${error.message}`)
     }
-    setLoading(false)
+  }
+
+  const handleParseUrl = async () => {
+    if (!parseUrl) {
+      setMessage('Please enter a URL to parse')
+      return
+    }
+
+    if (urlParsingPermission === 'no_access') {
+      setMessage('Error: You do not have permissions to access the URL parsing feature.')
+      return
+    }
+
+    setParseLoading(true)
+    try {
+      const response = await apiFetch('/scraper/parse-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: parseUrl })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setParsedMetadata(data.metadata)
+        setModalOpen(true)
+        setMessage('')
+      } else {
+        const errData = await response.json().catch(() => ({}))
+        setMessage(`Error parsing URL: ${errData.detail || response.statusText}`)
+      }
+    } catch (error) {
+      setMessage(`Error parsing URL: ${error.message}`)
+    }
+    setParseLoading(false)
+  }
+
+  const handleApplyParsedMetadata = (appliedData) => {
+    setMetadata(prev => {
+      const updated = { ...prev }
+      if (appliedData.title) updated.title = appliedData.title
+      if (appliedData.studio) updated.studio_name = appliedData.studio
+      if (appliedData.performers) updated.performers = appliedData.performers
+      if (appliedData.tags) updated.tags = appliedData.tags
+      if (appliedData.description) {
+        updated.entry_metadata = {
+          ...updated.entry_metadata,
+          description: appliedData.description
+        }
+      }
+      return updated
+    })
+    setMessage('Parsed metadata successfully loaded into form! Click "Update Metadata" to save.')
   }
 
   return (
@@ -171,6 +243,21 @@ export default function MetadataManager() {
 
           {metadata && (
             <Box>
+              {urlParsingPermission !== 'no_access' && (
+                <Box sx={{ display: 'flex', gap: 1, mb: 2, mt: 1, p: 2, borderRadius: '10px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', alignItems: 'center' }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder="Paste adult video URL to parse metadata..."
+                    value={parseUrl}
+                    onChange={(e) => setParseUrl(e.target.value)}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+                  />
+                  <Button variant="outlined" color="secondary" onClick={handleParseUrl} disabled={parseLoading} sx={{ borderRadius: '8px', whiteSpace: 'nowrap', py: 1 }}>
+                    {parseLoading ? <CircularProgress size={20} /> : 'Parse URL'}
+                  </Button>
+                </Box>
+              )}
               <TextField
                 fullWidth
                 label="Title"
@@ -243,6 +330,21 @@ export default function MetadataManager() {
           </Button>
         </CardContent>
       </Card>
+
+      <UrlParseConfirmationModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        parsedData={parsedMetadata}
+        currentData={{
+          title: metadata?.title || '',
+          studio: metadata?.studio_name || '',
+          performers: metadata?.performers || [],
+          tags: metadata?.tags || [],
+          description: metadata?.entry_metadata?.description || ''
+        }}
+        onApply={handleApplyParsedMetadata}
+        permission={urlParsingPermission}
+      />
     </Box>
   )
 }

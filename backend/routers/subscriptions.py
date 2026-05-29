@@ -1,0 +1,156 @@
+import logging
+import re
+from typing import List, Dict, Any, Optional
+from datetime import datetime
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from sqlalchemy import select, update, delete
+
+from database import get_db
+from models import Subscription, SubscriptionTier, Provider, User
+from schemas import (
+    SubscriptionCreate, SubscriptionUpdate, SubscriptionResponse,
+    SubscriptionTierCreate, SubscriptionTierUpdate, SubscriptionTierResponse,
+    EmailParseRequest
+)
+from routers.auth import get_current_user
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
+
+# ==================== SUBSCRIPTION TIERS CRUD ====================
+
+@router.get("/tiers", response_model=List[SubscriptionTierResponse])
+def get_tiers(db: Session = Depends(get_db)):
+    tiers = db.execute(select(SubscriptionTier)).scalars().all()
+    return tiers
+
+@router.get("/tiers/{tier_id}", response_model=SubscriptionTierResponse)
+def get_tier(tier_id: int, db: Session = Depends(get_db)):
+    tier = db.get(SubscriptionTier, tier_id)
+    if not tier:
+        raise HTTPException(status_code=404, detail="Tier not found")
+    return tier
+
+@router.post("/tiers", response_model=SubscriptionTierResponse)
+def create_tier(tier: SubscriptionTierCreate, db: Session = Depends(get_db)):
+    new_tier = SubscriptionTier(**tier.model_dump())
+    db.add(new_tier)
+    db.commit()
+    db.refresh(new_tier)
+    return new_tier
+
+@router.put("/tiers/{tier_id}", response_model=SubscriptionTierResponse)
+def update_tier(tier_id: int, tier_update: SubscriptionTierUpdate, db: Session = Depends(get_db)):
+    tier = db.get(SubscriptionTier, tier_id)
+    if not tier:
+        raise HTTPException(status_code=404, detail="Tier not found")
+    
+    update_data = tier_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(tier, key, value)
+    
+    db.commit()
+    db.refresh(tier)
+    return tier
+
+@router.delete("/tiers/{tier_id}")
+def delete_tier(tier_id: int, db: Session = Depends(get_db)):
+    tier = db.get(SubscriptionTier, tier_id)
+    if not tier:
+        raise HTTPException(status_code=404, detail="Tier not found")
+    db.delete(tier)
+    db.commit()
+    return {"message": "Tier deleted successfully"}
+
+
+# ==================== SUBSCRIPTIONS CRUD ====================
+
+@router.get("/", response_model=List[SubscriptionResponse])
+def get_subscriptions(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    # if admin, can see all? Let's just return for current_user if regular
+    if current_user.role == "admin":
+        subs = db.execute(select(Subscription)).scalars().all()
+    else:
+        subs = db.execute(select(Subscription).where(Subscription.user_id == current_user.id)).scalars().all()
+    return subs
+
+@router.get("/{sub_id}", response_model=SubscriptionResponse)
+def get_subscription(sub_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    sub = db.get(Subscription, sub_id)
+    if not sub:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+    if current_user.role != "admin" and sub.user_id != current_user.id:
+         raise HTTPException(status_code=403, detail="Not authorized")
+    return sub
+
+@router.post("/", response_model=SubscriptionResponse)
+def create_subscription(sub: SubscriptionCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    dump = sub.model_dump()
+    if not dump.get("user_id"):
+        dump["user_id"] = current_user.id
+    new_sub = Subscription(**dump)
+    db.add(new_sub)
+    db.commit()
+    db.refresh(new_sub)
+    return new_sub
+
+@router.put("/{sub_id}", response_model=SubscriptionResponse)
+def update_subscription(sub_id: int, sub_update: SubscriptionUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    sub = db.get(Subscription, sub_id)
+    if not sub:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+    if current_user.role != "admin" and sub.user_id != current_user.id:
+         raise HTTPException(status_code=403, detail="Not authorized")
+    
+    update_data = sub_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(sub, key, value)
+    
+    db.commit()
+    db.refresh(sub)
+    return sub
+
+@router.delete("/{sub_id}")
+def delete_subscription(sub_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    sub = db.get(Subscription, sub_id)
+    if not sub:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+    if current_user.role != "admin" and sub.user_id != current_user.id:
+         raise HTTPException(status_code=403, detail="Not authorized")
+    db.delete(sub)
+    db.commit()
+    return {"message": "Subscription deleted successfully"}
+
+# ==================== PARSERS ====================
+
+@router.post("/parse-email")
+def parse_email(req: EmailParseRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    text = req.email_text.lower()
+    
+    # Simple regex based extraction
+    cost_match = re.search(r'\$([0-9]+\.[0-9]{2})', text)
+    cost = float(cost_match.group(1)) if cost_match else None
+    
+    billing_cycle = "monthly" if "month" in text else "yearly" if "year" in text else None
+    biller = None
+    
+    # Biller examples (Epoch, CCBill, etc.)
+    if "epoch" in text: biller = "Epoch"
+    elif "ccbill" in text: biller = "CCBill"
+    elif "segpay" in text: biller = "Segpay"
+    elif "verotel" in text: biller = "Verotel"
+    
+    is_trial = "trial" in text
+    
+    return {
+        "status": "success",
+        "parsed_data": {
+            "cost": cost,
+            "billing_cycle": billing_cycle,
+            "biller": biller,
+            "is_trial": is_trial,
+            "status": "active"
+        }
+    }

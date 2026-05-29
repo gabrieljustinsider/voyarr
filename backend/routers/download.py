@@ -26,23 +26,11 @@ import re
 import os
 import tempfile
 
-from dependencies import verify_api_key
+from dependencies import verify_api_key, require_permission
 
 router = APIRouter(
     prefix="/download", tags=["download"], dependencies=[Depends(verify_api_key)]
 )
-
-
-def check_ripping_permission(
-    auth_info: dict = Depends(verify_api_key),
-    db: Session = Depends(get_db)
-):
-    from db_utils import check_feature_permission
-    from models import User
-    user = None
-    if auth_info.get("type") == "jwt" and auth_info.get("user"):
-        user = db.query(User).filter(User.username == auth_info.get("user")).first()
-    check_feature_permission(db, "ripping", user)
 
 
 class DownloadRequest(BaseModel):
@@ -311,8 +299,11 @@ def check_limits_and_cookies(db: Session, provider_id: int):
     return True, active_cookie
 
 
-@router.post("/start", dependencies=[Depends(check_ripping_permission)])
-def start_download(req: DownloadRequest, db: Session = Depends(get_db)):
+@router.post("/start")
+def start_download(req: DownloadRequest, db: Session = Depends(get_db), current_user = Depends(require_permission("ripping", "edit"))):
+    from db_utils import check_feature_permission
+    check_feature_permission(db, "ripping", current_user)
+
     # SECURITY: Prevent SSRF via the download engine
     url_str = str(req.url)
     validate_url_ssrf(url_str)
@@ -322,6 +313,25 @@ def start_download(req: DownloadRequest, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=404, detail=f"Provider with ID {req.provider_id} not found."
         )
+
+    # 0. Enforce Daily Rip Quota
+    if hasattr(current_user, "permissions") and current_user.permissions:
+        quotas = current_user.permissions.get("quotas", {})
+        daily_rip_quota = quotas.get("dailyRips", 0)
+
+        if daily_rip_quota > 0:
+            from sqlalchemy import func
+            today = datetime.now(timezone.utc).date()
+            rips_today = db.query(DownloadQueue).filter(
+                DownloadQueue.user_id == str(current_user.id),
+                func.date(DownloadQueue.created_at) == today
+            ).count()
+            
+            if rips_today >= daily_rip_quota:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Quota Exceeded: The system is limited to {daily_rip_quota} downloads per day."
+                )
 
     # 1. Fetch Preferences
     prefs = (
@@ -409,6 +419,7 @@ def start_download(req: DownloadRequest, db: Session = Depends(get_db)):
         status="pending" if action != "queue" else "queued",
         progress_percentage=0.0,
         extraction_method="pending_analysis",
+        user_id=str(current_user.id)
     )
     queue.media_entry = media
     db.add(queue)
@@ -485,6 +496,7 @@ def get_download_queue(
     url_contains: Optional[str] = None,
     title_contains: Optional[str] = None,
     db: Session = Depends(get_db),
+    current_user = Depends(require_permission("ripping", "view"))
 ):
     """Advanced filtering for the download list"""
     # Use contains_eager to prevent N+1 queries when joining the media_entry relationship
@@ -511,7 +523,7 @@ def get_download_queue(
 
 
 @router.get("/stream")
-def stream_download_queue(request: Request):
+def stream_download_queue(request: Request, current_user = Depends(require_permission("ripping", "view"))):
     """Server-Sent Events endpoint for real-time download progress updates."""
 
     async def event_generator():
@@ -569,13 +581,36 @@ class MassRipRequest(BaseModel):
     criteria: Optional[Dict[str, Any]] = None
 
 
-@router.post("/mass_rip", dependencies=[Depends(check_ripping_permission)])
-def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
+@router.post("/mass_rip")
+def mass_rip(req: MassRipRequest, db: Session = Depends(get_db), current_user = Depends(require_permission("ripping", "edit"))):
     """
     Asynchronously parses a channel/performer page, evaluates rules, and queues videos.
     """
+    from db_utils import check_feature_permission
+    check_feature_permission(db, "ripping", current_user)
+
     # SECURITY: Prevent SSRF
     validate_url_ssrf(req.url)
+
+    # 0. Enforce Daily Rip Quota
+    if hasattr(current_user, "permissions") and current_user.permissions:
+        quotas = current_user.permissions.get("quotas", {})
+        daily_rip_quota = quotas.get("dailyRips", 0)
+
+        if daily_rip_quota > 0:
+            from sqlalchemy import func
+            from models import MassRipSession
+            today = datetime.now(timezone.utc).date()
+            rips_today = db.query(MassRipSession).filter(
+                MassRipSession.user_id == str(current_user.id),
+                func.date(MassRipSession.created_at) == today
+            ).count()
+            
+            if rips_today >= daily_rip_quota:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Quota Exceeded: The system is limited to {daily_rip_quota} mass rips per day."
+                )
 
     provider = db.query(Provider).filter(Provider.id == req.provider_id).first()
     if not provider:
@@ -586,7 +621,8 @@ def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
         provider_id=req.provider_id,
         url=req.url,
         criteria=req.criteria or {},
-        status="pending"
+        status="pending",
+        user_id=str(current_user.id)
     )
     db.add(session)
     db.commit()
@@ -600,13 +636,13 @@ def mass_rip(req: MassRipRequest, db: Session = Depends(get_db)):
 
 
 @router.get("/mass_rip/sessions")
-def get_mass_rip_sessions(db: Session = Depends(get_db)):
+def get_mass_rip_sessions(db: Session = Depends(get_db), current_user = Depends(require_permission("ripping", "view"))):
     from models import MassRipSession
     return db.query(MassRipSession).order_by(MassRipSession.created_at.desc()).all()
 
 
 @router.get("/mass_rip/sessions/{session_id}")
-def get_mass_rip_session(session_id: int, db: Session = Depends(get_db)):
+def get_mass_rip_session(session_id: int, db: Session = Depends(get_db), current_user = Depends(require_permission("ripping", "view"))):
     from models import MassRipSession
     session = db.query(MassRipSession).filter(MassRipSession.id == session_id).first()
     if not session:
@@ -615,7 +651,7 @@ def get_mass_rip_session(session_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/mass_rip/sessions/{session_id}/pause")
-def pause_mass_rip(session_id: int, db: Session = Depends(get_db)):
+def pause_mass_rip(session_id: int, db: Session = Depends(get_db), current_user = Depends(require_permission("ripping", "edit"))):
     from models import MassRipSession
     session = db.query(MassRipSession).filter(MassRipSession.id == session_id).first()
     if not session:
@@ -626,7 +662,7 @@ def pause_mass_rip(session_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/mass_rip/sessions/{session_id}/resume")
-def resume_mass_rip(session_id: int, db: Session = Depends(get_db)):
+def resume_mass_rip(session_id: int, db: Session = Depends(get_db), current_user = Depends(require_permission("ripping", "edit"))):
     from models import MassRipSession
     session = db.query(MassRipSession).filter(MassRipSession.id == session_id).first()
     if not session:
@@ -637,7 +673,7 @@ def resume_mass_rip(session_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/mass_rip/sessions/{session_id}/stop")
-def stop_mass_rip(session_id: int, db: Session = Depends(get_db)):
+def stop_mass_rip(session_id: int, db: Session = Depends(get_db), current_user = Depends(require_permission("ripping", "edit"))):
     from models import MassRipSession
     session = db.query(MassRipSession).filter(MassRipSession.id == session_id).first()
     if not session:
@@ -648,7 +684,7 @@ def stop_mass_rip(session_id: int, db: Session = Depends(get_db)):
 
 
 @router.delete("/mass_rip/sessions/{session_id}")
-def delete_mass_rip_session(session_id: int, db: Session = Depends(get_db)):
+def delete_mass_rip_session(session_id: int, db: Session = Depends(get_db), current_user = Depends(require_permission("ripping", "edit"))):
     from models import MassRipSession
     session = db.query(MassRipSession).filter(MassRipSession.id == session_id).first()
     if not session:
@@ -658,8 +694,8 @@ def delete_mass_rip_session(session_id: int, db: Session = Depends(get_db)):
     return {"message": "Session deleted"}
 
 
-@router.post("/extract-stream", dependencies=[Depends(check_ripping_permission)])
-def extract_stream_url(req: ExtractStreamRequest):
+@router.post("/extract-stream")
+def extract_stream_url(req: ExtractStreamRequest, current_user = Depends(require_permission("ripping", "edit"))):
     """Uses yt-dlp to dynamically resolve a page URL to its raw live video stream URL."""
     url_str = str(req.url)
     validate_url_ssrf(url_str)
@@ -690,8 +726,8 @@ def extract_stream_url(req: ExtractStreamRequest):
         )
 
 
-@router.post("/save-stream", dependencies=[Depends(check_ripping_permission)])
-def save_live_stream(req: SaveStreamRequest, db: Session = Depends(get_db)):
+@router.post("/save-stream")
+def save_live_stream(req: SaveStreamRequest, db: Session = Depends(get_db), current_user = Depends(require_permission("ripping", "edit"))):
     """Saves a resolved live stream to the database."""
     from models import LiveStream
 
@@ -712,8 +748,8 @@ def save_live_stream(req: SaveStreamRequest, db: Session = Depends(get_db)):
     return {"message": "Live stream saved successfully", "id": stream.id}
 
 
-@router.post("/analyze-url", dependencies=[Depends(check_ripping_permission)])
-def analyze_url(req: AnalyzeUrlRequest, db: Session = Depends(get_db)):
+@router.post("/analyze-url")
+def analyze_url(req: AnalyzeUrlRequest, db: Session = Depends(get_db), current_user = Depends(require_permission("ripping", "edit"))):
     """Analyzes a URL to detect the best scraping/downloading method."""
     url_str = str(req.url)
     validate_url_ssrf(url_str)
