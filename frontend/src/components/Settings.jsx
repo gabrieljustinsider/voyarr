@@ -1940,7 +1940,6 @@ export default function Settings() {
           <Button variant="contained" color="error" onClick={confirmDeleteApiKey}>Revoke</Button>
         </DialogActions>
       </Dialog>
-      </Dialog>
 
       {/* Advanced User Management Details Dialog */}
       <Dialog 

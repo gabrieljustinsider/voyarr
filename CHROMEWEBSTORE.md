@@ -59,7 +59,10 @@ The Chrome Web Store review team requires explicit, plain-English justifications
 
 ## **📈 Version History**
 
-### **v1.17.0** (Current Release)
+### **v1.17.1** (Current Release)
+* **Bug Fix**: Resolved a frontend build error caused by a malformed JSX tag inside the user settings dialog.
+
+### **v1.17.0**
 * **Granular Role-Based Access Control (RBAC)**: Expanded system permissions into a comprehensive module-level "None / View / Edit" hierarchy.
 * **Daily Rip Quotas**: Added strict, per-user daily download and mass rip limits, tracked automatically across active sessions.
 * **Custom & Material UI Themes**: Introduced "Standard Material" themes, and a dynamic "Custom Theme" generator allowing users to pick their own primary/secondary colors and toggle glassmorphism.
