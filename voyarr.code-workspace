@@ -2,6 +2,12 @@
 	"folders": [
 		{
 			"path": "."
+		},
+		{
+			"path": "../../../../../../../Volumes/docker/voyarr"
+		},
+		{
+			"path": "../../../../../../../Volumes/webdav-nas-t.gameproductions.synology.me/docker/voyarr"
 		}
 	],
 	"settings": {}

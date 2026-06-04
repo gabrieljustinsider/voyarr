@@ -4,13 +4,7 @@ import {
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, 
   Alert, Dialog, DialogTitle, DialogContent, DialogActions
 } from '@mui/material'
-import DeleteIcon from '@mui/icons-material/Delete'
-import LinkIcon from '@mui/icons-material/Link'
-import LinkOffIcon from '@mui/icons-material/LinkOff'
-import FingerprintIcon from '@mui/icons-material/Fingerprint'
-import KeyIcon from '@mui/icons-material/Key'
-import AddIcon from '@mui/icons-material/Add'
-import SecurityIcon from '@mui/icons-material/Security'
+import { Trash2, Link, Link2Off, Fingerprint, KeyRound, Plus, ShieldCheck } from 'lucide-react'
 import { apiFetch } from '../api'
 import PasswordChecklist from './PasswordChecklist'
 import InlineTextField from './InlineTextField'
@@ -247,9 +241,9 @@ export default function AccountSecurity({ setSnackbar }) {
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       {/* Change Password Card */}
       <Paper sx={{ p: 3, border: '1px solid rgba(255, 255, 255, 0.05)', background: 'rgba(255, 255, 255, 0.01)', borderRadius: '12px' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-          <KeyIcon color="primary" />
-          <Typography variant="subtitle1" fontWeight="bold">Change Password</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, color: 'primary.main' }}>
+          <KeyRound size={24} />
+          <Typography variant="subtitle1" fontWeight="bold" color="text.primary">Change Password</Typography>
         </Box>
         <form onSubmit={handleChangePassword}>
           <Grid container spacing={2}>
@@ -307,9 +301,9 @@ export default function AccountSecurity({ setSnackbar }) {
 
       {/* Account Security Card */}
       <Paper sx={{ p: 3, border: '1px solid rgba(255, 255, 255, 0.05)', background: 'rgba(255, 255, 255, 0.01)', borderRadius: '12px' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-          <SecurityIcon color="primary" />
-          <Typography variant="subtitle1" fontWeight="bold">Passkeys & Passwordless</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, color: 'primary.main' }}>
+          <ShieldCheck size={24} />
+          <Typography variant="subtitle1" fontWeight="bold" color="text.primary">Passkeys & Passwordless</Typography>
         </Box>
         <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
           Add secure, platform-based authenticators for quick logins without password entry.
@@ -327,7 +321,7 @@ export default function AccountSecurity({ setSnackbar }) {
           <Button 
             variant="contained" 
             color="secondary"
-            startIcon={<AddIcon />} 
+            startIcon={<Plus size={20} />} 
             onClick={handleAddPasskey}
             disabled={passkeyLoading || !newPasskeyName.trim()}
           >
@@ -337,7 +331,9 @@ export default function AccountSecurity({ setSnackbar }) {
 
         {passkeys.length === 0 ? (
           <Box sx={{ p: 3, textAlign: 'center', border: '1px dashed rgba(255, 255, 255, 0.1)', borderRadius: '8px' }}>
-            <FingerprintIcon sx={{ fontSize: 36, opacity: 0.3, mb: 1 }} />
+            <Box sx={{ display: 'flex', justifyContent: 'center', opacity: 0.3, mb: 1 }}>
+              <Fingerprint size={36} />
+            </Box>
             <Typography variant="caption" display="block" color="textSecondary">No passkeys registered yet.</Typography>
           </Box>
         ) : (
@@ -363,7 +359,7 @@ export default function AccountSecurity({ setSnackbar }) {
                     <TableCell>{new Date(pk.created_at).toLocaleDateString()}</TableCell>
                     <TableCell align="right">
                       <IconButton color="error" size="small" onClick={() => handleDeletePasskey(pk.id)}>
-                        <DeleteIcon fontSize="small" />
+                        <Trash2 size={18} />
                       </IconButton>
                     </TableCell>
                   </TableRow>
@@ -376,9 +372,9 @@ export default function AccountSecurity({ setSnackbar }) {
 
       {/* Linked Identities SSO */}
       <Paper sx={{ p: 3, border: '1px solid rgba(255, 255, 255, 0.05)', background: 'rgba(255, 255, 255, 0.01)', borderRadius: '12px' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-          <LinkIcon color="primary" />
-          <Typography variant="subtitle1" fontWeight="bold">Linked Accounts (SSO)</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, color: 'primary.main' }}>
+          <Link size={24} />
+          <Typography variant="subtitle1" fontWeight="bold" color="text.primary">Linked Accounts (SSO)</Typography>
         </Box>
         <Grid container spacing={2}>
           {['google', 'github', 'discord'].map(provider => {
@@ -406,14 +402,14 @@ export default function AccountSecurity({ setSnackbar }) {
                       <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 1.5, wordBreak: 'break-all', height: 20 }}>
                         {link.email || 'Linked'}
                       </Typography>
-                      <Button fullWidth variant="outlined" color="error" size="small" startIcon={<LinkOffIcon />} onClick={() => handleUnlinkSso(provider)}>
+                      <Button fullWidth variant="outlined" color="error" size="small" startIcon={<Link2Off size={18} />} onClick={() => handleUnlinkSso(provider)}>
                         Unlink
                       </Button>
                     </Box>
                   ) : (
                     <Box>
                       <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 1.5, height: 20 }}>Not linked</Typography>
-                      <Button fullWidth variant="outlined" color="primary" size="small" startIcon={<LinkIcon />} onClick={() => handleOpenMockSso(provider)}>
+                      <Button fullWidth variant="outlined" color="primary" size="small" startIcon={<Link size={18} />} onClick={() => handleOpenMockSso(provider)}>
                         Link
                       </Button>
                     </Box>

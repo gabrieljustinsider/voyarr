@@ -1,14 +1,46 @@
 name: voyarr-dev
 services:
+  # Dummy DB service to satisfy depends_on without starting local PostgreSQL
+  db:
+    image: alpine:latest
+    container_name: voyarr-db-dummy
+    command: sh -c "while true; do sleep 3600; done"
+    ports: !reset []
+    volumes: []
+    healthcheck:
+      test: ["CMD", "true"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 1s
+
   backend:
     build:
       context: ./backend
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@10.0.0.225:5432/${POSTGRES_DB:-voyarr}
+      
   celery_worker:
     build:
       context: ./backend
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@10.0.0.225:5432/${POSTGRES_DB:-voyarr}
+      
   celery_beat:
     build:
       context: ./backend
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@10.0.0.225:5432/${POSTGRES_DB:-voyarr}
+
   frontend:
-    build:
-      context: ./frontend
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev"
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_BASE_URL=http://backend:8000
+

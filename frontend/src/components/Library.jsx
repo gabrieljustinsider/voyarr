@@ -5,17 +5,7 @@ import {
   Dialog, DialogTitle, DialogContent, IconButton, Button, DialogActions,
   CircularProgress, Alert, Pagination, Checkbox, Slide
 } from '@mui/material'
-import CloseIcon from '@mui/icons-material/Close'
-import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutlined'
-import SettingsIcon from '@mui/icons-material/Settings'
-import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted'
-import CloudUploadIcon from '@mui/icons-material/CloudUpload'
-import FavoriteIcon from '@mui/icons-material/Favorite'
-import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder'
-import CastIcon from '@mui/icons-material/Cast'
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
-import EditIcon from '@mui/icons-material/Edit'
-import ClearIcon from '@mui/icons-material/Clear'
+import { X, PlayCircle, Settings, List, CloudUpload, Heart, Cast, Sparkles, Edit2 } from 'lucide-react'
 import ChapterManager from './ChapterManager'
 import SecondScreenRemote from './SecondScreenRemote'
 import { apiFetch } from '../api'
@@ -616,7 +606,7 @@ export default function Library() {
                       '&:hover': { backgroundColor: 'rgba(0,0,0,0.7)' }
                     }}
                   >
-                    {isFav ? <FavoriteIcon /> : <FavoriteBorderIcon />}
+                {isFav ? <Heart size={24} fill="currentColor" /> : <Heart size={24} />}
                   </IconButton>
 
                   <CardMedia
@@ -632,7 +622,7 @@ export default function Library() {
                     }}
                     onClick={() => setPlayingVideo(entry)}
                   >
-                    <PlayCircleOutlineIcon className="play-icon" sx={{ fontSize: 64, color: 'white', position: 'absolute', opacity: 0.7, transition: '0.2s' }} />
+                <PlayCircle className="play-icon" size={64} color="white" style={{ position: 'absolute', opacity: 0.7, transition: '0.2s' }} />
                     <Typography variant="caption" color="textSecondary">No Thumbnail</Typography>
                   </CardMedia>
                   <CardContent sx={{ flexGrow: 1 }}>
@@ -640,7 +630,7 @@ export default function Library() {
                       <Typography variant="h6" noWrap title={entry.title} sx={{ flex: 1, mr: 1 }}>{entry.title}</Typography>
                       <Tooltip title="Manage Chapters">
                         <IconButton size="small" onClick={() => setManagingChaptersFor(entry)}>
-                          <FormatListBulletedIcon fontSize="small" />
+                      <List size={18} />
                         </IconButton>
                       </Tooltip>
                     </Box>
@@ -703,7 +693,7 @@ export default function Library() {
         <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="h6" noWrap sx={{ pr: 2 }}>{playingVideo?.title}</Typography>
           <IconButton onClick={handleClosePlayer} size="small">
-            <CloseIcon />
+          <X size={20} />
           </IconButton>
         </DialogTitle>
         <DialogContent dividers sx={{ p: 0, display: 'flex', flexDirection: { xs: 'column', md: 'row' } }}>
@@ -757,7 +747,7 @@ export default function Library() {
                   {/* Casting protocols selector */}
                   <Paper sx={{ p: 1.5, my: 2, backgroundColor: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)' }}>
                     <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <CastIcon color="primary" fontSize="small" />
+                    <Box sx={{ color: 'primary.main', display: 'flex' }}><Cast size={18} /></Box>
                       Casting Protocol
                     </Typography>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -807,7 +797,7 @@ export default function Library() {
                         variant="outlined" 
                         color="secondary" 
                         size="small" 
-                        startIcon={<CloudUploadIcon />} 
+                      startIcon={<CloudUpload size={20} />} 
                         onClick={handleSubmitFingerprint}
                         disabled={submitFingerprintLoading}
                         fullWidth
@@ -1016,7 +1006,7 @@ export default function Library() {
             variant="contained" 
             color="primary" 
             size="small" 
-            startIcon={<EditIcon />} 
+            startIcon={<Edit2 size={18} />} 
             onClick={() => setBulkEditOpen(true)}
             sx={{ borderRadius: '10px' }}
           >
@@ -1026,14 +1016,14 @@ export default function Library() {
             variant="outlined" 
             color="info" 
             size="small" 
-            startIcon={<AutoAwesomeIcon />} 
+            startIcon={<Sparkles size={18} />} 
             onClick={handleBulkAI}
             sx={{ borderRadius: '10px' }}
           >
             AI Auto-Tag
           </Button>
           <IconButton onClick={handleClearSelection} sx={{ color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } }}>
-            <ClearIcon />
+            <X size={20} />
           </IconButton>
         </Paper>
       </Slide>
@@ -1058,7 +1048,7 @@ export default function Library() {
         <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           Bulk Edit {selectedEntries.size} Videos
           <IconButton onClick={() => setBulkEditOpen(false)} sx={{ color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } }}>
-            <CloseIcon />
+            <X size={20} />
           </IconButton>
         </DialogTitle>
         <DialogContent dividers sx={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>

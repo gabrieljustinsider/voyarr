@@ -6,17 +6,7 @@ import {
   Select, MenuItem, FormControl, InputLabel, Card, CardContent,
   CardActions, Chip, CircularProgress, Collapse, Checkbox, ListItemText, OutlinedInput
 } from '@mui/material'
-import DeleteIcon from '@mui/icons-material/Delete'
-import SyncIcon from '@mui/icons-material/Sync'
-import AddIcon from '@mui/icons-material/Add'
-import EditIcon from '@mui/icons-material/Edit'
-import WifiIcon from '@mui/icons-material/Wifi'
-import HistoryIcon from '@mui/icons-material/History'
-import CheckCircleIcon from '@mui/icons-material/CheckCircle'
-import WarningIcon from '@mui/icons-material/Warning'
-import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty'
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
-import ExpandLessIcon from '@mui/icons-material/ExpandLess'
+import { Trash2, RefreshCw, Plus, Edit2, Wifi, History, CheckCircle, TriangleAlert, Hourglass, ChevronDown, ChevronUp } from 'lucide-react'
 import { apiFetch } from '../api'
 
 export default function P2PSync() {
@@ -300,7 +290,7 @@ export default function P2PSync() {
           <Grid item>
             <Button
               variant="contained"
-              startIcon={<AddIcon />}
+              startIcon={<Plus size={20} />}
               onClick={handleOpenCreate}
               sx={{
                 background: 'linear-gradient(45deg, #00f0ff 0%, #ff007f 100%)',
@@ -318,7 +308,7 @@ export default function P2PSync() {
 
       {/* Nodes list dashboard */}
       <Typography variant="h5" fontWeight="700" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-        <WifiIcon color="primary" /> Peer Connections
+        <Box sx={{ color: 'primary.main', display: 'flex' }}><Wifi size={24} /></Box> Peer Connections
       </Typography>
 
       {loading && nodes.length === 0 ? (
@@ -334,12 +324,14 @@ export default function P2PSync() {
           border: '1px dashed rgba(255,255,255,0.1)',
           mb: 4
         }}>
-          <HourglassEmptyIcon sx={{ fontSize: 50, color: 'text.secondary', mb: 2 }} />
+          <Box sx={{ color: 'text.secondary', display: 'flex', justifyContent: 'center', mb: 2 }}>
+            <Hourglass size={50} />
+          </Box>
           <Typography variant="h6" color="text.secondary">No trusted peers registered yet</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 3 }}>
             Register Voyarr installations on other devices to begin sharing metadata.
           </Typography>
-          <Button variant="outlined" startIcon={<AddIcon />} onClick={handleOpenCreate}>
+          <Button variant="outlined" startIcon={<Plus size={20} />} onClick={handleOpenCreate}>
             Register Your First Peer
           </Button>
         </Paper>
@@ -408,16 +400,16 @@ export default function P2PSync() {
 
                     <Grid item xs={12} sm={3} sx={{ display: 'flex', justifyContent: { xs: 'flex-start', sm: 'flex-end' }, gap: 1 }}>
                       <IconButton color="primary" onClick={() => handleTestConnection(node.id)} disabled={testingNodes[node.id]} title="Verify connection">
-                        {testingNodes[node.id] ? <CircularProgress size={20} /> : <WifiIcon />}
+                        {testingNodes[node.id] ? <CircularProgress size={20} /> : <Wifi size={20} />}
                       </IconButton>
                       <IconButton color="info" onClick={() => handleTriggerSync(node.id, node.name)} disabled={syncingNodes[node.id] || node.status === 'syncing'} title="Trigger synchronization now">
-                        {syncingNodes[node.id] ? <CircularProgress size={20} /> : <SyncIcon />}
+                        {syncingNodes[node.id] ? <CircularProgress size={20} /> : <RefreshCw size={20} />}
                       </IconButton>
                       <IconButton color="warning" onClick={() => handleOpenEdit(node)} title="Edit configuration">
-                        <EditIcon />
+                        <Edit2 size={20} />
                       </IconButton>
                       <IconButton color="error" onClick={() => handleDeleteNode(node.id, node.name)} title="Remove trusted peer">
-                        <DeleteIcon />
+                        <Trash2 size={20} />
                       </IconButton>
                     </Grid>
                   </Grid>
@@ -428,8 +420,8 @@ export default function P2PSync() {
                 <CardActions sx={{ px: 2, py: 1, display: 'flex', justifyContent: 'space-between' }}>
                   <Button
                     size="small"
-                    startIcon={<HistoryIcon />}
-                    endIcon={expandedLogs[node.id] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                    startIcon={<History size={18} />}
+                    endIcon={expandedLogs[node.id] ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                     onClick={() => toggleLogs(node.id)}
                   >
                     Sync Log History
@@ -500,7 +492,7 @@ export default function P2PSync() {
 
       {/* Proposed Recipes Queue review panel */}
       <Typography variant="h5" fontWeight="700" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-        <HistoryIcon color="secondary" /> Proposed Recipes Review Queue
+        <Box sx={{ color: 'secondary.main', display: 'flex' }}><History size={24} /></Box> Proposed Recipes Review Queue
       </Typography>
 
       {proposedRecipes.length === 0 ? (
@@ -512,7 +504,7 @@ export default function P2PSync() {
           border: '1px solid rgba(255,255,255,0.05)',
           mb: 4
         }}>
-          <CheckCircleIcon sx={{ fontSize: 40, color: 'success.main', mb: 1 }} />
+          <CheckCircle size={40} color="#10b981" style={{ marginBottom: '8px' }} />
           <Typography variant="subtitle1" fontWeight="bold">Review Queue Empty</Typography>
           <Typography variant="body2" color="text.secondary">
             All pushed selectors from peers have been resolved or auto-merged automatically.
@@ -565,7 +557,7 @@ export default function P2PSync() {
                                 size="small"
                                 variant="contained"
                                 color="success"
-                                startIcon={<CheckCircleIcon />}
+                              startIcon={<CheckCircle size={18} />}
                                 onClick={() => handleResolveProposed(peerBlock.peer_id, recipe.provider_name, 'approve')}
                               >
                                 Approve
@@ -574,7 +566,7 @@ export default function P2PSync() {
                                 size="small"
                                 variant="outlined"
                                 color="error"
-                                startIcon={<DeleteIcon />}
+                              startIcon={<Trash2 size={18} />}
                                 onClick={() => handleResolveProposed(peerBlock.peer_id, recipe.provider_name, 'reject')}
                               >
                                 Reject
@@ -726,7 +718,7 @@ export default function P2PSync() {
                   </Select>
                 </FormControl>
                 <Typography variant="caption" display="block" color="secondary" sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <WarningIcon fontSize="inherit" /> Privacy Guard: Visual hashes and names from providers not selected in this list will be excluded from the outbound reconcile payloads.
+                  <TriangleAlert size={14} /> Privacy Guard: Visual hashes and names from providers not selected in this list will be excluded from the outbound reconcile payloads.
                 </Typography>
               </Grid>
             )}

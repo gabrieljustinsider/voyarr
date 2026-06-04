@@ -5,13 +5,7 @@ import {
   FormControl, InputLabel, Select, MenuItem, Chip, CircularProgress, 
   Alert, IconButton, CardMedia, Tooltip, Paper
 } from '@mui/material'
-import AddIcon from '@mui/icons-material/Add'
-import EditIcon from '@mui/icons-material/Edit'
-import DeleteIcon from '@mui/icons-material/Delete'
-import LinkIcon from '@mui/icons-material/Link'
-import BusinessIcon from '@mui/icons-material/Business'
-import FavoriteIcon from '@mui/icons-material/Favorite'
-import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder'
+import { Plus, Edit2, Trash2, Link, Building2, Heart } from 'lucide-react'
 import { apiFetch } from '../api'
 import UrlParseConfirmationModal from './UrlParseConfirmationModal'
 
@@ -280,11 +274,11 @@ export default function Studios() {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" sx={{ fontWeight: '800', letterSpacing: '-0.5px', display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <BusinessIcon sx={{ fontSize: 36, color: 'primary.main' }} />
+          <Box sx={{ color: 'primary.main', display: 'flex' }}><Building2 size={36} /></Box>
           Studio Profiles
         </Typography>
         {isAdmin && (
-          <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenCreate}>
+          <Button variant="contained" startIcon={<Plus size={20} />} onClick={handleOpenCreate}>
             Add Studio
           </Button>
         )}
@@ -339,7 +333,7 @@ export default function Studios() {
                     />
                   ) : (
                     <Box sx={{ height: 140, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.02)' }}>
-                      <BusinessIcon sx={{ fontSize: 60, opacity: 0.3 }} />
+                    <Building2 size={60} style={{ opacity: 0.3 }} />
                     </Box>
                   )}
 
@@ -359,7 +353,7 @@ export default function Studios() {
                     onClick={() => handleToggleFavorite(studio.id, studio.name)}
                     color={isFavorited ? "error" : "default"}
                   >
-                    {isFavorited ? <FavoriteIcon /> : <FavoriteBorderIcon />}
+                  {isFavorited ? <Heart size={24} fill="currentColor" /> : <Heart size={24} />}
                   </IconButton>
 
                   <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
@@ -392,10 +386,10 @@ export default function Studios() {
                     {isAdmin && (
                       <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, borderTop: '1px solid rgba(255, 255, 255, 0.05)', pt: 1.5 }}>
                         <IconButton size="small" color="primary" onClick={() => handleOpenEdit(studio)}>
-                          <EditIcon fontSize="small" />
+                        <Edit2 size={18} />
                         </IconButton>
                         <IconButton size="small" color="error" onClick={() => handleDelete(studio.id)}>
-                          <DeleteIcon fontSize="small" />
+                        <Trash2 size={18} />
                         </IconButton>
                       </Box>
                     )}

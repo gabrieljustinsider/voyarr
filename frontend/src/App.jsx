@@ -7,12 +7,9 @@ import {
   FormControlLabel, Divider, Grid, TextField, CircularProgress, Chip,
   Badge, Avatar, Menu, Popover, List, ListItem, ListItemText
 } from '@mui/material'
-import LogoutIcon from '@mui/icons-material/Logout'
-import SettingsIcon from '@mui/icons-material/Settings'
-import TuneIcon from '@mui/icons-material/Tune'
-import NotificationsIcon from '@mui/icons-material/Notifications'
-import HelpOutlineIcon from '@mui/icons-material/HelpOutlineOutlined'
 import packageJson from '../package.json'
+import { motion, AnimatePresence } from 'framer-motion'
+import { LogOut, SlidersHorizontal, Bell, CircleHelp, Clapperboard, Key, Download, Bot, Wrench } from 'lucide-react'
 
 // Synchronously load Login to keep initial login paint instant
 import Login from './components/Login'
@@ -44,6 +41,7 @@ const Analytics = lazy(() => import('./components/Analytics'))
 const LiveStreams = lazy(() => import('./components/LiveStreams'))
 const NotificationSettings = lazy(() => import('./components/NotificationSettings'))
 const TranscodeQueue = lazy(() => import('./components/TranscodeQueue'))
+const SubscriptionManager = lazy(() => import('./components/SubscriptionManager'))
 const P2PSync = lazy(() => import('./components/P2PSync'))
 const HelpArea = lazy(() => import('./components/HelpArea'))
 const AdminHelpArea = lazy(() => import('./components/AdminHelpArea'))
@@ -77,6 +75,14 @@ const themeConfigs = {
   material_dark: {
     palette: { mode: 'dark', primary: { main: '#90caf9' }, secondary: { main: '#f48fb1' }, background: { default: '#121212', paper: '#1e1e1e' } },
     isMaterial: true
+  },
+  tailwind_light: {
+    palette: { mode: 'light', primary: { main: '#3b82f6' }, secondary: { main: '#8b5cf6' }, background: { default: '#f8fafc', paper: '#ffffff' }, text: { primary: '#0f172a', secondary: '#64748b' } },
+    isTailwind: true
+  },
+  tailwind_dark: {
+    palette: { mode: 'dark', primary: { main: '#3b82f6' }, secondary: { main: '#8b5cf6' }, background: { default: '#0f172a', paper: '#1e293b' }, text: { primary: '#f8fafc', secondary: '#94a3b8' } },
+    isTailwind: true
   },
   midnight_cyber: {
     palette: {
@@ -315,11 +321,32 @@ function App() {
           '4k': 3840,
         }
       },
-      typography: getTypography(isTvMode),
+      shape: {
+        borderRadius: baseConfig.isTailwind ? 8 : (baseConfig.isMaterial ? 4 : 16)
+      },
+      typography: {
+        ...getTypography(isTvMode),
+        fontFamily: baseConfig.isTailwind ? '"Inter", system-ui, -apple-system, sans-serif' : undefined,
+        button: {
+          ...(getTypography(isTvMode).button || {}),
+          textTransform: 'none',
+          fontWeight: baseConfig.isTailwind ? 500 : 'bold'
+        }
+      },
       components: {
         MuiCard: {
           styleOverrides: {
             root: ({ theme }) => {
+              if (baseConfig.isTailwind) {
+                return {
+                  borderRadius: '8px',
+                  boxShadow: theme.palette.mode === 'dark' 
+                    ? '0 4px 6px -1px rgb(0 0 0 / 0.5), 0 2px 4px -2px rgb(0 0 0 / 0.5)'
+                    : '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+                  border: theme.palette.mode === 'dark' ? '1px solid #334155' : '1px solid #e2e8f0',
+                  background: theme.palette.background.paper,
+                };
+              }
               if (baseConfig.isMaterial) {
                 return {
                   borderRadius: '16px',
@@ -351,6 +378,22 @@ function App() {
         MuiPaper: {
           styleOverrides: {
             root: ({ theme, ownerState }) => {
+              if (baseConfig.isTailwind) {
+                if (ownerState.variant === 'outlined') {
+                  return {
+                    borderColor: theme.palette.mode === 'dark' ? '#334155' : '#e2e8f0',
+                  };
+                }
+                if (ownerState.elevation > 0 && ownerState.elevation < 24) {
+                   return {
+                     boxShadow: theme.palette.mode === 'dark' 
+                       ? '0 4px 6px -1px rgb(0 0 0 / 0.5), 0 2px 4px -2px rgb(0 0 0 / 0.5)'
+                       : '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+                     border: theme.palette.mode === 'dark' ? '1px solid #334155' : '1px solid #e2e8f0',
+                   };
+                }
+                return {};
+              }
               if (baseConfig.isMaterial) return {};
               
               if (ownerState.variant === 'outlined') {
@@ -376,6 +419,16 @@ function App() {
         MuiDialog: {
           styleOverrides: {
             paper: ({ theme }) => {
+              if (baseConfig.isTailwind) {
+                return {
+                  background: theme.palette.background.paper,
+                  border: theme.palette.mode === 'dark' ? '1px solid #334155' : '1px solid #e2e8f0',
+                  boxShadow: theme.palette.mode === 'dark' 
+                    ? '0 20px 25px -5px rgb(0 0 0 / 0.5), 0 8px 10px -6px rgb(0 0 0 / 0.5)'
+                    : '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
+                  borderRadius: '8px'
+                };
+              }
               if (baseConfig.isMaterial) return {};
               return {
                 background: theme.palette.mode === 'dark' 
@@ -390,11 +443,23 @@ function App() {
         },
         MuiButton: {
           styleOverrides: {
-            root: {
-              borderRadius: '10px',
-              textTransform: 'none',
-              fontWeight: 'bold',
-              padding: isTvMode ? '14px 28px' : '8px 18px'
+            root: ({ theme }) => {
+              if (baseConfig.isTailwind) {
+                return {
+                  borderRadius: '6px',
+                  boxShadow: 'none',
+                  padding: isTvMode ? '14px 28px' : '6px 16px',
+                  '&:hover': {
+                    boxShadow: theme.palette.mode === 'dark' ? '0 1px 3px 0 rgb(0 0 0 / 0.5)' : '0 1px 3px 0 rgb(0 0 0 / 0.1)',
+                  }
+                };
+              }
+              return {
+                borderRadius: '10px',
+                textTransform: 'none',
+                fontWeight: 'bold',
+                padding: isTvMode ? '14px 28px' : '8px 18px'
+              };
             }
           }
         }
@@ -657,31 +722,31 @@ function App() {
     {
       id: "media",
       label: "Library & Media",
-      icon: "🎬",
+      icon: <Clapperboard size={20} />,
       tabs: ["Dashboard", "Library", "Favorites", "Studios", "Live Streams", "Analytics", "Request Manager"]
     },
     {
       id: "scraping",
       label: "Providers & Auth",
-      icon: "🔑",
+      icon: <Key size={20} />,
       tabs: ["Providers", "Scraper Tester", "Subscriptions"]
     },
     {
       id: "tasks",
       label: "Tasks & Downloads",
-      icon: "📥",
+      icon: <Download size={20} />,
       tabs: ["Downloads", "Mass Rip", "Schedules", "Transcode Queue"]
     },
     {
       id: "data",
       label: "Data & Rules",
-      icon: "🤖",
+      icon: <Bot size={20} />,
       tabs: ["Rules & Lists", "Duplicates", "Metadata"]
     },
     {
       id: "system",
       label: "System & Admin",
-      icon: "🔧",
+      icon: <Wrench size={20} />,
       tabs: ["Adv. Preferences", "External APIs", "Settings", "P2P Sync", "Notification Settings", "Backup", "Logs", "Help"]
     }
   ], []);
@@ -782,7 +847,7 @@ function App() {
           {/* Interactive Notification Bell */}
           <IconButton color="inherit" onClick={(e) => setNotificationAnchorEl(e.currentTarget)} title="Notifications" sx={{ mr: 1.5 }}>
             <Badge badgeContent={notifications.filter(n => !n.read).length} color="secondary">
-              <NotificationsIcon />
+              <Bell size={24} />
             </Badge>
           </IconButton>
 
@@ -899,7 +964,7 @@ function App() {
               }}
               sx={{ py: 1.25, px: 2.5, display: 'flex', gap: 1.5 }}
             >
-              <TuneIcon fontSize="small" />
+          <SlidersHorizontal size={20} />
               <Typography variant="body2">User Settings</Typography>
             </MenuItem>
             <MenuItem 
@@ -909,7 +974,7 @@ function App() {
               }}
               sx={{ py: 1.25, px: 2.5, display: 'flex', gap: 1.5 }}
             >
-              <HelpOutlineIcon fontSize="small" />
+          <CircleHelp size={20} />
               <Typography variant="body2">Help & Docs</Typography>
             </MenuItem>
             <Divider sx={{ my: 0.5, borderColor: 'rgba(255,255,255,0.08)' }} />
@@ -920,7 +985,7 @@ function App() {
               }}
               sx={{ py: 1.25, px: 2.5, color: 'error.main', display: 'flex', gap: 1.5 }}
             >
-              <LogoutIcon fontSize="small" color="error" />
+          <LogOut size={20} />
               <Typography variant="body2">Sign Out</Typography>
             </MenuItem>
           </Menu>
@@ -965,7 +1030,7 @@ function App() {
                   key={cat.id} 
                   label={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography component="span" sx={{ fontSize: '1.2rem', lineHeight: 1 }}>{cat.icon}</Typography>
+                    <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>{cat.icon}</Box>
                       <Typography component="span" sx={{ fontWeight: 800, fontSize: '0.85rem', letterSpacing: '0.5px' }}>{cat.label}</Typography>
                     </Box>
                   } 
@@ -1042,18 +1107,17 @@ function App() {
                 <CircularProgress />
               </Box>
             }>
-              <Box 
-                key={tabValue}
-                sx={{ 
-                  animation: 'voyarrFadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards',
-                  '@keyframes voyarrFadeIn': {
-                    '0%': { opacity: 0, transform: 'translateY(6px)' },
-                    '100%': { opacity: 1, transform: 'translateY(0)' }
-                  }
-                }}
-              >
-                {visibleTabs[tabValue >= visibleTabs.length ? 0 : tabValue]?.component}
-              </Box>
+              <AnimatePresence mode="wait">
+                <motion.div 
+                  key={tabValue}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.25, ease: "easeOut" }}
+                >
+                  {visibleTabs[tabValue >= visibleTabs.length ? 0 : tabValue]?.component}
+                </motion.div>
+              </AnimatePresence>
             </Suspense>
           </Box>
         </Paper>
@@ -1082,6 +1146,8 @@ function App() {
                 <MenuItem value="dark">Glassmorphic Dark Mode</MenuItem>
                 <MenuItem value="material_light">Standard Material Light</MenuItem>
                 <MenuItem value="material_dark">Standard Material Dark</MenuItem>
+                <MenuItem value="tailwind_light">Tailwind Modern Light</MenuItem>
+                <MenuItem value="tailwind_dark">Tailwind Modern Dark</MenuItem>
                   <MenuItem value="midnight_cyber">Midnight Cyber (Cyan/Neon)</MenuItem>
                   <MenuItem value="sunset_rose">Sunset Rose (Peach/Warm Plums)</MenuItem>
                   <MenuItem value="emerald_obsidian">Emerald Obsidian (Emerald/Deep dark)</MenuItem>

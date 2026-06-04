@@ -5,8 +5,7 @@ import {
   DialogTitle, DialogContent, DialogActions, FormControl, InputLabel, 
   Select, MenuItem, TextField 
 } from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
-import AddIcon from '@mui/icons-material/Add';
+import { Trash2, Plus } from 'lucide-react';
 import apiFetch from '../api';
 
 export default function CookiesManager() {
@@ -77,7 +76,7 @@ export default function CookiesManager() {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4">Session Cookies Manager</Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpenDialog(true)}>
+        <Button variant="contained" startIcon={<Plus size={20} />} onClick={() => setOpenDialog(true)}>
           Add Session Cookie
         </Button>
       </Box>
@@ -113,7 +112,7 @@ export default function CookiesManager() {
                   <TableCell>{cookie.expires_at ? new Date(cookie.expires_at).toLocaleString() : 'Never'}</TableCell>
                   <TableCell align="right">
                     <IconButton color="error" onClick={() => handleDelete(cookie.id)}>
-                      <DeleteIcon />
+                      <Trash2 size={20} />
                     </IconButton>
                   </TableCell>
                 </TableRow>
