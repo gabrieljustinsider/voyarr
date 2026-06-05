@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import api from '../api';
+import { apiFetch } from '../api';
 
 function SubscriptionManager() {
   const [subscriptions, setSubscriptions] = useState([]);
@@ -12,7 +12,6 @@ function SubscriptionManager() {
   const [loading, setLoading] = useState(false);
 
   const [newTier, setNewTier] = useState({ provider_id: '', name: '', level: 0, price: 0, features: [] });
-  const [editingTier, setEditingTier] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -21,13 +20,13 @@ function SubscriptionManager() {
   const fetchData = async () => {
     try {
       const [subsRes, tiersRes, provRes] = await Promise.all([
-        api.get('/subscriptions/'),
-        api.get('/subscriptions/tiers'),
-        api.get('/providers/')
+        apiFetch('/subscriptions/'),
+        apiFetch('/subscriptions/tiers'),
+        apiFetch('/providers/')
       ]);
-      setSubscriptions(subsRes.data);
-      setTiers(tiersRes.data);
-      setProviders(provRes.data);
+      if (subsRes.ok) setSubscriptions(await subsRes.json());
+      if (tiersRes.ok) setTiers(await tiersRes.json());
+      if (provRes.ok) setProviders(await provRes.json());
     } catch (e) {
       console.error("Failed to fetch subscription data", e);
     }
@@ -36,8 +35,13 @@ function SubscriptionManager() {
   const handleParseEmail = async () => {
     setLoading(true);
     try {
-      const res = await api.post('/subscriptions/parse-email', { email_text: emailText });
-      setParseResult(res.data.parsed_data);
+      const res = await apiFetch('/subscriptions/parse-email', {
+        method: 'POST',
+        body: JSON.stringify({ email_text: emailText }),
+      });
+      if (!res.ok) throw new Error('Parse failed');
+      const data = await res.json();
+      setParseResult(data.parsed_data);
     } catch (e) {
       console.error(e);
       alert("Parse failed");
@@ -53,7 +57,11 @@ function SubscriptionManager() {
         provider_id: providers[0]?.id || 1, // Fallback
         ...parseResult
       };
-      await api.post('/subscriptions/', payload);
+      const res = await apiFetch('/subscriptions/', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error('Save failed');
       alert("Saved successfully!");
       fetchData();
       setParseResult(null);
@@ -68,10 +76,14 @@ function SubscriptionManager() {
   const handleCreateTier = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/subscriptions/tiers', {
-        ...newTier,
-        provider_id: parseInt(newTier.provider_id)
+      const res = await apiFetch('/subscriptions/tiers', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...newTier,
+          provider_id: parseInt(newTier.provider_id)
+        }),
       });
+      if (!res.ok) throw new Error('Create tier failed');
       setNewTier({ provider_id: '', name: '', level: 0, price: 0, features: [] });
       fetchData();
     } catch (e) {
@@ -82,7 +94,7 @@ function SubscriptionManager() {
 
   const handleDeleteTier = async (id) => {
     try {
-      await api.delete(`/subscriptions/tiers/${id}`);
+      await apiFetch(`/subscriptions/tiers/${id}`, { method: 'DELETE' });
       fetchData();
     } catch(e) {
       console.error(e);
@@ -91,7 +103,7 @@ function SubscriptionManager() {
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Subscription & Trial Manager</h1>
+      <h1 className="text-2xl font-bold mb-4">Subscription &amp; Trial Manager</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
@@ -130,7 +142,7 @@ function SubscriptionManager() {
 
         {/* Trial Manager */}
         <div className="bg-white p-4 rounded shadow">
-          <h2 className="text-xl font-semibold mb-2">Active Trials & Subscriptions</h2>
+          <h2 className="text-xl font-semibold mb-2">Active Trials &amp; Subscriptions</h2>
           <div className="space-y-2">
             {subscriptions.length === 0 ? <p className="text-gray-500">No subscriptions found.</p> : null}
             {subscriptions.map(sub => (
