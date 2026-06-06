@@ -39,26 +39,15 @@ export default defineConfig({
     })
   ],
   build: {
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes('node_modules')) {
-            if (id.includes('@mui/icons-material')) {
-              return 'mui-icons';
-            }
-            if (id.includes('@mui')) {
-              return 'mui';
-            }
-            if (id.includes('recharts')) {
-              return 'recharts';
-            }
-            if (id.includes('react')) {
-              return 'react-vendor';
-            }
-            return 'vendor';
-          }
-        }
-      }
+    // Vite 8 uses rolldown (Rust bundler) — use advancedChunks instead of
+    // rollupOptions.manualChunks which is no longer supported.
+    advancedChunks: {
+      groups: [
+        { name: 'mui-icons', test: /@mui\/icons-material/ },
+        { name: 'mui',       test: /@mui\// },
+        { name: 'recharts',  test: /recharts/ },
+        { name: 'react-vendor', test: /node_modules\/react/ },
+      ]
     }
   },
   server: {
