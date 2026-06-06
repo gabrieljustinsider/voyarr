@@ -107,7 +107,7 @@ export default function DownloadQueue({ queue, onRefresh }) {
     } catch (error) { window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: error.message, severity: 'error' } })) }
   }
 
-  const filteredQueue = queue.filter(task => {
+  const filteredQueue = (queue || []).filter(task => {
     if (filters.status && task.status !== filters.status) return false
     if (filters.url_contains && !task.url.toLowerCase().includes(filters.url_contains.toLowerCase())) return false
     if (filters.provider_id && task.media_entry?.provider_id !== filters.provider_id) return false

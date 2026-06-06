@@ -40,6 +40,7 @@ from routers import (
     oidc,
     scraper,
     deovr,
+    subscriptions,
 )
 
 # Database initialization with retry logic for container environments
@@ -199,6 +200,7 @@ app.include_router(sso.router)
 app.include_router(oidc.router)
 app.include_router(scraper.router)
 app.include_router(deovr.router)
+app.include_router(subscriptions.router)
 
 
 @app.get("/")
