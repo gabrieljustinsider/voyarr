@@ -7,9 +7,10 @@ import {
 } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
 import AddIcon from '@mui/icons-material/Add'
+import EditIcon from '@mui/icons-material/Edit'
 import apiFetch from '../api'
 
-export default function ProviderList({ providers, searchQuery, setSearchQuery }) {
+export default function ProviderList({ providers, searchQuery, setSearchQuery, onRefreshProviders }) {
   const [cookies, setCookies] = useState([])
   const [openDialog, setOpenDialog] = useState(false)
   const [activeProvider, setActiveProvider] = useState(null)
@@ -23,6 +24,19 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery })
   // Cookie form state
   const [cookieText, setCookieText] = useState('')
   const [cookieLimit, setCookieLimit] = useState('')
+
+  // Provider CRUD Form State
+  const [openProviderForm, setOpenProviderForm] = useState(false)
+  const [editProviderMode, setEditProviderMode] = useState(false)
+  const [providerFormId, setProviderFormId] = useState(null)
+  const [providerForm, setProviderForm] = useState({
+    name: '',
+    base_url: '',
+    naming_pattern: '{title}_{performers}_{resolution}',
+    separator: '_',
+    space_replacement: '_',
+    automatic_limits: { daily_downloads: 50 }
+  })
 
   const fetchCookies = useCallback(async () => {
     try {
@@ -156,11 +170,103 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery })
     }
   }
 
+  // Provider CRUD actions
+  const handleOpenCreateProvider = () => {
+    setEditProviderMode(false)
+    setProviderFormId(null)
+    setProviderForm({
+      name: '',
+      base_url: '',
+      naming_pattern: '{title}_{performers}_{resolution}',
+      separator: '_',
+      space_replacement: '_',
+      automatic_limits: { daily_downloads: 50 }
+    })
+    setOpenProviderForm(true)
+  }
+
+  const handleOpenEditProvider = (provider) => {
+    setEditProviderMode(true)
+    setProviderFormId(provider.id)
+    setProviderForm({
+      name: provider.name,
+      base_url: provider.base_url,
+      naming_pattern: provider.naming_pattern || '{title}_{performers}_{resolution}',
+      separator: provider.separator || '_',
+      space_replacement: provider.space_replacement || '_',
+      automatic_limits: provider.automatic_limits || { daily_downloads: 50 }
+    })
+    setOpenProviderForm(true)
+  }
+
+  const handleSaveProvider = async (e) => {
+    e.preventDefault()
+    try {
+      const method = editProviderMode ? 'PUT' : 'POST'
+      const endpoint = editProviderMode ? `/providers/${providerFormId}` : '/providers'
+      const res = await apiFetch(endpoint, {
+        method,
+        body: JSON.stringify(providerForm)
+      })
+
+      if (res.ok) {
+        window.dispatchEvent(new CustomEvent('show-toast', { 
+          detail: { message: `Provider successfully ${editProviderMode ? 'updated' : 'created'}!`, severity: 'success' } 
+        }))
+        setOpenProviderForm(false)
+        if (onRefreshProviders) onRefreshProviders()
+      } else {
+        const err = await res.json()
+        window.dispatchEvent(new CustomEvent('show-toast', { 
+          detail: { message: err.detail || 'Failed to save provider.', severity: 'error' } 
+        }))
+      }
+    } catch (err) {
+      window.dispatchEvent(new CustomEvent('show-toast', { 
+        detail: { message: err.message, severity: 'error' } 
+      }))
+    }
+  }
+
+  const handleDeleteProvider = async (provider) => {
+    const confirmed = await window.appConfirm(`Are you sure you want to delete the provider "${provider.name}"?`)
+    if (!confirmed) return
+
+    try {
+      const res = await apiFetch(`/providers/${provider.id}`, { method: 'DELETE' })
+      if (res.ok) {
+        window.dispatchEvent(new CustomEvent('show-toast', { 
+          detail: { message: 'Provider deleted successfully!', severity: 'success' } 
+        }))
+        if (onRefreshProviders) onRefreshProviders()
+      } else {
+        const err = await res.json()
+        window.dispatchEvent(new CustomEvent('show-toast', { 
+          detail: { message: err.detail || 'Failed to delete provider.', severity: 'error' } 
+        }))
+      }
+    } catch (err) {
+      window.dispatchEvent(new CustomEvent('show-toast', { 
+        detail: { message: err.message, severity: 'error' } 
+      }))
+    }
+  }
+
   return (
     <div>
-      <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold' }}>
-        Media Providers
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+          Media Providers
+        </Typography>
+        <Button 
+          variant="contained" 
+          color="secondary" 
+          startIcon={<AddIcon />} 
+          onClick={handleOpenCreateProvider}
+        >
+          Create Provider
+        </Button>
+      </Box>
       <Box sx={{ mb: 3 }}>
         <TextField
           fullWidth
@@ -178,9 +284,19 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery })
             <Grid item xs={12} sm={6} md={4} key={provider.id}>
               <Card>
                 <CardContent>
-                  <Typography variant="h5" component="div" sx={{ fontWeight: 'bold' }}>
-                    {provider.name}
-                  </Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <Typography variant="h5" component="div" sx={{ fontWeight: 'bold' }}>
+                      {provider.name}
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 0.5 }}>
+                      <IconButton size="small" color="primary" onClick={() => handleOpenEditProvider(provider)}>
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton size="small" color="error" onClick={() => handleDeleteProvider(provider)}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                  </Box>
                   <Typography variant="body2" color="text.secondary" gutterBottom>
                     {provider.base_url}
                   </Typography>
@@ -371,6 +487,73 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery })
           <Button onClick={() => setOpenDialog(false)}>Close</Button>
         </DialogActions>
       </Dialog>
+
+      {/* Provider Add/Edit Modal */}
+      <Dialog open={openProviderForm} onClose={() => setOpenProviderForm(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 'bold' }}>
+          {editProviderMode ? 'Edit Provider' : 'Create Provider'}
+        </DialogTitle>
+        <Box component="form" onSubmit={handleSaveProvider}>
+          <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <TextField
+              fullWidth
+              label="Provider Name"
+              required
+              value={providerForm.name}
+              onChange={(e) => setProviderForm({ ...providerForm, name: e.target.value })}
+            />
+            <TextField
+              fullWidth
+              label="Base URL"
+              required
+              value={providerForm.base_url}
+              placeholder="https://example.com"
+              onChange={(e) => setProviderForm({ ...providerForm, base_url: e.target.value })}
+            />
+            <TextField
+              fullWidth
+              label="Naming Pattern"
+              required
+              value={providerForm.naming_pattern}
+              onChange={(e) => setProviderForm({ ...providerForm, naming_pattern: e.target.value })}
+            />
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <TextField
+                fullWidth
+                label="Separator"
+                required
+                value={providerForm.separator}
+                onChange={(e) => setProviderForm({ ...providerForm, separator: e.target.value })}
+              />
+              <TextField
+                fullWidth
+                label="Space Replacement"
+                required
+                value={providerForm.space_replacement}
+                onChange={(e) => setProviderForm({ ...providerForm, space_replacement: e.target.value })}
+              />
+            </Box>
+            <TextField
+              fullWidth
+              label="Daily Limit"
+              type="number"
+              required
+              value={providerForm.automatic_limits.daily_downloads}
+              onChange={(e) => setProviderForm({ 
+                ...providerForm, 
+                automatic_limits: { daily_downloads: parseInt(e.target.value, 10) || 0 } 
+              })}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOpenProviderForm(false)}>Cancel</Button>
+            <Button type="submit" variant="contained" color="secondary">
+              Save
+            </Button>
+          </DialogActions>
+        </Box>
+      </Dialog>
     </div>
   )
 }
+

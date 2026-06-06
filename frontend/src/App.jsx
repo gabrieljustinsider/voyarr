@@ -693,6 +693,7 @@ function App() {
         providers={filteredProviders} 
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
+        onRefreshProviders={fetchProviders}
       />
     ), visible: true },
     { label: "Downloads", component: <DownloadQueue queue={queue} onRefresh={fetchQueue} />, visible: true },

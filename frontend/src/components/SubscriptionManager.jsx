@@ -133,6 +133,23 @@ function SubscriptionManager() {
     }
   };
 
+  const handleDeleteSubscription = async (id) => {
+    const confirmed = await window.appConfirm('Are you sure you want to delete this subscription?');
+    if (!confirmed) return;
+    try {
+      const res = await apiFetch(`/subscriptions/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Subscription deleted successfully.', severity: 'success' } }));
+        fetchData();
+      } else {
+        throw new Error('Delete failed');
+      }
+    } catch (e) {
+      console.error(e);
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Failed to delete subscription.', severity: 'error' } }));
+    }
+  };
+
   return (
     <Box>
       <Typography variant="h4" sx={{ fontWeight: '800', mb: 4, letterSpacing: '-0.5px', display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -228,9 +245,14 @@ function SubscriptionManager() {
                             </Typography>
                           }
                         />
-                        {sub.is_trial && (
-                          <Chip label="Trial" color="warning" size="small" sx={{ ml: 'auto' }} />
-                        )}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: 'auto' }}>
+                          {sub.is_trial && (
+                            <Chip label="Trial" color="warning" size="small" />
+                          )}
+                          <IconButton color="error" size="small" onClick={() => handleDeleteSubscription(sub.id)}>
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
                       </ListItem>
                     );
                   })}
