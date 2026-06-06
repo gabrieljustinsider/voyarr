@@ -38,9 +38,23 @@ services:
     networks:
       - voyarr_network
 
+  # -------------------------------------------------------------------------
+  # browserless — Optional local headless Chrome for scraping.
+  # By default this service is DISABLED to save ~4.6 GB of disk/RAM.
+  #
+  # Option A (recommended): Use a hosted instance (browserless.io free tier
+  #   or self-hosted on another machine) and set in your .env:
+  #     BROWSERLESS_URL=wss://chrome.browserless.io
+  #     BROWSERLESS_TOKEN=your_api_token
+  #
+  # Option B: Run locally by starting with the profile flag:
+  #     docker compose --profile browserless up -d
+  # -------------------------------------------------------------------------
   browserless:
     image: browserless/chrome:latest
     container_name: voyarr-browserless
+    profiles:
+      - browserless
     environment:
       - TIMEOUT=60000
       - MAX_CONCURRENT_SESSIONS=10

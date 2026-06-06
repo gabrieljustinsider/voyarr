@@ -1,29 +1,55 @@
-FROM python:3.12-slim-bookworm
-LABEL version="1.17.2"
-LABEL org.opencontainers.image.version="1.17.2"
+############################
+# Stage 1 — Build
+# Compile all C-extension wheels (psycopg2, face-recognition, opencv, etc.)
+# build-essential and libpq-dev are only needed here, not in the final image.
+############################
+FROM python:3.12-slim-bookworm AS builder
 
-# Set environment variables for Python runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Install system dependencies
-# ffmpeg is strictly required for FFmpeg/Mutagen perceptual hashing (phash)
-# build-essential and libpq-dev are needed to compile psycopg2-binary
-RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
-    ffmpeg \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
+    cmake \
+    libopenblas-dev \
+    liblapack-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python modules and wheels
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+############################
+# Stage 2 — Runtime
+# Only copy compiled wheels + install ffmpeg (runtime-only, no compiler needed)
+############################
+FROM python:3.12-slim-bookworm
+
+LABEL version="1.17.2"
+LABEL org.opencontainers.image.version="1.17.2"
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# ffmpeg is strictly required for FFmpeg/Mutagen perceptual hashing (phash)
+# libpq5 is the runtime-only postgres client lib (no compiler needed)
+# libgomp1 is required by opencv/face_recognition at runtime
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    libpq5 \
+    libgomp1 \
+    libopenblas0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy compiled Python packages from builder
+COPY --from=builder /install /usr/local
 
 COPY . .
 
-# Expose the FastAPI port and set the launch command
 EXPOSE 8000
 CMD ["python", "run.py"]

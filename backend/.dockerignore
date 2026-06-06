@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+venv/
+env/
+.pytest_cache/
+.ruff_cache/
+
+# SQLite test databases (dev-only)
+file:testdb_*
+*testdb_*
+
+# Secrets & local config
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
