@@ -165,7 +165,7 @@ export default function Analytics() {
       </Typography>
 
       {/* Grid of Key Metrics Cards */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
+      <Grid container spacing={3} sx={{ mb: 4, justifyContent: 'center' }}>
         <Grid item xs={12} sm={4}>
           <Card sx={{ 
             background: 'linear-gradient(135deg, rgba(25, 118, 210, 0.1) 0%, rgba(0, 0, 0, 0.3) 100%)',
