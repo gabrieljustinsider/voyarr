@@ -495,6 +495,28 @@ function App() {
       }
     } catch (error) {
       console.error('Failed to fetch queue:', error)
+  }, [])
+
+  useEffect(() => {
+    const hash = window.location.hash
+    if (hash) {
+      const params = new URLSearchParams(hash.replace(/^#/, ''))
+      const token = params.get('access_token')
+      const error = params.get('error')
+      const message = params.get('message')
+
+      if (token) {
+        localStorage.setItem('voyarr_jwt', token)
+        setIsLoggedIn(true)
+        window.location.hash = ''
+        setSnackbar({ open: true, message: 'Signed in successfully via SSO!', severity: 'success' })
+      } else if (error) {
+        setSnackbar({ open: true, message: decodeURIComponent(error), severity: 'error' })
+        window.location.hash = ''
+      } else if (message) {
+        setSnackbar({ open: true, message: decodeURIComponent(message), severity: 'success' })
+        window.location.hash = ''
+      }
     }
   }, [])
 

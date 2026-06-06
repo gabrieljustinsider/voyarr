@@ -58,10 +58,6 @@ export default function Login() {
 
   // Custom states for passkey and SSO
   const [passkeyLoading, setPasskeyLoading] = useState(false)
-  const [ssoOpen, setSsoOpen] = useState(false)
-  const [ssoProvider, setSsoProvider] = useState('')
-  const [ssoEmail, setSsoEmail] = useState('')
-  const [ssoLoading, setSsoLoading] = useState(false)
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
   const [authConfig, setAuthConfig] = useState({ passkeys_enabled: true, sso_enabled: false, oidc_enabled: false, auth_bypass_enabled: false, auth_bypass_proxy_header_enabled: false })
 
@@ -379,65 +375,8 @@ export default function Login() {
     }
   }
 
-  // Open Simulated OAuth popups
-  const handleOpenSso = (provider) => {
-    setSsoProvider(provider)
-    setSsoEmail(username ? `${username.toLowerCase()}@${provider}.com` : '')
-    setSsoOpen(true)
-  }
-
-  // Execute Developer simulated OAuth session
-  const handleExecuteSsoLogin = async () => {
-    setSsoLoading(true)
-    setError('')
-    try {
-      // 1. Lookup SsoLink record using the lookup helper endpoint
-      const lookupRes = await fetch(`${API_BASE}/auth/sso/lookup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          provider: ssoProvider,
-          email: ssoEmail.trim()
-        })
-      })
-
-      if (!lookupRes.ok) {
-        const errData = await lookupRes.json()
-        throw new Error(errData.detail || `This ${ssoProvider} account is not linked to any user.`)
-      }
-
-      const lookupData = await lookupRes.json()
-
-      // 2. Perform authenticating fast-access login using link credentials
-      const loginRes = await fetch(`${API_BASE}/auth/sso/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          provider: ssoProvider,
-          provider_user_id: lookupData.provider_user_id,
-          token: "mock_sso_oauth_flow_token"
-        })
-      })
-
-      if (loginRes.ok) {
-        const loginData = await loginRes.json()
-        localStorage.setItem('voyarr_jwt', loginData.access_token)
-        setSsoOpen(false)
-        setSnackbar({ open: true, message: `Logged in with ${ssoProvider} successfully!`, severity: 'success' })
-        setTimeout(() => {
-          window.location.reload()
-        }, 800)
-      } else {
-        const errData = await loginRes.json()
-        throw new Error(errData.detail || 'SSO authentication failed.')
-      }
-    } catch (err) {
-      console.error(err)
-      setError(err.message || 'SSO login simulation failed.')
-      setSsoOpen(false)
-    } finally {
-      setSsoLoading(false)
-    }
+  const handleSsoLogin = (provider) => {
+    window.location.href = `${API_BASE}/auth/oidc/login?provider=${provider}`
   }
 
   return (
@@ -723,7 +662,7 @@ export default function Login() {
             <Button 
               fullWidth 
               variant="outlined" 
-              onClick={() => handleOpenSso('google')}
+              onClick={() => handleSsoLogin('google')}
               sx={{ 
                 py: 1.2, 
                 borderRadius: '10px', 
@@ -742,7 +681,7 @@ export default function Login() {
             <Button 
               fullWidth 
               variant="outlined" 
-              onClick={() => handleOpenSso('github')}
+              onClick={() => handleSsoLogin('github')}
               sx={{ 
                 py: 1.2, 
                 borderRadius: '10px', 
@@ -761,7 +700,7 @@ export default function Login() {
             <Button 
               fullWidth 
               variant="outlined" 
-              onClick={() => handleOpenSso('discord')}
+              onClick={() => handleSsoLogin('discord')}
               sx={{ 
                 py: 1.2, 
                 borderRadius: '10px', 
@@ -806,79 +745,6 @@ export default function Login() {
         </>
       )}
       </Paper>
-
-      {/* Simulated SSO Dialog */}
-      <Dialog 
-        open={ssoOpen} 
-        onClose={() => setSsoOpen(false)}
-        maxWidth="xs"
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: '16px',
-            background: 'linear-gradient(135deg, #1e202c 0%, #11121a 100%)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            boxShadow: '0 12px 40px rgba(0,0,0,0.6)'
-          }
-        }}
-      >
-        <DialogTitle sx={{ textAlign: 'center', pt: 3, pb: 1 }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-            <Box sx={{ 
-              p: 1.5, 
-              borderRadius: '12px', 
-              backgroundColor: 'rgba(255, 255, 255, 0.05)',
-              display: 'inline-flex',
-              color: 'text.primary'
-            }}>
-              {ssoProvider === 'google' && <GoogleSvg />}
-              {ssoProvider === 'github' && <GitHubSvg />}
-              {ssoProvider === 'discord' && <DiscordSvg />}
-            </Box>
-            <Typography variant="h6" sx={{ fontWeight: 'bold', textTransform: 'capitalize' }}>
-              Sign in with {ssoProvider}
-            </Typography>
-            <Typography variant="caption" sx={{ opacity: 0.6 }} color="textSecondary">
-              to continue to <strong>Voyarr Media Server</strong>
-            </Typography>
-          </Box>
-        </DialogTitle>
-        <DialogContent sx={{ px: 3, pb: 1 }}>
-          <Box sx={{ py: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Linked SSO Email"
-              type="email"
-              value={ssoEmail}
-              onChange={e => setSsoEmail(e.target.value)}
-              placeholder="e.g. user@example.com"
-              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-            />
-            <Typography variant="caption" sx={{ opacity: 0.5 }} color="textSecondary">
-              This simulates the standard callback token redirect. It checks if the email is linked to a Voyarr profile and issues a login token.
-            </Typography>
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 3, justifyContent: 'space-between' }}>
-          <Button 
-            onClick={() => setSsoOpen(false)}
-            variant="text" 
-            sx={{ color: 'text.secondary', textTransform: 'none' }}
-          >
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleExecuteSsoLogin}
-            variant="contained" 
-            color="primary"
-            disabled={ssoLoading || !ssoEmail.trim() || !ssoEmail.includes('@')}
-            sx={{ borderRadius: '10px', textTransform: 'none', px: 3 }}
-          >
-            {ssoLoading ? <CircularProgress size={20} color="inherit" /> : 'Authorize & Sign In'}
-          </Button>
-        </DialogActions>
-      </Dialog>
 
       {/* Global notifications toast feedback */}
       <Snackbar

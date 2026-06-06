@@ -4,6 +4,7 @@ import {
   FormControl, InputLabel, Select, MenuItem, Switch, FormControlLabel, Divider, CircularProgress, Tooltip, Chip
 } from '@mui/material'
 import apiFetch from '../api'
+import PathPicker from './PathPicker'
 
 export default function PreferencesAdvanced() {
   const [providers, setProviders] = useState([])
@@ -121,7 +122,13 @@ export default function PreferencesAdvanced() {
             </Grid>
             
             <Grid item xs={12} md={6}>
-              <TextField fullWidth label="Custom Base Path" name="custom_base_path" value={prefs.custom_base_path} onChange={handleChange} helperText="e.g., /media/storage/Site_A. Overrides global download destination." />
+              <PathPicker
+                value={prefs.custom_base_path}
+                onChange={(val) => setPrefs(prev => ({ ...prev, custom_base_path: val }))}
+                label="Custom Base Path"
+                helperText="e.g., /media/storage/Site_A. Overrides global download destination."
+                mode="folder"
+              />
             </Grid>
             
             <Grid item xs={12} md={6}>

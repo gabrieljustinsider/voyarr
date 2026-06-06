@@ -47,9 +47,6 @@ export default function AccountSecurity({ setSnackbar }) {
 
   // SSO Linking State
   const [ssoLinks, setSsoLinks] = useState([])
-  const [mockSsoOpen, setMockSsoOpen] = useState(false)
-  const [mockSsoProvider, setMockSsoProvider] = useState('')
-  const [mockSsoEmail, setMockSsoEmail] = useState('')
 
   useEffect(() => {
     fetchPasskeys()
@@ -191,33 +188,10 @@ export default function AccountSecurity({ setSnackbar }) {
   }
 
   // SSO Operations
-  const handleOpenMockSso = (provider) => {
-    setMockSsoProvider(provider)
-    setMockSsoEmail('')
-    setMockSsoOpen(true)
-  }
-
-  const handleExecuteMockSso = async () => {
-    try {
-      const res = await apiFetch('/auth/sso/link', {
-        method: 'POST',
-        body: JSON.stringify({
-          provider: mockSsoProvider,
-          email: mockSsoEmail,
-          token: "mock_sso_oauth_flow_token"
-        })
-      })
-      if (res.ok) {
-        setSnackbar({ open: true, message: `Successfully linked ${mockSsoProvider} identity!`, severity: 'success' })
-        setMockSsoOpen(false)
-        fetchSsoLinks()
-      } else {
-        const err = await res.json()
-        setSnackbar({ open: true, message: `Failed: ${err.detail}`, severity: 'error' })
-      }
-    } catch (err) {
-      setSnackbar({ open: true, message: 'SSO linking failed.', severity: 'error' })
-    }
+  const handleLinkSso = (provider) => {
+    const token = localStorage.getItem('voyarr_jwt')
+    const apiBase = import.meta.env.VITE_API_BASE || '/api'
+    window.location.href = `${apiBase}/auth/oidc/login?provider=${provider}&token=${encodeURIComponent(token)}`
   }
 
   const handleUnlinkSso = async (provider) => {
@@ -408,8 +382,7 @@ export default function AccountSecurity({ setSnackbar }) {
                     </Box>
                   ) : (
                     <Box>
-                      <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 1.5, height: 20 }}>Not linked</Typography>
-                      <Button fullWidth variant="outlined" color="primary" size="small" startIcon={<Link size={18} />} onClick={() => handleOpenMockSso(provider)}>
+                      <Button fullWidth variant="outlined" color="primary" size="small" startIcon={<Link size={18} />} onClick={() => handleLinkSso(provider)}>
                         Link
                       </Button>
                     </Box>
@@ -420,53 +393,6 @@ export default function AccountSecurity({ setSnackbar }) {
           })}
         </Grid>
       </Paper>
-
-      {/* Mock SSO OAuth Flow Dialog */}
-      <Dialog 
-        open={mockSsoOpen} 
-        onClose={() => setMockSsoOpen(false)}
-        maxWidth="xs"
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: '16px',
-            background: 'linear-gradient(135deg, #1e202c 0%, #11121a 100%)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            boxShadow: '0 12px 40px rgba(0,0,0,0.6)'
-          }
-        }}
-      >
-        <DialogTitle sx={{ textAlign: 'center', pt: 3, pb: 1 }}>
-          <Typography variant="h6" sx={{ fontWeight: 'bold', textTransform: 'capitalize' }}>
-            Simulate {mockSsoProvider} Link
-          </Typography>
-        </DialogTitle>
-        <DialogContent sx={{ px: 3, pb: 1 }}>
-          <Box sx={{ py: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Email Address"
-              type="email"
-              value={mockSsoEmail}
-              onChange={e => setMockSsoEmail(e.target.value)}
-              placeholder="e.g. user@example.com"
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button onClick={() => setMockSsoOpen(false)} sx={{ color: 'text.secondary' }}>
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleExecuteMockSso}
-            variant="contained" 
-            disabled={!mockSsoEmail.trim() || !mockSsoEmail.includes('@')}
-          >
-            Authorize Link
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   )
 }

@@ -957,6 +957,88 @@ export default function Settings() {
   return (
     <Box>
       <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>Storage &amp; Directory Paths</Typography>
+        <Typography variant="body2" sx={{ mb: 2 }} color="textSecondary">
+          Configure default filesystem paths for media scanning, downloads, and library structures.
+        </Typography>
+        <Divider sx={{ mb: 2 }} />
+
+        <Grid container spacing={3}>
+          {/* Media Root Paths List Management */}
+          <Grid item xs={12}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>Media Root Scan Paths</Typography>
+            <Box sx={{ mb: 2 }}>
+              <PathPicker
+                value=""
+                onChange={(val) => {
+                  if (val) {
+                    handleAddMediaPath(val);
+                  }
+                }}
+                label="Add Media Root Path"
+                mode="folder"
+              />
+            </Box>
+            
+            {mediaPaths.length === 0 ? (
+              <Typography variant="caption" color="textSecondary" display="block">No media root paths configured.</Typography>
+            ) : (
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
+                {mediaPaths.map((path) => (
+                  <Chip
+                    key={path}
+                    label={path}
+                    onDelete={() => handleRemoveMediaPath(path)}
+                    color="primary"
+                    variant="outlined"
+                  />
+                ))}
+              </Box>
+            )}
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <PathPicker
+              value={settings.download_destination || ''}
+              onChange={(val) => {
+                setSettings(prev => ({ ...prev, download_destination: val }));
+                handleSave('download_destination', val);
+              }}
+              label="Download Destination Path"
+              helperText="Target directory for new downloads"
+              mode="folder"
+            />
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <PathPicker
+              value={settings.library_folder || ''}
+              onChange={(val) => {
+                setSettings(prev => ({ ...prev, library_folder: val }));
+                handleSave('library_folder', val);
+              }}
+              label="Library Folder Path"
+              helperText="Root directory for sorted media library"
+              mode="folder"
+            />
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <PathPicker
+              value={settings.scan_folder || ''}
+              onChange={(val) => {
+                setSettings(prev => ({ ...prev, scan_folder: val }));
+                handleSave('scan_folder', val);
+              }}
+              label="Scan Folder Path"
+              helperText="Directory to monitor for incoming files"
+              mode="folder"
+            />
+          </Grid>
+        </Grid>
+      </Paper>
+
+      <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>Browser Extension Integration</Typography>
         <Typography variant="body2" sx={{ mb: 2 }} color="textSecondary">
           Connect your Voyarr Lens browser extension to easily map CSS selectors on live websites.
