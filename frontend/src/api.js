@@ -31,9 +31,9 @@ export const apiFetch = async (endpoint, options = {}) => {
   })
   
   if (response.status === 401 || response.status === 403) {
-    // Optional: handle session expiration
-    // localStorage.removeItem('voyarr_jwt');
-    // window.location.reload();
+    localStorage.removeItem('voyarr_jwt');
+    localStorage.removeItem('voyarr_api_key');
+    window.location.reload();
   }
   
   return response

@@ -515,6 +515,12 @@ function App() {
           headers: getAuthHeaders(),
           signal: abortController.signal
         })
+        if (res.status === 401 || res.status === 403) {
+          localStorage.removeItem('voyarr_jwt')
+          localStorage.removeItem('voyarr_api_key')
+          window.location.reload()
+          return
+        }
         const reader = res.body.getReader()
         const decoder = new TextDecoder('utf-8')
         let buffer = ''
@@ -550,6 +556,12 @@ function App() {
           headers: getAuthHeaders(),
           signal: abortController.signal
         })
+        if (res.status === 401 || res.status === 403) {
+          localStorage.removeItem('voyarr_jwt')
+          localStorage.removeItem('voyarr_api_key')
+          window.location.reload()
+          return
+        }
         const reader = res.body.getReader()
         const decoder = new TextDecoder('utf-8')
         let buffer = ''
