@@ -495,6 +495,7 @@ function App() {
       }
     } catch (error) {
       console.error('Failed to fetch queue:', error)
+    }
   }, [])
 
   useEffect(() => {

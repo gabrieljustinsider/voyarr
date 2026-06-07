@@ -12,7 +12,6 @@ RUN npm ci
 COPY . .
 
 # Declare build arguments
-ARG VITE_MASTER_KEY
 ARG VITE_API_BASE
 
 # Build the app
@@ -20,8 +19,8 @@ RUN npm run build
 
 # Production stage
 FROM nginx:alpine
-LABEL version="1.17.5"
-LABEL org.opencontainers.image.version="1.17.5"
+LABEL version="1.17.6"
+LABEL org.opencontainers.image.version="1.17.6"
 
 # Copy built app
 COPY --from=build /app/dist /usr/share/nginx/html
