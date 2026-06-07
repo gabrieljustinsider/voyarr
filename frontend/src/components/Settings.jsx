@@ -23,6 +23,7 @@ import PathPicker from './PathPicker'
 import InlineTextField from './InlineTextField'
 import PasswordChecklist from './PasswordChecklist'
 import PermissionsManager from './PermissionsManager'
+import AccountSecurity from './AccountSecurity'
 
 const AppleSvg = () => (
   <svg viewBox="0 0 170 170" width="20" height="20" style={{ fill: 'currentColor' }}>
