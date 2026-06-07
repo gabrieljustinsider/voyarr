@@ -40,6 +40,9 @@ export default function TranscodeQueue() {
           headers: getAuthHeaders(),
           signal: abortController.signal
         })
+        if (!res.ok) {
+          throw new Error(`Transcode stream HTTP error! Status: ${res.status}`)
+        }
         const reader = res.body.getReader()
         const decoder = new TextDecoder('utf-8')
         let buffer = ''

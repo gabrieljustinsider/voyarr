@@ -55,7 +55,7 @@ export default function AccountSecurity({ setSnackbar }) {
 
   const fetchPasskeys = async () => {
     try {
-      const res = await apiFetch('/auth/passkeys/')
+      const res = await apiFetch('/auth/passkeys')
       if (res.ok) {
         setPasskeys(await res.json())
       }
@@ -121,6 +121,38 @@ export default function AccountSecurity({ setSnackbar }) {
     }
   }
 
+  const base64ToBuffer = (b64) => {
+    let base64 = b64.replace(/-/g, '+').replace(/_/g, '/');
+    const pad = base64.length % 4;
+    if (pad) { base64 += new Array(5 - pad).join('='); }
+    const bin = window.atob(base64)
+    const bytes = new Uint8Array(bin.length)
+    for (let i = 0; i < bin.length; i++) { bytes[i] = bin.charCodeAt(i) }
+    return bytes.buffer
+  }
+
+  const bufferToBase64 = (buf) => {
+    const bytes = new Uint8Array(buf)
+    let binary = ''
+    for (let i = 0; i < bytes.byteLength; i++) { binary += String.fromCharCode(bytes[i]) }
+    return window.btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+  }
+
+  const getClientInfo = () => {
+    const ua = navigator.userAgent
+    let browser = "Unknown Browser"
+    let os_name = "Unknown OS"
+    if (ua.includes("Firefox")) browser = "Firefox"
+    else if (ua.includes("Chrome")) browser = "Google Chrome"
+    else if (ua.includes("Safari")) browser = "Apple Safari"
+    if (ua.includes("Windows")) os_name = "Windows"
+    else if (ua.includes("Macintosh") || ua.includes("Mac OS")) os_name = "macOS"
+    else if (ua.includes("Android")) os_name = "Android"
+    else if (ua.includes("iPhone") || ua.includes("iPad")) os_name = "iOS"
+    else if (ua.includes("Linux")) os_name = "Linux"
+    return { browser, os_name }
+  }
+
   // Passkey operations
   const handleAddPasskey = async () => {
     setPasskeyLoading(true)
@@ -129,18 +161,30 @@ export default function AccountSecurity({ setSnackbar }) {
       if (!res.ok) throw new Error('Failed to retrieve registration options')
       const options = await res.json()
       
-      // Simulate passkey creation on the client (since browser webauthn relies on hardware context)
-      const credential = {
-        id: 'pk_' + Math.random().toString(36).substr(2, 9),
-        rawId: 'pk_' + Math.random().toString(36).substr(2, 9),
-        type: 'public-key'
+      options.challenge = base64ToBuffer(options.challenge)
+      options.user.id = new TextEncoder().encode(options.user.id)
+      
+      const credential = await navigator.credentials.create({ publicKey: options })
+      if (!credential) throw new Error('Passkey creation cancelled or failed.')
+      
+      const clientInfo = getClientInfo()
+      let publicKeyB64 = ''
+      if (typeof credential.response.getPublicKey === 'function') {
+        publicKeyB64 = bufferToBase64(credential.response.getPublicKey())
       }
       
       const verifyRes = await apiFetch('/auth/passkeys/register/verify', {
         method: 'POST',
         body: JSON.stringify({
+          credential_id: credential.id,
+          public_key: publicKeyB64,
+          client_data_json: bufferToBase64(credential.response.clientDataJSON),
+          aaguid: null,
+          browser: clientInfo.browser,
+          os_name: clientInfo.os_name,
+          backup_eligible: true,
+          backup_state: true,
           name: newPasskeyName || 'My Passkey',
-          credential: credential
         })
       })
       if (verifyRes.ok) {

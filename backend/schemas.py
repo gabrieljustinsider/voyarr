@@ -186,12 +186,34 @@ class DuplicateAction(BaseModel):
     action: str
 
 
+class BillerBase(BaseModel):
+    name: str
+    url: Optional[str] = None
+    support_email: Optional[str] = None
+    support_phone: Optional[str] = None
+    description: Optional[str] = None
+
+class BillerCreate(BillerBase):
+    pass
+
+class BillerUpdate(BillerBase):
+    name: Optional[str] = None
+
+class BillerResponse(BillerBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
 class ProviderBase(BaseModel):
     name: str
     base_url: str
     naming_pattern: Optional[str] = None
     separator: str = "_"
     space_replacement: str = "_"
+    logo_url: Optional[str] = None
+    favicon_url: Optional[str] = None
+    description: Optional[str] = None
     automatic_limits: Optional[Dict[str, Any]] = None
 
 
@@ -237,9 +259,11 @@ class SubscriptionBase(BaseModel):
     trial_end: Optional[datetime] = None
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
-    biller: Optional[str] = None
+    biller_id: Optional[int] = None
     billing_cycle: Optional[str] = None
     cost: Optional[float] = None
+    charge_type: Optional[str] = "bulk"
+    installment_frequency: Optional[str] = "monthly"
 
 class SubscriptionCreate(SubscriptionBase):
     pass
@@ -254,9 +278,11 @@ class SubscriptionUpdate(BaseModel):
     trial_end: Optional[datetime] = None
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
-    biller: Optional[str] = None
+    biller_id: Optional[int] = None
     billing_cycle: Optional[str] = None
     cost: Optional[float] = None
+    charge_type: Optional[str] = None
+    installment_frequency: Optional[str] = None
 
 class SubscriptionResponse(SubscriptionBase):
     id: int

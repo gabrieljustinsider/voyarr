@@ -63,6 +63,9 @@ class Provider(Base):
     automatic_limits = Column(
         JSON().with_variant(JSONB, "postgresql")
     )  # Default limits for the provider (e.g., {"daily_downloads": 50, "concurrent_downloads": 2})
+    logo_url = Column(String(500), nullable=True)
+    favicon_url = Column(String(500), nullable=True)
+    description = Column(Text, nullable=True)
     supported_methods = Column(
         JSON().with_variant(JSONB, "postgresql"), default=list
     )  # e.g., ["yt-dlp", "cookies", "direct", "api"]
@@ -95,14 +98,17 @@ class Subscription(Base):
     trial_end = Column(TIMESTAMP, nullable=True)
     start_date = Column(TIMESTAMP, nullable=True)
     end_date = Column(TIMESTAMP, nullable=True)
-    biller = Column(String(255), nullable=True)
+    biller_id = Column(Integer, ForeignKey("billers.id", ondelete="SET NULL"), nullable=True, index=True)
     billing_cycle = Column(String(50), nullable=True) # monthly, yearly
     cost = Column(DECIMAL(10, 2), nullable=True)
+    charge_type = Column(String(50), default="bulk") # bulk, installments
+    installment_frequency = Column(String(50), nullable=True) # weekly, biweekly, monthly
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
     updated_at = Column(TIMESTAMP, default=func.current_timestamp(), onupdate=func.current_timestamp())
 
     provider = relationship("Provider")
     tier = relationship("SubscriptionTier")
+    biller = relationship("Biller")
 
 
 class SiteRecipe(Base):

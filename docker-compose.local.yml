@@ -1,0 +1,33 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: voyarr-db
+    command: []
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-voyarr}
+      POSTGRES_USER: ${POSTGRES_USER:-voyarr_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-voyarr_password}
+      TZ: ${TZ:-UTC}
+    volumes:
+      - voyarr-db-data:/var/lib/postgresql/data
+      - voyarr-backups:/backups
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-voyarr_user} -d $${POSTGRES_DB:-voyarr}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  backend:
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:5432/${POSTGRES_DB:-voyarr}
+
+  celery_worker:
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:5432/${POSTGRES_DB:-voyarr}
+
+  celery_beat:
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:5432/${POSTGRES_DB:-voyarr}

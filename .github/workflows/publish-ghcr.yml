@@ -34,7 +34,6 @@ jobs:
           VERSION=$(grep '"version"' extension/manifest.json | head -n 1 | awk -F '"' '{print $4}')
           if [ -z "$VERSION" ]; then
             VERSION="1.17.1"
-            VERSION="1.17.1"
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 

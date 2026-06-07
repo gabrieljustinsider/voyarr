@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { apiFetch } from '../api'
 import {
   Box,
@@ -27,7 +27,10 @@ import {
   ListItemText,
   Switch,
   FormControlLabel,
-  Divider
+  Divider,
+  Autocomplete,
+  TablePagination,
+  InputAdornment
 } from '@mui/material'
 import { 
   Trash2, 
@@ -40,13 +43,15 @@ import {
   Check, 
   X,
   AlertTriangle,
-  RotateCcw
+  RotateCcw,
+  Search
 } from 'lucide-react'
 
 export default function SubscriptionManager() {
   const [subscriptions, setSubscriptions] = useState([])
   const [tiers, setTiers] = useState([])
   const [providers, setProviders] = useState([])
+  const [billers, setBillers] = useState([])
   
   // Email Parser State
   const [emailText, setEmailText] = useState('')
@@ -65,10 +70,14 @@ export default function SubscriptionManager() {
     trial_end: '',
     start_date: '',
     end_date: '',
-    biller: '',
+    biller_id: '',
     billing_cycle: 'monthly',
-    cost: 0.00
+    cost: 0.00,
+    charge_type: 'bulk',
+    installment_frequency: 'monthly'
   })
+  
+  const [subSearchQuery, setSubSearchQuery] = useState('')
 
   // Tier Form State
   const [newTier, setNewTier] = useState({ 
@@ -78,33 +87,46 @@ export default function SubscriptionManager() {
     price: 0, 
     features: [] 
   })
-
-  useEffect(() => {
-    fetchData()
-  }, [])
+  const [isEditingTier, setIsEditingTier] = useState(false)
+  const [editingTierId, setEditingTierId] = useState(null)
+  const [tierPage, setTierPage] = useState(0)
+  const [tierRowsPerPage, setTierRowsPerPage] = useState(5)
 
   const fetchData = async () => {
     try {
-      const [subsRes, tiersRes, provRes] = await Promise.all([
-        apiFetch('/subscriptions/'),
+      const [subsRes, tiersRes, provRes, billersRes] = await Promise.all([
+        apiFetch('/subscriptions'),
         apiFetch('/subscriptions/tiers'),
-        apiFetch('/providers/')
+        apiFetch('/providers'),
+        apiFetch('/billers')
       ])
       if (subsRes.ok) setSubscriptions(await subsRes.json())
       if (tiersRes.ok) setTiers(await tiersRes.json())
       if (provRes.ok) setProviders(await provRes.json())
+      if (billersRes.ok) setBillers(await billersRes.json())
     } catch (e) {
       console.error("Failed to fetch subscription data", e)
     }
   }
 
-  // Format Date for datetime-local Inputs (YYYY-MM-DDTHH:MM)
+  useEffect(() => {
+    fetchData()
+  }, [])
+
   const formatDatetimeForInput = (dateStr) => {
     if (!dateStr) return ''
     try {
       const d = new Date(dateStr)
       if (isNaN(d.getTime())) return ''
-      return d.toISOString().slice(0, 16)
+      // The `datetime-local` input requires the value to be in the format YYYY-MM-DDTHH:MM
+      // in the user's local timezone. `toISOString()` converts to UTC, which can display the wrong time.
+      // We build the string manually from the local date components to ensure correctness.
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const hours = String(d.getHours()).padStart(2, '0');
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
     } catch {
       return ''
     }
@@ -125,11 +147,14 @@ export default function SubscriptionManager() {
       ...subForm,
       provider_id: parseInt(subForm.provider_id, 10),
       tier_id: subForm.tier_id ? parseInt(subForm.tier_id, 10) : null,
+      biller_id: subForm.biller_id ? parseInt(subForm.biller_id, 10) : null,
       cost: parseFloat(subForm.cost) || 0,
       trial_start: subForm.is_trial && subForm.trial_start ? new Date(subForm.trial_start).toISOString() : null,
       trial_end: subForm.is_trial && subForm.trial_end ? new Date(subForm.trial_end).toISOString() : null,
       start_date: subForm.start_date ? new Date(subForm.start_date).toISOString() : null,
       end_date: subForm.end_date ? new Date(subForm.end_date).toISOString() : null,
+      charge_type: subForm.charge_type,
+      installment_frequency: subForm.installment_frequency
     }
 
     try {
@@ -140,7 +165,7 @@ export default function SubscriptionManager() {
           body: JSON.stringify(payload)
         })
       } else {
-        res = await apiFetch('/subscriptions/', {
+        res = await apiFetch('/subscriptions', {
           method: 'POST',
           body: JSON.stringify(payload)
         })
@@ -179,9 +204,11 @@ export default function SubscriptionManager() {
       trial_end: formatDatetimeForInput(sub.trial_end),
       start_date: formatDatetimeForInput(sub.start_date),
       end_date: formatDatetimeForInput(sub.end_date),
-      biller: sub.biller || '',
+      biller_id: sub.biller_id || '',
       billing_cycle: sub.billing_cycle || 'monthly',
-      cost: sub.cost || 0.00
+      cost: sub.cost || 0.00,
+      charge_type: sub.charge_type || 'bulk',
+      installment_frequency: sub.installment_frequency || 'monthly'
     })
   }
 
@@ -197,9 +224,11 @@ export default function SubscriptionManager() {
       trial_end: '',
       start_date: '',
       end_date: '',
-      biller: '',
+      biller_id: '',
       billing_cycle: 'monthly',
-      cost: 0.00
+      cost: 0.00,
+      charge_type: 'bulk',
+      installment_frequency: 'monthly'
     })
   }
 
@@ -257,11 +286,14 @@ export default function SubscriptionManager() {
   // Import parsed data directly into current manual form
   const handleApplyParsedResult = () => {
     if (!parseResult) return
+    
+    const matchedBiller = billers.find(b => b.name.toLowerCase() === parseResult.biller?.toLowerCase())
+
     setSubForm(prev => ({
       ...prev,
       cost: parseResult.cost || 0.00,
       billing_cycle: parseResult.billing_cycle || 'monthly',
-      biller: parseResult.biller || '',
+      biller_id: matchedBiller ? matchedBiller.id : '',
       is_trial: !!parseResult.is_trial,
       status: parseResult.status || 'active'
     }))
@@ -272,8 +304,26 @@ export default function SubscriptionManager() {
     }))
   }
 
-  // Tier Create
-  const handleCreateTier = async (e) => {
+  const resetTierForm = () => {
+    setIsEditingTier(false)
+    setEditingTierId(null)
+    setNewTier({ provider_id: '', name: '', level: 0, price: 0, features: [] })
+  }
+
+  const handleEditTier = (tier) => {
+    setIsEditingTier(true)
+    setEditingTierId(tier.id)
+    setNewTier({
+      provider_id: tier.provider_id || '',
+      name: tier.name || '',
+      level: tier.level || 0,
+      price: tier.price || 0,
+      features: tier.features || []
+    })
+  }
+
+  // Tier Save (Create & Update)
+  const handleSaveTier = async (e) => {
     e.preventDefault()
     if (!newTier.provider_id) {
       window.dispatchEvent(new CustomEvent('show-toast', { 
@@ -282,21 +332,25 @@ export default function SubscriptionManager() {
       return
     }
     try {
-      const res = await apiFetch('/subscriptions/tiers', {
-        method: 'POST',
-        body: JSON.stringify({
-          ...newTier,
-          provider_id: parseInt(newTier.provider_id, 10)
-        }),
-      })
+      const payload = {
+        ...newTier,
+        provider_id: parseInt(newTier.provider_id, 10),
+        price: parseFloat(newTier.price) || 0
+      }
+      
+      const url = isEditingTier ? `/subscriptions/tiers/${editingTierId}` : '/subscriptions/tiers'
+      const method = isEditingTier ? 'PUT' : 'POST'
+      
+      const res = await apiFetch(url, { method, body: JSON.stringify(payload) })
+      
       if (res.ok) {
-        setNewTier({ provider_id: '', name: '', level: 0, price: 0, features: [] })
+        resetTierForm()
         window.dispatchEvent(new CustomEvent('show-toast', { 
-          detail: { message: 'Subscription tier added successfully!', severity: 'success' } 
+          detail: { message: `Subscription tier ${isEditingTier ? 'updated' : 'added'} successfully!`, severity: 'success' } 
         }))
         fetchData()
       } else {
-        throw new Error('Failed to create tier.')
+        throw new Error(`Failed to ${isEditingTier ? 'update' : 'create'} tier.`)
       }
     } catch (e) {
       window.dispatchEvent(new CustomEvent('show-toast', { 
@@ -316,11 +370,55 @@ export default function SubscriptionManager() {
           detail: { message: 'Subscription tier deleted.', severity: 'success' } 
         }))
         fetchData()
+        if (editingTierId === id) resetTierForm()
+      } else {
+        const err = await res.json()
+        throw new Error(err.detail || 'Failed to delete subscription tier.')
       }
     } catch(e) {
-      console.error(e)
+      window.dispatchEvent(new CustomEvent('show-toast', { 
+        detail: { message: e.message || 'Network error deleting tier.', severity: 'error' } 
+      }))
     }
   }
+
+  const handleChangeTierPage = (event, newPage) => {
+    setTierPage(newPage)
+  }
+
+  const handleChangeTierRowsPerPage = (event) => {
+    setTierRowsPerPage(parseInt(event.target.value, 10))
+    setTierPage(0)
+  }
+
+  // Calculate estimated total monthly spend
+  const totalMonthlySpend = useMemo(() => {
+    return subscriptions.reduce((total, sub) => {
+      if (sub.status !== 'active' || sub.is_trial) return total;
+      const cost = parseFloat(sub.cost) || 0;
+      
+      let monthlyCost = cost;
+      if (sub.billing_cycle === 'yearly') monthlyCost = cost / 12;
+      else if (sub.billing_cycle === '6_months') monthlyCost = cost / 6;
+      else if (sub.billing_cycle === '3_months') monthlyCost = cost / 3;
+      else if (sub.billing_cycle === 'once') monthlyCost = 0;
+      
+      return total + monthlyCost;
+    }, 0);
+  }, [subscriptions]);
+
+  const filteredSubscriptions = useMemo(() => {
+    const query = subSearchQuery.toLowerCase();
+    return subscriptions.filter(sub => {
+      const providerName = providers.find(p => p.id === sub.provider_id)?.name || '';
+      const tierName = tiers.find(t => t.id === sub.tier_id)?.name || '';
+      const billerName = billers.find(b => b.id === sub.biller_id)?.name || '';
+      return providerName.toLowerCase().includes(query) ||
+             tierName.toLowerCase().includes(query) ||
+             billerName.toLowerCase().includes(query) ||
+             sub.status.toLowerCase().includes(query);
+    });
+  }, [subscriptions, providers, tiers, billers, subSearchQuery]);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -363,16 +461,43 @@ export default function SubscriptionManager() {
             <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
               <CreditCard size={20} className="text-primary-main" /> Active Subscriptions &amp; Trials
             </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+              <Typography variant="subtitle1" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CreditCard size={20} className="text-primary-main" /> Active Subscriptions &amp; Trials
+              </Typography>
+              <Chip 
+                label={`Est. Monthly Spend: $${totalMonthlySpend.toFixed(2)}`} 
+                color="primary" 
+                variant="outlined" 
+                size="small" 
+                sx={{ fontWeight: 'bold' }} 
+              />
+            </Box>
+            
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="Search subscriptions by provider, tier, biller, or status..."
+              value={subSearchQuery}
+              onChange={(e) => setSubSearchQuery(e.target.value)}
+              InputProps={{
+                startAdornment: <InputAdornment position="start"><Search size={18} /></InputAdornment>
+              }}
+              sx={{ mb: 2 }}
+            />
 
-            {subscriptions.length === 0 ? (
+            {filteredSubscriptions.length === 0 ? (
               <Box sx={{ py: 6, textAlign: 'center', border: '1px dashed rgba(255,255,255,0.08)', borderRadius: '12px' }}>
-                <Typography variant="body2" color="textSecondary">No active subscriptions or trials tracked yet.</Typography>
+                <Typography variant="body2" color="textSecondary">
+                  {subscriptions.length === 0 ? "No active subscriptions or trials tracked yet." : "No subscriptions match your search."}
+                </Typography>
               </Box>
             ) : (
               <List sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, p: 0 }}>
-                {subscriptions.map(sub => {
+                {filteredSubscriptions.map(sub => {
                   const provider = providers.find(p => p.id === sub.provider_id)
                   const tier = tiers.find(t => t.id === sub.tier_id)
+                  const biller = billers.find(b => b.id === sub.biller_id)
                   return (
                     <Paper key={sub.id} variant="outlined" sx={{ 
                       p: 2, 
@@ -404,7 +529,8 @@ export default function SubscriptionManager() {
                                 {tier && <Chip label={tier.name} size="small" variant="outlined" sx={{ ml: 1, height: 18, fontSize: '0.65rem' }} />}
                               </Typography>
                               <Typography variant="caption" color="textSecondary" display="block">
-                                Biller: {sub.biller || 'Manual'} &bull; Cycle: <span style={{ textTransform: 'capitalize' }}>{sub.billing_cycle}</span>
+                              Biller: {biller?.name || 'Manual'} &bull; Timeframe: <span style={{ textTransform: 'capitalize' }}>{sub.billing_cycle.replace('_', ' ')}</span>
+                              {['3_months', '6_months', 'yearly'].includes(sub.billing_cycle) ? ` (${sub.charge_type === 'installments' ? sub.installment_frequency + ' installments' : 'bulk charge'})` : ''}
                               </Typography>
                             </Box>
                           </Box>
@@ -412,7 +538,7 @@ export default function SubscriptionManager() {
                         <Grid item xs={12} sm={4} sx={{ display: 'flex', alignItems: 'center', justifyContent: { xs: 'flex-start', sm: 'flex-end' }, gap: 1.5 }}>
                           <Box sx={{ textAlign: 'right' }}>
                             <Typography variant="subtitle2" fontWeight="black" color="text.primary">
-                              ${sub.cost.toFixed(2)}
+                            ${sub.cost.toFixed(2)} {sub.charge_type === 'installments' ? '(Total)' : ''}
                             </Typography>
                             <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5 }}>
                               {sub.is_trial && <Chip label="Trial" color="warning" size="small" sx={{ height: 18, fontSize: '0.65rem' }} />}
@@ -527,44 +653,47 @@ export default function SubscriptionManager() {
             <form onSubmit={handleSaveSubscription}>
               <Grid container spacing={2}>
                 <Grid item xs={12}>
-                  <FormControl fullWidth size="small" required>
-                    <InputLabel>Media Provider</InputLabel>
-                    <Select
-                      label="Media Provider"
-                      value={subForm.provider_id}
-                      onChange={e => setSubForm({ ...subForm, provider_id: e.target.value, tier_id: '' })}
-                    >
-                      {providers.map(p => (
-                        <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                  <Autocomplete
+                    options={providers}
+                    getOptionLabel={(option) => option.name}
+                    value={providers.find(p => p.id === subForm.provider_id) || null}
+                    onChange={(e, newValue) => setSubForm({ ...subForm, provider_id: newValue ? newValue.id : '', tier_id: '' })}
+                    renderInput={(params) => <TextField {...params} label="Media Provider" size="small" required />}
+                    fullWidth
+                  />
                 </Grid>
 
                 <Grid item xs={12}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel>Subscription Tier</InputLabel>
-                    <Select
-                      label="Subscription Tier"
-                      value={subForm.tier_id}
-                      onChange={e => setSubForm({ ...subForm, tier_id: e.target.value })}
-                      disabled={!subForm.provider_id}
-                    >
-                      <MenuItem value=""><em>None / Free Tier</em></MenuItem>
-                      {tiers.filter(t => t.provider_id === parseInt(subForm.provider_id, 10)).map(t => (
-                        <MenuItem key={t.id} value={t.id}>{t.name} (${t.price}/mo)</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                  <Autocomplete
+                    options={[
+                      { id: '', name: 'None / Free Tier' },
+                      ...tiers
+                        .filter(t => t.provider_id === parseInt(subForm.provider_id, 10))
+                        .map(t => ({ id: t.id, name: `${t.name} ($${t.price}/mo)` }))
+                    ]}
+                    getOptionLabel={(option) => option.name}
+                    value={
+                      subForm.tier_id === '' 
+                        ? { id: '', name: 'None / Free Tier' } 
+                        : (tiers.find(t => t.id === subForm.tier_id) 
+                            ? { id: subForm.tier_id, name: `${tiers.find(t => t.id === subForm.tier_id).name} ($${tiers.find(t => t.id === subForm.tier_id).price}/mo)` } 
+                            : null)
+                    }
+                    onChange={(e, newValue) => setSubForm({ ...subForm, tier_id: newValue ? newValue.id : '' })}
+                    disabled={!subForm.provider_id}
+                    renderInput={(params) => <TextField {...params} label="Subscription Tier" size="small" />}
+                    fullWidth
+                  />
                 </Grid>
 
                 <Grid item xs={12} sm={6}>
-                  <TextField
+                  <Autocomplete
+                    options={billers}
+                    getOptionLabel={(option) => option.name}
+                    value={billers.find(b => b.id === subForm.biller_id) || null}
+                    onChange={(e, newValue) => setSubForm({ ...subForm, biller_id: newValue ? newValue.id : '' })}
+                    renderInput={(params) => <TextField {...params} label="Biller" size="small" />}
                     fullWidth
-                    size="small"
-                    label="Biller (e.g. Epoch, PayPal)"
-                    value={subForm.biller}
-                    onChange={e => setSubForm({ ...subForm, biller: e.target.value })}
                   />
                 </Grid>
 
@@ -572,8 +701,9 @@ export default function SubscriptionManager() {
                   <TextField
                     fullWidth
                     size="small"
-                    label="Billing Cost ($)"
+                    label="Total Cost ($)"
                     type="number"
+                    InputLabelProps={{ shrink: true }}
                     inputProps={{ step: "0.01" }}
                     value={subForm.cost}
                     onChange={e => setSubForm({ ...subForm, cost: e.target.value })}
@@ -581,72 +711,69 @@ export default function SubscriptionManager() {
                 </Grid>
 
                 <Grid item xs={12} sm={6}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel>Billing Cycle</InputLabel>
-                    <Select
-                      label="Billing Cycle"
-                      value={subForm.billing_cycle}
-                      onChange={e => setSubForm({ ...subForm, billing_cycle: e.target.value })}
-                    >
-                      <MenuItem value="monthly">Monthly</MenuItem>
-                      <MenuItem value="yearly">Yearly</MenuItem>
-                      <MenuItem value="once">One-Time Pay</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel>Status</InputLabel>
-                    <Select
-                      label="Status"
-                      value={subForm.status}
-                      onChange={e => setSubForm({ ...subForm, status: e.target.value })}
-                    >
-                      <MenuItem value="active">Active</MenuItem>
-                      <MenuItem value="expired">Expired</MenuItem>
-                      <MenuItem value="cancelled">Cancelled</MenuItem>
-                      <MenuItem value="trial">Trial Mode</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-
-                <Grid item xs={12}>
-                  <FormControlLabel
-                    control={
-                      <Switch 
-                        checked={subForm.is_trial} 
-                        onChange={e => setSubForm({ ...subForm, is_trial: e.target.checked })} 
-                      />
-                    }
-                    label="Is this a free trial?"
+                  <Autocomplete
+                    options={[
+                      {value: 'monthly', label: '1 Month'}, 
+                      {value: '3_months', label: '3 Months'}, 
+                      {value: '6_months', label: '6 Months'}, 
+                      {value: 'yearly', label: '1 Year'}, 
+                      {value: 'once', label: 'One-Time Pay'}
+                    ]}
+                    getOptionLabel={(option) => option.label}
+                    value={[{value: 'monthly', label: '1 Month'}, {value: '3_months', label: '3 Months'}, {value: '6_months', label: '6 Months'}, {value: 'yearly', label: '1 Year'}, {value: 'once', label: 'One-Time Pay'}].find(o => o.value === subForm.billing_cycle) || null}
+                    onChange={(e, newValue) => setSubForm({ ...subForm, billing_cycle: newValue ? newValue.value : 'monthly' })}
+                    renderInput={(params) => <TextField {...params} label="Timeframe" size="small" />}
+                    fullWidth
                   />
                 </Grid>
 
-                {subForm.is_trial && (
+                <Grid item xs={12} sm={6}>
+                  <Autocomplete
+                    options={[
+                      {value: 'active', label: 'Active'}, 
+                      {value: 'expired', label: 'Expired'}, 
+                      {value: 'cancelled', label: 'Cancelled'}, 
+                      {value: 'trial', label: 'Trial Mode'}
+                    ]}
+                    getOptionLabel={(option) => option.label}
+                    value={[{value: 'active', label: 'Active'}, {value: 'expired', label: 'Expired'}, {value: 'cancelled', label: 'Cancelled'}, {value: 'trial', label: 'Trial Mode'}].find(o => o.value === subForm.status) || null}
+                    onChange={(e, newValue) => setSubForm({ ...subForm, status: newValue ? newValue.value : 'active' })}
+                    renderInput={(params) => <TextField {...params} label="Status" size="small" />}
+                    fullWidth
+                  />
+                </Grid>
+
+                {['3_months', '6_months', 'yearly'].includes(subForm.billing_cycle) && (
                   <>
                     <Grid item xs={12} sm={6}>
-                      <TextField
+                      <Autocomplete
+                        options={[
+                          {value: 'bulk', label: '1 Bulk Charge'}, 
+                          {value: 'installments', label: 'Divide Cost (Installments)'}
+                        ]}
+                        getOptionLabel={(option) => option.label}
+                        value={[{value: 'bulk', label: '1 Bulk Charge'}, {value: 'installments', label: 'Divide Cost (Installments)'}].find(o => o.value === subForm.charge_type) || null}
+                        onChange={(e, newValue) => setSubForm({ ...subForm, charge_type: newValue ? newValue.value : 'bulk' })}
+                        renderInput={(params) => <TextField {...params} label="Charge Type" size="small" />}
                         fullWidth
-                        size="small"
-                        type="datetime-local"
-                        label="Trial Start"
-                        InputLabelProps={{ shrink: true }}
-                        value={subForm.trial_start}
-                        onChange={e => setSubForm({ ...subForm, trial_start: e.target.value })}
                       />
                     </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        fullWidth
-                        size="small"
-                        type="datetime-local"
-                        label="Trial End"
-                        InputLabelProps={{ shrink: true }}
-                        value={subForm.trial_end}
-                        onChange={e => setSubForm({ ...subForm, trial_end: e.target.value })}
-                      />
-                    </Grid>
+                    {subForm.charge_type === 'installments' && (
+                      <Grid item xs={12} sm={6}>
+                        <Autocomplete
+                          options={[
+                            {value: 'weekly', label: 'Weekly'}, 
+                            {value: 'biweekly', label: 'Bi-Weekly'}, 
+                            {value: 'monthly', label: 'Monthly'}
+                          ]}
+                          getOptionLabel={(option) => option.label}
+                          value={[{value: 'weekly', label: 'Weekly'}, {value: 'biweekly', label: 'Bi-Weekly'}, {value: 'monthly', label: 'Monthly'}].find(o => o.value === subForm.installment_frequency) || null}
+                          onChange={(e, newValue) => setSubForm({ ...subForm, installment_frequency: newValue ? newValue.value : 'monthly' })}
+                          renderInput={(params) => <TextField {...params} label="Installment Frequency" size="small" />}
+                          fullWidth
+                        />
+                      </Grid>
+                    )}
                   </>
                 )}
 
@@ -673,12 +800,48 @@ export default function SubscriptionManager() {
                   />
                 </Grid>
 
-                <Grid item xs={12} sx={{ mt: 1 }}>
+                {/* Free Trial Row — toggle + dates on same row */}
+                <Grid item xs={12} sm={4} sx={{ display: 'flex', alignItems: 'center' }}>
+                  <FormControlLabel
+                    control={
+                      <Switch 
+                        checked={subForm.is_trial} 
+                        onChange={e => setSubForm({ ...subForm, is_trial: e.target.checked })} 
+                      />
+                    }
+                    label="Free Trial?"
+                  />
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    type="datetime-local"
+                    label="Trial Start"
+                    InputLabelProps={{ shrink: true }}
+                    disabled={!subForm.is_trial}
+                    value={subForm.trial_start}
+                    onChange={e => setSubForm({ ...subForm, trial_start: e.target.value })}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    type="datetime-local"
+                    label="Trial End"
+                    InputLabelProps={{ shrink: true }}
+                    disabled={!subForm.is_trial}
+                    value={subForm.trial_end}
+                    onChange={e => setSubForm({ ...subForm, trial_end: e.target.value })}
+                  />
+                </Grid>
+
+                <Grid item xs={12} sx={{ mt: 1, display: 'flex', justifyContent: 'center' }}>
                   <Button
                     type="submit"
                     variant="contained"
                     color="secondary"
-                    fullWidth
                   >
                     {isEditingSub ? 'Update Subscription' : 'Create Subscription Profile'}
                   </Button>
@@ -698,19 +861,17 @@ export default function SubscriptionManager() {
               <Layers size={20} /> Manage Provider Tiers
             </Typography>
 
-            <form onSubmit={handleCreateTier}>
+            <form onSubmit={handleSaveTier}>
               <Grid container spacing={2} sx={{ mb: 3 }}>
                 <Grid item xs={12}>
-                  <FormControl fullWidth size="small" required>
-                    <InputLabel>Select Provider</InputLabel>
-                    <Select 
-                      value={newTier.provider_id}
-                      label="Select Provider"
-                      onChange={e => setNewTier({...newTier, provider_id: e.target.value})}
-                    >
-                      {providers.map(p => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
-                    </Select>
-                  </FormControl>
+                  <Autocomplete
+                    options={providers}
+                    getOptionLabel={(option) => option.name}
+                    value={providers.find(p => p.id === newTier.provider_id) || null}
+                    onChange={(e, newValue) => setNewTier({...newTier, provider_id: newValue ? newValue.id : ''})}
+                    renderInput={(params) => <TextField {...params} label="Select Provider" size="small" required />}
+                    fullWidth
+                  />
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField 
@@ -718,6 +879,7 @@ export default function SubscriptionManager() {
                     size="small" 
                     label="Tier Name (e.g. Gold)" 
                     required
+                    InputLabelProps={{ shrink: true }}
                     value={newTier.name} 
                     onChange={e => setNewTier({...newTier, name: e.target.value})}
                   />
@@ -728,15 +890,21 @@ export default function SubscriptionManager() {
                     size="small" 
                     label="Price ($)" 
                     type="number" 
+                    InputLabelProps={{ shrink: true }}
                     inputProps={{ step: "0.01" }}
                     value={newTier.price} 
                     onChange={e => setNewTier({...newTier, price: parseFloat(e.target.value) || 0})}
                   />
                 </Grid>
-                <Grid item xs={12}>
-                  <Button type="submit" variant="outlined" color="primary" fullWidth startIcon={<Plus size={16} />}>
-                    Add Provider Tier
+                <Grid item xs={12} sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+                  <Button type="submit" variant={isEditingTier ? "contained" : "outlined"} color="primary" startIcon={!isEditingTier && <Plus size={16} />}>
+                    {isEditingTier ? 'Update Provider Tier' : 'Add Provider Tier'}
                   </Button>
+                  {isEditingTier && (
+                    <Button variant="outlined" color="inherit" onClick={resetTierForm}>
+                      Cancel
+                    </Button>
+                  )}
                 </Grid>
               </Grid>
             </form>
@@ -761,22 +929,36 @@ export default function SubscriptionManager() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    tiers.map(tier => (
-                      <TableRow key={tier.id} hover>
-                        <TableCell sx={{ fontSize: '0.8rem' }}>{providers.find(p => p.id === tier.provider_id)?.name || tier.provider_id}</TableCell>
-                        <TableCell sx={{ fontSize: '0.8rem', fontWeight: 'bold' }}>{tier.name}</TableCell>
-                        <TableCell sx={{ fontSize: '0.8rem' }}>${tier.price}</TableCell>
-                        <TableCell align="right">
-                          <IconButton color="error" size="small" onClick={() => handleDeleteTier(tier.id)}>
-                            <Trash2 size={14} />
-                          </IconButton>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    tiers
+                      .slice(tierPage * tierRowsPerPage, tierPage * tierRowsPerPage + tierRowsPerPage)
+                      .map(tier => (
+                        <TableRow key={tier.id} hover>
+                          <TableCell sx={{ fontSize: '0.8rem' }}>{providers.find(p => p.id === tier.provider_id)?.name || tier.provider_id}</TableCell>
+                          <TableCell sx={{ fontSize: '0.8rem', fontWeight: 'bold' }}>{tier.name}</TableCell>
+                          <TableCell sx={{ fontSize: '0.8rem' }}>${Number(tier.price).toFixed(2)}</TableCell>
+                          <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                            <IconButton color="primary" size="small" onClick={() => handleEditTier(tier)}>
+                              <Edit3 size={14} />
+                            </IconButton>
+                            <IconButton color="error" size="small" onClick={() => handleDeleteTier(tier.id)}>
+                              <Trash2 size={14} />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      ))
                   )}
                 </TableBody>
               </Table>
             </TableContainer>
+            <TablePagination
+              rowsPerPageOptions={[5, 10, 25]}
+              component="div"
+              count={tiers.length}
+              rowsPerPage={tierRowsPerPage}
+              page={tierPage}
+              onPageChange={handleChangeTierPage}
+              onRowsPerPageChange={handleChangeTierRowsPerPage}
+            />
           </Paper>
 
         </Grid>

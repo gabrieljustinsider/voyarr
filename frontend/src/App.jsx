@@ -16,17 +16,15 @@ import Login from './components/Login'
 
 // Lazily load tab components to optimize bundle size and FCP/LCP
 const ProviderList = lazy(() => import('./components/ProviderList'))
-const CredentialForm = lazy(() => import('./components/CredentialForm'))
 const DownloadQueue = lazy(() => import('./components/DownloadQueue'))
 const Settings = lazy(() => import('./components/Settings'))
+const UserManagement = lazy(() => import('./components/UserManagement'))
 const Dashboard = lazy(() => import('./components/Dashboard'))
 const Library = lazy(() => import('./components/Library'))
 const Duplicates = lazy(() => import('./components/Duplicates'))
-const PreferencesAdvanced = lazy(() => import('./components/PreferencesAdvanced'))
 const MetadataManager = lazy(() => import('./components/MetadataManager'))
 const ExternalAPIs = lazy(() => import('./components/ExternalAPIs'))
 const DownloadRules = lazy(() => import('./components/DownloadRules'))
-const CookiesManager = lazy(() => import('./components/CookiesManager'))
 const MassRip = lazy(() => import('./components/MassRip'))
 const ScheduleManager = lazy(() => import('./components/ScheduleManager'))
 const BackupManager = lazy(() => import('./components/BackupManager'))
@@ -42,6 +40,7 @@ const LiveStreams = lazy(() => import('./components/LiveStreams'))
 const NotificationSettings = lazy(() => import('./components/NotificationSettings'))
 const TranscodeQueue = lazy(() => import('./components/TranscodeQueue'))
 const SubscriptionManager = lazy(() => import('./components/SubscriptionManager'))
+const BillerList = lazy(() => import('./components/BillerList'))
 const P2PSync = lazy(() => import('./components/P2PSync'))
 const HelpArea = lazy(() => import('./components/HelpArea'))
 const AdminHelpArea = lazy(() => import('./components/AdminHelpArea'))
@@ -462,6 +461,74 @@ function App() {
               };
             }
           }
+        },
+        MuiTextField: {
+          defaultProps: {
+            variant: 'outlined',
+            InputLabelProps: {
+              shrink: true
+            }
+          },
+          styleOverrides: {
+            root: ({ ownerState }) => {
+              if (ownerState && ownerState.label && typeof ownerState.label === 'string') {
+                const estimatedWidth = ownerState.label.length * 9.5 + 32;
+                return {
+                  minWidth: `${Math.max(180, estimatedWidth)}px`
+                };
+              }
+              return {};
+            }
+          }
+        },
+        MuiFormControl: {
+          defaultProps: {
+            variant: 'outlined'
+          }
+        },
+        MuiSelect: {
+          defaultProps: {
+            variant: 'outlined'
+          }
+        },
+        MuiOutlinedInput: {
+          styleOverrides: {
+            root: ({ theme, ownerState }) => {
+              const styles = {
+                borderRadius: baseConfig.isTailwind ? '8px' : (baseConfig.isMaterial ? '4px' : '10px'),
+                backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
+                transition: 'border-color 0.2s, box-shadow 0.2s, background-color 0.2s',
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.15)',
+                },
+                '&:hover .MuiOutlinedInput-notchedOutline': {
+                  borderColor: theme.palette.primary.main,
+                },
+                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                  borderColor: theme.palette.primary.main,
+                  borderWidth: '2px',
+                },
+              };
+              if (ownerState && ownerState.label && typeof ownerState.label === 'string') {
+                const estimatedWidth = ownerState.label.length * 9.5 + 32;
+                styles.minWidth = `${Math.max(180, estimatedWidth)}px`;
+              }
+              return styles;
+            }
+          }
+        },
+        MuiInputLabel: {
+          defaultProps: {
+            shrink: true
+          },
+          styleOverrides: {
+            outlined: ({ theme }) => ({
+              transform: 'translate(14px, 16px) scale(1)',
+              '&.MuiInputLabel-shrink': {
+                transform: 'translate(14px, -6px) scale(0.75)',
+              }
+            })
+          }
         }
       }
     })
@@ -488,7 +555,7 @@ function App() {
 
   const fetchQueue = useCallback(async () => {
     try {
-      const response = await apiFetch('/download/')
+      const response = await apiFetch('/download')
       if (response.ok) {
         const data = await response.json()
         setQueue(data)
@@ -544,6 +611,9 @@ function App() {
           window.location.reload()
           return
         }
+        if (!res.ok) {
+          throw new Error(`Download stream HTTP error! Status: ${res.status}`)
+        }
         const reader = res.body.getReader()
         const decoder = new TextDecoder('utf-8')
         let buffer = ''
@@ -560,6 +630,11 @@ function App() {
           }
         }
       } catch (e) {
+        if (e.name !== 'AbortError' && !abortController.signal.aborted) {
+          setTimeout(() => {
+            if (!abortController.signal.aborted) startSSE()
+          }, 5000)
+        }
         if (e.name !== 'AbortError') setTimeout(startSSE, 5000)
       }
     }
@@ -585,6 +660,9 @@ function App() {
           window.location.reload()
           return
         }
+        if (!res.ok) {
+          throw new Error(`Notifications stream HTTP error! Status: ${res.status}`)
+        }
         const reader = res.body.getReader()
         const decoder = new TextDecoder('utf-8')
         let buffer = ''
@@ -608,7 +686,7 @@ function App() {
                 setNotifications(prev => [newNotif, ...prev].slice(0, 50))
                 window.dispatchEvent(new CustomEvent('show-toast', { 
                   detail: { 
-                    message: `${notif.title}: ${notif.message}`, 
+                     message: `${notif.title}: ${notif.message}`, 
                     severity: notif.event_type === 'favorite_updated' ? 'success' : 'info' 
                   } 
                 }))
@@ -619,8 +697,10 @@ function App() {
           }
         }
       } catch (e) {
-        if (e.name !== 'AbortError') {
-          setTimeout(startNotificationsSSE, 5000)
+        if (e.name !== 'AbortError' && !abortController.signal.aborted) {
+          setTimeout(() => {
+            if (!abortController.signal.aborted) startNotificationsSSE()
+          }, 5000)
         }
       }
     }
@@ -715,7 +795,6 @@ function App() {
   }
 
   // Dynamic conditional Tab Panel Builder
-  // Dynamic conditional Tab Panel Builder
   const allTabs = useMemo(() => [
     { label: "Dashboard", component: <Dashboard />, visible: true },
     { label: "Library", component: <Library />, visible: true },
@@ -736,18 +815,21 @@ function App() {
     { label: "Schedules", component: <ScheduleManager />, visible: true },
     { label: "Rules & Lists", component: <DownloadRules />, visible: true },
     { label: "Duplicates", component: <Duplicates />, visible: true },
-    { label: "Adv. Preferences", component: <PreferencesAdvanced />, visible: true },
+
     { label: "Metadata", component: <MetadataManager />, visible: true },
     { label: "External APIs", component: <ExternalAPIs />, visible: true },
     { label: "Settings", component: <Settings />, visible: true },
+    { label: "User Management", component: <UserManagement />, visible: true },
     { label: "P2P Sync", component: <P2PSync />, visible: true },
     { label: "Notification Settings", component: <NotificationSettings />, visible: true },
     { label: "Transcode Queue", component: <TranscodeQueue />, visible: true },
     { label: "Subscriptions", component: <SubscriptionManager />, visible: true },
+    { label: "Billers", component: <BillerList />, visible: true },
     { label: "Backup", component: <BackupManager />, visible: true },
     { label: "Logs", component: <LogsViewer />, visible: true },
     { label: "Scraper Tester", component: <ScraperTester />, visible: true },
     { label: "Request Manager", component: <RequestManager />, visible: true },
+
     { label: "Help", component: <HelpArea userRole={userRole} />, visible: true },
   ], [uiConfig, filteredProviders, queue, fetchQueue, searchQuery, userRole])
 
@@ -765,7 +847,7 @@ function App() {
       id: "scraping",
       label: "Providers & Auth",
       icon: <Key size={20} />,
-      tabs: ["Providers", "Scraper Tester", "Subscriptions"]
+      tabs: ["Providers", "Scraper Tester", "Subscriptions", "Billers"]
     },
     {
       id: "tasks",
@@ -783,7 +865,7 @@ function App() {
       id: "system",
       label: "System & Admin",
       icon: <Wrench size={20} />,
-      tabs: ["Adv. Preferences", "External APIs", "Settings", "P2P Sync", "Notification Settings", "Backup", "Logs", "Help"]
+      tabs: ["External APIs", "Settings", "User Management", "P2P Sync", "Notification Settings", "Backup", "Logs", "Help"]
     }
   ], []);
 

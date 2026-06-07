@@ -8,6 +8,7 @@ CREATE TABLE providers (
     naming_pattern TEXT,
     separator VARCHAR(10) DEFAULT '_',
     space_replacement VARCHAR(10) DEFAULT '_',
+    logo_url VARCHAR(500),
     automatic_limits JSONB
 );
 
@@ -547,3 +548,65 @@ CREATE TABLE sso_links (
     CONSTRAINT uix_provider_user UNIQUE (provider, provider_user_id)
 );
 CREATE INDEX idx_sso_links_user_id ON sso_links(user_id);
+
+-- Subscription Tiers table
+CREATE TABLE IF NOT EXISTS subscription_tiers (
+    id SERIAL PRIMARY KEY,
+    provider_id INTEGER NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    level INTEGER DEFAULT 0,
+    price DECIMAL(10, 2),
+    features JSONB DEFAULT '[]'::jsonb,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_subscription_tiers_provider_id ON subscription_tiers(provider_id);
+
+-- Subscriptions table
+CREATE TABLE IF NOT EXISTS subscriptions (
+    id SERIAL PRIMARY KEY,
+    provider_id INTEGER NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+    tier_id INTEGER REFERENCES subscription_tiers(id) ON DELETE SET NULL,
+    user_id VARCHAR(64) REFERENCES users(id) ON DELETE CASCADE,
+    status VARCHAR(50) DEFAULT 'active',
+    is_trial BOOLEAN DEFAULT FALSE,
+    trial_start TIMESTAMP,
+    trial_end TIMESTAMP,
+    start_date TIMESTAMP,
+    end_date TIMESTAMP,
+    biller VARCHAR(255),
+    billing_cycle VARCHAR(50),
+    cost DECIMAL(10, 2),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_provider_id ON subscriptions(provider_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_tier_id ON subscriptions(tier_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions(user_id);
+
+-- Seed default adult providers
+INSERT INTO providers (name, base_url, naming_pattern, separator, space_replacement, automatic_limits) VALUES
+('ManyVids', 'https://www.manyvids.com', '{title}_{performers}_{id}', '_', '_', '{"daily_downloads": 0}'::jsonb),
+('OnlyFans', 'https://onlyfans.com', '{performers}_{title}_{id}', '_', '_', '{"daily_downloads": 0}'::jsonb),
+('Fansly', 'https://fansly.com', '{performers}_{title}_{id}', '_', '_', '{"daily_downloads": 0}'::jsonb),
+('Pornhub', 'https://www.pornhub.com', '{title}_{id}', '_', '_', '{"daily_downloads": 0}'::jsonb),
+('XVideos', 'https://www.xvideos.com', '{title}_{id}', '_', '_', '{"daily_downloads": 0}'::jsonb),
+('LoyalFans', 'https://www.loyalfans.com', '{performers}_{title}_{id}', '_', '_', '{"daily_downloads": 0}'::jsonb),
+('Brazzers', 'https://www.brazzers.com', '{title}_{performers}', '_', '_', '{"daily_downloads": 0}'::jsonb),
+('Evil Angel', 'https://www.evilangel.com', '{title}_{performers}', '_', '_', '{"daily_downloads": 0}'::jsonb)
+ON CONFLICT (name) DO NOTHING;
+
+-- Seed default subscription tiers
+INSERT INTO subscription_tiers (provider_id, name, level, price, features) VALUES
+((SELECT id FROM providers WHERE name='ManyVids'), 'Free Member', 0, 0.00, '["browse", "preview"]'::jsonb),
+((SELECT id FROM providers WHERE name='ManyVids'), 'VIP Club Subscriber', 1, 9.99, '["all_videos", "messages", "downloads"]'::jsonb),
+((SELECT id FROM providers WHERE name='OnlyFans'), 'Free Tier (Follower)', 0, 0.00, '["feed_posts"]'::jsonb),
+((SELECT id FROM providers WHERE name='OnlyFans'), 'Premium Subscriber', 1, 14.99, '["premium_feed", "chat", "downloads"]'::jsonb),
+((SELECT id FROM providers WHERE name='Fansly'), 'Free Tier (Follower)', 0, 0.00, '["feed_posts"]'::jsonb),
+((SELECT id FROM providers WHERE name='Fansly'), 'Premium Subscriber', 1, 14.99, '["premium_feed", "chat", "downloads"]'::jsonb),
+((SELECT id FROM providers WHERE name='LoyalFans'), 'Free Tier (Follower)', 0, 0.00, '["feed_posts"]'::jsonb),
+((SELECT id FROM providers WHERE name='LoyalFans'), 'Premium Subscriber', 1, 14.99, '["premium_feed", "chat", "downloads"]'::jsonb),
+((SELECT id FROM providers WHERE name='Pornhub'), 'Free Member', 0, 0.00, '["standard_videos"]'::jsonb),
+((SELECT id FROM providers WHERE name='Pornhub'), 'Pornhub Premium', 1, 9.99, '["premium_videos", "no_ads", "1080p_4k"]'::jsonb),
+((SELECT id FROM providers WHERE name='XVideos'), 'Standard Membership', 1, 19.99, '["unlimited_access", "downloads"]'::jsonb),
+((SELECT id FROM providers WHERE name='Brazzers'), 'Standard Membership', 1, 19.99, '["unlimited_access", "downloads"]'::jsonb),
+((SELECT id FROM providers WHERE name='Evil Angel'), 'Standard Membership', 1, 19.99, '["unlimited_access", "downloads"]'::jsonb);

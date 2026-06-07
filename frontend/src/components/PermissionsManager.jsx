@@ -17,7 +17,9 @@ import {
   TextField,
   Divider,
   Alert,
-  Grid
+  Grid,
+  FormControlLabel,
+  Switch
 } from '@mui/material';
 import SecurityIcon from '@mui/icons-material/Security';
 import FolderIcon from '@mui/icons-material/Folder';
@@ -57,8 +59,8 @@ export default function PermissionsManager({ user, onSave }) {
   // Local state for the selected entity (Role vs User override)
   const [targetType, setTargetType] = useState('user');
   
-  // Mock initial state based on Voyarr's flexible JSON permissions column
-  const [permissions, setPermissions] = useState(user?.permissions || {
+  // Initial state based on Voyarr's flexible JSON permissions column
+  const [permissions, setPermissions] = useState(() => user?.permissions || {
     library: ACCESS_LEVELS.VIEW,
     streaming: ACCESS_LEVELS.VIEW,
     scraping: ACCESS_LEVELS.NONE,
@@ -71,9 +73,44 @@ export default function PermissionsManager({ user, onSave }) {
     lens_features: ACCESS_LEVELS.NONE,
   });
 
-  // Suggested Advanced Controls
-  const [dailyRipQuota, setDailyRipQuota] = useState(user?.quotas?.dailyRips || 0);
-  const [restrictedTags, setRestrictedTags] = useState(user?.restrictions?.tags?.join(', ') || '');
+  const getInitialQuota = (u) => {
+    if (u?.permissions?.quotas?.dailyRips !== undefined) return u.permissions.quotas.dailyRips;
+    if (u?.quotas?.dailyRips !== undefined) return u.quotas.dailyRips;
+    return 0;
+  };
+
+  const getInitialTags = (u) => {
+    if (u?.permissions?.restrictions?.tags !== undefined) return u.permissions.restrictions.tags.join(', ');
+    if (u?.restrictions?.tags !== undefined) return u.restrictions.tags.join(', ');
+    return '';
+  };
+
+  // Advanced Controls
+  const [dailyRipQuota, setDailyRipQuota] = useState(() => getInitialQuota(user));
+  const [dailyRipQuotaEnabled, setDailyRipQuotaEnabled] = useState(() => getInitialQuota(user) > 0);
+  const [restrictedTags, setRestrictedTags] = useState(() => getInitialTags(user));
+
+  // Sync state with user prop changes
+  React.useEffect(() => {
+    if (user) {
+      setPermissions(user.permissions || {
+        library: ACCESS_LEVELS.VIEW,
+        streaming: ACCESS_LEVELS.VIEW,
+        scraping: ACCESS_LEVELS.NONE,
+        ripping: ACCESS_LEVELS.NONE,
+        requests: ACCESS_LEVELS.VIEW,
+        settings: ACCESS_LEVELS.NONE,
+        billing: ACCESS_LEVELS.NONE,
+        providers: ACCESS_LEVELS.NONE,
+        lens_access: ACCESS_LEVELS.NONE,
+        lens_features: ACCESS_LEVELS.NONE,
+      });
+      const q = getInitialQuota(user);
+      setDailyRipQuota(q);
+      setDailyRipQuotaEnabled(q > 0);
+      setRestrictedTags(getInitialTags(user));
+    }
+  }, [user]);
 
   const handlePermissionChange = (featureId, newLevel) => {
     setPermissions((prev) => ({
@@ -87,7 +124,7 @@ export default function PermissionsManager({ user, onSave }) {
       targetType,
       permissions,
       quotas: {
-        dailyRips: parseInt(dailyRipQuota, 10),
+        dailyRips: dailyRipQuotaEnabled ? (parseInt(dailyRipQuota, 10) || 50) : 0,
       },
       restrictions: {
         tags: restrictedTags.split(',').map((tag) => tag.trim()).filter(Boolean),
@@ -182,15 +219,30 @@ export default function PermissionsManager({ user, onSave }) {
       <Paper elevation={2} sx={{ p: 3, borderRadius: 2, mb: 4 }}>
         <Grid container spacing={4}>
           <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              label="Daily Download Quota (Items)"
-              type="number"
-              helperText={`Set to 0 for unlimited. Current usage today: ${user?.daily_rip_usage || 0} rips.`}
-              value={dailyRipQuota}
-              onChange={(e) => setDailyRipQuota(e.target.value)}
-              disabled={permissions.ripping === ACCESS_LEVELS.NONE}
-            />
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={dailyRipQuotaEnabled}
+                    onChange={(e) => setDailyRipQuotaEnabled(e.target.checked)}
+                    disabled={permissions.ripping === ACCESS_LEVELS.NONE}
+                  />
+                }
+                label="Enable Daily Quota"
+                sx={{ minWidth: '180px' }}
+              />
+              <TextField
+                fullWidth
+                label="Daily Download Quota (Items)"
+                type="number"
+                helperText={dailyRipQuotaEnabled ? `Current usage today: ${user?.daily_rip_usage || 0} rips.` : "Quota limit is disabled (unlimited)."}
+                value={dailyRipQuotaEnabled ? dailyRipQuota : ''}
+                onChange={(e) => setDailyRipQuota(e.target.value)}
+                disabled={!dailyRipQuotaEnabled || permissions.ripping === ACCESS_LEVELS.NONE}
+                required={dailyRipQuotaEnabled}
+                inputProps={{ style: { textAlign: 'right' } }}
+              />
+            </Box>
           </Grid>
           <Grid item xs={12} sm={6}>
             <TextField
@@ -200,6 +252,7 @@ export default function PermissionsManager({ user, onSave }) {
               value={restrictedTags}
               onChange={(e) => setRestrictedTags(e.target.value)}
               placeholder="e.g. Extreme, VR, Private"
+              inputProps={{ style: { textAlign: 'right' } }}
             />
           </Grid>
         </Grid>
@@ -209,7 +262,7 @@ export default function PermissionsManager({ user, onSave }) {
         <strong>Note:</strong> Saving a specific user override instantly bypasses their global role defaults. Admins are exempt from system restrictions.
       </Alert>
 
-      <Box display="flex" justifyContent="flex-end" gap={2}>
+      <Box display="flex" justifyContent="center" gap={2} sx={{ mt: 3 }}>
         <Button variant="outlined" color="inherit">
           Discard Changes
         </Button>

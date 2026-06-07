@@ -2,11 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Box, Typography, Paper, TextField, Button, Grid,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  IconButton, Chip, FormControl, InputLabel, Select, MenuItem, Switch, FormControlLabel, Tooltip, Snackbar, Alert, Dialog, DialogTitle, DialogContent, DialogActions
+  IconButton, Chip, FormControl, InputLabel, Select, MenuItem, Switch, FormControlLabel, Tooltip, Snackbar, Alert, Dialog, DialogTitle, DialogContent, DialogActions, Autocomplete
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import apiFetch from '../api';
+import { apiFetch } from '../api';
 
 export default function ScheduleManager() {
   const [schedules, setSchedules] = useState([]);
@@ -156,21 +156,26 @@ export default function ScheduleManager() {
             <Grid item xs={12} md={4}>
               <TextField 
                 fullWidth size="small" name="name" label="Schedule Name" 
+                InputLabelProps={{ shrink: true }}
                 value={formData.name} onChange={handleChange} required 
                 disabled={!scrapingEnabled}
               />
             </Grid>
             <Grid item xs={12} md={4}>
-              <FormControl fullWidth size="small" required disabled={!scrapingEnabled}>
-                <InputLabel>Provider</InputLabel>
-                <Select name="provider_id" value={formData.provider_id} onChange={handleChange} label="Provider">
-                  {providers.map(p => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
-                </Select>
-              </FormControl>
+              <Autocomplete
+                options={providers}
+                getOptionLabel={(option) => option.name}
+                value={providers.find(p => p.id === formData.provider_id) || null}
+                onChange={(e, newValue) => setFormData({ ...formData, provider_id: newValue ? newValue.id : '' })}
+                disabled={!scrapingEnabled}
+                renderInput={(params) => <TextField {...params} label="Provider" size="small" required />}
+                fullWidth
+              />
             </Grid>
             <Grid item xs={12} md={4}>
               <TextField 
                 fullWidth size="small" name="cron_expression" label="Cron Expression" 
+                InputLabelProps={{ shrink: true }}
                 value={formData.cron_expression} onChange={handleChange} required 
                 helperText="e.g. 0 0 * * * (Daily at midnight)"
                 disabled={!scrapingEnabled}
@@ -179,19 +184,29 @@ export default function ScheduleManager() {
             <Grid item xs={12} md={8}>
               <TextField 
                 fullWidth size="small" name="target_url" label="Target URL (Channel/Playlist/Index)" 
+                InputLabelProps={{ shrink: true }}
                 value={formData.target_url} onChange={handleChange} required 
                 disabled={!scrapingEnabled}
               />
             </Grid>
             <Grid item xs={12} md={4}>
-              <FormControl fullWidth size="small" required disabled={!scrapingEnabled}>
-                <InputLabel>Action</InputLabel>
-                <Select name="action" value={formData.action} onChange={handleChange} label="Action">
-                  <MenuItem value="metadata_and_download">Rip Metadata & Download</MenuItem>
-                  <MenuItem value="download_only">Download Videos Only</MenuItem>
-                  <MenuItem value="metadata_only">Rip Metadata Only</MenuItem>
-                </Select>
-              </FormControl>
+              <Autocomplete
+                options={[
+                  {value: 'metadata_and_download', label: 'Rip Metadata & Download'},
+                  {value: 'download_only', label: 'Download Videos Only'},
+                  {value: 'metadata_only', label: 'Rip Metadata Only'}
+                ]}
+                getOptionLabel={(option) => option.label}
+                value={[
+                  {value: 'metadata_and_download', label: 'Rip Metadata & Download'},
+                  {value: 'download_only', label: 'Download Videos Only'},
+                  {value: 'metadata_only', label: 'Rip Metadata Only'}
+                ].find(o => o.value === formData.action) || null}
+                onChange={(e, newValue) => setFormData({ ...formData, action: newValue ? newValue.value : 'metadata_and_download' })}
+                disabled={!scrapingEnabled}
+                renderInput={(params) => <TextField {...params} label="Action" size="small" required />}
+                fullWidth
+              />
             </Grid>
             <Grid item xs={12}>
               <FormControlLabel

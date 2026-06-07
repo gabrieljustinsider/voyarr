@@ -1,0 +1,26 @@
+services:
+  frontend:
+    # Mounts your local frontend directory into the container
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules # Prevents your local node_modules from overwriting the container's isolated modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true # Ensures Vite's Hot Module Replacement (HMR) works perfectly across Docker/OS boundaries
+    # Overrides the production start command to run the Vite development server
+    command: npm run dev
+
+  backend:
+    # Mounts your local backend directory into the container
+    volumes:
+      - ./backend:/app
+    # Overrides the production start command to run FastAPI with auto-reloading
+    # Note: Adjust 'main:app' if your FastAPI entrypoint is named differently (e.g., 'app.main:app')
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  celery_worker:
+    # Mounts your local backend directory into the Celery container
+    volumes:
+      - ./backend:/app
+    # Celery doesn't have a native --reload flag. We install 'watchfiles' 
+    # to watch the /app directory and automatically restart Celery when .py files change.
+    command: sh -c "pip install watchfiles && watchfiles 'celery -A celery_app.celery_app worker -Q celery,downloads,transcodes,scraping,ai_inference --concurrency=${CELERY_CONCURRENCY:-4} --loglevel=${CELERY_LOG_LEVEL:-info}' ."

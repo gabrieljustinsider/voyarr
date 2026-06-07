@@ -965,25 +965,25 @@ export default function Settings() {
 
         <Grid container spacing={3}>
           {/* Media Root Paths List Management */}
-          <Grid item xs={12}>
+          <Grid item xs={12} md={7}>
             <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>Media Root Scan Paths</Typography>
-            <Box sx={{ mb: 2 }}>
-              <PathPicker
-                value=""
-                onChange={(val) => {
-                  if (val) {
-                    handleAddMediaPath(val);
-                  }
-                }}
-                label="Add Media Root Path"
-                mode="folder"
-              />
-            </Box>
-            
+            <PathPicker
+              value=""
+              onChange={(val) => {
+                if (val) {
+                  handleAddMediaPath(val);
+                }
+              }}
+              label="Add Media Root Path"
+              mode="folder"
+            />
+          </Grid>
+          <Grid item xs={12} md={5}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>Added Paths</Typography>
             {mediaPaths.length === 0 ? (
               <Typography variant="caption" color="textSecondary" display="block">No media root paths configured.</Typography>
             ) : (
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                 {mediaPaths.map((path) => (
                   <Chip
                     key={path}
@@ -997,7 +997,7 @@ export default function Settings() {
             )}
           </Grid>
 
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12}>
             <PathPicker
               value={settings.download_destination || ''}
               onChange={(val) => {
@@ -1010,7 +1010,7 @@ export default function Settings() {
             />
           </Grid>
 
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12}>
             <PathPicker
               value={settings.library_folder || ''}
               onChange={(val) => {
@@ -1023,7 +1023,7 @@ export default function Settings() {
             />
           </Grid>
 
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12}>
             <PathPicker
               value={settings.scan_folder || ''}
               onChange={(val) => {
@@ -1065,8 +1065,8 @@ export default function Settings() {
               For VR Headsets (Meta Quest Browser) or mobile devices: Copy the bookmarklet code below, save it as a browser bookmark, and click it on any website to map selectors in 3D Space!
             </Typography>
             {bookmarkletCode ? (
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
+              <Grid container spacing={2} sx={{ justifyContent: 'center' }}>
+                <Grid item xs={12} sm={5} md={4}>
                   <Button 
                     fullWidth 
                     variant="contained" 
@@ -1082,7 +1082,7 @@ export default function Settings() {
                     🎯 Voyarr Lens VR
                   </Button>
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid item xs={12} sm={5} md={4}>
                   <Button 
                     fullWidth 
                     variant="outlined" 
@@ -1111,32 +1111,31 @@ export default function Settings() {
           Sync your Voyarr credentials with a 1Password Connect server.
         </Typography>
         <Divider sx={{ mb: 2 }} />
-        <Grid container spacing={3} alignItems="center">
-          <Grid item xs={12} md={10}>
+        <Grid container spacing={3}>
+          <Grid item xs={12}>
             <TextField fullWidth label="1Password Connect Host" name="op_connect_host" value={settings.op_connect_host || ''} onChange={handleChange} helperText="e.g. http://localhost:8080" />
           </Grid>
-          <Grid item xs={12} md={2}>
-            <Button fullWidth variant="contained" onClick={() => handleSave('op_connect_host', settings.op_connect_host)}>Save</Button>
-          </Grid>
-          
-          <Grid item xs={12} md={10}>
+          <Grid item xs={12}>
             <TextField fullWidth type="password" label="1Password Connect Token" name="op_connect_token" value={settings.op_connect_token || ''} onChange={handleChange} />
           </Grid>
-          <Grid item xs={12} md={2}>
-            <Button fullWidth variant="contained" onClick={() => handleSave('op_connect_token', settings.op_connect_token)}>Save</Button>
-          </Grid>
-          
-          <Grid item xs={12} md={10}>
+          <Grid item xs={12}>
             <TextField fullWidth label="1Password Vault ID" name="op_vault_id" value={settings.op_vault_id || ''} onChange={handleChange} helperText="The ID of the vault to sync with." />
           </Grid>
-          <Grid item xs={12} md={2}>
-            <Button fullWidth variant="contained" onClick={() => handleSave('op_vault_id', settings.op_vault_id)}>Save</Button>
-          </Grid>
-          <Grid item xs={12} md={6}>
-          <Button fullWidth variant="outlined" color="primary" onClick={() => handleSyncManager('1password', 'push')}>Push to 1Password</Button>
-          </Grid>
-          <Grid item xs={12} md={6}>
-          <Button fullWidth variant="outlined" color="secondary" onClick={() => handleSyncManager('1password', 'pull')}>Pull from 1Password</Button>
+          <Grid item xs={12}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap', mt: 1 }}>
+              <Button variant="contained" color="primary" onClick={() => {
+                Promise.all([
+                  apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'op_connect_host', value: String(settings.op_connect_host ?? '') }) }),
+                  apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'op_connect_token', value: String(settings.op_connect_token ?? '') }) }),
+                  apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'op_vault_id', value: String(settings.op_vault_id ?? '') }) })
+                ]).then(results => {
+                  if (results.every(r => r.ok)) setSnackbar({ open: true, message: '1Password settings saved!', severity: 'success' })
+                  else setSnackbar({ open: true, message: 'Some 1Password settings failed to save.', severity: 'warning' })
+                }).catch(() => setSnackbar({ open: true, message: 'Failed to save 1Password settings.', severity: 'error' }))
+              }}>Save 1Password Settings</Button>
+              <Button variant="outlined" color="primary" onClick={() => handleSyncManager('1password', 'push')}>Push to 1Password</Button>
+              <Button variant="outlined" color="secondary" onClick={() => handleSyncManager('1password', 'pull')}>Pull from 1Password</Button>
+            </Box>
           </Grid>
         </Grid>
       </Paper>
@@ -1147,32 +1146,31 @@ export default function Settings() {
         Sync your Voyarr credentials with Bitwarden or Vaultwarden via the Bitwarden CLI REST server ('bw serve').
       </Typography>
       <Divider sx={{ mb: 2 }} />
-      <Grid container spacing={3} alignItems="center">
-        <Grid item xs={12} md={10}>
+      <Grid container spacing={3}>
+        <Grid item xs={12}>
           <TextField fullWidth label="Bitwarden Serve Host" name="bw_connect_host" value={settings.bw_connect_host || ''} onChange={handleChange} helperText="e.g. http://localhost:8087" />
         </Grid>
-        <Grid item xs={12} md={2}>
-          <Button fullWidth variant="contained" onClick={() => handleSave('bw_connect_host', settings.bw_connect_host)}>Save</Button>
-        </Grid>
-        
-        <Grid item xs={12} md={10}>
+        <Grid item xs={12}>
           <TextField fullWidth type="password" label="Bitwarden Session Token" name="bw_session_token" value={settings.bw_session_token || ''} onChange={handleChange} helperText="The BW_SESSION token generated upon unlocking your vault." />
         </Grid>
-        <Grid item xs={12} md={2}>
-          <Button fullWidth variant="contained" onClick={() => handleSave('bw_session_token', settings.bw_session_token)}>Save</Button>
-        </Grid>
-        
-        <Grid item xs={12} md={10}>
+        <Grid item xs={12}>
           <TextField fullWidth label="Bitwarden Folder ID" name="bw_folder_id" value={settings.bw_folder_id || ''} onChange={handleChange} helperText="Optional: The ID of the folder to sync with." />
         </Grid>
-        <Grid item xs={12} md={2}>
-          <Button fullWidth variant="contained" onClick={() => handleSave('bw_folder_id', settings.bw_folder_id)}>Save</Button>
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <Button fullWidth variant="outlined" color="primary" onClick={() => handleSyncManager('bitwarden', 'push')}>Push to Bitwarden</Button>
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <Button fullWidth variant="outlined" color="secondary" onClick={() => handleSyncManager('bitwarden', 'pull')}>Pull from Bitwarden</Button>
+        <Grid item xs={12}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap', mt: 1 }}>
+            <Button variant="contained" color="primary" onClick={() => {
+              Promise.all([
+                apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'bw_connect_host', value: String(settings.bw_connect_host ?? '') }) }),
+                apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'bw_session_token', value: String(settings.bw_session_token ?? '') }) }),
+                apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'bw_folder_id', value: String(settings.bw_folder_id ?? '') }) })
+              ]).then(results => {
+                if (results.every(r => r.ok)) setSnackbar({ open: true, message: 'Bitwarden settings saved!', severity: 'success' })
+                else setSnackbar({ open: true, message: 'Some Bitwarden settings failed to save.', severity: 'warning' })
+              }).catch(() => setSnackbar({ open: true, message: 'Failed to save Bitwarden settings.', severity: 'error' }))
+            }}>Save Bitwarden Settings</Button>
+            <Button variant="outlined" color="primary" onClick={() => handleSyncManager('bitwarden', 'push')}>Push to Bitwarden</Button>
+            <Button variant="outlined" color="secondary" onClick={() => handleSyncManager('bitwarden', 'pull')}>Pull from Bitwarden</Button>
+          </Box>
         </Grid>
       </Grid>
     </Paper>
@@ -1526,7 +1524,7 @@ export default function Settings() {
             Control which sign-in methods are available on the login screen. Disabling an option will hide it from users and block API requests.
           </Typography>
 
-          <Grid container spacing={2} sx={{ mb: 2 }}>
+          <Grid container spacing={2} sx={{ mb: 2, justifyContent: 'center' }}>
             <Grid item xs={12} md={4}>
               <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
                 <FormControlLabel
@@ -1650,7 +1648,7 @@ export default function Settings() {
             </Box>
           )}
 
-          <Grid container spacing={2}>
+          <Grid container spacing={2} sx={{ justifyContent: 'center' }}>
             {/* Trusted Subnet Bypass */}
             <Grid item xs={12} md={6}>
               <Paper elevation={1} sx={{ p: 2, borderRadius: 2, height: '100%' }}>
@@ -2247,7 +2245,7 @@ export default function Settings() {
                         <Typography variant="body2" color="textSecondary">No third-party SSO accounts connected.</Typography>
                       </Paper>
                     ) : (
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'center' }}>
                         {selectedUserForManage.sso_links.map(sso => (
                           <Paper elevation={1}
                             key={sso.id} 
@@ -2364,7 +2362,9 @@ export default function Settings() {
                               Action performed by: <strong>{log.admin_username || 'System'}</strong>
                             </Typography>
                             <Typography variant="caption" color="textSecondary" sx={{ fontFamily: 'monospace', display: 'block', wordBreak: 'break-all', backgroundColor: 'rgba(0,0,0,0.2)', p: 1, borderRadius: '4px' }}>
-                              {JSON.stringify(log.details)}
+                              {typeof log.details === 'object' && log.details !== null
+                                ? Object.entries(log.details).map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`).join(' • ')
+                                : String(log.details || '')}
                             </Typography>
                           </Paper>
                         ))}
@@ -2426,7 +2426,7 @@ export default function Settings() {
 
                     <Grid container spacing={2} alignItems="center">
                       <Grid item xs={12} sm={8}>
-                        <FormControl fullWidth size="small">
+                        <FormControl fullWidth size="small" sx={{ minWidth: 200 }}>
                           <InputLabel>Select Target Account</InputLabel>
                           <Select 
                             value={mergeTargetUserId} 
@@ -2478,20 +2478,22 @@ export default function Settings() {
                       Completely remove this user account and all of its associated records from the system. This cannot be undone. Lockout protection guarantees you cannot delete the sole remaining administrator account.
                     </Typography>
 
-                    <Button 
-                      variant="contained" 
-                      color="error" 
-                      startIcon={<DeleteIcon />}
-                      disabled={selectedUserForManage.role === 'admin' && usersList.filter(u => u.role === 'admin').length <= 1}
-                      onClick={() => {
-                        if (window.confirm(`Type 'DELETE' to confirm you want to permanently delete the user account for ${selectedUserForManage.username}. This will purge all associated settings, credentials, and playback data immediately.`)) {
-                          handleAdminDeleteUser();
-                        }
-                      }}
-                      sx={{ borderRadius: '8px' }}
-                    >
-                      Delete Account Forever
-                    </Button>
+                    <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                      <Button 
+                        variant="contained" 
+                        color="error" 
+                        startIcon={<DeleteIcon />}
+                        disabled={selectedUserForManage.role === 'admin' && usersList.filter(u => u.role === 'admin').length <= 1}
+                        onClick={() => {
+                          if (window.confirm(`Type 'DELETE' to confirm you want to permanently delete the user account for ${selectedUserForManage.username}. This will purge all associated settings, credentials, and playback data immediately.`)) {
+                            handleAdminDeleteUser();
+                          }
+                        }}
+                        sx={{ borderRadius: '8px' }}
+                      >
+                        Delete Account Forever
+                      </Button>
+                    </Box>
                   </Paper>
                 </TabPanel>
               </Box>

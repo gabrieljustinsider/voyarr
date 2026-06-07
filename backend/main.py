@@ -41,6 +41,7 @@ from routers import (
     scraper,
     deovr,
     subscriptions,
+    billers,
 )
 
 # Database initialization with retry logic for container environments
@@ -60,6 +61,14 @@ for attempt in range(max_retries):
         from db_utils import run_schema_migrations
         run_schema_migrations(engine)
         logger.info("Database initialized successfully.")
+
+        # Seed default adult providers and subscription tiers if empty
+        try:
+            from seed_data import seed_default_data
+            seed_default_data(engine)
+        except Exception as seed_err:
+            logger.error(f"Error executing database seed: {seed_err}")
+
         break
     except Exception as e:
         err_msg = str(e)
@@ -201,6 +210,7 @@ app.include_router(oidc.router)
 app.include_router(scraper.router)
 app.include_router(deovr.router)
 app.include_router(subscriptions.router)
+app.include_router(billers.router)
 
 
 @app.get("/")

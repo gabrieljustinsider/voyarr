@@ -3,8 +3,10 @@ import {
   Box, Button, Card, CardContent, TextField, Typography, 
   Alert, CircularProgress, Tabs, Tab, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Paper, Dialog, DialogTitle,
-  DialogContent, DialogActions, Chip, Avatar
+  DialogContent, DialogActions, Chip, Avatar, IconButton, InputAdornment, Snackbar, Divider, Grid
 } from '@mui/material'
+import DeleteIcon from '@mui/icons-material/Delete'
+import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import { apiFetch } from '../api'
 
 function TabPanel({ children, value, index }) {
@@ -25,6 +27,15 @@ export default function ExternalAPIs() {
   const [openBioDialog, setOpenBioDialog] = useState(false)
   const [bioLoading, setBioLoading] = useState(false)
 
+  // API Keys States
+  const [apiKeys, setApiKeys] = useState([])
+  const [newKeyName, setNewKeyName] = useState('')
+  const [deleteConfirm, setDeleteConfirm] = useState({ open: false, keyId: null })
+  const [generatedKey, setGeneratedKey] = useState(null)
+  const [snackbarOpen, setSnackbarOpen] = useState(false)
+  const [snackbarMessage, setSnackbarMessage] = useState('')
+  const [snackbarSeverity, setSnackbarSeverity] = useState('success')
+
   // Load API keys from global settings on mount
   useEffect(() => {
     const loadGlobalSettings = async () => {
@@ -41,6 +52,66 @@ export default function ExternalAPIs() {
     }
     loadGlobalSettings()
   }, [])
+
+  const fetchApiKeys = async () => {
+    try {
+      const res = await apiFetch('/apikeys')
+      if (res.ok) setApiKeys(await res.json())
+    } catch (err) { console.error('Failed to fetch API keys:', err) }
+  }
+
+  useEffect(() => {
+    if (tabValue === 2) {
+      fetchApiKeys()
+    }
+  }, [tabValue])
+
+  const handleCreateApiKey = async () => {
+    try {
+      const res = await apiFetch('/apikeys', {
+        method: 'POST',
+        body: JSON.stringify({ name: newKeyName })
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setGeneratedKey(data.raw_key)
+        setNewKeyName('')
+        fetchApiKeys()
+      } else {
+        setSnackbarMessage(`Failed to create API key. Server returned ${res.status}`)
+        setSnackbarSeverity('error')
+        setSnackbarOpen(true)
+      }
+    } catch (err) {
+      setSnackbarMessage('Network error creating API key.')
+      setSnackbarSeverity('error')
+      setSnackbarOpen(true)
+    }
+  }
+
+  const handleDeleteApiKey = (id) => {
+    setDeleteConfirm({ open: true, keyId: id })
+  }
+
+  const confirmDeleteApiKey = async () => {
+    if (!deleteConfirm.keyId) return
+    try {
+      await apiFetch(`/apikeys/${deleteConfirm.keyId}`, { 
+        method: 'DELETE'
+      })
+      setDeleteConfirm({ open: false, keyId: null })
+      fetchApiKeys()
+    } catch (err) {
+      console.error('Failed to revoke API key:', err)
+    }
+  }
+
+  const handleCopyKey = () => {
+    navigator.clipboard.writeText(generatedKey || '')
+    setSnackbarMessage('API Key copied to clipboard!')
+    setSnackbarSeverity('success')
+    setSnackbarOpen(true)
+  }
 
   // Save key globally
   const handleSaveGlobalKey = async (key, value) => {
@@ -221,6 +292,7 @@ export default function ExternalAPIs() {
       <Tabs value={tabValue} onChange={handleTabChange} sx={{ mb: 3 }}>
         <Tab label="ThePornDB" />
         <Tab label="StashDB" />
+        <Tab label="External API Keys" />
       </Tabs>
 
       {/* ThePornDB */}
@@ -259,19 +331,25 @@ export default function ExternalAPIs() {
                 label="Search query"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Enter scene title..."
+                onKeyDown={(e) => e.key === 'Enter' && handleSearchThePornDB()}
               />
-              <Button variant="contained" onClick={handleSearchThePornDB} disabled={loading}>
+              <Button 
+                variant="contained" 
+                onClick={handleSearchThePornDB}
+                disabled={loading}
+              >
                 {loading ? <CircularProgress size={24} /> : 'Search'}
               </Button>
             </Box>
 
-            {message && (
-              <Alert severity={message.includes('Error') ? 'error' : 'success'} sx={{ mb: 2 }}>
-                {message}
-              </Alert>
-            )}
+            {message && <Alert severity={message.includes('Error') ? 'error' : 'info'} sx={{ mb: 2 }}>{message}</Alert>}
 
-            {results.length > 0 && (
+            {loading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : results.length > 0 && (
               <TableContainer component={Paper}>
                 <Table size="small">
                   <TableHead>
@@ -284,7 +362,12 @@ export default function ExternalAPIs() {
                   <TableBody>
                     {results.map((result) => (
                       <TableRow key={result.id}>
-                        <TableCell>{result.title}</TableCell>
+                        <TableCell>
+                          <Typography variant="body2" sx={{ fontWeight: 'bold' }}>{result.title}</Typography>
+                          <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>
+                            {result.site} • {result.date}
+                          </Typography>
+                        </TableCell>
                         <TableCell>
                           {result.performers?.slice(0, 2).map(p => {
                             const name = p.name || p;
@@ -302,6 +385,7 @@ export default function ExternalAPIs() {
                         <TableCell>
                           <Button
                             size="small"
+                            variant="outlined"
                             onClick={() => {
                               setSelectedResult(result)
                               setOpenSyncDialog(true)
@@ -342,33 +426,39 @@ export default function ExternalAPIs() {
               </Button>
             </Box>
             <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mt: 1 }}>
-              Get your API key from <a href="https://stashdb.org" target="_blank" rel="noreferrer">stashdb.org</a>
+              Configure your StashDB key to search metadata on StashDB endpoints
             </Typography>
           </CardContent>
         </Card>
 
         <Card>
           <CardContent>
-            <Typography variant="h6" gutterBottom>Search & Sync</Typography>
+            <Typography variant="h6" gutterBottom>Search Scenes</Typography>
             <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
               <TextField
                 fullWidth
-                label="Search query"
+                label="Scene name or Stash ID"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search scene..."
+                onKeyDown={(e) => e.key === 'Enter' && handleSearchStashDB()}
               />
-              <Button variant="contained" onClick={handleSearchStashDB} disabled={loading}>
+              <Button 
+                variant="contained" 
+                onClick={handleSearchStashDB}
+                disabled={loading}
+              >
                 {loading ? <CircularProgress size={24} /> : 'Search'}
               </Button>
             </Box>
 
-            {message && (
-              <Alert severity={message.includes('Error') ? 'error' : 'success'} sx={{ mb: 2 }}>
-                {message}
-              </Alert>
-            )}
+            {message && <Alert severity={message.includes('Error') ? 'error' : 'info'} sx={{ mb: 2 }}>{message}</Alert>}
 
-            {results.length > 0 && (
+            {loading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : results.length > 0 && (
               <TableContainer component={Paper}>
                 <Table size="small">
                   <TableHead>
@@ -390,6 +480,7 @@ export default function ExternalAPIs() {
                         <TableCell>
                           <Button
                             size="small"
+                            variant="outlined"
                             onClick={() => {
                               setSelectedResult(result)
                               setOpenSyncDialog(true)
@@ -406,6 +497,57 @@ export default function ExternalAPIs() {
             )}
           </CardContent>
         </Card>
+      </TabPanel>
+
+      {/* External API Keys */}
+      <TabPanel value={tabValue} index={2}>
+        <Paper sx={{ p: 3, mb: 3 }}>
+          <Typography variant="h6" gutterBottom>External API Keys</Typography>
+          <Typography variant="body2" sx={{ mb: 2 }} color="textSecondary">
+            Generate scoped API keys for external tools (e.g., third-party scrapers, automation scripts, or the *arr stack) to interact with Voyarr securely without exposing your MASTER_KEY.
+          </Typography>
+          <Divider sx={{ mb: 2 }} />
+          
+          <Grid container spacing={2} alignItems="center" sx={{ mb: 3 }}>
+            <Grid item xs={12} md={9}>
+              <TextField fullWidth size="small" label="New Key Name (e.g. 'Stash Webhook')" value={newKeyName} onChange={e => setNewKeyName(e.target.value)} />
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <Button fullWidth variant="contained" onClick={handleCreateApiKey} disabled={!newKeyName}>Generate Key</Button>
+            </Grid>
+          </Grid>
+
+          <TableContainer component={Paper} variant="outlined">
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Name</TableCell>
+                  <TableCell>Created</TableCell>
+                  <TableCell>Last Used</TableCell>
+                  <TableCell align="right">Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {apiKeys.length === 0 ? (
+                  <TableRow><TableCell colSpan={4} align="center">No external API keys configured.</TableCell></TableRow>
+                ) : (
+                  apiKeys.map(key => (
+                    <TableRow key={key.id}>
+                      <TableCell>{key.name}</TableCell>
+                      <TableCell>{new Date(key.created_at).toLocaleDateString()}</TableCell>
+                      <TableCell>{key.last_used ? new Date(key.last_used).toLocaleString() : 'Never'}</TableCell>
+                      <TableCell align="right">
+                        <IconButton color="error" size="small" onClick={() => handleDeleteApiKey(key.id)}>
+                          <DeleteIcon />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
       </TabPanel>
 
       {/* Sync Dialog */}
@@ -469,6 +611,46 @@ export default function ExternalAPIs() {
           <Button onClick={() => setOpenBioDialog(false)}>Close</Button>
         </DialogActions>
       </Dialog>
+
+      <Dialog open={!!generatedKey} onClose={() => setGeneratedKey(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>API Key Generated</DialogTitle>
+        <DialogContent dividers>
+          <Alert severity="warning" sx={{ mb: 2 }}>Please copy this key now. For your security, it will never be shown again!</Alert>
+          <TextField 
+            fullWidth 
+            value={generatedKey || ''} 
+            InputProps={{ 
+              readOnly: true,
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton onClick={handleCopyKey} edge="end" color="primary" title="Copy to Clipboard">
+                    <ContentCopyIcon />
+                  </IconButton>
+                </InputAdornment>
+              )
+            }} 
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCopyKey} variant="outlined" color="primary" startIcon={<ContentCopyIcon />}>Copy Key</Button>
+          <Button variant="contained" onClick={() => setGeneratedKey(null)}>I have copied it</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={deleteConfirm.open} onClose={() => setDeleteConfirm({ open: false, keyId: null })}>
+        <DialogTitle>Revoke API Key</DialogTitle>
+        <DialogContent>
+          <Typography>Revoke this API Key? Any scripts currently using it will immediately lose access.</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteConfirm({ open: false, keyId: null })}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={confirmDeleteApiKey}>Revoke</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar open={snackbarOpen} autoHideDuration={4000} onClose={() => setSnackbarOpen(false)}>
+        <Alert severity={snackbarSeverity} sx={{ width: '100%' }}>{snackbarMessage}</Alert>
+      </Snackbar>
     </Box>
   )
 }

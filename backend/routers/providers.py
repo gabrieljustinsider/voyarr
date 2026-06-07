@@ -1,9 +1,10 @@
-from typing import List
+from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from models import Provider
 from schemas import ProviderResponse, ProviderCreate
+from pydantic import BaseModel
 
 from dependencies import verify_api_key
 
@@ -25,7 +26,10 @@ async def get_providers(db: Session = Depends(get_db)):
                 automatic_limits={"daily_downloads": 50},
                 naming_pattern="{title}_{performers}_{resolution}",
                 separator="_",
-                space_replacement="_"
+                space_replacement="_",
+                logo_url=None,
+                favicon_url=None,
+                description=None
             )
         ]
     return providers
@@ -51,7 +55,10 @@ def create_provider(prov: ProviderCreate, db: Session = Depends(get_db)):
         naming_pattern=prov.naming_pattern,
         separator=prov.separator,
         space_replacement=prov.space_replacement,
-        automatic_limits=prov.automatic_limits
+        automatic_limits=prov.automatic_limits,
+        logo_url=prov.logo_url,
+        favicon_url=prov.favicon_url,
+        description=prov.description
     )
     db.add(db_prov)
     db.commit()
@@ -71,6 +78,9 @@ def update_provider(provider_id: int, prov: ProviderCreate, db: Session = Depend
     db_prov.separator = prov.separator
     db_prov.space_replacement = prov.space_replacement
     db_prov.automatic_limits = prov.automatic_limits
+    db_prov.logo_url = prov.logo_url
+    db_prov.favicon_url = prov.favicon_url
+    db_prov.description = prov.description
     
     db.commit()
     db.refresh(db_prov)
@@ -86,3 +96,112 @@ def delete_provider(provider_id: int, db: Session = Depends(get_db)):
     db.delete(db_prov)
     db.commit()
     return {"message": "Provider deleted successfully"}
+
+
+class ScrapedSiteDetails(BaseModel):
+    site_name: Optional[str] = None
+    description: Optional[str] = None
+    logo_url: Optional[str] = None
+    favicon_url: Optional[str] = None
+
+
+class ScrapeUrlRequest(BaseModel):
+    url: str
+
+
+def _scrape_url_for_details(target_url: str) -> Dict[str, Any]:
+    """Shared helper: fetches target_url and parses branding metadata."""
+    import os
+    import requests as req_lib
+    from bs4 import BeautifulSoup
+    from urllib.parse import urljoin, urlparse
+
+    base_url = target_url.rstrip("/")
+    headers = {
+        "User-Agent": os.getenv(
+            "DEFAULT_USER_AGENT",
+            "Mozilla/5.0 (compatible; Voyarr/1.0; +https://github.com/voyarr)"
+        ),
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+    }
+    resp = req_lib.get(base_url, headers=headers, timeout=10, allow_redirects=True)
+    resp.raise_for_status()
+    soup = BeautifulSoup(resp.content, "html.parser")
+
+    def get_meta(attr: str, value: str) -> Optional[str]:
+        tag = soup.find("meta", attrs={attr: value})
+        if tag and tag.get("content"):
+            return str(tag["content"]).strip()
+        return None
+
+    site_name: Optional[str] = (
+        get_meta("property", "og:site_name")
+        or get_meta("name", "application-name")
+    )
+    if not site_name:
+        title_tag = soup.find("title")
+        if title_tag and title_tag.string:
+            site_name = title_tag.string.strip().split("|")[0].split("-")[0].strip()
+
+    description: Optional[str] = (
+        get_meta("property", "og:description")
+        or get_meta("name", "description")
+        or get_meta("name", "twitter:description")
+    )
+
+    logo_url: Optional[str] = get_meta("property", "og:image") or get_meta("name", "twitter:image")
+    if logo_url and not logo_url.startswith("http"):
+        logo_url = urljoin(base_url, logo_url)
+
+    favicon_url: Optional[str] = None
+    for rel_val in ("apple-touch-icon", "shortcut icon", "icon"):
+        link_tag = soup.find("link", rel=lambda r: r and rel_val in (r if isinstance(r, list) else [r]))
+        if link_tag and link_tag.get("href"):
+            href = str(link_tag["href"]).strip()
+            favicon_url = href if href.startswith("http") else urljoin(base_url, href)
+            break
+    if not favicon_url:
+        parsed = urlparse(base_url)
+        favicon_url = f"{parsed.scheme}://{parsed.netloc}/favicon.ico"
+
+    return {
+        "site_name": site_name,
+        "description": description,
+        "logo_url": logo_url,
+        "favicon_url": favicon_url,
+    }
+
+
+@router.post("/scrape-url", response_model=ScrapedSiteDetails)
+def scrape_url_details(req: ScrapeUrlRequest):
+    """
+    Scrape an arbitrary URL to extract branding details.
+    Used when creating a new provider before it has been saved to the database.
+    """
+    if not req.url or not req.url.startswith("http"):
+        raise HTTPException(status_code=400, detail="A valid http(s) URL is required.")
+    try:
+        result = _scrape_url_for_details(req.url)
+        return ScrapedSiteDetails(**result)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Failed to scrape URL: {e}")
+
+
+
+@router.post("/{provider_id}/scrape-details", response_model=ScrapedSiteDetails)
+def scrape_provider_site_details(provider_id: int, db: Session = Depends(get_db)):
+    """
+    Scrape the provider's base_url to extract branding details: site name,
+    description, and logo/favicon — from Open Graph, Twitter Card, and
+    standard HTML meta tags. Does not require any login credentials.
+    """
+    db_prov = db.query(Provider).filter(Provider.id == provider_id).first()
+    if not db_prov:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    try:
+        result = _scrape_url_for_details(db_prov.base_url)
+        return ScrapedSiteDetails(**result)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Failed to reach provider site: {e}")

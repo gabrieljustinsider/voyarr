@@ -56,10 +56,11 @@ export default defineConfig({
     https: getHttpsConfig(),
     proxy: {
       '/api': {
-        target: process.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000',
+        target: process.env.VITE_API_BASE_URL || 'http://backend:8000',
         changeOrigin: true,
         secure: false, // Bypass SSL validation if backend is using self-signed certs
-        rewrite: (path) => path.replace(/^\/api/, '')
+        rewrite: (path) => path.replace(/^\/api/, ''),
+        ws: true // Enables WebSocket proxying for this route
       }
     }
   }

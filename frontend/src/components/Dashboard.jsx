@@ -59,7 +59,7 @@ export default function Dashboard() {
       </Typography>
       
       <Grid container spacing={3} sx={{ justifyContent: 'center' }}>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
               <Typography variant="h6">Total Downloads</Typography>
@@ -67,7 +67,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
               <Typography variant="h6">Completed</Typography>
@@ -75,7 +75,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
               <Typography variant="h6">Running</Typography>
@@ -83,7 +83,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
               <Typography variant="h6">Failed</Typography>
@@ -94,7 +94,7 @@ export default function Dashboard() {
       </Grid>
 
       <Grid container spacing={3} sx={{ mt: 2 }}>
-        <Grid item xs={12}>
+        <Grid xs={12}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>Quota Usage (Session Cookies)</Typography>
@@ -110,7 +110,7 @@ export default function Dashboard() {
                     const isUnlimited = limit === 0;
                     
                     return (
-                      <Grid item xs={12} md={6} key={cookie.id}>
+                      <Grid xs={12} md={6} key={cookie.id}>
                         <Box sx={{ mb: 2 }}>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                             <Typography variant="body2">{provider?.name || `Provider ID: ${cookie.provider_id}`}</Typography>
@@ -136,7 +136,7 @@ export default function Dashboard() {
       </Grid>
 
       <Grid container spacing={3} sx={{ mt: 2 }}>
-        <Grid item xs={12} md={6}>
+        <Grid xs={12} md={6}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>Download Status</Typography>
@@ -152,7 +152,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} md={6}>
+        <Grid xs={12} md={6}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>Status Distribution</Typography>

@@ -1,17 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { 
-  Box, Typography, Paper, Button, Table, TableBody, TableCell, 
-  TableContainer, TableHead, TableRow, Chip, IconButton, Dialog, 
-  DialogTitle, DialogContent, DialogActions, FormControl, InputLabel, 
-  Select, MenuItem, TextField 
+  Box, Typography, Paper, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, 
+  IconButton, Dialog, DialogTitle, DialogContent, DialogActions, FormControl, 
+  InputLabel, Select, MenuItem, TextField, FormControlLabel, Switch, Autocomplete 
 } from '@mui/material';
 import { Trash2, Plus } from 'lucide-react';
-import apiFetch from '../api';
+import { apiFetch } from '../api';
 
 export default function CookiesManager() {
   const [cookies, setCookies] = useState([]);
   const [providers, setProviders] = useState([]);
   const [openDialog, setOpenDialog] = useState(false);
+  const [limitEnabled, setLimitEnabled] = useState(false);
   const [formData, setFormData] = useState({ provider_id: '', cookie_text: '', download_limit: '' });
 
   const fetchData = useCallback(async () => {
@@ -37,7 +37,7 @@ export default function CookiesManager() {
       const payload = {
         provider_id: formData.provider_id,
         cookie_text: formData.cookie_text,
-        download_limit: formData.download_limit ? parseInt(formData.download_limit) : null
+        download_limit: limitEnabled && formData.download_limit ? parseInt(formData.download_limit, 10) : null
       };
       
       const res = await apiFetch('/cookies', {
@@ -48,6 +48,7 @@ export default function CookiesManager() {
       if (res.ok) {
         window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Session cookie added successfully', severity: 'success' } }));
         setOpenDialog(false);
+        setLimitEnabled(false);
         setFormData({ provider_id: '', cookie_text: '', download_limit: '' });
         fetchData();
       } else {
@@ -125,18 +126,40 @@ export default function CookiesManager() {
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Add New Session Cookie</DialogTitle>
         <DialogContent dividers>
-          <FormControl fullWidth margin="normal">
-            <InputLabel>Provider</InputLabel>
-            <Select value={formData.provider_id} onChange={e => setFormData({...formData, provider_id: e.target.value})} label="Provider">
-              {providers.map(p => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
-            </Select>
-          </FormControl>
+          <Autocomplete
+            options={providers}
+            getOptionLabel={(option) => option.name}
+            value={providers.find(p => p.id === formData.provider_id) || null}
+            onChange={(e, newValue) => setFormData({ ...formData, provider_id: newValue ? newValue.id : '' })}
+            renderInput={(params) => <TextField {...params} label="Provider" margin="normal" />}
+            fullWidth
+          />
           <TextField fullWidth margin="normal" label="Netscape Cookie Text / Token" multiline rows={4} value={formData.cookie_text} onChange={e => setFormData({...formData, cookie_text: e.target.value})} />
-          <TextField fullWidth margin="normal" type="number" label="Max Downloads Limit (Optional)" value={formData.download_limit} onChange={e => setFormData({...formData, download_limit: e.target.value})} helperText="Cookie will be marked 'limit_reached' after this many downloads." />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1 }}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={limitEnabled}
+                  onChange={(e) => setLimitEnabled(e.target.checked)}
+                />
+              }
+              label="Enable Max Limit"
+              sx={{ minWidth: '180px' }}
+            />
+            <TextField 
+              fullWidth 
+              margin="normal" 
+              label="Download Limit"
+              type="number"
+              disabled={!limitEnabled}
+              value={formData.download_limit}
+              onChange={e => setFormData({...formData, download_limit: e.target.value})}
+            />
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-          <Button onClick={handleAddCookie} variant="contained" disabled={!formData.provider_id || !formData.cookie_text}>Save Cookie</Button>
+          <Button variant="contained" onClick={handleAddCookie}>Save Cookie</Button>
         </DialogActions>
       </Dialog>
     </Box>

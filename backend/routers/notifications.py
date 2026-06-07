@@ -4,6 +4,7 @@ from fastapi import APIRouter, Request, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 import redis.asyncio as aioredis
+import redis
 from pydantic import BaseModel
 from typing import List, Optional
 from database import get_db
@@ -39,18 +40,29 @@ async def event_generator(request: Request):
     redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
     redis_client = aioredis.from_url(redis_url)
     pubsub = redis_client.pubsub()
-    await pubsub.subscribe("notifications")
     last_ping = asyncio.get_event_loop().time()
+    subscribed = False
+    
     try:
         while True:
             if await request.is_disconnected():
                 break
-            message = await pubsub.get_message(
-                ignore_subscribe_messages=True, timeout=1.0
-            )
-            if message:
-                data = message["data"].decode("utf-8")
-                yield f"data: {data}\n\n"
+            
+            try:
+                if not subscribed:
+                    await pubsub.subscribe("notifications")
+                    subscribed = True
+                    
+                message = await pubsub.get_message(
+                    ignore_subscribe_messages=True, timeout=1.0
+                )
+                if message:
+                    data = message["data"].decode("utf-8")
+                    yield f"data: {data}\n\n"
+            except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError):
+                subscribed = False
+                await asyncio.sleep(2.0)
+                continue
             
             # Send keep-alive comment every 15 seconds to prevent reverse proxy (Nginx) 504 Gateway Timeout
             now = asyncio.get_event_loop().time()
@@ -59,8 +71,14 @@ async def event_generator(request: Request):
                 last_ping = now
                 
             await asyncio.sleep(0.1)
+    except asyncio.CancelledError:
+        # Suppress traceback when the client abruptly closes the connection
+        pass
     finally:
-        await pubsub.unsubscribe("notifications")
+        try:
+            await pubsub.unsubscribe("notifications")
+        except Exception:
+            pass
         await pubsub.close()
         await redis_client.close()
 

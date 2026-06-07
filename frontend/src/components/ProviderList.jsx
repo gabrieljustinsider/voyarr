@@ -3,11 +3,13 @@ import {
   Card, CardContent, CardActions, Typography, Button, Grid, TextField, Box, 
   LinearProgress, Dialog, DialogTitle, DialogContent, DialogActions, Tabs, Tab, 
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, 
-  IconButton, Alert, Paper 
+  IconButton, Alert, Paper, FormControlLabel, Switch, Avatar,
+  Accordion, AccordionSummary, AccordionDetails
 } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import apiFetch from '../api'
 
 export default function ProviderList({ providers, searchQuery, setSearchQuery, onRefreshProviders }) {
@@ -32,11 +34,16 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
   const [providerForm, setProviderForm] = useState({
     name: '',
     base_url: '',
+    logo_url: '',
+    favicon_url: '',
+    description: '',
     naming_pattern: '{title}_{performers}_{resolution}',
     separator: '_',
     space_replacement: '_',
     automatic_limits: { daily_downloads: 50 }
   })
+  const [providerLimitEnabled, setProviderLimitEnabled] = useState(false)
+  const [isScraping, setIsScraping] = useState(false)
 
   const fetchCookies = useCallback(async () => {
     try {
@@ -177,11 +184,15 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
     setProviderForm({
       name: '',
       base_url: '',
+      logo_url: '',
+      favicon_url: '',
+      description: '',
       naming_pattern: '{title}_{performers}_{resolution}',
       separator: '_',
       space_replacement: '_',
       automatic_limits: { daily_downloads: 50 }
     })
+    setProviderLimitEnabled(false)
     setOpenProviderForm(true)
   }
 
@@ -191,12 +202,57 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
     setProviderForm({
       name: provider.name,
       base_url: provider.base_url,
+      logo_url: provider.logo_url || '',
+      favicon_url: provider.favicon_url || '',
+      description: provider.description || '',
       naming_pattern: provider.naming_pattern || '{title}_{performers}_{resolution}',
       separator: provider.separator || '_',
       space_replacement: provider.space_replacement || '_',
       automatic_limits: provider.automatic_limits || { daily_downloads: 50 }
     })
+    setProviderLimitEnabled(!!provider.automatic_limits?.daily_downloads)
     setOpenProviderForm(true)
+  }
+
+  const handleScrapeSiteDetails = async () => {
+    if (!providerForm.base_url) {
+      window.dispatchEvent(new CustomEvent('show-toast', { 
+        detail: { message: 'Please enter a Base URL first.', severity: 'warning' } 
+      }))
+      return
+    }
+    
+    setIsScraping(true)
+    try {
+      const res = await apiFetch(`/providers/scrape-url`, {
+        method: 'POST',
+        body: JSON.stringify({ url: providerForm.base_url })
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setProviderForm(prev => ({
+          ...prev,
+          name: data.site_name || prev.name,
+          logo_url: data.logo_url || prev.logo_url,
+          favicon_url: data.favicon_url || prev.favicon_url,
+          description: data.description || prev.description
+        }))
+        window.dispatchEvent(new CustomEvent('show-toast', { 
+          detail: { message: 'Site details scraped successfully!', severity: 'success' } 
+        }))
+      } else {
+        const err = await res.json()
+        window.dispatchEvent(new CustomEvent('show-toast', { 
+          detail: { message: err.detail || 'Failed to scrape site details.', severity: 'error' } 
+        }))
+      }
+    } catch (err) {
+      window.dispatchEvent(new CustomEvent('show-toast', { 
+        detail: { message: err.message, severity: 'error' } 
+      }))
+    } finally {
+      setIsScraping(false)
+    }
   }
 
   const handleSaveProvider = async (e) => {
@@ -285,9 +341,18 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
               <Card>
                 <CardContent>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <Typography variant="h5" component="div" sx={{ fontWeight: 'bold' }}>
-                      {provider.name}
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <Avatar
+                        src={provider.logo_url || provider.favicon_url || ''}
+                        alt={provider.name}
+                        sx={{ width: 36, height: 36, bgcolor: 'primary.main', fontSize: '1rem', fontWeight: 'bold' }}
+                      >
+                        {provider.name ? provider.name.charAt(0).toUpperCase() : '?'}
+                      </Avatar>
+                      <Typography variant="h5" component="div" sx={{ fontWeight: 'bold' }}>
+                        {provider.name}
+                      </Typography>
+                    </Box>
                     <Box sx={{ display: 'flex', gap: 0.5 }}>
                       <IconButton size="small" color="primary" onClick={() => handleOpenEditProvider(provider)}>
                         <EditIcon fontSize="small" />
@@ -349,7 +414,14 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
 
       {/* Unified Manage Auth & Session Modal */}
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 'bold' }}>
+        <DialogTitle sx={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Avatar
+            src={activeProvider?.logo_url || activeProvider?.favicon_url || ''}
+            alt={activeProvider?.name}
+            sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: '0.9rem' }}
+          >
+            {activeProvider?.name ? activeProvider.name.charAt(0).toUpperCase() : '?'}
+          </Avatar>
           Auth & Session: {activeProvider?.name}
         </DialogTitle>
         
@@ -502,48 +574,118 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
               value={providerForm.name}
               onChange={(e) => setProviderForm({ ...providerForm, name: e.target.value })}
             />
-            <TextField
-              fullWidth
-              label="Base URL"
-              required
-              value={providerForm.base_url}
-              placeholder="https://example.com"
-              onChange={(e) => setProviderForm({ ...providerForm, base_url: e.target.value })}
-            />
-            <TextField
-              fullWidth
-              label="Naming Pattern"
-              required
-              value={providerForm.naming_pattern}
-              onChange={(e) => setProviderForm({ ...providerForm, naming_pattern: e.target.value })}
-            />
-            <Box sx={{ display: 'flex', gap: 2 }}>
+            <Box sx={{ display: 'flex', gap: 1 }}>
               <TextField
                 fullWidth
-                label="Separator"
+                label="Base URL"
                 required
-                value={providerForm.separator}
-                onChange={(e) => setProviderForm({ ...providerForm, separator: e.target.value })}
+                value={providerForm.base_url}
+                placeholder="https://example.com"
+                onChange={(e) => setProviderForm({ ...providerForm, base_url: e.target.value })}
               />
+              <Button 
+                variant="outlined" 
+                color="primary" 
+                onClick={handleScrapeSiteDetails}
+                disabled={!providerForm.base_url || isScraping}
+                sx={{ whiteSpace: 'nowrap' }}
+              >
+                {isScraping ? 'Scraping...' : 'Scrape Site Details'}
+              </Button>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
               <TextField
                 fullWidth
-                label="Space Replacement"
-                required
-                value={providerForm.space_replacement}
-                onChange={(e) => setProviderForm({ ...providerForm, space_replacement: e.target.value })}
+                label="Logo URL"
+                value={providerForm.logo_url}
+                placeholder="https://example.com/logo.png"
+                onChange={(e) => setProviderForm({ ...providerForm, logo_url: e.target.value })}
               />
+              {(providerForm.logo_url || providerForm.favicon_url) && (
+                <Avatar
+                  src={providerForm.logo_url || providerForm.favicon_url}
+                  alt="Logo preview"
+                  sx={{ width: 48, height: 48, mt: 1, bgcolor: 'action.hover' }}
+                >
+                  {providerForm.name?.charAt(0)?.toUpperCase() || '?'}
+                </Avatar>
+              )}
             </Box>
             <TextField
               fullWidth
-              label="Daily Limit"
-              type="number"
-              required
-              value={providerForm.automatic_limits.daily_downloads}
-              onChange={(e) => setProviderForm({ 
-                ...providerForm, 
-                automatic_limits: { daily_downloads: parseInt(e.target.value, 10) || 0 } 
-              })}
+              label="Favicon URL"
+              value={providerForm.favicon_url}
+              placeholder="https://example.com/favicon.ico"
+              onChange={(e) => setProviderForm({ ...providerForm, favicon_url: e.target.value })}
             />
+            <TextField
+              fullWidth
+              label="Description"
+              multiline
+              rows={3}
+              value={providerForm.description}
+              placeholder="Site description..."
+              onChange={(e) => setProviderForm({ ...providerForm, description: e.target.value })}
+            />
+          <Accordion variant="outlined" sx={{ mt: 1, boxShadow: 'none', '&:before': { display: 'none' } }}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography fontWeight="bold">Advanced Settings</Typography>
+            </AccordionSummary>
+            <AccordionDetails sx={{ display: 'flex', flexDirection: 'column', gap: 2, px: 1, pb: 2 }}>
+              <TextField
+                fullWidth
+                label="File Naming Pattern"
+                required
+                value={providerForm.naming_pattern}
+                onChange={(e) => setProviderForm({ ...providerForm, naming_pattern: e.target.value })}
+              />
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <TextField
+                  fullWidth
+                  label="Separator"
+                  required
+                  value={providerForm.separator}
+                  onChange={(e) => setProviderForm({ ...providerForm, separator: e.target.value })}
+                />
+                <TextField
+                  fullWidth
+                  label="Space Replacement"
+                  required
+                  value={providerForm.space_replacement}
+                  onChange={(e) => setProviderForm({ ...providerForm, space_replacement: e.target.value })}
+                />
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={providerLimitEnabled}
+                      onChange={(e) => {
+                        setProviderLimitEnabled(e.target.checked);
+                        if (!e.target.checked) {
+                          setProviderForm(prev => ({ ...prev, automatic_limits: { ...prev.automatic_limits, daily_downloads: 0 } }));
+                        }
+                      }}
+                    />
+                  }
+                  label="Enable Daily Limit"
+                  sx={{ minWidth: '180px', whiteSpace: 'nowrap' }}
+                />
+                <TextField
+                  fullWidth
+                  label="Daily Limit"
+                  type="number"
+                  disabled={!providerLimitEnabled}
+                  required={providerLimitEnabled}
+                  value={providerForm.automatic_limits.daily_downloads || ''}
+                  onChange={(e) => setProviderForm({ 
+                    ...providerForm, 
+                    automatic_limits: { daily_downloads: parseInt(e.target.value, 10) || 0 } 
+                  })}
+                />
+              </Box>
+            </AccordionDetails>
+          </Accordion>
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setOpenProviderForm(false)}>Cancel</Button>
@@ -556,4 +698,3 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
     </div>
   )
 }
-

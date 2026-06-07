@@ -57,6 +57,15 @@ export default function PathPicker({
     setInputValue(value)
   }, [value])
 
+  // Cleanup the debounce timer on component unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current)
+      }
+    }
+  }, [])
+
   // Autocomplete fetch suggestions
   const handleInputChange = (event, newInputValue) => {
     setInputValue(newInputValue)
@@ -160,7 +169,7 @@ export default function PathPicker({
   const filteredFiles = files.filter(f => f.name.toLowerCase().includes(filterText.toLowerCase()))
 
   return (
-    <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', width: fullWidth ? '100%' : 'auto' }}>
+    <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', width: fullWidth ? '75%' : 'auto' }}>
       <Autocomplete
         freeSolo
         fullWidth={fullWidth}
@@ -184,22 +193,29 @@ export default function PathPicker({
             </li>
           );
         }}
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            label={label}
-            helperText={helperText}
-            InputProps={{
-              ...(params.InputProps || {}),
-              endAdornment: (
-                <React.Fragment>
-                  {loading ? <CircularProgress color="inherit" size={20} /> : null}
-                  {params.InputProps?.endAdornment}
-                </React.Fragment>
-              ),
-            }}
-          />
-        )}
+        renderInput={(params) => {
+          const { InputProps, InputLabelProps, ...restParams } = params;
+          return (
+            <TextField
+              {...restParams}
+              label={label}
+              helperText={helperText}
+              size="small"
+              slotProps={{
+                input: {
+                  ...InputProps,
+                  endAdornment: (
+                    <React.Fragment>
+                      {loading ? <CircularProgress color="inherit" size={20} /> : null}
+                      {InputProps?.endAdornment}
+                    </React.Fragment>
+                  ),
+                },
+                inputLabel: InputLabelProps,
+              }}
+            />
+          );
+        }}
       />
       <Tooltip title="Browse Filesystem">
         <IconButton

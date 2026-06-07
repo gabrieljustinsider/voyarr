@@ -526,50 +526,61 @@ def get_download_queue(
 def stream_download_queue(request: Request, current_user = Depends(require_permission("ripping", "view"))):
     """Server-Sent Events endpoint for real-time download progress updates."""
 
-    async def event_generator():
-        while True:
-            if await request.is_disconnected():
-                break
-            with get_db_session() as db:
-                # Only push active tasks to the client to save bandwidth and memory
-                tasks = (
-                    db.query(DownloadQueue)
-                    .options(
-                        joinedload(DownloadQueue.media_entry).defer(
-                            MediaEntry.media_metadata
-                        ),
-                        joinedload(DownloadQueue.media_entry).defer(
-                            MediaEntry.performers
-                        ),
-                        joinedload(DownloadQueue.media_entry).defer(MediaEntry.tags),
-                    )
-                    .filter(DownloadQueue.status.in_(["pending", "running", "queued"]))
-                    .all()
+    def fetch_active_tasks():
+        with get_db_session() as db:
+            # Only push active tasks to the client to save bandwidth and memory
+            tasks = (
+                db.query(DownloadQueue)
+                .options(
+                    joinedload(DownloadQueue.media_entry).defer(
+                        MediaEntry.media_metadata
+                    ),
+                    joinedload(DownloadQueue.media_entry).defer(
+                        MediaEntry.performers
+                    ),
+                    joinedload(DownloadQueue.media_entry).defer(MediaEntry.tags),
                 )
+                .filter(DownloadQueue.status.in_(["pending", "running", "queued"]))
+                .all()
+            )
 
-                data = []
-                for t in tasks:
-                    media = t.media_entry
-                    data.append(
-                        {
-                            "id": t.id,
-                            "url": t.url,
-                            "status": t.status,
-                            "progress_percentage": float(t.progress_percentage)
-                            if t.progress_percentage is not None
-                            else 0.0,
-                            "extraction_method": t.extraction_method,
-                            "media_entry": {
-                                "id": media.id,
-                                "title": media.title,
-                                "provider_id": media.provider_id,
-                            }
-                            if media
-                            else None,
+            data = []
+            for t in tasks:
+                media = t.media_entry
+                data.append(
+                    {
+                        "id": t.id,
+                        "url": t.url,
+                        "status": t.status,
+                        "progress_percentage": float(t.progress_percentage)
+                        if t.progress_percentage is not None
+                        else 0.0,
+                        "extraction_method": t.extraction_method,
+                        "media_entry": {
+                            "id": media.id,
+                            "title": media.title,
+                            "provider_id": media.provider_id,
                         }
-                    )
+                        if media
+                        else None,
+                    }
+                )
+            return data
+
+    async def event_generator():
+        try:
+            while True:
+                if await request.is_disconnected():
+                    break
+                    
+                # Offload the blocking database query to a background thread
+                data = await asyncio.to_thread(fetch_active_tasks)
                 yield f"data: {json.dumps(data)}\n\n"
-            await asyncio.sleep(2.0)
+                
+                await asyncio.sleep(2.0)
+        except asyncio.CancelledError:
+            # Handle abrupt disconnections cleanly without throwing traceback errors
+            pass
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 

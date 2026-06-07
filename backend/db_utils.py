@@ -306,6 +306,25 @@ def run_schema_migrations(engine: Any) -> None:
                 except Exception:
                     pass
 
+        # 9. Add logo_url to providers table if missing
+        try:
+            conn.execute(text("SELECT logo_url FROM providers LIMIT 1"))
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            try:
+                conn.execute(text("ALTER TABLE providers ADD COLUMN logo_url VARCHAR(500)"))
+                conn.commit()
+                logger.info("Database migration successfully added 'logo_url' to 'providers'.")
+            except Exception as e:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                logger.warning(f"Failed to add logo_url column to providers: {e}")
+
 
 def is_feature_enabled(db: Session, feature: str, user: Optional[Any] = None) -> bool:
     from models import Settings
