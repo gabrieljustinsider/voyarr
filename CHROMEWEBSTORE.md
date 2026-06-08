@@ -59,7 +59,13 @@ The Chrome Web Store review team requires explicit, plain-English justifications
 
 ## **📈 Version History**
 
-### **v1.17.1** (Current Release)
+### **v1.18.0** (Current Release)
+* **Biller Management**: Added full support for mapping subscriptions to specific payment gateways.
+* **Async Architecture**: Upgraded log streaming to non-blocking asynchronous operations (`aiofiles`) and modernized server startup lifespan events.
+* **Subscription UI**: Introduced nested eager-loading for Provider and Tier details, plus a new filterable interface with clean currency/date formatting.
+* **Database Resilience**: Implemented automatic dynamic schema migrations for missing columns upon startup.
+
+### **v1.17.1**
 * **Bug Fix**: Resolved a frontend build error caused by a malformed JSX tag inside the user settings dialog.
 
 ### **v1.17.0**
