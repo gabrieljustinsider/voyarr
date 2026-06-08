@@ -325,6 +325,55 @@ def run_schema_migrations(engine: Any) -> None:
                     pass
                 logger.warning(f"Failed to add logo_url column to providers: {e}")
 
+        # 10. Check if billers table has new columns, if not, add them
+        for col, col_type in [
+            ("support_email", "VARCHAR(255)"),
+            ("support_phone", "VARCHAR(50)"),
+            ("description", "TEXT")
+        ]:
+            try:
+                conn.execute(text(f"SELECT {col} FROM billers LIMIT 1"))
+            except Exception:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                try:
+                    conn.execute(text(f"ALTER TABLE billers ADD COLUMN {col} {col_type}"))
+                    conn.commit()
+                    logger.info(f"Database migration successfully added '{col}' to 'billers'.")
+                except Exception as e:
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        pass
+                    logger.warning(f"Failed to add column {col} to billers: {e}")
+
+        # 11. Check if subscriptions table has new billing columns, if not, add them
+        for col, col_type in [
+            ("biller_id", "INTEGER REFERENCES billers(id) ON DELETE SET NULL"),
+            ("billing_cycle", "VARCHAR(50)"),
+            ("cost", "DECIMAL(10, 2)"),
+            ("charge_type", "VARCHAR(50) DEFAULT 'bulk'"),
+            ("installment_frequency", "VARCHAR(50)")
+        ]:
+            try:
+                conn.execute(text(f"SELECT {col} FROM subscriptions LIMIT 1"))
+            except Exception:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                try:
+                    conn.execute(text(f"ALTER TABLE subscriptions ADD COLUMN {col} {col_type}"))
+                    conn.commit()
+                    logger.info(f"Database migration successfully added '{col}' to 'subscriptions'.")
+                except Exception as e:
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        pass
+                    logger.warning(f"Failed to add column {col} to subscriptions: {e}")
 
 def is_feature_enabled(db: Session, feature: str, user: Optional[Any] = None) -> bool:
     from models import Settings

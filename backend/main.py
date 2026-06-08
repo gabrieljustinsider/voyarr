@@ -4,6 +4,7 @@ import os
 from typing import Callable, Awaitable
 from jose import jwt
 from security import JWT_SECRET, ALGORITHM
+from contextlib import asynccontextmanager
 from database import engine
 from models import Base
 from routers import (
@@ -49,47 +50,48 @@ import time
 import logging
 logger = logging.getLogger(__name__)
 
-max_retries = 10
-retry_delay = 3
-
-for attempt in range(max_retries):
-    try:
-        # Create tables
-        Base.metadata.create_all(bind=engine)
-
-        # Execute startup database migrations
-        from db_utils import run_schema_migrations
-        run_schema_migrations(engine)
-        logger.info("Database initialized successfully.")
-
-        # Seed default adult providers and subscription tiers if empty
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    max_retries = 10
+    retry_delay = 3
+    for attempt in range(max_retries):
         try:
-            from seed_data import seed_default_data
-            seed_default_data(engine)
-        except Exception as seed_err:
-            logger.error(f"Error executing database seed: {seed_err}")
+            # Create tables
+            Base.metadata.create_all(bind=engine)
 
-        break
-    except Exception as e:
-        err_msg = str(e)
-        if "UniqueViolation" in err_msg or "duplicate key" in err_msg or "pg_type_typname_nsp_index" in err_msg:
-            logger.warning(f"Database table creation race condition detected (attempt {attempt + 1}/{max_retries}). Retrying in {retry_delay}s...")
-        else:
-            logger.warning(f"Database connection failed (attempt {attempt + 1}/{max_retries}): {e}")
-        if attempt < max_retries - 1:
-            time.sleep(retry_delay)
-        else:
-            logger.error("Failed to connect to the database after maximum retries. Exiting.")
-            import sys
-            sys.exit(1)
+            # Execute startup database migrations
+            from db_utils import run_schema_migrations
+            run_schema_migrations(engine)
+            logger.info("Database initialized successfully.")
 
-# Initialize global network configurations (proxies and user-agents)
-from utils import initialize_network_settings
+            # Seed default adult providers and subscription tiers if empty
+            try:
+                from seed_data import seed_default_data
+                seed_default_data(engine)
+            except Exception as seed_err:
+                logger.error(f"Error executing database seed: {seed_err}")
 
-initialize_network_settings()
+            break
+        except Exception as e:
+            err_msg = str(e)
+            if "UniqueViolation" in err_msg or "duplicate key" in err_msg or "pg_type_typname_nsp_index" in err_msg:
+                logger.warning(f"Database table creation race condition detected (attempt {attempt + 1}/{max_retries}). Retrying in {retry_delay}s...")
+            else:
+                logger.warning(f"Database connection failed (attempt {attempt + 1}/{max_retries}): {e}")
+            if attempt < max_retries - 1:
+                import asyncio
+                await asyncio.sleep(retry_delay)
+            else:
+                logger.error("Failed to connect to the database after maximum retries. Exiting.")
+                import sys
+                sys.exit(1)
+
+    from utils import initialize_network_settings
+    initialize_network_settings()
+    yield
 
 app = FastAPI(
-    title="Voyarr API", version="1.17.6", root_path=os.getenv("ROOT_PATH", "")
+    title="Voyarr API", version="1.18.0", root_path=os.getenv("ROOT_PATH", ""), lifespan=lifespan
 )
 
 # CORS

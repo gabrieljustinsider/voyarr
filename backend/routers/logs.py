@@ -38,16 +38,21 @@ async def websocket_logs(websocket: WebSocket, source: str = Query("celery")):
 
     try:
         from collections import deque
+        import aiofiles
 
         with open(log_file, "r") as f:
             # Send the last 200 lines first
             lines = list(deque(f, maxlen=200))
-            for line in lines:
-                await websocket.send_text(line)
+            current_position = f.tell()
 
-            # Tail the file continuously
+        for line in lines:
+            await websocket.send_text(line)
+
+        # Tail the file continuously using aiofiles to prevent event loop blocking
+        async with aiofiles.open(log_file, "r") as af:
+            await af.seek(current_position)
             while True:
-                line = f.readline()
+                line = await af.readline()
                 if not line:
                     await asyncio.sleep(0.5)
                     continue
@@ -60,7 +65,7 @@ async def websocket_logs(websocket: WebSocket, source: str = Query("celery")):
 
 
 @router.get("/")
-def get_logs(lines: int = 200, source: str = Query("celery")):
+async def get_logs(lines: int = 200, source: str = Query("celery")):
     log_file = _get_log_file(source)
     if not os.path.exists(log_file):
         return {
@@ -71,17 +76,22 @@ def get_logs(lines: int = 200, source: str = Query("celery")):
 
     try:
         from collections import deque
+        import aiofiles
 
-        with open(log_file, "r") as f:
-            return {"logs": list(deque(f, maxlen=lines))}
+        async with aiofiles.open(log_file, "r") as f:
+            d = deque(maxlen=lines)
+            async for line in f:
+                d.append(line)
+            return {"logs": list(d)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.delete("/")
-def clear_logs(source: str = Query("celery")):
+async def clear_logs(source: str = Query("celery")):
     log_file = _get_log_file(source)
     if os.path.exists(log_file):
-        with open(log_file, "w") as f:
-            f.write("")
+        import aiofiles
+        async with aiofiles.open(log_file, "w") as f:
+            await f.write("")
     return {"message": f"{source} logs cleared"}

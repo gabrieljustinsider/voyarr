@@ -288,6 +288,9 @@ class SubscriptionResponse(SubscriptionBase):
     id: int
     created_at: datetime
     updated_at: datetime
+    biller: Optional[BillerResponse] = None
+    provider: Optional[ProviderResponse] = None
+    tier: Optional[SubscriptionTierResponse] = None
     model_config = ConfigDict(from_attributes=True)
 
 

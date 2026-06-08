@@ -47,6 +47,32 @@ import {
   Search
 } from 'lucide-react'
 
+const TIMEFRAME_OPTIONS = [
+  {value: 'monthly', label: '1 Month'}, 
+  {value: '3_months', label: '3 Months'}, 
+  {value: '6_months', label: '6 Months'}, 
+  {value: 'yearly', label: '1 Year'}, 
+  {value: 'once', label: 'One-Time Pay'}
+];
+
+const STATUS_OPTIONS = [
+  {value: 'active', label: 'Active'}, 
+  {value: 'expired', label: 'Expired'}, 
+  {value: 'cancelled', label: 'Cancelled'}, 
+  {value: 'trial', label: 'Trial Mode'}
+];
+
+const CHARGE_TYPE_OPTIONS = [
+  {value: 'bulk', label: '1 Bulk Charge'}, 
+  {value: 'installments', label: 'Divide Cost (Installments)'}
+];
+
+const INSTALLMENT_FREQ_OPTIONS = [
+  {value: 'weekly', label: 'Weekly'}, 
+  {value: 'biweekly', label: 'Bi-Weekly'}, 
+  {value: 'monthly', label: 'Monthly'}
+];
+
 export default function SubscriptionManager() {
   const [subscriptions, setSubscriptions] = useState([])
   const [tiers, setTiers] = useState([])
@@ -420,6 +446,16 @@ export default function SubscriptionManager() {
     });
   }, [subscriptions, providers, tiers, billers, subSearchQuery]);
 
+  // Memoize tier options based on the currently selected provider
+  const tierOptions = useMemo(() => {
+    return [
+      { id: '', name: 'None / Free Tier' },
+      ...tiers
+        .filter(t => t.provider_id === parseInt(subForm.provider_id, 10))
+        .map(t => ({ id: t.id, name: `${t.name} ($${t.price}/mo)` }))
+    ];
+  }, [tiers, subForm.provider_id]);
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       {/* Title */}
@@ -656,6 +692,7 @@ export default function SubscriptionManager() {
                   <Autocomplete
                     options={providers}
                     getOptionLabel={(option) => option.name}
+                    isOptionEqualToValue={(option, value) => option.id === value.id}
                     value={providers.find(p => p.id === subForm.provider_id) || null}
                     onChange={(e, newValue) => setSubForm({ ...subForm, provider_id: newValue ? newValue.id : '', tier_id: '' })}
                     renderInput={(params) => <TextField {...params} label="Media Provider" size="small" required />}
@@ -665,20 +702,10 @@ export default function SubscriptionManager() {
 
                 <Grid item xs={12}>
                   <Autocomplete
-                    options={[
-                      { id: '', name: 'None / Free Tier' },
-                      ...tiers
-                        .filter(t => t.provider_id === parseInt(subForm.provider_id, 10))
-                        .map(t => ({ id: t.id, name: `${t.name} ($${t.price}/mo)` }))
-                    ]}
+                    options={tierOptions}
                     getOptionLabel={(option) => option.name}
-                    value={
-                      subForm.tier_id === '' 
-                        ? { id: '', name: 'None / Free Tier' } 
-                        : (tiers.find(t => t.id === subForm.tier_id) 
-                            ? { id: subForm.tier_id, name: `${tiers.find(t => t.id === subForm.tier_id).name} ($${tiers.find(t => t.id === subForm.tier_id).price}/mo)` } 
-                            : null)
-                    }
+                    isOptionEqualToValue={(option, value) => option.id === value.id}
+                    value={tierOptions.find(t => t.id === subForm.tier_id) || tierOptions[0]}
                     onChange={(e, newValue) => setSubForm({ ...subForm, tier_id: newValue ? newValue.id : '' })}
                     disabled={!subForm.provider_id}
                     renderInput={(params) => <TextField {...params} label="Subscription Tier" size="small" />}
@@ -690,6 +717,7 @@ export default function SubscriptionManager() {
                   <Autocomplete
                     options={billers}
                     getOptionLabel={(option) => option.name}
+                    isOptionEqualToValue={(option, value) => option.id === value.id}
                     value={billers.find(b => b.id === subForm.biller_id) || null}
                     onChange={(e, newValue) => setSubForm({ ...subForm, biller_id: newValue ? newValue.id : '' })}
                     renderInput={(params) => <TextField {...params} label="Biller" size="small" />}
@@ -712,15 +740,10 @@ export default function SubscriptionManager() {
 
                 <Grid item xs={12} sm={6}>
                   <Autocomplete
-                    options={[
-                      {value: 'monthly', label: '1 Month'}, 
-                      {value: '3_months', label: '3 Months'}, 
-                      {value: '6_months', label: '6 Months'}, 
-                      {value: 'yearly', label: '1 Year'}, 
-                      {value: 'once', label: 'One-Time Pay'}
-                    ]}
+                    options={TIMEFRAME_OPTIONS}
                     getOptionLabel={(option) => option.label}
-                    value={[{value: 'monthly', label: '1 Month'}, {value: '3_months', label: '3 Months'}, {value: '6_months', label: '6 Months'}, {value: 'yearly', label: '1 Year'}, {value: 'once', label: 'One-Time Pay'}].find(o => o.value === subForm.billing_cycle) || null}
+                    isOptionEqualToValue={(option, value) => option.value === value.value}
+                    value={TIMEFRAME_OPTIONS.find(o => o.value === subForm.billing_cycle) || null}
                     onChange={(e, newValue) => setSubForm({ ...subForm, billing_cycle: newValue ? newValue.value : 'monthly' })}
                     renderInput={(params) => <TextField {...params} label="Timeframe" size="small" />}
                     fullWidth
@@ -729,14 +752,10 @@ export default function SubscriptionManager() {
 
                 <Grid item xs={12} sm={6}>
                   <Autocomplete
-                    options={[
-                      {value: 'active', label: 'Active'}, 
-                      {value: 'expired', label: 'Expired'}, 
-                      {value: 'cancelled', label: 'Cancelled'}, 
-                      {value: 'trial', label: 'Trial Mode'}
-                    ]}
+                    options={STATUS_OPTIONS}
                     getOptionLabel={(option) => option.label}
-                    value={[{value: 'active', label: 'Active'}, {value: 'expired', label: 'Expired'}, {value: 'cancelled', label: 'Cancelled'}, {value: 'trial', label: 'Trial Mode'}].find(o => o.value === subForm.status) || null}
+                    isOptionEqualToValue={(option, value) => option.value === value.value}
+                    value={STATUS_OPTIONS.find(o => o.value === subForm.status) || null}
                     onChange={(e, newValue) => setSubForm({ ...subForm, status: newValue ? newValue.value : 'active' })}
                     renderInput={(params) => <TextField {...params} label="Status" size="small" />}
                     fullWidth
@@ -747,12 +766,10 @@ export default function SubscriptionManager() {
                   <>
                     <Grid item xs={12} sm={6}>
                       <Autocomplete
-                        options={[
-                          {value: 'bulk', label: '1 Bulk Charge'}, 
-                          {value: 'installments', label: 'Divide Cost (Installments)'}
-                        ]}
+                        options={CHARGE_TYPE_OPTIONS}
                         getOptionLabel={(option) => option.label}
-                        value={[{value: 'bulk', label: '1 Bulk Charge'}, {value: 'installments', label: 'Divide Cost (Installments)'}].find(o => o.value === subForm.charge_type) || null}
+                        isOptionEqualToValue={(option, value) => option.value === value.value}
+                        value={CHARGE_TYPE_OPTIONS.find(o => o.value === subForm.charge_type) || null}
                         onChange={(e, newValue) => setSubForm({ ...subForm, charge_type: newValue ? newValue.value : 'bulk' })}
                         renderInput={(params) => <TextField {...params} label="Charge Type" size="small" />}
                         fullWidth
@@ -761,13 +778,10 @@ export default function SubscriptionManager() {
                     {subForm.charge_type === 'installments' && (
                       <Grid item xs={12} sm={6}>
                         <Autocomplete
-                          options={[
-                            {value: 'weekly', label: 'Weekly'}, 
-                            {value: 'biweekly', label: 'Bi-Weekly'}, 
-                            {value: 'monthly', label: 'Monthly'}
-                          ]}
+                          options={INSTALLMENT_FREQ_OPTIONS}
                           getOptionLabel={(option) => option.label}
-                          value={[{value: 'weekly', label: 'Weekly'}, {value: 'biweekly', label: 'Bi-Weekly'}, {value: 'monthly', label: 'Monthly'}].find(o => o.value === subForm.installment_frequency) || null}
+                          isOptionEqualToValue={(option, value) => option.value === value.value}
+                          value={INSTALLMENT_FREQ_OPTIONS.find(o => o.value === subForm.installment_frequency) || null}
                           onChange={(e, newValue) => setSubForm({ ...subForm, installment_frequency: newValue ? newValue.value : 'monthly' })}
                           renderInput={(params) => <TextField {...params} label="Installment Frequency" size="small" />}
                           fullWidth
@@ -867,6 +881,7 @@ export default function SubscriptionManager() {
                   <Autocomplete
                     options={providers}
                     getOptionLabel={(option) => option.name}
+                    isOptionEqualToValue={(option, value) => option.id === value.id}
                     value={providers.find(p => p.id === newTier.provider_id) || null}
                     onChange={(e, newValue) => setNewTier({...newTier, provider_id: newValue ? newValue.id : ''})}
                     renderInput={(params) => <TextField {...params} label="Select Provider" size="small" required />}

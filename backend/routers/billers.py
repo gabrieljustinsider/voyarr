@@ -14,6 +14,13 @@ router = APIRouter(
 def get_billers(db: Session = Depends(get_db)):
     return db.query(Biller).all()
 
+@router.get("/{biller_id}", response_model=BillerResponse)
+def get_biller(biller_id: int, db: Session = Depends(get_db)):
+    db_biller = db.query(Biller).filter(Biller.id == biller_id).first()
+    if not db_biller:
+        raise HTTPException(status_code=404, detail="Biller not found")
+    return db_biller
+
 @router.post("", response_model=BillerResponse)
 def create_biller(biller: BillerCreate, db: Session = Depends(get_db)):
     existing = db.query(Biller).filter(Biller.name == biller.name).first()
@@ -32,6 +39,11 @@ def update_biller(biller_id: int, biller: BillerUpdate, db: Session = Depends(ge
     if not db_biller:
         raise HTTPException(status_code=404, detail="Biller not found")
     
+    if biller.name is not None:
+        existing = db.query(Biller).filter(Biller.name == biller.name, Biller.id != biller_id).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="A Biller with this name already exists")
+
     for key, value in biller.model_dump(exclude_unset=True).items():
         setattr(db_biller, key, value)
     

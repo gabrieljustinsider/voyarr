@@ -71,6 +71,19 @@ class Provider(Base):
     )  # e.g., ["yt-dlp", "cookies", "direct", "api"]
 
 
+class Biller(Base):
+    __tablename__ = "billers"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), nullable=False, unique=True, index=True)
+    url = Column(String(500), nullable=True)
+    support_email = Column(String(255), nullable=True)
+    support_phone = Column(String(50), nullable=True)
+    description = Column(Text, nullable=True)
+    created_at = Column(TIMESTAMP, default=func.current_timestamp())
+    updated_at = Column(TIMESTAMP, default=func.current_timestamp(), onupdate=func.current_timestamp())
+
+
 class SubscriptionTier(Base):
     __tablename__ = "subscription_tiers"
 
