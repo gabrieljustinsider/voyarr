@@ -6,6 +6,9 @@ on:
     paths:
       - 'backend/**'
       - 'frontend/**'
+      - 'extension/**'
+      - 'version'
+      - 'package.json'
       - '.github/workflows/publish-ghcr.yml'
   # Allows you to manually trigger the workflow from the Actions tab
   workflow_dispatch:
