@@ -34,7 +34,7 @@ jobs:
       - name: Extract Version
         id: vars
         run: |
-          VERSION=$(grep '"version"' extension/manifest.json | head -n 1 | awk -F '"' '{print $4}')
+          VERSION=$(cat version | tr -d '[:space:]')
           if [ -z "$VERSION" ]; then
             VERSION="1.18.0"
           fi
@@ -72,7 +72,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION=$(grep '"version"' extension/manifest.json | head -n 1 | awk -F '"' '{print $4}')
+          VERSION=$(cat version | tr -d '[:space:]')
           if [ -z "$VERSION" ]; then
             VERSION="1.18.0"
           fi
