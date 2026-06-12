@@ -89,7 +89,7 @@ async def lifespan(app: FastAPI):
                 import sys
                 sys.exit(1)
 
-        from utils import initialize_network_settings
+    from utils import initialize_network_settings
     initialize_network_settings()
     yield
 

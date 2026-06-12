@@ -9,6 +9,7 @@ from schemas import (
     PeerSyncLogResponse,
 )
 from dependencies import verify_api_key
+from utils import get_version
 from typing import List, Dict, Any, Optional
 import json
 from datetime import datetime, timezone
@@ -58,7 +59,7 @@ def ping_peer(peer: PeerNode = Depends(verify_p2p_token)):
     return {
         "status": "online",
         "peer_name": peer.name,
-        "version": "1.18.0",
+        "version": "1.58.5",
         "server_time": datetime.now(timezone.utc).isoformat(),
     }
 
