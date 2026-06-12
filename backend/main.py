@@ -89,7 +89,6 @@ async def lifespan(app: FastAPI):
                 import sys
                 sys.exit(1)
 
-    from utils import initialize_network_settings
     initialize_network_settings()
     yield
 
@@ -227,6 +226,10 @@ async def root():
 
 
 @app.get("/health")
+@app.get("/api/health")
+async def health():
+    return {"status": "healthy"}
+)
 @app.get("/api/health")
 async def health():
     return {"status": "healthy"}

@@ -19,6 +19,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const serverListContainer = document.getElementById('serverListContainer');
   const newServerNameInput = document.getElementById('newServerNameInput');
   const newServerUrlInput = document.getElementById('newServerUrlInput');
+  const usePortToggle = document.getElementById('usePortToggle');
+  const newServerPortInput = document.getElementById('newServerPortInput');
   const newServerApiKeyInput = document.getElementById('newServerApiKeyInput');
   const addServerBtn = document.getElementById('addServerBtn');
   const scanNetworkBtn = document.getElementById('scanNetworkBtn');
@@ -368,15 +370,57 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  usePortToggle.addEventListener('change', () => {
+    newServerPortInput.disabled = !usePortToggle.checked;
+  });
+
+  newServerUrlInput.addEventListener('input', () => {
+    const val = newServerUrlInput.value.trim();
+    const match = val.match(/^(https?:\/\/)?([^:\/]+):(\d+)(.*)?$/i);
+    if (match) {
+      const proto = match[1] || "";
+      const host = match[2];
+      const port = match[3];
+      const rest = match[4] || "";
+      
+      newServerPortInput.value = port;
+      usePortToggle.checked = true;
+      newServerPortInput.disabled = false;
+      newServerUrlInput.value = proto + host + rest;
+    } else {
+      const match2 = val.match(/^([^:\/]+):(\d+)$/i);
+      if (match2) {
+        newServerPortInput.value = match2[2];
+        usePortToggle.checked = true;
+        newServerPortInput.disabled = false;
+        newServerUrlInput.value = match2[1];
+      }
+    }
+  });
+
   // Add Server Form handler
   addServerBtn.addEventListener('click', async () => {
     const name = newServerNameInput.value.trim();
-    const url = newServerUrlInput.value.trim().replace(/\/$/, '');
+    let url = newServerUrlInput.value.trim().replace(/\/$/, '');
     const key = newServerApiKeyInput.value.trim();
 
     if (!name || !url || !key) {
       showToast(settingsToast, "Please fill in all fields", false);
       return;
+    }
+
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'http://' + url;
+    }
+
+    if (usePortToggle.checked && newServerPortInput.value) {
+      try {
+        const u = new URL(url);
+        u.port = newServerPortInput.value;
+        url = u.origin + u.pathname;
+      } catch (e) {
+        url = url + ':' + newServerPortInput.value;
+      }
     }
 
     addServerBtn.disabled = true;
@@ -649,6 +693,14 @@ document.addEventListener('DOMContentLoaded', () => {
     detectedUrlText.textContent = origin;
     detectedIndicators.innerHTML = "";
 
+    try {
+      const parsed = new URL(origin);
+      if (parsed.port && scanPortInput) {
+        scanPortInput.value = parsed.port;
+        chrome.storage.local.set({ scanPort: parsed.port });
+      }
+    } catch(e) {}
+
     const analysis = analyzeUrl(origin);
     
     // Add location badge
@@ -837,6 +889,38 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Help Modal logic
+  const helpBtn = document.getElementById('helpBtn');
+  const helpModal = document.getElementById('helpModal');
+  const closeHelpBtn = document.getElementById('closeHelpBtn');
+
+  if (helpBtn) {
+    helpBtn.addEventListener('click', () => {
+      helpModal.style.display = 'flex';
+    });
+  }
+
+  if (closeHelpBtn) {
+    closeHelpBtn.addEventListener('click', () => {
+      helpModal.style.display = 'none';
+    });
+  }
+
+  // Expandable cards logic
+  document.querySelectorAll('.expandable-card .card-header').forEach(header => {
+    header.addEventListener('click', () => {
+      const body = header.nextElementSibling;
+      const indicator = header.querySelector('.indicator');
+      if (body.style.display === 'none') {
+        body.style.display = 'block';
+        indicator.textContent = '▲';
+      } else {
+        body.style.display = 'none';
+        indicator.textContent = '▼';
+      }
+    });
+  });
+
   // Save Mapping to Voyarr
   saveBtn.addEventListener('click', async () => {
     const finalSelector = selectorVal.value.trim() || currentSelector;
@@ -1012,6 +1096,16 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       if (!res.ok) throw new Error("Save failed.");
+      showToast(lensToast, "Saved successfully!", "success");
+    } catch (e) {
+      showToast(lensToast, `Save failed: ${e.message}`, "error");
+    } finally {
+      saveSubscriptionBtn.innerText = "Save to Voyarr";
+      saveSubscriptionBtn.disabled = false;
+    }
+  });
+
+});failed.");
       showToast(lensToast, "Saved successfully!", "success");
     } catch (e) {
       showToast(lensToast, `Save failed: ${e.message}`, "error");

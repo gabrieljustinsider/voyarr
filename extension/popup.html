@@ -252,6 +252,7 @@
       <div style="display: flex; align-items: center; gap: 6px;">
         <h3 class="header-title">VOYARR LENS</h3>
         <span id="extVersion" style="font-size: 9px; font-weight: 600; color: #a78bfa; background: rgba(99, 102, 241, 0.12); border: 1px solid rgba(139, 92, 246, 0.25); padding: 2px 6px; border-radius: 9999px; letter-spacing: 0.3px;"></span>
+        <button id="helpBtn" style="background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 14px; padding: 0; margin-left: 4px;" title="Help & Info">❔</button>
       </div>
       <div class="status-badge">
         <span class="status-dot" id="statusDot"></span>
@@ -363,7 +364,14 @@
       <div class="form-group" style="gap: 6px;">
         <label style="font-weight: 600;">Add Target Server</label>
         <input type="text" id="newServerNameInput" placeholder="Name (e.g. Local Server, VPS)" style="padding: 8px 10px; font-size: 12px;" />
-        <input type="text" id="newServerUrlInput" placeholder="URL (e.g. http://localhost:8000)" style="padding: 8px 10px; font-size: 12px;" />
+        <input type="text" id="newServerUrlInput" placeholder="Host, IP or URL (e.g. localhost, 192.168.1.10)" style="padding: 8px 10px; font-size: 12px;" />
+        
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 12px;">
+          <input type="checkbox" id="usePortToggle" checked />
+          <label for="usePortToggle" style="margin: 0;">Use Port</label>
+          <input type="number" id="newServerPortInput" placeholder="Port" value="8000" style="padding: 6px 8px; font-size: 12px; width: 80px;" />
+        </div>
+
         <input type="password" id="newServerApiKeyInput" placeholder="Master API Key" style="padding: 8px 10px; font-size: 12px;" />
       </div>
 
@@ -394,6 +402,43 @@
       </div>
 
       <div id="settingsToast" class="toast-msg"></div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>ar(--bg-primary); border: 1px solid var(--border-color); border-radius: 12px; width: 260px; max-height: 80vh; overflow-y: auto; padding: 16px; position: relative;">
+      <h3 style="margin-top: 0; color: var(--text-main); font-size: 16px;">Help & Guide</h3>
+      <button id="closeHelpBtn" style="position: absolute; top: 12px; right: 12px; background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 16px;">✕</button>
+      
+      <div class="expandable-card" style="margin-bottom: 8px;">
+         <div class="card-header" style="font-size: 13px; font-weight: 600; cursor: pointer; padding: 8px 0; border-bottom: 1px solid var(--border-color); color: var(--text-main); display: flex; justify-content: space-between;">
+           <span>Set up instructions</span> <span class="indicator">▼</span>
+         </div>
+         <div class="card-body" style="display: none; padding: 8px 0; font-size: 12px; color: var(--text-muted);">
+           1. Go to the Settings tab.<br/>
+           2. Add your Voyarr server URL and API key.<br/>
+           3. Click "Add & Test Server".
+         </div>
+      </div>
+      
+      <div class="expandable-card" style="margin-bottom: 8px;">
+         <div class="card-header" style="font-size: 13px; font-weight: 600; cursor: pointer; padding: 8px 0; border-bottom: 1px solid var(--border-color); color: var(--text-main); display: flex; justify-content: space-between;">
+           <span>How to get an API key</span> <span class="indicator">▼</span>
+         </div>
+         <div class="card-body" style="display: none; padding: 8px 0; font-size: 12px; color: var(--text-muted);">
+           In the Voyarr application, go to Settings > API Keys, and generate a new Master API key, or copy your existing one.
+         </div>
+      </div>
+
+      <div class="expandable-card" style="margin-bottom: 8px;">
+         <div class="card-header" style="font-size: 13px; font-weight: 600; cursor: pointer; padding: 8px 0; border-bottom: 1px solid var(--border-color); color: var(--text-main); display: flex; justify-content: space-between;">
+           <span>How to use Lens</span> <span class="indicator">▼</span>
+         </div>
+         <div class="card-body" style="display: none; padding: 8px 0; font-size: 12px; color: var(--text-muted);">
+           Navigate to a supported site. Use the "Remote Map" tab to map selectors or the "Lens" tab to scan the page for subscription details.
+         </div>
+      </div>
     </div>
   </div>
 
