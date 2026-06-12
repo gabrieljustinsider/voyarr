@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { 
   Box, Typography, Grid, Card, CardContent, Button, TextField, Dialog, 
   DialogTitle, DialogContent, DialogActions, Chip, CircularProgress, 
-  Alert, IconButton, Paper, Tooltip
+  Alert, IconButton, Paper, Tooltip, Menu, MenuItem, ListItemText, Checkbox
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
@@ -14,6 +14,7 @@ import PauseIcon from '@mui/icons-material/Pause'
 import KeyIcon from '@mui/icons-material/Key'
 import StreamIcon from '@mui/icons-material/Stream'
 import CloseIcon from '@mui/icons-material/Close'
+import VisibilityIcon from '@mui/icons-material/Visibility'
 import { apiFetch } from '../api'
 import UrlParseConfirmationModal from './UrlParseConfirmationModal'
 
@@ -21,6 +22,13 @@ export default function LiveStreams() {
   const [streams, setStreams] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+
+  // Card Fields Visibility state
+  const [visibleFields, setVisibleFields] = useState(() => {
+    const saved = localStorage.getItem('voyarr_livestream_card_fields')
+    return saved ? JSON.parse(saved) : { url: true, statusChip: true, captureStats: true }
+  })
+  const [fieldsMenuAnchor, setFieldsMenuAnchor] = useState(null)
 
   // Auth Dialog States
   const [authOpen, setAuthOpen] = useState(false)
@@ -85,6 +93,10 @@ export default function LiveStreams() {
       setLoading(false)
     }
   }, [])
+
+  useEffect(() => {
+    localStorage.setItem('voyarr_livestream_card_fields', JSON.stringify(visibleFields))
+  }, [visibleFields])
 
   useEffect(() => {
     checkAdmin()
@@ -415,17 +427,46 @@ export default function LiveStreams() {
   }
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" sx={{ fontWeight: '800', letterSpacing: '-0.5px', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+    <Box sx={{ maxWidth: 1400, mx: 'auto', width: '100%' }}>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: 'center', gap: 2, mb: 3 }}>
+        <Typography variant="h4" sx={{ fontWeight: '800', letterSpacing: '-0.5px', display: 'flex', alignItems: 'center', justifyContent: { xs: 'center', sm: 'flex-start' }, gap: 1.5, textAlign: { xs: 'center', sm: 'left' } }}>
           <StreamIcon sx={{ fontSize: 36, color: 'error.main' }} />
           Live Stream Hub
         </Typography>
-        {isAdmin && (
-          <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenCreate}>
-            Monitor URL
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, alignItems: 'center', width: { xs: '100%', sm: 'auto' } }}>
+          <Button
+            variant="outlined"
+            color="inherit"
+            startIcon={<VisibilityIcon />}
+            onClick={(e) => setFieldsMenuAnchor(e.currentTarget)}
+            sx={{ whiteSpace: 'nowrap', flexShrink: 0, width: { xs: '100%', sm: 'auto' } }}
+          >
+            Display Options
           </Button>
-        )}
+          {isAdmin && (
+            <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenCreate} sx={{ width: { xs: '100%', sm: 'auto' } }}>
+              Monitor URL
+            </Button>
+          )}
+        </Box>
+        <Menu
+          anchorEl={fieldsMenuAnchor}
+          open={Boolean(fieldsMenuAnchor)}
+          onClose={() => setFieldsMenuAnchor(null)}
+        >
+          <MenuItem onClick={() => setVisibleFields(prev => ({ ...prev, url: !prev.url }))}>
+            <Checkbox checked={visibleFields.url} size="small" />
+            <ListItemText primary="Stream URL" />
+          </MenuItem>
+          <MenuItem onClick={() => setVisibleFields(prev => ({ ...prev, statusChip: !prev.statusChip }))}>
+            <Checkbox checked={visibleFields.statusChip} size="small" />
+            <ListItemText primary="Status Badge" />
+          </MenuItem>
+          <MenuItem onClick={() => setVisibleFields(prev => ({ ...prev, captureStats: !prev.captureStats }))}>
+            <Checkbox checked={visibleFields.captureStats} size="small" />
+            <ListItemText primary="Capture Stats" />
+          </MenuItem>
+        </Menu>
       </Box>
 
       {loading ? (
@@ -459,30 +500,34 @@ export default function LiveStreams() {
                       <Typography variant="h5" sx={{ fontWeight: '700' }} noWrap title={stream.name}>
                         {stream.name}
                       </Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        {stream.status === 'recording' ? (
-                          <Chip 
-                            icon={<FiberManualRecordIcon color="error" sx={{ animation: 'pulse 1.5s infinite' }} />} 
-                            label="Recording" 
-                            color="error" 
-                            size="small" 
-                            sx={{ fontWeight: 'bold', fontSize: '0.7rem' }}
-                          />
-                        ) : stream.status === 'paused' ? (
-                          <Chip label="Paused" color="warning" size="small" sx={{ fontWeight: 'bold', fontSize: '0.7rem' }} />
-                        ) : isFailed ? (
-                          <Chip label="Failed" color="warning" size="small" sx={{ fontWeight: 'bold', fontSize: '0.7rem' }} />
-                        ) : (
-                          <Chip label="Idle" size="small" variant="outlined" sx={{ fontSize: '0.7rem' }} />
-                        )}
-                      </Box>
+                      {visibleFields.statusChip && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          {stream.status === 'recording' ? (
+                            <Chip 
+                              icon={<FiberManualRecordIcon color="error" sx={{ animation: 'pulse 1.5s infinite' }} />} 
+                              label="Recording" 
+                              color="error" 
+                              size="small" 
+                              sx={{ fontWeight: 'bold', fontSize: '0.7rem' }}
+                            />
+                          ) : stream.status === 'paused' ? (
+                            <Chip label="Paused" color="warning" size="small" sx={{ fontWeight: 'bold', fontSize: '0.7rem' }} />
+                          ) : isFailed ? (
+                            <Chip label="Failed" color="warning" size="small" sx={{ fontWeight: 'bold', fontSize: '0.7rem' }} />
+                          ) : (
+                            <Chip label="Idle" size="small" variant="outlined" sx={{ fontSize: '0.7rem' }} />
+                          )}
+                        </Box>
+                      )}
                     </Box>
 
-                    <Typography variant="caption" color="textSecondary" display="block" sx={{ mb: 2, wordBreak: 'break-all' }}>
-                      URL: {stream.url}
-                    </Typography>
+                    {visibleFields.url && (
+                      <Typography variant="caption" color="textSecondary" display="block" sx={{ mb: 2, wordBreak: 'break-all' }}>
+                        URL: {stream.url}
+                      </Typography>
+                    )}
 
-                    {(stream.status === 'recording' || stream.status === 'paused') && (
+                    {visibleFields.captureStats && (stream.status === 'recording' || stream.status === 'paused') && (
                       <Paper sx={{ p: 1.5, mb: 2, backgroundColor: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)' }}>
                         <Grid container spacing={1}>
                           <Grid item xs={6}>

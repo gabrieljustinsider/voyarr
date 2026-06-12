@@ -73,7 +73,14 @@ def cluster_faces_task(self: Any, library_entry_id: int, frame_skip: int = 30) -
                         bottom = min(h, int(bottom) + 30)
                         left = max(0, int(left) - 30)
                         right = min(w, int(right) + 30)
-                        face_crops.append(frame[top:bottom, left:right])
+                        
+                        # PERFORMANCE: Compress face crop immediately in RAM to prevent memory leaks on huge videos
+                        cropped = frame[top:bottom, left:right]
+                        success, encoded_img = cv2.imencode('.jpg', cropped)
+                        if success:
+                            face_crops.append(encoded_img)
+                        else:
+                            face_crops.append(None)
 
             frame_count += 1
     finally:
@@ -103,8 +110,11 @@ def cluster_faces_task(self: Any, library_entry_id: int, frame_skip: int = 30) -
 
         # Save the first matching face as the thumbnail representative
         first_idx = next(i for i, lbl in enumerate(dbscan.labels_) if lbl == label)
-        thumb_path = os.path.join(faces_dir, f"{person_name}.jpg")
-        cv2.imwrite(thumb_path, face_crops[first_idx])
+        encoded_face = face_crops[first_idx]
+        if encoded_face is not None:
+            thumb_path = os.path.join(faces_dir, f"{person_name}.jpg")
+            with open(thumb_path, "wb") as f:
+                f.write(encoded_face.tobytes())
 
     logger.info(f"Clustered {len(cluster_results)} unique faces for {video_path}")
 

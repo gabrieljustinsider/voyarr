@@ -133,7 +133,7 @@ def record_live_stream_task(self: Any, stream_id: int) -> None:
     # Start streamlink subprocess (parameters are safe array, no shell expansion - nosec B603)
     start_time = time.time()
     try:
-        proc = subprocess.Popen(cmd)  # nosec B603
+        proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL)  # nosec B603
         with get_db_session() as db:
             stream = db.query(LiveStream).filter(LiveStream.id == stream_id).first()
             if stream:

@@ -449,6 +449,7 @@ def proxy_live_stream_url(
             cmd,
             capture_output=True,
             text=True,
+            stdin=subprocess.DEVNULL,
             timeout=10
         )
         if res.returncode == 0:

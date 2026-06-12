@@ -529,11 +529,11 @@ export default function Library() {
       </Box>
 
       {/* Filters Bar */}
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <Grid container spacing={2} alignItems="center" mb={2}>
-          <Grid item xs={12} sm={4}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Resolution</InputLabel>
+      <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+        <Paper sx={{ p: 2, width: 'fit-content' }}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, justifyContent: 'center', alignItems: 'center' }}>
+            <FormControl size="small" sx={{ minWidth: 120 }}>
+              <InputLabel sx={{ whiteSpace: 'nowrap', overflow: 'visible' }}>Resolution</InputLabel>
               <Select name="resolution" value={filters.resolution} label="Resolution" onChange={handleFilterChange}>
                 <MenuItem value=""><em>All</em></MenuItem>
                 <MenuItem value="4K">4K</MenuItem>
@@ -541,18 +541,12 @@ export default function Library() {
                 <MenuItem value="720p">720p</MenuItem>
               </Select>
             </FormControl>
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <TextField fullWidth size="small" label="Filter by Performer" name="performer" value={filters.performer} onChange={handleFilterChange} />
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <TextField fullWidth size="small" label="Filter by Tag" name="tag" value={filters.tag} onChange={handleFilterChange} />
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <TextField fullWidth size="small" label="Search by ohash" name="ohash" value={filters.ohash} onChange={handleFilterChange} />
-          </Grid>
-        </Grid>
-      </Paper>
+            <TextField size="small" label="Filter by Performer" name="performer" value={filters.performer} onChange={handleFilterChange} />
+            <TextField size="small" label="Filter by Tag" name="tag" value={filters.tag} onChange={handleFilterChange} />
+            <TextField size="small" label="Search by ohash" name="ohash" value={filters.ohash} onChange={handleFilterChange} />
+          </Box>
+        </Paper>
+      </Box>
 
       {/* Media Grid */}
       {entries.length === 0 ? (
@@ -782,7 +776,7 @@ export default function Library() {
                               onClick={() => handleRenameCluster(person)}
                               title={`Rename ${person}`}
                             />
-                            <Typography variant="caption" display="block" noWrap sx={{ maxWidth: 60, fontSize: '0.65rem' }}>{person}</Typography>
+                            <Typography variant="caption" display="block" sx={{ fontSize: '0.65rem' }}>{person}</Typography>
                           </Box>
                         ))
                       ) : (

@@ -43,6 +43,8 @@ from routers import (
     deovr,
     subscriptions,
     billers,
+    scanner,
+    logs,
 )
 
 # Database initialization with retry logic for container environments
@@ -86,12 +88,12 @@ async def lifespan(app: FastAPI):
                 import sys
                 sys.exit(1)
 
-    from utils import initialize_network_settings
+    from utils import initialize_network_settings, get_version
     initialize_network_settings()
     yield
 
 app = FastAPI(
-    title="Voyarr API", version="1.18.0", root_path=os.getenv("ROOT_PATH", ""), lifespan=lifespan
+    title="Voyarr API", version=get_version(), root_path=os.getenv("ROOT_PATH", ""), lifespan=lifespan
 )
 
 # CORS
@@ -210,9 +212,12 @@ app.include_router(passkeys.router)
 app.include_router(sso.router)
 app.include_router(oidc.router)
 app.include_router(scraper.router)
+app.include_router(scraper.parse_router)
+app.include_router(scanner.router)
 app.include_router(deovr.router)
 app.include_router(subscriptions.router)
 app.include_router(billers.router)
+app.include_router(logs.router)
 
 
 @app.get("/")

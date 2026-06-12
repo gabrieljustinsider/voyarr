@@ -14,7 +14,7 @@ router = APIRouter(
 
 
 @router.get("", response_model=List[ProviderResponse])
-async def get_providers(db: Session = Depends(get_db)):
+def get_providers(db: Session = Depends(get_db)):
     providers = db.query(Provider).all()
     # Return a default provider if database is empty for testing purposes
     if not providers:

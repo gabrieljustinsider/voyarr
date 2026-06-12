@@ -97,7 +97,7 @@ export default function PreferencesAdvanced() {
   }
 
   return (
-    <Box>
+    <Box sx={{ maxWidth: 1400, mx: 'auto', width: '100%' }}>
       <Typography variant="h4" gutterBottom>Advanced Provider Preferences</Typography>
       
       <Paper sx={{ p: 3, mb: 3 }}>

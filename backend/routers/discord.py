@@ -3,6 +3,7 @@ import json
 import logging
 from fastapi import APIRouter, Request, HTTPException, Depends
 from fastapi.responses import JSONResponse
+import asyncio
 from sqlalchemy.orm import Session
 from nacl.signing import VerifyKey
 from nacl.exceptions import BadSignatureError
@@ -77,23 +78,8 @@ def get_user_role_from_discord(
     return "viewer"
 
 
-@router.post("/interactions")
-async def discord_interactions(request: Request, db: Session = Depends(get_db)):
-    body = await request.body()
-    verify_signature(request, body)
-
-    try:
-        data = json.loads(body)
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid JSON")
-
-    interaction_type = data.get("type")
-
-    # Discord PING
-    if interaction_type == 1:
-        return JSONResponse({"type": 1})
-
-    # Discord Application Command
+def _process_discord_command(db: Session, interaction_type: int, data: dict):
+    """Synchronous worker offloaded to a thread to prevent DB calls from blocking the event loop."""
     if interaction_type == 2:
         command_data = data.get("data", {})
         command_name = command_data.get("name")
@@ -313,3 +299,24 @@ async def discord_interactions(request: Request, db: Session = Depends(get_db)):
             )
 
     return JSONResponse({"type": 4, "data": {"content": "Unknown command."}})
+
+
+@router.post("/interactions")
+async def discord_interactions(request: Request, db: Session = Depends(get_db)):
+    body = await request.body()
+    verify_signature(request, body)
+
+    try:
+        data = json.loads(body)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    interaction_type = data.get("type")
+
+    # Discord PING
+    if interaction_type == 1:
+        return JSONResponse({"type": 1})
+
+    # Discord Application Command
+    # Offload blocking database operations to a background thread
+    return await asyncio.to_thread(_process_discord_command, db, interaction_type, data)

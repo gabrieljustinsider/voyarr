@@ -18,7 +18,7 @@ class RequestCreate(BaseModel):
     url: Optional[str] = None
 
 
-@router.get("/")
+@router.get("")
 def list_requests(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
@@ -26,7 +26,7 @@ def list_requests(
     return db.query(MediaRequest).order_by(MediaRequest.id.desc()).all()
 
 
-@router.post("/")
+@router.post("")
 def create_request(
     req: RequestCreate,
     db: Session = Depends(get_db),

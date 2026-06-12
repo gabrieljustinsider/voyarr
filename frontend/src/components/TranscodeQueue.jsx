@@ -115,7 +115,7 @@ export default function TranscodeQueue() {
   }
 
   return (
-    <Card sx={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.05)' }}>
+    <Card sx={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.05)', maxWidth: 1400, mx: 'auto', width: '100%' }}>
       <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box>
@@ -133,22 +133,22 @@ export default function TranscodeQueue() {
             <Typography variant="body2" sx={{ opacity: 0.5 }}>No transcoding jobs currently in queue.</Typography>
           </Box>
         ) : (
-          <TableContainer component={Paper} sx={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.05)' }}>
+          <TableContainer component={Paper} sx={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.05)', overflowX: 'auto' }}>
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Title</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Target Codec</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Priority</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Progress</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>Actions</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Title</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Target Codec</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Priority</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Status</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Progress</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {jobs.map((job) => (
                   <TableRow key={job.id} hover>
-                    <TableCell sx={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <TableCell align="center" sx={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       <Tooltip title={job.title || `Entry ${job.library_entry_id}`}>
                         <Typography sx={{ fontWeight: '600', fontSize: '0.9rem' }}>
                           {job.title || `Entry ${job.library_entry_id}`}
@@ -160,10 +160,10 @@ export default function TranscodeQueue() {
                         </Typography>
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                       <Chip label={job.target_codec?.toUpperCase()} size="small" variant="outlined" color="primary" />
                     </TableCell>
-                    <TableCell>
+                    <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                         <Typography variant="body2" sx={{ fontWeight: 'bold', minWidth: 20 }}>{job.priority}</Typography>
                         {['pending', 'paused'].includes(job.status) && (
@@ -178,7 +178,7 @@ export default function TranscodeQueue() {
                         )}
                       </Box>
                     </TableCell>
-                    <TableCell>
+                    <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                       <Chip 
                         label={job.status.toUpperCase()} 
                         size="small" 
@@ -190,7 +190,7 @@ export default function TranscodeQueue() {
                         }
                       />
                     </TableCell>
-                    <TableCell sx={{ minWidth: '150px' }}>
+                    <TableCell align="center" sx={{ minWidth: '150px', whiteSpace: 'nowrap' }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Box sx={{ width: '100%', mr: 1 }}>
                           <LinearProgress 
@@ -207,7 +207,7 @@ export default function TranscodeQueue() {
                         </Box>
                       </Box>
                     </TableCell>
-                    <TableCell align="right">
+                    <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                       <Box sx={{ display: 'inline-flex', gap: 1 }}>
                         {job.status === 'running' && (
                           <Tooltip title="Pause Task">

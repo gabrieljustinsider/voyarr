@@ -3,6 +3,7 @@ services:
   db:
     image: postgres:15-alpine
     container_name: voyarr-db
+    command: postgres -c shared_buffers=256MB -c max_connections=200
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-voyarr}
       POSTGRES_USER: ${POSTGRES_USER:-voyarr_user}
@@ -25,7 +26,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: voyarr-redis
-    command: redis-server --tcp-backlog 128
+    command: redis-server --save 60 1 --loglevel warning --tcp-backlog 128
     environment:
       - TZ=${TZ:-UTC}
     # ports:
@@ -147,6 +148,7 @@ services:
   celery_worker:
     <<: *celery-worker
     container_name: voyarr-celery
+    shm_size: "2gb"
     command: sh -c "mkdir -p /media/storage/logs && celery -A celery_app.celery_app worker -Q celery,downloads,transcodes,scraping,ai_inference --concurrency=${CELERY_CONCURRENCY:-4} --loglevel=${CELERY_LOG_LEVEL:-info} --logfile=/media/storage/logs/celery.log"
     healthcheck:
       test: ["CMD-SHELL", "celery -A celery_app.celery_app inspect ping || exit 1"]

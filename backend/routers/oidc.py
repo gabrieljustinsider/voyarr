@@ -1,6 +1,7 @@
 import os
 import logging
 import secrets
+import asyncio
 from datetime import timedelta
 from typing import Optional
 
@@ -85,26 +86,6 @@ def is_oidc_enabled(db: Session) -> bool:
     return setting and setting.value.lower() == "true"
 
 
-def get_user_from_request_cookie_or_header(request: Request, db: Session) -> Optional[User]:
-    """Helper to decode JWT and retrieve user from request context (cookie or header)."""
-    token = None
-    auth_header = request.headers.get("Authorization")
-    if auth_header and auth_header.startswith("Bearer "):
-        token = auth_header.split(" ")[1]
-    if not token:
-        token = request.cookies.get("access_token")
-
-    if not token:
-        return None
-
-    try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
-        username = payload.get("sub")
-        if username:
-            return db.query(User).filter(User.username == username).first()
-    except JWTError:
-        pass
-    return None
 
 
 def _require_oidc(db: Session, provider: str = "oidc"):
@@ -172,10 +153,112 @@ def _require_oidc(db: Session, provider: str = "oidc"):
     return oauth
 
 
+def _process_oidc_user(db: Session, provider: str, sub: str, email: str, username_suggest: str, auth_header: Optional[str], access_token_cookie: Optional[str], frontend_url: str):
+    """Synchronous worker offloaded to thread to process database linking without blocking the async event loop."""
+    token = None
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+    if not token:
+        token = access_token_cookie
+
+    current_user = None
+    if token:
+        try:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
+            username = payload.get("sub")
+            if username:
+                current_user = db.query(User).filter(User.username == username).first()
+        except JWTError:
+            pass
+
+    if current_user:
+        existing_link = db.query(SsoLink).filter(SsoLink.provider == provider, SsoLink.provider_user_id == sub).first()
+        if existing_link:
+            if existing_link.user_id != current_user.id:
+                return f"{frontend_url}/#error=This {provider} account is already linked to another Voyarr user.", None
+            return f"{frontend_url}/#message={provider.capitalize()} is already linked to your account.", None
+
+        user_existing = db.query(SsoLink).filter(SsoLink.user_id == current_user.id, SsoLink.provider == provider).first()
+        if user_existing:
+            return f"{frontend_url}/#error=Your account is already linked to a {provider.capitalize()} account.", None
+
+        new_link = SsoLink(
+            user_id=current_user.id,
+            provider=provider,
+            provider_user_id=sub,
+            email=email,
+        )
+        db.add(new_link)
+        db.commit()
+        return f"{frontend_url}/#message=Successfully linked {provider.capitalize()} account!", None
+
+    # Standard Login/Auto-provisioning flow
+    sso_link = db.query(SsoLink).filter(SsoLink.provider == provider, SsoLink.provider_user_id == sub).first()
+    user = db.query(User).filter(User.id == sso_link.user_id).first() if sso_link else None
+
+    if not user:
+        # Auto-provision new user account
+        random_pw = secrets.token_urlsafe(32)
+        user_count = db.query(User).count()
+        assigned_role = "admin" if user_count == 0 else "user"
+        
+        preferred_username = username_suggest or (email.split("@")[0] if email else f"{provider}_{sub}")
+        base_username = preferred_username
+        suffix = 1
+        
+        max_retries = 5
+        for attempt in range(max_retries):
+            while db.query(User).filter(User.username == base_username).first():
+                base_username = f"{preferred_username}{suffix}"
+                suffix += 1
+
+            user = User(
+                username=base_username,
+                password_hash=get_password_hash(random_pw),
+                role=assigned_role,
+            )
+            db.add(user)
+            try:
+                db.flush()
+                
+                new_link = SsoLink(
+                    user_id=user.id,
+                    provider=provider,
+                    provider_user_id=sub,
+                    email=email,
+                )
+                db.add(new_link)
+                db.commit()
+                db.refresh(user)
+                break
+            except IntegrityError:
+                db.rollback()
+                base_username = f"{preferred_username}{suffix}"
+                suffix += 1
+                if attempt == max_retries - 1:
+                    logger.error("Failed to auto-provision user: Max retries reached.")
+                    raise HTTPException(status_code=500, detail="Failed to create user account.")
+
+    if not user.is_active:
+        raise HTTPException(status_code=400, detail="User account is inactive.")
+
+    from routers.auth import update_user_last_login
+    update_user_last_login(db, user)
+
+    # Generate access token
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username, "role": user.role},
+        expires_delta=access_token_expires,
+    )
+
+    return f"{frontend_url}/#access_token={access_token}", access_token
+
+
 @router.get("/login")
 async def oidc_login(request: Request, provider: str = "oidc", token: Optional[str] = None, db: Session = Depends(get_db)):
     """Initiates the OIDC/SSO authorization code flow by redirecting to the provider."""
-    oauth = _require_oidc(db, provider)
+    oauth = await asyncio.to_thread(_require_oidc, db, provider)
     
     client = getattr(oauth, provider, None)
     if not client:
@@ -211,7 +294,7 @@ async def oidc_login(request: Request, provider: str = "oidc", token: Optional[s
 @router.get("/callback")
 async def oidc_callback(request: Request, provider: str = "oidc", db: Session = Depends(get_db)):
     """Handles the callback from the OIDC/OAuth provider after user authorization."""
-    oauth = _require_oidc(db, provider)
+    oauth = await asyncio.to_thread(_require_oidc, db, provider)
     
     redirect_uri = request.url_for("oidc_callback")
     if request.headers.get("x-forwarded-proto") == "https":
@@ -284,102 +367,29 @@ async def oidc_callback(request: Request, provider: str = "oidc", db: Session = 
 
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
 
-    # Check if a user is currently logged in to link their account
-    current_user = get_user_from_request_cookie_or_header(request, db)
-    if current_user:
-        existing_link = db.query(SsoLink).filter(SsoLink.provider == provider, SsoLink.provider_user_id == str(sub)).first()
-        if existing_link:
-            if existing_link.user_id != current_user.id:
-                return RedirectResponse(url=f"{frontend_url}/#error=This {provider} account is already linked to another Voyarr user.")
-            return RedirectResponse(url=f"{frontend_url}/#message={provider.capitalize()} is already linked to your account.")
+    # Offload synchronous database provisioning logic to background thread
+    auth_header = request.headers.get("Authorization")
+    access_token_cookie = request.cookies.get("access_token")
 
-        user_existing = db.query(SsoLink).filter(SsoLink.user_id == current_user.id, SsoLink.provider == provider).first()
-        if user_existing:
-            return RedirectResponse(url=f"{frontend_url}/#error=Your account is already linked to a {provider.capitalize()} account.")
+    redirect_url, access_token = await asyncio.to_thread(
+        _process_oidc_user,
+        db, provider, str(sub), email, username_suggest,
+        auth_header, access_token_cookie, frontend_url
+    )
 
-        new_link = SsoLink(
-            user_id=current_user.id,
-            provider=provider,
-            provider_user_id=str(sub),
-            email=email,
+    response = RedirectResponse(url=redirect_url)
+
+    if access_token:
+        samesite = os.getenv("COOKIE_SAMESITE", "lax").lower()
+        secure = os.getenv("COOKIE_SECURE", "false").lower() == "true"
+        response.set_cookie(
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            expires=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            samesite=samesite,
+            secure=secure,
         )
-        db.add(new_link)
-        db.commit()
-        return RedirectResponse(url=f"{frontend_url}/#message=Successfully linked {provider.capitalize()} account!")
-
-    # Standard Login/Auto-provisioning flow
-    sso_link = db.query(SsoLink).filter(SsoLink.provider == provider, SsoLink.provider_user_id == str(sub)).first()
-    user = db.query(User).filter(User.id == sso_link.user_id).first() if sso_link else None
-
-    if not user:
-        # Auto-provision new user account
-        random_pw = secrets.token_urlsafe(32)
-        user_count = db.query(User).count()
-        assigned_role = "admin" if user_count == 0 else "user"
-        
-        preferred_username = username_suggest or (email.split("@")[0] if email else f"{provider}_{sub}")
-        base_username = preferred_username
-        suffix = 1
-        
-        max_retries = 5
-        for attempt in range(max_retries):
-            while db.query(User).filter(User.username == base_username).first():
-                base_username = f"{preferred_username}{suffix}"
-                suffix += 1
-
-            user = User(
-                username=base_username,
-                password_hash=get_password_hash(random_pw),
-                role=assigned_role,
-            )
-            db.add(user)
-            try:
-                db.flush()
-                
-                new_link = SsoLink(
-                    user_id=user.id,
-                    provider=provider,
-                    provider_user_id=str(sub),
-                    email=email,
-                )
-                db.add(new_link)
-                db.commit()
-                db.refresh(user)
-                break
-            except IntegrityError:
-                db.rollback()
-                base_username = f"{preferred_username}{suffix}"
-                suffix += 1
-                if attempt == max_retries - 1:
-                    logger.error("Failed to auto-provision user: Max retries reached.")
-                    raise HTTPException(status_code=500, detail="Failed to create user account.")
-
-    if not user.is_active:
-        raise HTTPException(status_code=400, detail="User account is inactive.")
-
-    from routers.auth import update_user_last_login
-    update_user_last_login(db, user)
-
-    # Generate access token
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.username, "role": user.role},
-        expires_delta=access_token_expires,
-    )
-
-    response = RedirectResponse(url=f"{frontend_url}/#access_token={access_token}")
-
-    samesite = os.getenv("COOKIE_SAMESITE", "lax").lower()
-    secure = os.getenv("COOKIE_SECURE", "false").lower() == "true"
-
-    response.set_cookie(
-        key="access_token",
-        value=access_token,
-        httponly=True,
-        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        expires=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        samesite=samesite,
-        secure=secure,
-    )
 
     return response

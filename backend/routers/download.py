@@ -121,7 +121,8 @@ def evaluate_rules(
                 list_id = value
                 custom_list = custom_lists.get(list_id)
                 if custom_list:
-                    list_items = [i.lower() for i in (custom_list.items or [])]
+                    # PERFORMANCE: Use Hash Set for O(1) constant time lookups instead of O(N) list scans
+                    list_items = {i.lower() for i in (custom_list.items or [])}
                     item_type = custom_list.item_type
 
                     if item_type == "performers":
@@ -489,7 +490,7 @@ def start_download(req: DownloadRequest, db: Session = Depends(get_db), current_
     }
 
 
-@router.get("/")
+@router.get("")
 def get_download_queue(
     provider_id: Optional[int] = None,
     status: Optional[str] = None,

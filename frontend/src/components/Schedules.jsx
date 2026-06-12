@@ -123,29 +123,29 @@ export default function Schedules() {
   }
 
   return (
-    <Box>
+    <Box sx={{ maxWidth: 1400, mx: 'auto', width: '100%' }}>
       {!scrapingEnabled && (
         <Alert severity="warning" sx={{ mb: 3 }}>
           ⚠️ Access Denied: The Scraping feature is disabled globally by the administrator. Please enable it in Settings to manage or trigger schedules.
         </Alert>
       )}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-        <Typography variant="h4">Scrape Schedules</Typography>
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5, mb: 3 }}>
+        <Typography variant="h4" align="center">Scrape Schedules</Typography>
         <Button variant="contained" onClick={() => setOpenDialog(true)} disabled={!scrapingEnabled}>Add Schedule</Button>
       </Box>
 
       {loading ? <CircularProgress /> : (
-        <TableContainer component={Paper}>
+        <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Active</TableCell>
-                <TableCell>Name</TableCell>
-                <TableCell>Target URL</TableCell>
-                <TableCell>Cron</TableCell>
-                <TableCell>Last Run</TableCell>
-                <TableCell>Next Run</TableCell>
-                <TableCell align="right">Actions</TableCell>
+                <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Active</TableCell>
+                <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Name</TableCell>
+                <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Target URL</TableCell>
+                <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Cron</TableCell>
+                <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Last Run</TableCell>
+                <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Next Run</TableCell>
+                <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -153,16 +153,16 @@ export default function Schedules() {
                 <TableRow><TableCell colSpan={7} align="center">No schedules found.</TableCell></TableRow>
               ) : schedules.map(s => (
                 <TableRow key={s.id}>
-                  <TableCell><Switch checked={s.is_active} onChange={() => handleToggle(s.id, s.is_active)} disabled={!scrapingEnabled} /></TableCell>
-                  <TableCell>{s.name}</TableCell>
-                  <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.target_url}</TableCell>
-                  <TableCell>{s.cron_expression}</TableCell>
-                  <TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}><Switch checked={s.is_active} onChange={() => handleToggle(s.id, s.is_active)} disabled={!scrapingEnabled} /></TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>{s.name}</TableCell>
+                  <TableCell align="center" sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.target_url}</TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>{s.cron_expression}</TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                     {formatTime(s.last_run)}<br />
                     <Typography variant="caption" color={s.last_run_status === 'error' ? 'error' : 'success.main'}>{s.last_run_status}</Typography>
                   </TableCell>
-                  <TableCell>{s.next_run && s.is_active ? formatTime(s.next_run) : 'Paused'}</TableCell>
-                  <TableCell align="right">
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>{s.next_run && s.is_active ? formatTime(s.next_run) : 'Paused'}</TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                     <IconButton onClick={() => handleTrigger(s.id)} color="primary" title="Trigger Now" disabled={!scrapingEnabled}><PlayArrowIcon /></IconButton>
                     <IconButton onClick={() => setDeleteConfirm({ open: true, scheduleId: s.id })} color="error" title="Delete" disabled={!scrapingEnabled}><DeleteIcon /></IconButton>
                   </TableCell>

@@ -156,7 +156,7 @@ export default function NotificationSettings() {
   }
 
   return (
-    <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 3.5 }}>
+    <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 3.5, maxWidth: 1400, mx: 'auto', width: '100%' }}>
       <Box>
         <Typography variant="h5" sx={{ fontWeight: '800', display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <NotificationsIcon color="primary" /> Notifications & Webhooks
@@ -308,30 +308,30 @@ export default function NotificationSettings() {
                     <Table size="small">
                       <TableHead>
                         <TableRow>
-                          <TableCell sx={{ fontWeight: 'bold' }}>Event Type</TableCell>
-                          <TableCell sx={{ fontWeight: 'bold' }}>Webhook URL</TableCell>
-                          <TableCell sx={{ fontWeight: 'bold' }}>Discord Channel ID</TableCell>
-                          <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
-                          <TableCell align="right" sx={{ fontWeight: 'bold' }}>Actions</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Event Type</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Webhook URL</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Discord Channel ID</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Status</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Actions</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
                         {rules.map((rule) => (
                           <TableRow key={rule.id}>
-                            <TableCell>
+                        <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                               <Chip 
                                 size="small"
                                 label={rule.event_type === 'task_completed' ? 'Task Completed' : 'Favorite Updated'} 
                                 color={rule.event_type === 'task_completed' ? 'primary' : 'secondary'}
                               />
                             </TableCell>
-                            <TableCell sx={{ fontFamily: 'monospace', opacity: 0.8 }}>
+                        <TableCell align="center" sx={{ fontFamily: 'monospace', opacity: 0.8, whiteSpace: 'nowrap' }}>
                               {rule.webhook_url ? `${rule.webhook_url.substring(0, 35)}...` : '-'}
                             </TableCell>
-                            <TableCell sx={{ fontFamily: 'monospace', opacity: 0.8 }}>
+                        <TableCell align="center" sx={{ fontFamily: 'monospace', opacity: 0.8, whiteSpace: 'nowrap' }}>
                               {rule.discord_channel_id || '-'}
                             </TableCell>
-                            <TableCell>
+                        <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                               <Chip 
                                 size="small"
                                 label={rule.is_active ? 'Active' : 'Disabled'} 
@@ -339,7 +339,7 @@ export default function NotificationSettings() {
                                 variant="outlined"
                               />
                             </TableCell>
-                            <TableCell align="right">
+                        <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                               <IconButton color="error" size="small" onClick={() => handleRuleDelete(rule.id)}>
                                 <DeleteIcon fontSize="small" />
                               </IconButton>

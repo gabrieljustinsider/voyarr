@@ -54,9 +54,15 @@ async def websocket_logs(websocket: WebSocket, source: str = Query("celery")):
             while True:
                 line = await af.readline()
                 if not line:
-                    await asyncio.sleep(0.5)
-                    continue
-                await websocket.send_text(line)
+                    try:
+                        # Wait on receive() to instantly detect if the client disconnects while idling
+                        await asyncio.wait_for(websocket.receive(), timeout=0.5)
+                    except asyncio.TimeoutError:
+                        continue # Expected timeout, no new messages
+                    except WebSocketDisconnect:
+                        break # Client disconnected normally
+                else:
+                    await websocket.send_text(line)
     except WebSocketDisconnect:
         pass
     except Exception:
@@ -64,7 +70,7 @@ async def websocket_logs(websocket: WebSocket, source: str = Query("celery")):
             await websocket.close(code=1011)
 
 
-@router.get("/")
+@router.get("")
 async def get_logs(lines: int = 200, source: str = Query("celery")):
     log_file = _get_log_file(source)
     if not os.path.exists(log_file):
@@ -87,7 +93,7 @@ async def get_logs(lines: int = 200, source: str = Query("celery")):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.delete("/")
+@router.delete("")
 async def clear_logs(source: str = Query("celery")):
     log_file = _get_log_file(source)
     if os.path.exists(log_file):

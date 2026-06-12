@@ -271,14 +271,14 @@ export default function Studios() {
   const isAdmin = currentUserRole === 'admin'
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" sx={{ fontWeight: '800', letterSpacing: '-0.5px', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+    <Box sx={{ maxWidth: 1400, mx: 'auto', width: '100%' }}>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: 'center', gap: 2, mb: 3 }}>
+        <Typography variant="h4" sx={{ fontWeight: '800', letterSpacing: '-0.5px', display: 'flex', alignItems: 'center', justifyContent: { xs: 'center', sm: 'flex-start' }, gap: 1.5, textAlign: { xs: 'center', sm: 'left' } }}>
           <Box sx={{ color: 'primary.main', display: 'flex' }}><Building2 size={36} /></Box>
           Studio Profiles
         </Typography>
         {isAdmin && (
-          <Button variant="contained" startIcon={<Plus size={20} />} onClick={handleOpenCreate}>
+          <Button variant="contained" startIcon={<Plus size={20} />} onClick={handleOpenCreate} sx={{ width: { xs: '100%', sm: 'auto' } }}>
             Add Studio
           </Button>
         )}

@@ -5,8 +5,9 @@ from models import Studio, User
 from routers.auth import get_current_user
 from pydantic import BaseModel
 from typing import List, Optional
+from dependencies import verify_api_key
 
-router = APIRouter(prefix="/studios", tags=["studios"])
+router = APIRouter(prefix="/studios", tags=["studios"], dependencies=[Depends(verify_api_key)])
 
 
 class StudioCreateUpdate(BaseModel):
@@ -20,7 +21,7 @@ class StudioCreateUpdate(BaseModel):
 
 
 @router.get("")
-def list_studios(q: Optional[str] = None, db: Session = Depends(get_db)):
+def list_studios(q: Optional[str] = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """List all studios, optionally filtered by a search query."""
     ParentStudio = aliased(Studio)
     query = db.query(Studio, ParentStudio.name.label("parent_name")).outerjoin(
@@ -49,7 +50,7 @@ def list_studios(q: Optional[str] = None, db: Session = Depends(get_db)):
 
 
 @router.get("/{studio_id}")
-def get_studio(studio_id: int, db: Session = Depends(get_db)):
+def get_studio(studio_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Retrieve details for a specific studio."""
     ParentStudio = aliased(Studio)
     result = (

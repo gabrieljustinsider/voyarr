@@ -110,6 +110,21 @@ def main():
                     f.writelines(new_lines)
                 print(f"Added version LABELs to {df_path}")
 
+    # 5c. Update backend/routers/p2p.py version
+    p2p_path = os.path.join(root_dir, "backend", "routers", "p2p.py")
+    if os.path.exists(p2p_path):
+        with open(p2p_path, "r") as f:
+            content = f.read()
+        
+        # Match "version": "..."
+        pattern = r'("version"\s*:\s*")[^"]*(")'
+        new_content, count = re.subn(pattern, rf'\g<1>{version}\g<2>', content)
+        
+        if count > 0:
+            with open(p2p_path, "w") as f:
+                f.write(new_content)
+            print(f"Updated {p2p_path}")
+
     # 6. Update package-lock.json files
     print("Regenerating package-lock.json files to sync locks...")
     try:

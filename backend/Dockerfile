@@ -28,8 +28,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
 ############################
 FROM python:3.12-slim-bookworm
 
-LABEL version="1.17.6"
-LABEL org.opencontainers.image.version="1.17.6"
+LABEL version="1.18.0"
+LABEL org.opencontainers.image.version="1.18.0"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1

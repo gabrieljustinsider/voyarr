@@ -88,7 +88,7 @@ def transcode_video_task(self: Any, transcode_job_id: int) -> None:
             # Compile command and run via subprocess to capture real-time stderr
             args = ffmpeg.compile(stream, overwrite_output=True)  # type: ignore
             process = subprocess.Popen(  # nosec B603
-                args, stderr=subprocess.PIPE, universal_newlines=True
+                args, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL, universal_newlines=True
             )
 
             # Save the process ID to allow pause/resume/cancel
@@ -292,7 +292,7 @@ def generate_hls_task(self: Any, library_entry_id: int) -> str | None:
         ]
         # Execute FFmpeg without a timeout since transcode operations on large files are lengthy
         subprocess.run(
-            cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True
+            cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, check=True
         )  # nosec B603
         logger.info(f"Successfully generated HLS for {video_path}")
         return "HLS Generated successfully"

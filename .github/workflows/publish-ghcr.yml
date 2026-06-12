@@ -7,7 +7,7 @@ on:
       - 'backend/**'
       - 'frontend/**'
       - 'extension/**'
-      - 'version'
+      - 'VERSION'
       - 'package.json'
       - '.github/workflows/publish-ghcr.yml'
   # Allows you to manually trigger the workflow from the Actions tab
@@ -34,7 +34,7 @@ jobs:
       - name: Extract Version
         id: vars
         run: |
-          VERSION=$(cat version | tr -d '[:space:]')
+          VERSION=$(cat VERSION | tr -d '[:space:]')
           if [ -z "$VERSION" ]; then
             VERSION="1.18.0"
           fi
@@ -72,7 +72,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION=$(cat version | tr -d '[:space:]')
+          VERSION=$(cat VERSION | tr -d '[:space:]')
           if [ -z "$VERSION" ]; then
             VERSION="1.18.0"
           fi

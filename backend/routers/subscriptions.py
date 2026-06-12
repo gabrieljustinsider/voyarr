@@ -14,27 +14,30 @@ from schemas import (
     EmailParseRequest
 )
 from routers.auth import get_current_user
+from dependencies import verify_api_key
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
+router = APIRouter(prefix="/subscriptions", tags=["subscriptions"], dependencies=[Depends(verify_api_key)])
 
 # ==================== SUBSCRIPTION TIERS CRUD ====================
 
 @router.get("/tiers", response_model=List[SubscriptionTierResponse])
-def get_tiers(db: Session = Depends(get_db)):
+def get_tiers(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     tiers = db.execute(select(SubscriptionTier)).scalars().all()
     return tiers
 
 @router.get("/tiers/{tier_id}", response_model=SubscriptionTierResponse)
-def get_tier(tier_id: int, db: Session = Depends(get_db)):
+def get_tier(tier_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     tier = db.get(SubscriptionTier, tier_id)
     if not tier:
         raise HTTPException(status_code=404, detail="Tier not found")
     return tier
 
 @router.post("/tiers", response_model=SubscriptionTierResponse)
-def create_tier(tier: SubscriptionTierCreate, db: Session = Depends(get_db)):
+def create_tier(tier: SubscriptionTierCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized to manage tiers")
     new_tier = SubscriptionTier(**tier.model_dump())
     db.add(new_tier)
     db.commit()
@@ -42,7 +45,9 @@ def create_tier(tier: SubscriptionTierCreate, db: Session = Depends(get_db)):
     return new_tier
 
 @router.put("/tiers/{tier_id}", response_model=SubscriptionTierResponse)
-def update_tier(tier_id: int, tier_update: SubscriptionTierUpdate, db: Session = Depends(get_db)):
+def update_tier(tier_id: int, tier_update: SubscriptionTierUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized to manage tiers")
     tier = db.get(SubscriptionTier, tier_id)
     if not tier:
         raise HTTPException(status_code=404, detail="Tier not found")
@@ -56,7 +61,9 @@ def update_tier(tier_id: int, tier_update: SubscriptionTierUpdate, db: Session =
     return tier
 
 @router.delete("/tiers/{tier_id}")
-def delete_tier(tier_id: int, db: Session = Depends(get_db)):
+def delete_tier(tier_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized to manage tiers")
     tier = db.get(SubscriptionTier, tier_id)
     if not tier:
         raise HTTPException(status_code=404, detail="Tier not found")
@@ -67,7 +74,7 @@ def delete_tier(tier_id: int, db: Session = Depends(get_db)):
 
 # ==================== SUBSCRIPTIONS CRUD ====================
 
-@router.get("/", response_model=List[SubscriptionResponse])
+@router.get("", response_model=List[SubscriptionResponse])
 def get_subscriptions(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     # if admin, can see all? Let's just return for current_user if regular
     if current_user.role == "admin":
@@ -85,7 +92,7 @@ def get_subscription(sub_id: int, db: Session = Depends(get_db), current_user: U
          raise HTTPException(status_code=403, detail="Not authorized")
     return sub
 
-@router.post("/", response_model=SubscriptionResponse)
+@router.post("", response_model=SubscriptionResponse)
 def create_subscription(sub: SubscriptionCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     dump = sub.model_dump()
     if not dump.get("user_id"):

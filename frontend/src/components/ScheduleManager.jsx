@@ -141,10 +141,10 @@ export default function ScheduleManager() {
   };
 
   return (
-    <Box>
+    <Box sx={{ maxWidth: 1400, mx: 'auto', width: '100%' }}>
       <Typography variant="h5" gutterBottom>Schedule Engine (Site Ripping)</Typography>
       
-      <Paper sx={{ p: 2, mb: 4 }}>
+      <Paper sx={{ p: 2, mb: 4, mx: 'auto', width: '100%' }}>
         <Typography variant="h6" gutterBottom>Create New Schedule</Typography>
         {!scrapingEnabled && (
           <Alert severity="warning" sx={{ mb: 2 }} style={{ color: '#ff9800', background: 'rgba(255, 152, 0, 0.08)', border: '1px solid rgba(255, 152, 0, 0.2)' }}>
@@ -222,20 +222,20 @@ export default function ScheduleManager() {
       </Paper>
 
       <Typography variant="h6" gutterBottom>Active Schedules</Typography>
-      <TableContainer component={Paper}>
+      <TableContainer component={Paper} sx={{ overflowX: 'auto', mx: 'auto', width: '100%' }}>
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell>Name</TableCell>
-              <TableCell>Target URL</TableCell>
-              <TableCell>Provider</TableCell>
-              <TableCell>Action</TableCell>
-              <TableCell>Cron</TableCell>
-              <TableCell>Active</TableCell>
-              <TableCell>Last Run</TableCell>
-              <TableCell>Next Run</TableCell>
-              <TableCell>Last Result</TableCell>
-              <TableCell>Actions</TableCell>
+              <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Name</TableCell>
+              <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Target URL</TableCell>
+              <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Provider</TableCell>
+              <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Action</TableCell>
+              <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Cron</TableCell>
+              <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Active</TableCell>
+              <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Last Run</TableCell>
+              <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Next Run</TableCell>
+              <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Last Result</TableCell>
+              <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -243,34 +243,34 @@ export default function ScheduleManager() {
               const providerName = providers.find(p => p.id === row.provider_id)?.name || 'Unknown';
               return (
                 <TableRow key={row.id}>
-                  <TableCell>{row.name}</TableCell>
-                  <TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>{row.name}</TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                     <Tooltip title={row.target_url || ''}>
                       <Typography noWrap sx={{ maxWidth: 150 }}>{row.target_url}</Typography>
                     </Tooltip>
                   </TableCell>
-                  <TableCell>{providerName}</TableCell>
-                  <TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>{providerName}</TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                     <Chip size="small" label={row.action.replace(/_/g, ' ')} />
                   </TableCell>
-                  <TableCell>{row.cron_expression}</TableCell>
-                  <TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>{row.cron_expression}</TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                     <Switch size="small" checked={row.is_active} onChange={() => handleToggle(row.id, row.is_active)} disabled={!scrapingEnabled} />
                   </TableCell>
-                  <TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                     {formatTime(row.last_run)}
                   </TableCell>
-                  <TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                     {formatTime(row.next_run)}
                   </TableCell>
-                  <TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                     {row.last_run_status ? (
                       <Tooltip title={row.last_run_details || 'No details'}>
                         <Chip size="small" color={row.last_run_status === 'success' ? 'success' : 'error'} label={row.last_run_status} />
                       </Tooltip>
                     ) : 'N/A'}
                   </TableCell>
-                  <TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                     <Tooltip title="Trigger Now">
                       <IconButton size="small" color="primary" onClick={() => handleTrigger(row.id)} disabled={!scrapingEnabled}>
                         <PlayArrowIcon />

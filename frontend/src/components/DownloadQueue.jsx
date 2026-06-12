@@ -115,7 +115,7 @@ export default function DownloadQueue({ queue, onRefresh }) {
   })
 
   return (
-    <Box>
+    <Box sx={{ maxWidth: 1400, mx: 'auto', width: '100%' }}>
       <Typography variant="h4" gutterBottom>
         Download Queue
       </Typography>

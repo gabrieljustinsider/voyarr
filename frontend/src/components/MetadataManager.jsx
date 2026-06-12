@@ -210,7 +210,7 @@ export default function MetadataManager() {
   }
 
   return (
-    <Box>
+    <Box sx={{ maxWidth: 1400, mx: 'auto', width: '100%' }}>
       <Typography variant="h4" gutterBottom>
         Metadata Management
       </Typography>
@@ -348,4 +348,3 @@ export default function MetadataManager() {
     </Box>
   )
 }
-

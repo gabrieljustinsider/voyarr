@@ -284,7 +284,7 @@ export default function ExternalAPIs() {
   }
 
   return (
-    <Box>
+    <Box sx={{ maxWidth: 1400, mx: 'auto', width: '100%' }}>
       <Typography variant="h4" gutterBottom>
         External API Integration
       </Typography>
@@ -350,7 +350,7 @@ export default function ExternalAPIs() {
                 <CircularProgress />
               </Box>
             ) : results.length > 0 && (
-              <TableContainer component={Paper}>
+          <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
                 <Table size="small">
                   <TableHead>
                     <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
@@ -362,13 +362,13 @@ export default function ExternalAPIs() {
                   <TableBody>
                     {results.map((result) => (
                       <TableRow key={result.id}>
-                        <TableCell>
+                    <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                           <Typography variant="body2" sx={{ fontWeight: 'bold' }}>{result.title}</Typography>
                           <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>
                             {result.site} • {result.date}
                           </Typography>
                         </TableCell>
-                        <TableCell>
+                    <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                           {result.performers?.slice(0, 2).map(p => {
                             const name = p.name || p;
                             return (
@@ -382,7 +382,7 @@ export default function ExternalAPIs() {
                             )
                           })}
                         </TableCell>
-                        <TableCell>
+                    <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                           <Button
                             size="small"
                             variant="outlined"
@@ -459,13 +459,13 @@ export default function ExternalAPIs() {
                 <CircularProgress />
               </Box>
             ) : results.length > 0 && (
-              <TableContainer component={Paper}>
+          <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
                 <Table size="small">
                   <TableHead>
                     <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
-                      <TableCell>Title</TableCell>
-                      <TableCell>Performers</TableCell>
-                      <TableCell>Action</TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Title</TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Performers</TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Action</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -517,14 +517,14 @@ export default function ExternalAPIs() {
             </Grid>
           </Grid>
 
-          <TableContainer component={Paper} variant="outlined">
+          <TableContainer component={Paper} variant="outlined" sx={{ overflowX: 'auto' }}>
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>Name</TableCell>
-                  <TableCell>Created</TableCell>
-                  <TableCell>Last Used</TableCell>
-                  <TableCell align="right">Actions</TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Name</TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Created</TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Last Used</TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>

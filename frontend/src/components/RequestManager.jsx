@@ -56,30 +56,30 @@ export default function RequestManager() {
   }
 
   return (
-    <Box>
+    <Box sx={{ maxWidth: 1400, mx: 'auto', width: '100%' }}>
       <Typography variant="h5" sx={{ mb: 2 }}>Media Request Manager</Typography>
-      <TableContainer component={Paper}>
+      <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Title</TableCell>
-              <TableCell>Requested By</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Actions</TableCell>
+              <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Title</TableCell>
+              <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Requested By</TableCell>
+              <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Status</TableCell>
+              <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {requests.map((req) => (
               <TableRow key={req.id}>
-                <TableCell>
+                <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                   {req.title} 
                   {req.url && (req.url.toLowerCase().startsWith('http://') || req.url.toLowerCase().startsWith('https://')) && (
                     <a href={req.url} target="_blank" rel="noreferrer" style={{marginLeft: 8, color: '#aaa'}}>(Link)</a>
                   )}
                 </TableCell>
-                <TableCell>{req.requested_by || 'Anonymous'}</TableCell>
-                <TableCell>{req.status.toUpperCase()}</TableCell>
-                <TableCell>
+                <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>{req.requested_by || 'Anonymous'}</TableCell>
+                <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>{req.status.toUpperCase()}</TableCell>
+                <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                   <Button variant="outlined" size="small" onClick={() => handleEdit(req)} sx={{ mr: 1 }}>Review</Button>
                   <Button variant="outlined" color="error" size="small" onClick={() => handleDelete(req.id)}>Delete</Button>
                 </TableCell>

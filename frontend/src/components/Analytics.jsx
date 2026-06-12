@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { 
   Box, Typography, Grid, Paper, Card, CardContent, Button, TextField, 
   CircularProgress, Alert, Table, TableBody, TableCell, TableContainer, 
-  TableHead, TableRow, Link, Divider
+  TableHead, TableRow, Link, Divider, Chip
 } from '@mui/material'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import FavoriteIcon from '@mui/icons-material/Favorite'
@@ -158,70 +158,76 @@ export default function Analytics() {
   const { metrics, activity_timeline, top_scenes, top_performers } = data || {}
 
   return (
-    <Box sx={{ p: 1 }}>
-      <Typography variant="h4" sx={{ fontWeight: '800', mb: 4, letterSpacing: '-0.5px', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+    <Box sx={{ p: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', maxWidth: 1400, mx: 'auto', width: '100%' }}>
+      <Typography variant="h4" sx={{ fontWeight: '800', mb: 4, letterSpacing: '-0.5px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, width: '100%', textAlign: 'center' }}>
         <AssessmentIcon sx={{ fontSize: 36, color: 'primary.main' }} />
         Analytics Dashboard
       </Typography>
 
       {/* Grid of Key Metrics Cards */}
-      <Grid container spacing={3} sx={{ mb: 4, justifyContent: 'center' }}>
-        <Grid item xs={12} sm={4}>
+      <Grid container spacing={3} sx={{ mb: 4, justifyContent: 'center', maxWidth: 1200 }}>
+        <Grid item xs={12} sm={4} sx={{ display: 'flex', justifyContent: 'center' }}>
           <Card sx={{ 
             background: 'linear-gradient(135deg, rgba(25, 118, 210, 0.1) 0%, rgba(0, 0, 0, 0.3) 100%)',
             border: '1px solid rgba(25, 118, 210, 0.2)',
             borderRadius: '16px',
             textAlign: 'center',
-            p: 2
+            p: 2,
+            width: '100%',
+            maxWidth: 400
           }}>
             <CardContent>
-              <AccessTimeIcon sx={{ fontSize: 40, color: 'primary.main', mb: 1 }} />
-              <Typography variant="h3" sx={{ fontWeight: '900' }}>{metrics?.total_watch_hours || 0}</Typography>
-              <Typography variant="subtitle2" color="textSecondary" sx={{ fontWeight: '600' }}>TOTAL WATCH HOURS</Typography>
+              <AccessTimeIcon sx={{ fontSize: 40, color: 'primary.main', mb: 1, mx: 'auto' }} />
+              <Typography variant="h3" sx={{ fontWeight: '900', textAlign: 'center' }}>{metrics?.total_watch_hours || 0}</Typography>
+              <Typography variant="subtitle2" color="textSecondary" sx={{ fontWeight: '600', textAlign: 'center' }}>TOTAL WATCH HOURS</Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={4}>
+        <Grid item xs={12} sm={4} sx={{ display: 'flex', justifyContent: 'center' }}>
           <Card sx={{ 
             background: 'linear-gradient(135deg, rgba(0, 230, 118, 0.1) 0%, rgba(0, 0, 0, 0.3) 100%)',
             border: '1px solid rgba(0, 230, 118, 0.2)',
             borderRadius: '16px',
             textAlign: 'center',
-            p: 2
+            p: 2,
+            width: '100%',
+            maxWidth: 400
           }}>
             <CardContent>
-              <PlayArrowIcon sx={{ fontSize: 40, color: '#00e676', mb: 1 }} />
-              <Typography variant="h3" sx={{ fontWeight: '900' }}>{metrics?.total_plays || 0}</Typography>
-              <Typography variant="subtitle2" color="textSecondary" sx={{ fontWeight: '600' }}>PLAYBACK SESSION HITS</Typography>
+              <PlayArrowIcon sx={{ fontSize: 40, color: '#00e676', mb: 1, mx: 'auto' }} />
+              <Typography variant="h3" sx={{ fontWeight: '900', textAlign: 'center' }}>{metrics?.total_plays || 0}</Typography>
+              <Typography variant="subtitle2" color="textSecondary" sx={{ fontWeight: '600', textAlign: 'center' }}>PLAYBACK SESSION HITS</Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={4}>
+        <Grid item xs={12} sm={4} sx={{ display: 'flex', justifyContent: 'center' }}>
           <Card sx={{ 
             background: 'linear-gradient(135deg, rgba(229, 9, 20, 0.1) 0%, rgba(0, 0, 0, 0.3) 100%)',
             border: '1px solid rgba(229, 9, 20, 0.2)',
             borderRadius: '16px',
             textAlign: 'center',
-            p: 2
+            p: 2,
+            width: '100%',
+            maxWidth: 400
           }}>
             <CardContent>
-              <FavoriteIcon sx={{ fontSize: 40, color: '#ff3333', mb: 1 }} />
-              <Typography variant="h3" sx={{ fontWeight: '900' }}>{metrics?.total_climax_count || 0}</Typography>
-              <Typography variant="subtitle2" color="textSecondary" sx={{ fontWeight: '600' }}>O-METER CLIMAX CLICKS</Typography>
+              <FavoriteIcon sx={{ fontSize: 40, color: '#ff3333', mb: 1, mx: 'auto' }} />
+              <Typography variant="h3" sx={{ fontWeight: '900', textAlign: 'center' }}>{metrics?.total_climax_count || 0}</Typography>
+              <Typography variant="subtitle2" color="textSecondary" sx={{ fontWeight: '600', textAlign: 'center' }}>O-METER CLIMAX CLICKS</Typography>
             </CardContent>
           </Card>
         </Grid>
       </Grid>
 
       {/* Main Charts & Top Tables */}
-      <Grid container spacing={4} sx={{ mb: 4 }}>
+      <Grid container spacing={4} sx={{ mb: 4, justifyContent: 'center', maxWidth: 1200 }}>
         {/* Watch History Timeline */}
-        <Grid item xs={12} md={8}>
-          <Paper sx={{ p: 3, borderRadius: '16px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.05)', height: '100%' }}>
-            <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3 }}>Watch Activity (Last 14 Days)</Typography>
+        <Grid item xs={12} md={8} sx={{ display: 'flex', justifyContent: 'center' }}>
+          <Paper sx={{ p: 3, borderRadius: '16px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.05)', height: '100%', width: '100%', mx: 'auto' }}>
+            <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3, textAlign: 'center' }}>Watch Activity (Last 14 Days)</Typography>
             {activity_timeline?.length === 0 ? (
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 260 }}>
-                <Typography color="textSecondary">No playback history recorded in the last 2 weeks.</Typography>
+                <Typography color="textSecondary" sx={{ textAlign: 'center' }}>No playback history recorded in the last 2 weeks.</Typography>
               </Box>
             ) : (
               <Box sx={{ width: '100%', height: 300 }}>
@@ -237,7 +243,7 @@ export default function Analytics() {
                     <XAxis dataKey="date" stroke="rgba(255,255,255,0.4)" fontSize={11} />
                     <YAxis stroke="rgba(255,255,255,0.4)" fontSize={11} />
                     <Tooltip contentStyle={{ backgroundColor: '#1e1e1e', border: '1px solid rgba(255,255,255,0.1)' }} />
-                    <Legend />
+                    <Legend wrapperStyle={{ textAlign: 'center' }} />
                     <Area type="monotone" dataKey="watch_minutes" name="Watch Duration (Mins)" stroke="#1976d2" fillOpacity={1} fill="url(#colorMinutes)" />
                     <Bar dataKey="plays" name="Play Sessions Count" fill="#00e676" barSize={12} />
                   </AreaChart>
@@ -248,16 +254,16 @@ export default function Analytics() {
         </Grid>
 
         {/* Top Lists Column */}
-        <Grid item xs={12} md={4} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <Grid item xs={12} md={4} sx={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'center' }}>
           {/* Top Performers Card */}
-          <Paper sx={{ p: 3, borderRadius: '16px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-            <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>Top Favorited Performers</Typography>
+          <Paper sx={{ p: 3, borderRadius: '16px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.05)', width: '100%', maxWidth: 400, mx: 'auto' }}>
+            <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2, textAlign: 'center' }}>Top Favorited Performers</Typography>
             {top_performers?.length === 0 ? (
-              <Typography variant="body2" color="textSecondary">No performers favorited yet.</Typography>
+              <Typography variant="body2" color="textSecondary" sx={{ textAlign: 'center' }}>No performers favorited yet.</Typography>
             ) : (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, alignItems: 'center' }}>
                 {top_performers?.map((p, idx) => (
-                  <Box key={p.name} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Box key={p.name} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                     <Typography variant="body2" sx={{ fontWeight: '600' }}>{idx + 1}. {p.name}</Typography>
                     <Chip label={`${p.count} fans`} size="small" variant="outlined" color="primary" sx={{ fontSize: '0.7rem' }} />
                   </Box>
@@ -267,14 +273,14 @@ export default function Analytics() {
           </Paper>
 
           {/* Top Scenes Card */}
-          <Paper sx={{ p: 3, borderRadius: '16px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-            <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>Top Favorited Scenes</Typography>
+          <Paper sx={{ p: 3, borderRadius: '16px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.05)', width: '100%', maxWidth: 400, mx: 'auto' }}>
+            <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2, textAlign: 'center' }}>Top Favorited Scenes</Typography>
             {top_scenes?.length === 0 ? (
-              <Typography variant="body2" color="textSecondary">No scenes favorited yet.</Typography>
+              <Typography variant="body2" color="textSecondary" sx={{ textAlign: 'center' }}>No scenes favorited yet.</Typography>
             ) : (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, alignItems: 'center' }}>
                 {top_scenes?.map((s, idx) => (
-                  <Box key={s.item_id} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
+                  <Box key={s.item_id} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, width: '100%' }}>
                     <Typography variant="body2" sx={{ fontWeight: '600' }} noWrap title={s.title}>
                       {idx + 1}. {s.title}
                     </Typography>
@@ -293,73 +299,73 @@ export default function Analytics() {
         mb: 4, 
         borderRadius: '20px', 
         background: 'linear-gradient(135deg, rgba(144, 202, 249, 0.05) 0%, rgba(0, 0, 0, 0.2) 100%)',
-        border: '1px solid rgba(144, 202, 249, 0.15)'
+        border: '1px solid rgba(144, 202, 249, 0.15)',
+        width: '100%',
+        maxWidth: 1000,
+        mx: 'auto'
       }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, mb: 2 }}>
           <img 
             src="https://avatars.githubusercontent.com/u/24867479?s=200&v=4" 
             alt="Stash Logo" 
             style={{ width: 32, height: 32, borderRadius: '6px', objectFit: 'cover' }} 
           />
-          <Typography variant="h5" sx={{ fontWeight: '800' }}>Stash App Two-Way Sync</Typography>
+          <Typography variant="h5" sx={{ fontWeight: '800', textAlign: 'center' }}>Stash App Two-Way Sync</Typography>
         </Box>
         
-        <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
+        <Typography variant="body2" color="textSecondary" sx={{ mb: 3, textAlign: 'center', maxWidth: 800, mx: 'auto' }}>
           Sync your pleasure statistics with the Stash app. We run a GraphQL query using the scene's OSHASH or title, pull Stash's <code>play_count</code> and <code>o_counter</code>, merge them (taking the maximum count), and write the merged stats back to both Voyarr and Stash.
         </Typography>
 
-        <Grid container spacing={3} alignItems="center">
-          <Grid item xs={12} sm={6}>
-            <TextField 
-              fullWidth 
-              size="small" 
-              label="Stash GraphQL URL" 
-              value={stashUrl} 
-              onChange={e => setStashUrl(e.target.value)} 
-            />
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <TextField 
-              fullWidth 
-              size="small" 
-              type="password" 
-              label="Stash ApiKey (Optional)" 
-              value={stashApiKey} 
-              onChange={e => setStashApiKey(e.target.value)} 
-            />
-          </Grid>
-          <Grid item xs={12} sm={2}>
-            <Button 
-              fullWidth
-              variant="contained" 
-              color="primary" 
-              size="large"
-              startIcon={
-                <img 
-                  src="https://avatars.githubusercontent.com/u/24867479?s=200&v=4" 
-                  alt="Stash Logo" 
-                  style={{ width: 20, height: 20, borderRadius: '4px', objectFit: 'cover' }} 
-                />
-              }
-              onClick={handleSyncStash}
-              disabled={syncing}
-            >
-              {syncing ? <CircularProgress size={24} /> : 'Sync Stats'}
-            </Button>
-          </Grid>
-        </Grid>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+          <TextField 
+            size="small" 
+            label="Stash GraphQL URL" 
+            value={stashUrl} 
+            onChange={e => setStashUrl(e.target.value)} 
+            sx={{ width: { xs: '100%', md: '350px' } }}
+            inputProps={{ style: { textAlign: 'center' } }}
+          />
+          <TextField 
+            size="small" 
+            type="password" 
+            label="Stash ApiKey (Optional)" 
+            value={stashApiKey} 
+            onChange={e => setStashApiKey(e.target.value)} 
+            sx={{ width: { xs: '100%', md: '250px' } }}
+            inputProps={{ style: { textAlign: 'center' } }}
+          />
+          <Button 
+            variant="contained" 
+            color="primary" 
+            startIcon={
+              <img 
+                src="https://avatars.githubusercontent.com/u/24867479?s=200&v=4" 
+                alt="Stash Logo" 
+                style={{ width: 20, height: 20, borderRadius: '4px', objectFit: 'cover' }} 
+              />
+            }
+            onClick={handleSyncStash}
+            disabled={syncing}
+            sx={{ minWidth: 150, height: '40px' }}
+          >
+            {syncing ? <CircularProgress size={24} /> : 'Sync Stats'}
+          </Button>
+        </Box>
 
         {syncResult && (
-          <Alert severity={syncResult.type} sx={{ mt: 3 }}>{syncResult.message}</Alert>
+          <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%', mt: 3 }}>
+            <Alert severity={syncResult.type} sx={{ maxWidth: 600 }}>{syncResult.message}</Alert>
+          </Box>
         )}
       </Paper>
 
       {/* Admin raw reports */}
       {isAdmin && (
-        <Paper sx={{ p: 4, borderRadius: '20px', background: 'rgba(255, 255, 255, 0.01)', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-            <Typography variant="h5" sx={{ fontWeight: '800' }}>Admin System Analytics Reports</Typography>
-            <Box sx={{ display: 'flex', gap: 2 }}>
+        <Paper sx={{ p: 4, borderRadius: '20px', background: 'rgba(255, 255, 255, 0.01)', border: '1px solid rgba(255, 255, 255, 0.05)', width: '100%', maxWidth: 1000, mx: 'auto' }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, mb: 3 }}>
+            <Typography variant="h5" sx={{ fontWeight: '800', textAlign: 'center' }}>Admin System Analytics Reports</Typography>
+            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
               {reportData && (
                 <Button variant="outlined" color="primary" onClick={handleDownloadReportCSV}>
                   Download CSV Report
@@ -372,30 +378,30 @@ export default function Analytics() {
           </Box>
 
           {reportData && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
-              <Divider />
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5, alignItems: 'center', width: '100%' }}>
+              <Divider sx={{ width: '100%' }} />
               
-              <Box>
-                <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>Per-Video Usage & Climax Count Details</Typography>
-                <TableContainer component={Paper} sx={{ maxHeight: 300, backgroundColor: 'rgba(0,0,0,0.2)' }}>
+              <Box sx={{ width: '100%' }}>
+                <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2, textAlign: 'center' }}>Per-Video Usage & Climax Count Details</Typography>
+                <TableContainer component={Paper} sx={{ maxHeight: 300, backgroundColor: 'rgba(0,0,0,0.2)', mx: 'auto', maxWidth: 900, overflowX: 'auto' }}>
                   <Table stickyHeader size="small">
                     <TableHead>
                       <TableRow>
-                        <TableCell sx={{ backgroundColor: '#1e1e1e' }}>User</TableCell>
-                        <TableCell sx={{ backgroundColor: '#1e1e1e' }}>Video Title</TableCell>
-                        <TableCell sx={{ backgroundColor: '#1e1e1e' }} align="right">Plays</TableCell>
-                        <TableCell sx={{ backgroundColor: '#1e1e1e' }} align="right">Climaxes</TableCell>
-                        <TableCell sx={{ backgroundColor: '#1e1e1e' }}>Last Played</TableCell>
+                        <TableCell align="center" sx={{ backgroundColor: '#1e1e1e', whiteSpace: 'nowrap' }}>User</TableCell>
+                        <TableCell align="center" sx={{ backgroundColor: '#1e1e1e', whiteSpace: 'nowrap' }}>Video Title</TableCell>
+                        <TableCell align="center" sx={{ backgroundColor: '#1e1e1e', whiteSpace: 'nowrap' }}>Plays</TableCell>
+                        <TableCell align="center" sx={{ backgroundColor: '#1e1e1e', whiteSpace: 'nowrap' }}>Climaxes</TableCell>
+                        <TableCell align="center" sx={{ backgroundColor: '#1e1e1e', whiteSpace: 'nowrap' }}>Last Played</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {reportData.video_stats_breakdown.map((item, idx) => (
                         <TableRow key={idx}>
-                          <TableCell>{item.username}</TableCell>
-                          <TableCell>{item.title}</TableCell>
-                          <TableCell align="right">{item.play_count}</TableCell>
-                          <TableCell align="right">{item.climax_count}</TableCell>
-                          <TableCell>{item.last_played ? new Date(item.last_played).toLocaleString() : 'N/A'}</TableCell>
+                          <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>{item.username}</TableCell>
+                          <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>{item.title}</TableCell>
+                          <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>{item.play_count}</TableCell>
+                          <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>{item.climax_count}</TableCell>
+                          <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>{item.last_played ? new Date(item.last_played).toLocaleString() : 'N/A'}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -403,27 +409,27 @@ export default function Analytics() {
                 </TableContainer>
               </Box>
 
-              <Box>
-                <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>Recent Watch History logs</Typography>
-                <TableContainer component={Paper} sx={{ maxHeight: 300, backgroundColor: 'rgba(0,0,0,0.2)' }}>
+              <Box sx={{ width: '100%' }}>
+                <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2, textAlign: 'center' }}>Recent Watch History logs</Typography>
+                <TableContainer component={Paper} sx={{ maxHeight: 300, backgroundColor: 'rgba(0,0,0,0.2)', mx: 'auto', maxWidth: 900, overflowX: 'auto' }}>
                   <Table stickyHeader size="small">
                     <TableHead>
                       <TableRow>
-                        <TableCell sx={{ backgroundColor: '#1e1e1e' }}>Time</TableCell>
-                        <TableCell sx={{ backgroundColor: '#1e1e1e' }}>User</TableCell>
-                        <TableCell sx={{ backgroundColor: '#1e1e1e' }}>Scene Title</TableCell>
-                        <TableCell sx={{ backgroundColor: '#1e1e1e' }} align="right">Duration (Secs)</TableCell>
-                        <TableCell sx={{ backgroundColor: '#1e1e1e' }}>Status</TableCell>
+                        <TableCell align="center" sx={{ backgroundColor: '#1e1e1e', whiteSpace: 'nowrap' }}>Time</TableCell>
+                        <TableCell align="center" sx={{ backgroundColor: '#1e1e1e', whiteSpace: 'nowrap' }}>User</TableCell>
+                        <TableCell align="center" sx={{ backgroundColor: '#1e1e1e', whiteSpace: 'nowrap' }}>Scene Title</TableCell>
+                        <TableCell align="center" sx={{ backgroundColor: '#1e1e1e', whiteSpace: 'nowrap' }}>Duration (Secs)</TableCell>
+                        <TableCell align="center" sx={{ backgroundColor: '#1e1e1e', whiteSpace: 'nowrap' }}>Status</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {reportData.recent_watch_logs.map((item) => (
                         <TableRow key={item.history_id}>
-                          <TableCell>{new Date(item.watched_at).toLocaleString()}</TableCell>
-                          <TableCell>{item.username}</TableCell>
-                          <TableCell>{item.title}</TableCell>
-                          <TableCell align="right">{item.duration_seconds}</TableCell>
-                          <TableCell>
+                          <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>{new Date(item.watched_at).toLocaleString()}</TableCell>
+                          <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>{item.username}</TableCell>
+                          <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>{item.title}</TableCell>
+                          <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>{item.duration_seconds}</TableCell>
+                          <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                             <Chip 
                               label={item.completed ? "COMPLETED" : "INCOMPLETE"} 
                               size="small" 

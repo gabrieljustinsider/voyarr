@@ -21,7 +21,6 @@ import {
 import FingerprintIcon from '@mui/icons-material/Fingerprint'
 import LockIcon from '@mui/icons-material/Lock'
 import PersonIcon from '@mui/icons-material/Person'
-import packageJson from '../../package.json'
 import PasswordChecklist from './PasswordChecklist'
 
 // SVG Branded Logos for SSO
@@ -440,7 +439,7 @@ export default function Login() {
               VOYARR
             </Typography>
             <Chip
-              label={`v${packageJson.version}`}
+              label={`v${__APP_VERSION__}`}
               size="small"
               sx={{
                 height: 20,

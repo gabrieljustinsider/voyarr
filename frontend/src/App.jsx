@@ -7,7 +7,6 @@ import {
   FormControlLabel, Divider, Grid, TextField, CircularProgress, Chip,
   Badge, Avatar, Menu, Popover, List, ListItem, ListItemText
 } from '@mui/material'
-import packageJson from '../package.json'
 import { motion, AnimatePresence } from 'framer-motion'
 import { LogOut, SlidersHorizontal, Bell, CircleHelp, Clapperboard, Key, Download, Bot, Wrench } from 'lucide-react'
 
@@ -948,7 +947,7 @@ function App() {
               </Typography>
             </Box>
             <Chip
-              label={`v${packageJson.version}`}
+              label={`v${__APP_VERSION__}`}
               size="small"
               sx={{
                 height: 20,

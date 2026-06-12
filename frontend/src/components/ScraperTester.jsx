@@ -100,7 +100,7 @@ export default function ScraperTester() {
   const isBusy = status.startsWith('In progress') || status === 'Queuing task...' || status.startsWith('Waiting');
 
   return (
-    <Box sx={{ mt: 2 }}>
+    <Box sx={{ mt: 2, maxWidth: 1400, mx: 'auto', width: '100%' }}>
       <Typography variant="h6" gutterBottom>Test Dynamic Scraper</Typography>
       <Paper sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
         {!scrapingEnabled && (

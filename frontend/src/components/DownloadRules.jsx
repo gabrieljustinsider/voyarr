@@ -133,15 +133,15 @@ export default function DownloadRules() {
   }
 
   return (
-    <Box>
-      <Typography variant="h4" gutterBottom>Download Rules & Lists</Typography>
+    <Box sx={{ maxWidth: 1400, mx: 'auto', width: '100%' }}>
+      <Typography variant="h4" gutterBottom align="center">Download Rules & Lists</Typography>
 
-      <Grid container spacing={3}>
-        {/* Custom Lists Section */}
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+      <Grid container spacing={4} justifyContent="center" sx={{ mb: 4 }}>
+          {/* Custom Lists Section */}
+          <Grid item xs={12} md={6} lg={5}>
+            <Card sx={{ height: '100%', width: '100%' }}>
+              <CardContent>
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5, mb: 3 }}>
                 <Typography variant="h6">Custom Lists</Typography>
                 <Button variant="contained" startIcon={<AddIcon />} onClick={() => {
                   setCurrentList({ name: '', item_type: 'performers', items: [] })
@@ -164,10 +164,10 @@ export default function DownloadRules() {
         </Grid>
 
         {/* Download Rules Section */}
-        <Grid item xs={12} md={6}>
-          <Card>
+          <Grid item xs={12} md={6} lg={5}>
+            <Card sx={{ height: '100%', width: '100%' }}>
             <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5, mb: 3 }}>
                 <Typography variant="h6">Download Rules</Typography>
                 <Button variant="contained" startIcon={<AddIcon />} onClick={() => {
                   setCurrentRule({ name: '', scope: 'global', action: 'download', criteria: {} })

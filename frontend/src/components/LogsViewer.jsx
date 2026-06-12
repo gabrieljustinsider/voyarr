@@ -71,11 +71,11 @@ export default function LogsViewer() {
   })
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-        <Typography variant="h4">System Logs</Typography>
-        <Stack direction="row" spacing={2} alignItems="center">
-          <FormControl size="small">
+    <Box sx={{ maxWidth: 1400, mx: 'auto', width: '100%' }}>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'stretch', md: 'center' }, gap: 2, mb: 2 }}>
+        <Typography variant="h4" sx={{ textAlign: { xs: 'center', md: 'left' } }}>System Logs</Typography>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="stretch" sx={{ width: { xs: '100%', md: 'auto' } }}>
+          <FormControl size="small" sx={{ flex: 1 }}>
             <InputLabel>Source</InputLabel>
             <Select
               value={logSource}
@@ -88,7 +88,7 @@ export default function LogsViewer() {
             </Select>
           </FormControl>
           
-          <FormControl size="small">
+          <FormControl size="small" sx={{ flex: 1 }}>
             <InputLabel>Level</InputLabel>
             <Select
               value={logLevel}
@@ -110,9 +110,10 @@ export default function LogsViewer() {
             variant="outlined"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            sx={{ flex: 2 }}
           />
 
-          <Button variant="outlined" color="error" onClick={clearLogs} disabled={loading} sx={{ height: '40px' }}>
+          <Button variant="outlined" color="error" onClick={clearLogs} disabled={loading} sx={{ height: '40px', flex: 1 }}>
             {loading ? <CircularProgress size={24} /> : 'Clear'}
           </Button>
         </Stack>

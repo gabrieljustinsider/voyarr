@@ -18,12 +18,12 @@ router = APIRouter(
 )
 
 
-@router.get("/", response_model=List[ScrapeScheduleResponse])
+@router.get("", response_model=List[ScrapeScheduleResponse])
 def get_schedules(db: Session = Depends(get_db)):
     return db.query(ScrapeSchedule).all()
 
 
-@router.post("/", response_model=ScrapeScheduleResponse)
+@router.post("", response_model=ScrapeScheduleResponse)
 def create_schedule(schedule: ScrapeScheduleCreate, db: Session = Depends(get_db)):
     if not croniter.is_valid(schedule.cron_expression):
         raise HTTPException(status_code=400, detail="Invalid cron expression")

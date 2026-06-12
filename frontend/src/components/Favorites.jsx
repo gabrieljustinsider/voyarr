@@ -89,13 +89,13 @@ export default function Favorites() {
   const currentItems = favs[currentType] || []
 
   return (
-    <Box sx={{ p: 1 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" sx={{ fontWeight: '800', letterSpacing: '-0.5px', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+    <Box sx={{ p: 1, maxWidth: 1400, mx: 'auto', width: '100%' }}>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: 'center', gap: 2, mb: 3 }}>
+        <Typography variant="h4" sx={{ fontWeight: '800', letterSpacing: '-0.5px', display: 'flex', alignItems: 'center', justifyContent: { xs: 'center', sm: 'flex-start' }, gap: 1.5, textAlign: { xs: 'center', sm: 'left' } }}>
           <FavoriteIcon color="error" sx={{ fontSize: 36, filter: 'drop-shadow(0 0 8px rgba(229, 9, 20, 0.4))' }} />
           Favorites Hub
         </Typography>
-        <Button variant="outlined" onClick={fetchFavorites} size="small">
+        <Button variant="outlined" onClick={fetchFavorites} size="small" sx={{ width: { xs: '100%', sm: 'auto' } }}>
           Refresh
         </Button>
       </Box>
@@ -106,7 +106,7 @@ export default function Favorites() {
         background: 'rgba(255, 255, 255, 0.03)', 
         backdropFilter: 'blur(10px)', 
         border: '1px solid rgba(255, 255, 255, 0.05)', 
-        borderRadius: '12px' 
+        borderRadius: '12px'
       }}>
         <Tabs 
           value={activeTab} 

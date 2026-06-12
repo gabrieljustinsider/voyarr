@@ -256,7 +256,7 @@ export default function AccountSecurity({ setSnackbar }) {
   }
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, maxWidth: 1400, mx: 'auto', width: '100%' }}>
       {/* Change Password Card */}
       <Paper sx={{ p: 3, border: '1px solid rgba(255, 255, 255, 0.05)', background: 'rgba(255, 255, 255, 0.01)', borderRadius: '12px' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, color: 'primary.main' }}>
@@ -355,27 +355,27 @@ export default function AccountSecurity({ setSnackbar }) {
             <Typography variant="caption" display="block" color="textSecondary">No passkeys registered yet.</Typography>
           </Box>
         ) : (
-          <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: '8px' }}>
+          <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: '8px', overflowX: 'auto' }}>
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>Name</TableCell>
-                  <TableCell>Created</TableCell>
-                  <TableCell align="right">Actions</TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Name</TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Created</TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {passkeys.map(pk => (
                   <TableRow key={pk.id}>
-                    <TableCell>
+                    <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                       <InlineTextField 
                         value={pk.name} 
                         onSave={(val) => handleRenamePasskey(pk.id, val)}
                         label="Rename Passkey"
                       />
                     </TableCell>
-                    <TableCell>{new Date(pk.created_at).toLocaleDateString()}</TableCell>
-                    <TableCell align="right">
+                    <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>{new Date(pk.created_at).toLocaleDateString()}</TableCell>
+                    <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                       <IconButton color="error" size="small" onClick={() => handleDeletePasskey(pk.id)}>
                         <Trash2 size={18} />
                       </IconButton>

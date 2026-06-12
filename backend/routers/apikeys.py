@@ -18,7 +18,7 @@ class ApiKeyCreate(BaseModel):
     name: str
 
 
-@router.get("/")
+@router.get("")
 def list_api_keys(db: Session = Depends(get_db)):
     keys = db.query(ApiKey).all()
     return [
@@ -32,7 +32,7 @@ def list_api_keys(db: Session = Depends(get_db)):
     ]
 
 
-@router.post("/")
+@router.post("")
 def create_api_key(req: ApiKeyCreate, db: Session = Depends(get_db)):
     # Generate a secure random API key
     raw_key = f"vyr_{secrets.token_urlsafe(32)}"

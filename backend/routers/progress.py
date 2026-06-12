@@ -13,7 +13,7 @@ router = APIRouter(
 
 
 @router.get("/stats")
-async def get_download_stats(db: Session = Depends(get_db)):
+def get_download_stats(db: Session = Depends(get_db)):
     total_downloads = db.query(func.count(MediaEntry.id)).scalar()
     completed = (
         db.query(func.count(DownloadQueue.id))
@@ -46,7 +46,7 @@ async def get_download_stats(db: Session = Depends(get_db)):
 
 
 @router.get("/{task_id}")
-async def get_progress(task_id: int, db: Session = Depends(get_db)):
+def get_progress(task_id: int, db: Session = Depends(get_db)):
     task = db.query(DownloadQueue).filter(DownloadQueue.id == task_id).first()
     if not task:
         # For testing purposes when queue is empty, simulate a running task
@@ -62,7 +62,7 @@ async def get_progress(task_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{task_id}/pause")
-async def pause_download(task_id: int, db: Session = Depends(get_db)):
+def pause_download(task_id: int, db: Session = Depends(get_db)):
     task = db.query(DownloadQueue).filter(DownloadQueue.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -86,7 +86,7 @@ async def pause_download(task_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{task_id}/resume")
-async def resume_download(task_id: int, db: Session = Depends(get_db)):
+def resume_download(task_id: int, db: Session = Depends(get_db)):
     task = db.query(DownloadQueue).filter(DownloadQueue.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -118,7 +118,7 @@ async def resume_download(task_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{task_id}/cancel")
-async def cancel_download(task_id: int, db: Session = Depends(get_db)):
+def cancel_download(task_id: int, db: Session = Depends(get_db)):
     task = db.query(DownloadQueue).filter(DownloadQueue.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -139,7 +139,7 @@ async def cancel_download(task_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{task_id}/priority/up")
-async def priority_up(task_id: int, db: Session = Depends(get_db)):
+def priority_up(task_id: int, db: Session = Depends(get_db)):
     task = db.query(DownloadQueue).filter(DownloadQueue.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -152,7 +152,7 @@ async def priority_up(task_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{task_id}/priority/down")
-async def priority_down(task_id: int, db: Session = Depends(get_db)):
+def priority_down(task_id: int, db: Session = Depends(get_db)):
     task = db.query(DownloadQueue).filter(DownloadQueue.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")

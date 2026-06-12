@@ -53,7 +53,7 @@ export default function Dashboard() {
   ]
 
   return (
-    <Box>
+    <Box sx={{ maxWidth: 1400, mx: 'auto', width: '100%' }}>
       <Typography variant="h4" gutterBottom>
         Dashboard
       </Typography>
@@ -93,7 +93,7 @@ export default function Dashboard() {
         </Grid>
       </Grid>
 
-      <Grid container spacing={3} sx={{ mt: 2 }}>
+      <Grid container spacing={3} sx={{ mt: 2, justifyContent: 'center' }}>
         <Grid xs={12}>
           <Card>
             <CardContent>
@@ -135,7 +135,7 @@ export default function Dashboard() {
         </Grid>
       </Grid>
 
-      <Grid container spacing={3} sx={{ mt: 2 }}>
+      <Grid container spacing={3} sx={{ mt: 2, justifyContent: 'center' }}>
         <Grid xs={12} md={6}>
           <Card>
             <CardContent>

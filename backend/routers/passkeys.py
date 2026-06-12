@@ -66,7 +66,7 @@ class LoginVerifyRequest(BaseModel):
 class PasskeyRenameRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
 
-@router.get("/", response_model=List[dict])
+@router.get("", response_model=List[dict])
 def list_passkeys(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     passkeys = db.query(Passkey).filter(Passkey.user_id == current_user.id).order_by(Passkey.created_at.desc()).all()
     

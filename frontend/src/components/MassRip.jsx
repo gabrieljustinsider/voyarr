@@ -53,7 +53,7 @@ export default function MassRip() {
   }
 
   return (
-    <Box>
+    <Box sx={{ maxWidth: 1400, mx: 'auto', width: '100%' }}>
       <Typography variant="h4" gutterBottom>Mass Rip Workflow</Typography>
       <Paper sx={{ p: 3, mb: 3 }}>
         {!rippingEnabled && (

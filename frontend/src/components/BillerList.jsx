@@ -1,12 +1,21 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { 
   Card, CardContent, Typography, Button, Grid, TextField, Box, 
-  Dialog, DialogTitle, DialogContent, DialogActions, IconButton
+  Dialog, DialogTitle, DialogContent, DialogActions, IconButton, Chip
 } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
 import { apiFetch } from '../api'
+
+const COMMON_BILLERS = [
+  { name: 'CCBill', url: 'https://ccbill.com', support_email: 'consumersupport@ccbill.com', support_phone: '1-888-596-9279', description: 'Common payment gateway.' },
+  { name: 'Epoch', url: 'https://epoch.com', support_email: 'billing@epoch.com', support_phone: '1-800-893-8871', description: 'Epoch payment services.' },
+  { name: 'Vendo', url: 'https://vendoservices.com', support_email: 'support@vendoservices.com', support_phone: '1-877-327-8341', description: 'Vendo billing.' },
+  { name: 'Verotel', url: 'https://verotel.com', support_email: 'support@verotel.com', support_phone: '1-877-873-0550', description: 'Verotel billing gateway.' },
+  { name: 'Segpay', url: 'https://segpay.com', support_email: 'help@segpay.com', support_phone: '1-866-567-1500', description: 'Segpay payment solutions.' },
+  { name: 'Centrobill', url: 'https://centrobill.com', support_email: 'support@centrobill.com', support_phone: '1-844-469-8088', description: 'Centrobill safe payments.' }
+]
 
 export default function BillerList() {
   const [billers, setBillers] = useState([])
@@ -98,10 +107,10 @@ export default function BillerList() {
   }
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" sx={{ fontWeight: 'bold' }}>Subscription Billers</Typography>
-        <Button variant="contained" color="secondary" startIcon={<AddIcon />} onClick={handleOpenCreate}>
+    <Box sx={{ maxWidth: 1400, mx: 'auto', width: '100%' }}>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: 'center', gap: 2, mb: 3 }}>
+        <Typography variant="h4" sx={{ fontWeight: 'bold', textAlign: { xs: 'center', sm: 'left' } }}>Subscription Billers</Typography>
+        <Button variant="contained" color="secondary" startIcon={<AddIcon />} onClick={handleOpenCreate} sx={{ width: { xs: '100%', sm: 'auto' } }}>
           Add Biller
         </Button>
       </Box>
@@ -132,6 +141,25 @@ export default function BillerList() {
         <DialogTitle sx={{ fontWeight: 'bold' }}>{editMode ? 'Edit Biller' : 'Add New Biller'}</DialogTitle>
         <Box component="form" onSubmit={handleSaveBiller}>
           <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {!editMode && (
+              <Box sx={{ mb: 1 }}>
+                <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+                  Quick Fill Templates:
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                  {COMMON_BILLERS.map(template => (
+                    <Chip 
+                      key={template.name} 
+                      label={template.name} 
+                      size="small" 
+                      variant="outlined"
+                      onClick={() => setBillerForm(template)} 
+                      sx={{ cursor: 'pointer' }}
+                    />
+                  ))}
+                </Box>
+              </Box>
+            )}
             <TextField fullWidth label="Biller Name" required value={billerForm.name} onChange={(e) => setBillerForm({ ...billerForm, name: e.target.value })} />
             <TextField fullWidth label="Website URL" placeholder="https://ccbill.com" value={billerForm.url} onChange={(e) => setBillerForm({ ...billerForm, url: e.target.value })} />
             <Grid container spacing={2}>

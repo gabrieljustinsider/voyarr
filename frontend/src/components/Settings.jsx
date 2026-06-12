@@ -956,7 +956,7 @@ export default function Settings() {
   }
 
   return (
-    <Box>
+    <Box sx={{ maxWidth: 1400, mx: 'auto', width: '100%' }}>
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>Storage &amp; Directory Paths</Typography>
         <Typography variant="body2" sx={{ mb: 2 }} color="textSecondary">
@@ -1759,16 +1759,16 @@ export default function Settings() {
             Manage system roles, suspend accounts, reset credentials, revoke passkeys, check IPs, or consolidate history using merges.
           </Typography>
           <Divider sx={{ mb: 2 }} />
-          <Box sx={{ overflowX: 'auto' }}>
+          <Box sx={{ overflowX: 'auto', width: '100%' }}>
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Username</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>System Role</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>Account Status</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Created On</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Last Signed In</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>Actions</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Username</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>System Role</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Account Status</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Created On</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Last Signed In</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -1776,8 +1776,8 @@ export default function Settings() {
                   const perms = u.permissions || { can_stream: true, can_scrape: false, can_rip: false, url_parsing: 'edit' };
                   return (
                     <TableRow key={u.id} hover>
-                      <TableCell sx={{ fontWeight: 500 }}>{u.username}</TableCell>
-                      <TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 500, whiteSpace: 'nowrap' }}>{u.username}</TableCell>
+                      <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                         <Chip
                           size="small"
                           label={u.role}
@@ -1785,7 +1785,7 @@ export default function Settings() {
                           sx={{ textTransform: 'uppercase', fontSize: '0.7rem', fontWeight: 'bold' }}
                         />
                       </TableCell>
-                      <TableCell sx={{ textAlign: 'center' }}>
+                      <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                         <Switch
                           checked={u.is_active}
                           disabled={u.role === 'admin'}
@@ -1793,13 +1793,13 @@ export default function Settings() {
                           color="secondary"
                         />
                       </TableCell>
-                      <TableCell sx={{ fontSize: '0.85rem', opacity: 0.8 }}>
+                      <TableCell align="center" sx={{ fontSize: '0.85rem', opacity: 0.8, whiteSpace: 'nowrap' }}>
                         {u.created_at ? new Date(u.created_at).toLocaleDateString() : 'N/A'}
                       </TableCell>
-                      <TableCell sx={{ fontSize: '0.85rem', opacity: 0.8 }}>
+                      <TableCell align="center" sx={{ fontSize: '0.85rem', opacity: 0.8, whiteSpace: 'nowrap' }}>
                         {u.last_login_at ? new Date(u.last_login_at).toLocaleString() : 'Never'}
                       </TableCell>
-                      <TableCell sx={{ textAlign: 'center' }}>
+                      <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                         <Button
                           variant="outlined"
                           size="small"
@@ -1830,23 +1830,23 @@ export default function Settings() {
             <Table size="small" stickyHeader>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 'bold', background: '#11121a' }}>Timestamp</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', background: '#11121a' }}>Administrator</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', background: '#11121a' }}>Action</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', background: '#11121a' }}>Details</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 'bold', background: '#11121a', whiteSpace: 'nowrap' }}>Timestamp</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 'bold', background: '#11121a', whiteSpace: 'nowrap' }}>Administrator</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 'bold', background: '#11121a', whiteSpace: 'nowrap' }}>Action</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 'bold', background: '#11121a', whiteSpace: 'nowrap' }}>Details</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {adminLogs.map((log) => (
                   <TableRow key={log.id} hover>
-                    <TableCell sx={{ opacity: 0.8, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+                    <TableCell align="center" sx={{ opacity: 0.8, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
                       {new Date(log.timestamp).toLocaleString()}
                     </TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>{log.admin_username}</TableCell>
-                    <TableCell sx={{ textTransform: 'uppercase', fontSize: '0.8rem', fontWeight: 'bold', color: 'info.main' }}>
+                    <TableCell align="center" sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{log.admin_username}</TableCell>
+                    <TableCell align="center" sx={{ textTransform: 'uppercase', fontSize: '0.8rem', fontWeight: 'bold', color: 'info.main', whiteSpace: 'nowrap' }}>
                       {log.action}
                     </TableCell>
-                    <TableCell sx={{ fontSize: '0.85rem', maxWidth: '300px', wordBreak: 'break-all' }}>
+                    <TableCell align="center" sx={{ fontSize: '0.85rem', maxWidth: '300px', wordBreak: 'break-all' }}>
                       {JSON.stringify(log.details)}
                     </TableCell>
                   </TableRow>

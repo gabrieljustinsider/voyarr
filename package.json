@@ -1,6 +1,6 @@
 {
   "name": "voyarr",
-  "version": "1.18.0",
+  "version": "1.18.1",
   "description": "Media downloader/manager and metadata scraper",
   "main": "index.js",
   "scripts": {
@@ -10,7 +10,7 @@
     "test:frontend": "cd frontend && npm run build",
     "test:backend": "cd backend && ../venv/bin/ruff check . && PYTHONPATH=. ../venv/bin/pytest",
     "build": "cd frontend && npm install && npm run build",
-    "version": "node -e \"const fs = require('fs'); fs.writeFileSync('version', process.env.npm_package_version + '\\n'); const m = JSON.parse(fs.readFileSync('extension/manifest.json')); m.version = process.env.npm_package_version; fs.writeFileSync('extension/manifest.json', JSON.stringify(m, null, 2) + '\\n');\" && git add version extension/manifest.json"
+    "version": "node -e \"const fs = require('fs'); fs.writeFileSync('VERSION', process.env.npm_package_version + '\\n'); const m = JSON.parse(fs.readFileSync('extension/manifest.json')); m.version = process.env.npm_package_version; fs.writeFileSync('extension/manifest.json', JSON.stringify(m, null, 2) + '\\n');\" && git add VERSION extension/manifest.json"
   },
   "repository": {
     "type": "git",

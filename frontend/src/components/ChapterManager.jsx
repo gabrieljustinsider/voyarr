@@ -94,7 +94,7 @@ const ChapterManager = ({ open, onClose, libraryEntry }) => {
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>Manage Chapters - {libraryEntry?.title}</DialogTitle>
       <DialogContent dividers>
-        <Box sx={{ mb: 4, display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+        <Box sx={{ mb: 4, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, alignItems: { xs: 'stretch', sm: 'flex-start' } }}>
           <TextField
             label="Title"
             size="small"
@@ -108,7 +108,7 @@ const ChapterManager = ({ open, onClose, libraryEntry }) => {
             size="small"
             value={form.start_time}
             onChange={(e) => setForm({ ...form, start_time: e.target.value })}
-            sx={{ width: 120 }}
+            sx={{ width: { xs: '100%', sm: 120 } }}
           />
           <TextField
             label="End Time (sec)"
@@ -116,7 +116,7 @@ const ChapterManager = ({ open, onClose, libraryEntry }) => {
             size="small"
             value={form.end_time}
             onChange={(e) => setForm({ ...form, end_time: e.target.value })}
-            sx={{ width: 120 }}
+            sx={{ width: { xs: '100%', sm: 120 } }}
           />
           <TextField
             label="Tags (comma separated)"
@@ -125,14 +125,16 @@ const ChapterManager = ({ open, onClose, libraryEntry }) => {
             onChange={(e) => setForm({ ...form, tags: e.target.value })}
             fullWidth
           />
-          <Button variant="contained" onClick={handleSave} disabled={!form.title || form.start_time === ''}>
-            {editingId ? 'Update' : 'Add'}
-          </Button>
-          {editingId && (
-            <Button variant="outlined" onClick={() => { setEditingId(null); setForm({ title: '', start_time: 0, end_time: '', tags: '' }); }}>
-              Cancel
+          <Box sx={{ display: 'flex', gap: 1, flexDirection: { xs: 'column', sm: 'row' } }}>
+            <Button variant="contained" onClick={handleSave} disabled={!form.title || form.start_time === ''} sx={{ width: { xs: '100%', sm: 'auto' }, whiteSpace: 'nowrap' }}>
+              {editingId ? 'Update' : 'Add'}
             </Button>
-          )}
+            {editingId && (
+              <Button variant="outlined" onClick={() => { setEditingId(null); setForm({ title: '', start_time: 0, end_time: '', tags: '' }); }} sx={{ width: { xs: '100%', sm: 'auto' } }}>
+                Cancel
+              </Button>
+            )}
+          </Box>
         </Box>
 
         {loading ? (
@@ -144,7 +146,7 @@ const ChapterManager = ({ open, onClose, libraryEntry }) => {
               <ListItem key={ch.id} divider>
                 <ListItemText
                   primary={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                       <Typography fontWeight="bold">{formatTime(ch.start_time)}</Typography>
                       <InlineTextField
                         value={ch.title}

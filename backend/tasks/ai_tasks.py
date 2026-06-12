@@ -2,7 +2,6 @@ import os
 import subprocess  # nosec B404
 import base64
 import requests
-import tempfile
 import logging
 import re
 from celery import shared_task  # type: ignore
@@ -34,17 +33,12 @@ def extract_frame_base64(file_path: str) -> str:
         ]
         # SECURITY: Add timeout to prevent process hanging (Denial of Service)
         duration_str = (
-            subprocess.check_output(cmd_duration, timeout=30).decode("utf-8").strip()
+            subprocess.check_output(cmd_duration, stdin=subprocess.DEVNULL, timeout=30).decode("utf-8").strip()
         )  # nosec B603
         duration = float(duration_str)
         midpoint = duration / 2.0
 
-        # SECURITY: Use a secure temporary file to avoid permission issues and collisions
-        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp_file:
-            frame_path = tmp_file.name
-
         try:
-            # Extract frame at midpoint
             cmd_extract = [
                 "ffmpeg",
                 "-y",
@@ -56,22 +50,22 @@ def extract_frame_base64(file_path: str) -> str:
                 "1",
                 "-q:v",
                 "2",
-                frame_path,
+                "-f",
+                "image2pipe",
+                "-vcodec",
+                "mjpeg",
+                "-"
             ]
-            subprocess.run(
+            process = subprocess.run(
                 cmd_extract,
-                stdout=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
+                stdin=subprocess.DEVNULL,
                 check=True,
                 timeout=60,
             )  # nosec B603
 
-            with open(frame_path, "rb") as f:
-                return base64.b64encode(f.read()).decode("utf-8")
-        finally:
-            # SECURITY: Ensure cleanup executes even if ffmpeg times out or fails
-            if os.path.exists(frame_path):
-                os.remove(frame_path)
+            return base64.b64encode(process.stdout).decode("utf-8")
 
     except subprocess.TimeoutExpired as e:
         logger.error(f"Timeout while extracting frame from {abs_file_path}: {e}")
@@ -228,8 +222,6 @@ def auto_tag_video_task(self: Any, library_entry_id: int) -> str | None:
 
 def extract_frame_at_timestamp_base64(file_path: str, timestamp: float) -> str:
     abs_file_path = os.path.abspath(file_path)
-    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp_file:
-        frame_path = tmp_file.name
 
     try:
         cmd_extract = [
@@ -243,18 +235,22 @@ def extract_frame_at_timestamp_base64(file_path: str, timestamp: float) -> str:
             "1",
             "-q:v",
             "2",
-            frame_path,
+            "-f",
+            "image2pipe",
+            "-vcodec",
+            "mjpeg",
+            "-"
         ]
-        subprocess.run(
+        process = subprocess.run(
             cmd_extract,
-            stdout=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
             check=True,
             timeout=60,
         )  # nosec B603
 
-        with open(frame_path, "rb") as f:
-            return base64.b64encode(f.read()).decode("utf-8")
+        return base64.b64encode(process.stdout).decode("utf-8")
     except subprocess.TimeoutExpired as e:
         logger.error(
             f"Timeout extracting frame at {timestamp} from {abs_file_path}: {e}"
@@ -265,9 +261,6 @@ def extract_frame_at_timestamp_base64(file_path: str, timestamp: float) -> str:
             f"Failed to extract frame at {timestamp} from {abs_file_path}: {e}"
         )
         return ""
-    finally:
-        if os.path.exists(frame_path):
-            os.remove(frame_path)
 
 
 def get_scene_changes(file_path: str, threshold: float = 0.3) -> list[float]:
@@ -286,7 +279,7 @@ def get_scene_changes(file_path: str, threshold: float = 0.3) -> list[float]:
     try:
         # High timeout as full video scene detection takes time
         output = subprocess.check_output(
-            cmd, stderr=subprocess.STDOUT, timeout=300
+            cmd, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, timeout=300
         ).decode("utf-8")  # nosec B603
         # Parses 'pts_time:12.345'
         for match in re.finditer(r"pts_time:([\d\.]+)", output):
@@ -306,7 +299,7 @@ def get_scene_changes(file_path: str, threshold: float = 0.3) -> list[float]:
                 abs_file_path,
             ]
             duration = float(
-                subprocess.check_output(cmd_duration, timeout=30)
+                subprocess.check_output(cmd_duration, stdin=subprocess.DEVNULL, timeout=30)
                 .decode("utf-8")
                 .strip()
             )  # nosec B603

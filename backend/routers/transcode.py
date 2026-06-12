@@ -77,7 +77,7 @@ def start_transcode(
     }
 
 
-@router.get("/")
+@router.get("")
 def get_transcode_jobs(
     status: Optional[str] = None,
     current_user = Depends(require_permission("streaming", "view")),
@@ -101,39 +101,48 @@ def stream_transcode_queue(request: Request, current_user = Depends(require_perm
     SSE stream for active transcoding tasks.
     """
 
-    async def event_generator():
-        while True:
-            if await request.is_disconnected():
-                break
-            with get_db_session() as db:
-                jobs = (
-                    db.query(TranscodingQueue)
-                    .filter(
-                        TranscodingQueue.status.in_(["pending", "running", "paused"])
-                    )
-                    .order_by(
-                        TranscodingQueue.priority.desc(),
-                        TranscodingQueue.created_at.asc(),
-                    )
-                    .all()
+    def fetch_active_jobs():
+        with get_db_session() as db:
+            jobs = (
+                db.query(TranscodingQueue)
+                .filter(
+                    TranscodingQueue.status.in_(["pending", "running", "paused"])
                 )
-                data = [
-                    {
-                        "id": j.id,
-                        "library_entry_id": j.library_entry_id,
-                        "title": j.library_entry.title
-                        if j.library_entry
-                        else f"Entry {j.library_entry_id}",
-                        "status": j.status,
-                        "progress_percentage": float(j.progress_percentage or 0.0),
-                        "priority": j.priority,
-                        "target_codec": j.target_codec,
-                        "details": j.details,
-                    }
-                    for j in jobs
-                ]
+                .order_by(
+                    TranscodingQueue.priority.desc(),
+                    TranscodingQueue.created_at.asc(),
+                )
+                .all()
+            )
+            return [
+                {
+                    "id": j.id,
+                    "library_entry_id": j.library_entry_id,
+                    "title": j.library_entry.title
+                    if j.library_entry
+                    else f"Entry {j.library_entry_id}",
+                    "status": j.status,
+                    "progress_percentage": float(j.progress_percentage or 0.0),
+                    "priority": j.priority,
+                    "target_codec": j.target_codec,
+                    "details": j.details,
+                }
+                for j in jobs
+            ]
+
+    async def event_generator():
+        try:
+            while True:
+                if await request.is_disconnected():
+                    break
+                
+                # Offload the blocking database query to a background thread
+                data = await asyncio.to_thread(fetch_active_jobs)
                 yield f"data: {json.dumps(data)}\n\n"
-            await asyncio.sleep(2.0)
+                
+                await asyncio.sleep(2.0)
+        except asyncio.CancelledError:
+            pass
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 

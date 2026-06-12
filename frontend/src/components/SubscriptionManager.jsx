@@ -457,9 +457,9 @@ export default function SubscriptionManager() {
   }, [tiers, subForm.provider_id]);
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, maxWidth: 1400, mx: 'auto' }}>
       {/* Title */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, mb: 1 }}>
         <Box sx={{ 
           p: 1.5, 
           borderRadius: '14px', 
@@ -470,7 +470,7 @@ export default function SubscriptionManager() {
         }}>
           <CreditCard size={28} />
         </Box>
-        <Box>
+        <Box sx={{ textAlign: 'center' }}>
           <Typography variant="h5" sx={{ fontWeight: '900', letterSpacing: '0.5px' }}>
             Subscription &amp; Trial Manager
           </Typography>
@@ -481,7 +481,7 @@ export default function SubscriptionManager() {
       </Box>
 
       {/* Main Grid Content */}
-      <Grid container spacing={3}>
+      <Grid container spacing={3} sx={{ justifyContent: 'center' }}>
         
         {/* Left Side: Subscriptions List & Email Parser */}
         <Grid item xs={12} lg={7} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -492,11 +492,10 @@ export default function SubscriptionManager() {
             border: '1px solid rgba(255, 255, 255, 0.05)', 
             background: 'rgba(255, 255, 255, 0.01)', 
             borderRadius: '16px',
-            backdropFilter: 'blur(16px)'
+            backdropFilter: 'blur(16px)',
+            mx: 'auto',
+            width: '100%'
           }}>
-            <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-              <CreditCard size={20} className="text-primary-main" /> Active Subscriptions &amp; Trials
-            </Typography>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1, mb: 2 }}>
               <Typography variant="subtitle1" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <CreditCard size={20} className="text-primary-main" /> Active Subscriptions &amp; Trials
@@ -608,8 +607,10 @@ export default function SubscriptionManager() {
           <Paper sx={{ 
             p: 3, 
             border: '1px solid rgba(255, 255, 255, 0.05)', 
-            background: 'rgba(255, 255, 255, 0.01)', 
-            borderRadius: '16px'
+            background: 'rgba(255, 255, 255, 0.01)',
+            borderRadius: '16px',
+            mx: 'auto',
+            width: '100%'
           }}>
             <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
               <Sparkles size={20} className="text-secondary-main" /> Fast Import from Email Parser
@@ -672,8 +673,10 @@ export default function SubscriptionManager() {
           <Paper sx={{ 
             p: 3, 
             border: '1px solid rgba(255, 255, 255, 0.05)', 
-            background: 'rgba(255, 255, 255, 0.01)', 
-            borderRadius: '16px'
+            background: 'rgba(255, 255, 255, 0.01)',
+            borderRadius: '16px',
+            mx: 'auto',
+            width: '100%'
           }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2.5 }}>
               <Typography variant="subtitle1" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -691,8 +694,8 @@ export default function SubscriptionManager() {
                 <Grid item xs={12}>
                   <Autocomplete
                     options={providers}
-                    getOptionLabel={(option) => option.name}
-                    isOptionEqualToValue={(option, value) => option.id === value.id}
+                    getOptionLabel={(option) => option?.name || ''}
+                    isOptionEqualToValue={(option, value) => option?.id === value?.id}
                     value={providers.find(p => p.id === subForm.provider_id) || null}
                     onChange={(e, newValue) => setSubForm({ ...subForm, provider_id: newValue ? newValue.id : '', tier_id: '' })}
                     renderInput={(params) => <TextField {...params} label="Media Provider" size="small" required />}
@@ -703,8 +706,8 @@ export default function SubscriptionManager() {
                 <Grid item xs={12}>
                   <Autocomplete
                     options={tierOptions}
-                    getOptionLabel={(option) => option.name}
-                    isOptionEqualToValue={(option, value) => option.id === value.id}
+                    getOptionLabel={(option) => option?.name || ''}
+                    isOptionEqualToValue={(option, value) => option?.id === value?.id}
                     value={tierOptions.find(t => t.id === subForm.tier_id) || tierOptions[0]}
                     onChange={(e, newValue) => setSubForm({ ...subForm, tier_id: newValue ? newValue.id : '' })}
                     disabled={!subForm.provider_id}
@@ -716,8 +719,8 @@ export default function SubscriptionManager() {
                 <Grid item xs={12} sm={6}>
                   <Autocomplete
                     options={billers}
-                    getOptionLabel={(option) => option.name}
-                    isOptionEqualToValue={(option, value) => option.id === value.id}
+                    getOptionLabel={(option) => option?.name || ''}
+                    isOptionEqualToValue={(option, value) => option?.id === value?.id}
                     value={billers.find(b => b.id === subForm.biller_id) || null}
                     onChange={(e, newValue) => setSubForm({ ...subForm, biller_id: newValue ? newValue.id : '' })}
                     renderInput={(params) => <TextField {...params} label="Biller" size="small" />}
@@ -741,8 +744,8 @@ export default function SubscriptionManager() {
                 <Grid item xs={12} sm={6}>
                   <Autocomplete
                     options={TIMEFRAME_OPTIONS}
-                    getOptionLabel={(option) => option.label}
-                    isOptionEqualToValue={(option, value) => option.value === value.value}
+                    getOptionLabel={(option) => option?.label || ''}
+                    isOptionEqualToValue={(option, value) => option?.value === value?.value}
                     value={TIMEFRAME_OPTIONS.find(o => o.value === subForm.billing_cycle) || null}
                     onChange={(e, newValue) => setSubForm({ ...subForm, billing_cycle: newValue ? newValue.value : 'monthly' })}
                     renderInput={(params) => <TextField {...params} label="Timeframe" size="small" />}
@@ -753,8 +756,8 @@ export default function SubscriptionManager() {
                 <Grid item xs={12} sm={6}>
                   <Autocomplete
                     options={STATUS_OPTIONS}
-                    getOptionLabel={(option) => option.label}
-                    isOptionEqualToValue={(option, value) => option.value === value.value}
+                    getOptionLabel={(option) => option?.label || ''}
+                    isOptionEqualToValue={(option, value) => option?.value === value?.value}
                     value={STATUS_OPTIONS.find(o => o.value === subForm.status) || null}
                     onChange={(e, newValue) => setSubForm({ ...subForm, status: newValue ? newValue.value : 'active' })}
                     renderInput={(params) => <TextField {...params} label="Status" size="small" />}
@@ -767,8 +770,8 @@ export default function SubscriptionManager() {
                     <Grid item xs={12} sm={6}>
                       <Autocomplete
                         options={CHARGE_TYPE_OPTIONS}
-                        getOptionLabel={(option) => option.label}
-                        isOptionEqualToValue={(option, value) => option.value === value.value}
+                        getOptionLabel={(option) => option?.label || ''}
+                        isOptionEqualToValue={(option, value) => option?.value === value?.value}
                         value={CHARGE_TYPE_OPTIONS.find(o => o.value === subForm.charge_type) || null}
                         onChange={(e, newValue) => setSubForm({ ...subForm, charge_type: newValue ? newValue.value : 'bulk' })}
                         renderInput={(params) => <TextField {...params} label="Charge Type" size="small" />}
@@ -779,8 +782,8 @@ export default function SubscriptionManager() {
                       <Grid item xs={12} sm={6}>
                         <Autocomplete
                           options={INSTALLMENT_FREQ_OPTIONS}
-                          getOptionLabel={(option) => option.label}
-                          isOptionEqualToValue={(option, value) => option.value === value.value}
+                          getOptionLabel={(option) => option?.label || ''}
+                          isOptionEqualToValue={(option, value) => option?.value === value?.value}
                           value={INSTALLMENT_FREQ_OPTIONS.find(o => o.value === subForm.installment_frequency) || null}
                           onChange={(e, newValue) => setSubForm({ ...subForm, installment_frequency: newValue ? newValue.value : 'monthly' })}
                           renderInput={(params) => <TextField {...params} label="Installment Frequency" size="small" />}
@@ -868,8 +871,10 @@ export default function SubscriptionManager() {
           <Paper sx={{ 
             p: 3, 
             border: '1px solid rgba(255, 255, 255, 0.05)', 
-            background: 'rgba(255, 255, 255, 0.01)', 
-            borderRadius: '16px'
+            background: 'rgba(255, 255, 255, 0.01)',
+            borderRadius: '16px',
+            mx: 'auto',
+            width: '100%'
           }}>
             <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
               <Layers size={20} /> Manage Provider Tiers
@@ -880,8 +885,8 @@ export default function SubscriptionManager() {
                 <Grid item xs={12}>
                   <Autocomplete
                     options={providers}
-                    getOptionLabel={(option) => option.name}
-                    isOptionEqualToValue={(option, value) => option.id === value.id}
+                    getOptionLabel={(option) => option?.name || ''}
+                    isOptionEqualToValue={(option, value) => option?.id === value?.id}
                     value={providers.find(p => p.id === newTier.provider_id) || null}
                     onChange={(e, newValue) => setNewTier({...newTier, provider_id: newValue ? newValue.id : ''})}
                     renderInput={(params) => <TextField {...params} label="Select Provider" size="small" required />}
@@ -924,14 +929,14 @@ export default function SubscriptionManager() {
               </Grid>
             </form>
 
-            <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: '8px', overflow: 'hidden' }}>
+          <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: '8px', overflowX: 'auto', mx: 'auto', width: '100%' }}>
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell sx={{ fontWeight: 'bold' }}>Provider</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold' }}>Name</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold' }}>Price</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>Actions</TableCell>
+                    <TableCell align="center" sx={{ fontWeight: 'bold' }}>Provider</TableCell>
+                    <TableCell align="center" sx={{ fontWeight: 'bold' }}>Name</TableCell>
+                    <TableCell align="center" sx={{ fontWeight: 'bold' }}>Price</TableCell>
+                    <TableCell align="center" sx={{ fontWeight: 'bold' }}>Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -948,10 +953,10 @@ export default function SubscriptionManager() {
                       .slice(tierPage * tierRowsPerPage, tierPage * tierRowsPerPage + tierRowsPerPage)
                       .map(tier => (
                         <TableRow key={tier.id} hover>
-                          <TableCell sx={{ fontSize: '0.8rem' }}>{providers.find(p => p.id === tier.provider_id)?.name || tier.provider_id}</TableCell>
-                          <TableCell sx={{ fontSize: '0.8rem', fontWeight: 'bold' }}>{tier.name}</TableCell>
-                          <TableCell sx={{ fontSize: '0.8rem' }}>${Number(tier.price).toFixed(2)}</TableCell>
-                          <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                          <TableCell align="center" sx={{ fontSize: '0.8rem' }}>{providers.find(p => p.id === tier.provider_id)?.name || tier.provider_id}</TableCell>
+                          <TableCell align="center" sx={{ fontSize: '0.8rem', fontWeight: 'bold' }}>{tier.name}</TableCell>
+                          <TableCell align="center" sx={{ fontSize: '0.8rem' }}>${Number(tier.price).toFixed(2)}</TableCell>
+                          <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                             <IconButton color="primary" size="small" onClick={() => handleEditTier(tier)}>
                               <Edit3 size={14} />
                             </IconButton>

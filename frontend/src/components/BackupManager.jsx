@@ -352,7 +352,7 @@ else:
 `
 
   return (
-    <Box>
+    <Box sx={{ maxWidth: 1400, mx: 'auto', width: '100%' }}>
       <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold' }}>
         Backup & Restore
       </Typography>
@@ -445,19 +445,19 @@ else:
               ) : localBackups.length === 0 ? (
                 <Box sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>No backups found on server.</Box>
               ) : (
-                <TableContainer>
+                <TableContainer sx={{ overflowX: 'auto' }}>
                   <Table size="small">
                     <TableHead>
                       <TableRow>
-                        <TableCell>Backup File</TableCell>
-                        <TableCell>Size</TableCell>
-                        <TableCell align="right">Actions</TableCell>
+                        <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Backup File</TableCell>
+                        <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Size</TableCell>
+                        <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Actions</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {localBackups.map((backup) => (
                         <TableRow key={backup.name} hover>
-                          <TableCell sx={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <TableCell align="center" sx={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             <Tooltip title={backup.name}>
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                 <FolderZipIcon fontSize="small" sx={{ color: 'text.secondary' }} />
@@ -467,8 +467,8 @@ else:
                               </Box>
                             </Tooltip>
                           </TableCell>
-                          <TableCell>{(backup.size / 1024).toFixed(1)} KB</TableCell>
-                          <TableCell align="right">
+                          <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>{(backup.size / 1024).toFixed(1)} KB</TableCell>
+                          <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                             <Button
                               size="small"
                               variant={selectedLocalBackup?.name === backup.name ? 'contained' : 'outlined'}

@@ -4,12 +4,13 @@ import {
   LinearProgress, Dialog, DialogTitle, DialogContent, DialogActions, Tabs, Tab, 
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, 
   IconButton, Alert, Paper, FormControlLabel, Switch, Avatar,
-  Accordion, AccordionSummary, AccordionDetails
+  Accordion, AccordionSummary, AccordionDetails, Menu, MenuItem, Checkbox, ListItemText, ListItemIcon
 } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import SettingsIcon from '@mui/icons-material/Settings'
 import apiFetch from '../api'
 
 export default function ProviderList({ providers, searchQuery, setSearchQuery, onRefreshProviders }) {
@@ -45,6 +46,32 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
   const [providerLimitEnabled, setProviderLimitEnabled] = useState(false)
   const [isScraping, setIsScraping] = useState(false)
 
+  // Card Display Settings State
+  const [cardPrefs, setCardPrefs] = useState({
+    showLogo: true,
+    showBaseUrl: true,
+    showDailyLimit: true,
+    showActiveSessions: true
+  })
+  const [settingsAnchorEl, setSettingsAnchorEl] = useState(null)
+
+  useEffect(() => {
+    const savedPrefs = localStorage.getItem('voyarr_provider_card_prefs')
+    if (savedPrefs) {
+      try {
+        setCardPrefs(JSON.parse(savedPrefs))
+      } catch (e) {
+        console.error('Failed to parse card preferences', e)
+      }
+    }
+  }, [])
+
+  const handleToggleCardPref = (key) => {
+    const newPrefs = { ...cardPrefs, [key]: !cardPrefs[key] }
+    setCardPrefs(newPrefs)
+    localStorage.setItem('voyarr_provider_card_prefs', JSON.stringify(newPrefs))
+  }
+
   const fetchCookies = useCallback(async () => {
     try {
       const response = await apiFetch('/cookies')
@@ -61,10 +88,27 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
     fetchCookies()
   }, [fetchCookies])
 
-  // Open dialog and load existing credentials
+  // Open dialog and load existing credentials & details
   const handleOpenConfig = async (provider) => {
     setActiveProvider(provider)
     setDialogTab(0)
+
+    // Load Provider Form for Details tab
+    setProviderFormId(provider.id)
+    setProviderForm({
+      name: provider.name,
+      base_url: provider.base_url,
+      logo_url: provider.logo_url || '',
+      favicon_url: provider.favicon_url || '',
+      description: provider.description || '',
+      naming_pattern: provider.naming_pattern || '{title}_{performers}_{resolution}',
+      separator: provider.separator || '_',
+      space_replacement: provider.space_replacement || '_',
+      automatic_limits: provider.automatic_limits || { daily_downloads: 50 }
+    })
+    setProviderLimitEnabled(!!provider.automatic_limits?.daily_downloads)
+    setEditProviderMode(true)
+
     setUsername('')
     setPassword('')
     setDailyLimit('')
@@ -79,9 +123,9 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
         setPassword(data.password || '')
         setDailyLimit(data.custom_limits?.daily_downloads || '')
       }
-    } catch (error) {
+    } catch (err) {
       // 404 expected if no credentials exist yet
-      console.log('No credentials configured yet for this provider.')
+      console.log('No credentials configured yet for this provider.', err.message)
     }
     setOpenDialog(true)
   }
@@ -196,24 +240,6 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
     setOpenProviderForm(true)
   }
 
-  const handleOpenEditProvider = (provider) => {
-    setEditProviderMode(true)
-    setProviderFormId(provider.id)
-    setProviderForm({
-      name: provider.name,
-      base_url: provider.base_url,
-      logo_url: provider.logo_url || '',
-      favicon_url: provider.favicon_url || '',
-      description: provider.description || '',
-      naming_pattern: provider.naming_pattern || '{title}_{performers}_{resolution}',
-      separator: provider.separator || '_',
-      space_replacement: provider.space_replacement || '_',
-      automatic_limits: provider.automatic_limits || { daily_downloads: 50 }
-    })
-    setProviderLimitEnabled(!!provider.automatic_limits?.daily_downloads)
-    setOpenProviderForm(true)
-  }
-
   const handleScrapeSiteDetails = async () => {
     if (!providerForm.base_url) {
       window.dispatchEvent(new CustomEvent('show-toast', { 
@@ -308,20 +334,194 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
     }
   }
 
+  const renderProviderFormDetails = (isModal = false) => (
+    <Box component="form" onSubmit={handleSaveProvider} sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+      <TextField
+        fullWidth
+        label="Provider Name"
+        required
+        value={providerForm.name}
+        onChange={(e) => setProviderForm({ ...providerForm, name: e.target.value })}
+      />
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 1 }}>
+        <TextField
+          fullWidth
+          label="Base URL"
+          required
+          value={providerForm.base_url}
+          placeholder="https://example.com"
+          onChange={(e) => setProviderForm({ ...providerForm, base_url: e.target.value })}
+        />
+        <Button 
+          variant="outlined" 
+          color="primary" 
+          onClick={handleScrapeSiteDetails}
+          disabled={!providerForm.base_url || isScraping}
+          sx={{ minWidth: { sm: '180px' } }}
+        >
+          {isScraping ? 'Scraping...' : 'Scrape Site Details'}
+        </Button>
+      </Box>
+      <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+        <TextField
+          fullWidth
+          label="Logo URL"
+          value={providerForm.logo_url}
+          placeholder="https://example.com/logo.png"
+          onChange={(e) => setProviderForm({ ...providerForm, logo_url: e.target.value })}
+        />
+        {(providerForm.logo_url || providerForm.favicon_url) && (
+          <Avatar
+            src={providerForm.logo_url || providerForm.favicon_url}
+            alt="Logo preview"
+            sx={{ width: 56, height: 56, mt: 0, bgcolor: 'action.hover' }}
+          >
+            {providerForm.name?.charAt(0)?.toUpperCase() || '?'}
+          </Avatar>
+        )}
+      </Box>
+      <TextField
+        fullWidth
+        label="Favicon URL"
+        value={providerForm.favicon_url}
+        placeholder="https://example.com/favicon.ico"
+        onChange={(e) => setProviderForm({ ...providerForm, favicon_url: e.target.value })}
+      />
+      <TextField
+        fullWidth
+        label="Description"
+        multiline
+        rows={3}
+        value={providerForm.description}
+        placeholder="Site description..."
+        onChange={(e) => setProviderForm({ ...providerForm, description: e.target.value })}
+      />
+      <Accordion variant="outlined" sx={{ boxShadow: 'none', '&:before': { display: 'none' } }}>
+        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+          <Typography fontWeight="bold">Advanced Settings</Typography>
+        </AccordionSummary>
+        <AccordionDetails sx={{ display: 'flex', flexDirection: 'column', gap: 2, px: 1, pb: 2 }}>
+          <TextField
+            fullWidth
+            label="File Naming Pattern"
+            required
+            value={providerForm.naming_pattern}
+            onChange={(e) => setProviderForm({ ...providerForm, naming_pattern: e.target.value })}
+          />
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <TextField
+              fullWidth
+              label="Separator"
+              required
+              value={providerForm.separator}
+              onChange={(e) => setProviderForm({ ...providerForm, separator: e.target.value })}
+            />
+            <TextField
+              fullWidth
+              label="Space Replacement"
+              required
+              value={providerForm.space_replacement}
+              onChange={(e) => setProviderForm({ ...providerForm, space_replacement: e.target.value })}
+            />
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={providerLimitEnabled}
+                  onChange={(e) => {
+                    setProviderLimitEnabled(e.target.checked);
+                    if (!e.target.checked) {
+                      setProviderForm(prev => ({ ...prev, automatic_limits: { ...prev.automatic_limits, daily_downloads: 0 } }));
+                    }
+                  }}
+                />
+              }
+              label="Enable Daily Limit"
+              sx={{ minWidth: '180px', whiteSpace: 'nowrap' }}
+            />
+            <TextField
+              fullWidth
+              label="Daily Limit"
+              type="number"
+              disabled={!providerLimitEnabled}
+              required={providerLimitEnabled}
+              value={providerForm.automatic_limits.daily_downloads || ''}
+              onChange={(e) => setProviderForm({ 
+                ...providerForm, 
+                automatic_limits: { daily_downloads: parseInt(e.target.value, 10) || 0 } 
+              })}
+            />
+          </Box>
+        </AccordionDetails>
+      </Accordion>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+        {isModal && (
+          <Button onClick={() => setOpenProviderForm(false)} sx={{ mr: 2 }}>Cancel</Button>
+        )}
+        <Button type="submit" variant="contained" color="secondary">
+          {providerFormId ? 'Save Details' : 'Create Provider'}
+        </Button>
+      </Box>
+    </Box>
+  )
+
   return (
-    <div>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+    <Box sx={{ maxWidth: 1400, mx: 'auto', width: '100%' }}>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: 'center', gap: 2, mb: 3 }}>
+        <Typography variant="h4" sx={{ fontWeight: 'bold', textAlign: { xs: 'center', sm: 'left' } }}>
           Media Providers
         </Typography>
-        <Button 
-          variant="contained" 
-          color="secondary" 
-          startIcon={<AddIcon />} 
-          onClick={handleOpenCreateProvider}
-        >
-          Create Provider
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2, width: { xs: '100%', sm: 'auto' }, flexDirection: { xs: 'column', sm: 'row' } }}>
+          <Button 
+            variant="outlined" 
+            color="primary" 
+            startIcon={<SettingsIcon />} 
+            onClick={(e) => setSettingsAnchorEl(e.currentTarget)}
+            sx={{ width: { xs: '100%', sm: 'auto' } }}
+          >
+            Display
+          </Button>
+          <Menu
+            anchorEl={settingsAnchorEl}
+            open={Boolean(settingsAnchorEl)}
+            onClose={() => setSettingsAnchorEl(null)}
+          >
+            <MenuItem onClick={() => handleToggleCardPref('showLogo')}>
+              <ListItemIcon>
+                <Checkbox checked={cardPrefs.showLogo} size="small" disableRipple />
+              </ListItemIcon>
+              <ListItemText primary="Show Logo" />
+            </MenuItem>
+            <MenuItem onClick={() => handleToggleCardPref('showBaseUrl')}>
+              <ListItemIcon>
+                <Checkbox checked={cardPrefs.showBaseUrl} size="small" disableRipple />
+              </ListItemIcon>
+              <ListItemText primary="Show Base URL" />
+            </MenuItem>
+            <MenuItem onClick={() => handleToggleCardPref('showDailyLimit')}>
+              <ListItemIcon>
+                <Checkbox checked={cardPrefs.showDailyLimit} size="small" disableRipple />
+              </ListItemIcon>
+              <ListItemText primary="Show Daily Limit" />
+            </MenuItem>
+            <MenuItem onClick={() => handleToggleCardPref('showActiveSessions')}>
+              <ListItemIcon>
+                <Checkbox checked={cardPrefs.showActiveSessions} size="small" disableRipple />
+              </ListItemIcon>
+              <ListItemText primary="Show Active Sessions" />
+            </MenuItem>
+          </Menu>
+          <Button 
+            variant="contained" 
+            color="secondary" 
+            startIcon={<AddIcon />} 
+            onClick={handleOpenCreateProvider}
+            sx={{ width: { xs: '100%', sm: 'auto' } }}
+          >
+            Create Provider
+          </Button>
+        </Box>
       </Box>
       <Box sx={{ mb: 3 }}>
         <TextField
@@ -332,46 +532,42 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
           variant="outlined"
         />
       </Box>
-      <Grid container spacing={3}>
+      <Grid container spacing={3} sx={{ justifyContent: 'center' }}>
         {providers.map(provider => {
           const providerCookies = cookies.filter(c => c.provider_id === provider.id)
           
           return (
             <Grid item xs={12} sm={6} md={4} key={provider.id}>
-              <Card>
-                <CardContent>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                      <Avatar
-                        src={provider.logo_url || provider.favicon_url || ''}
-                        alt={provider.name}
-                        sx={{ width: 36, height: 36, bgcolor: 'primary.main', fontSize: '1rem', fontWeight: 'bold' }}
-                      >
-                        {provider.name ? provider.name.charAt(0).toUpperCase() : '?'}
-                      </Avatar>
-                      <Typography variant="h5" component="div" sx={{ fontWeight: 'bold' }}>
-                        {provider.name}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', gap: 0.5 }}>
-                      <IconButton size="small" color="primary" onClick={() => handleOpenEditProvider(provider)}>
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton size="small" color="error" onClick={() => handleDeleteProvider(provider)}>
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Box>
-                  </Box>
+              <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                <IconButton 
+                  size="small" 
+                  color="error" 
+                  onClick={() => handleDeleteProvider(provider)}
+                  sx={{ position: 'absolute', top: 8, right: 8 }}
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+                <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexGrow: 1, textAlign: 'center', pt: 4 }}>
+                  <Avatar
+                    src={provider.logo_url || provider.favicon_url || ''}
+                    alt={provider.name}
+                    sx={{ width: 80, height: 80, bgcolor: 'primary.main', fontSize: '2rem', fontWeight: 'bold', mb: 2 }}
+                  >
+                    {provider.name ? provider.name.charAt(0).toUpperCase() : '?'}
+                  </Avatar>
+                  <Typography variant="h5" component="div" sx={{ fontWeight: 'bold', mb: 1 }}>
+                    {provider.name}
+                  </Typography>
                   <Typography variant="body2" color="text.secondary" gutterBottom>
                     {provider.base_url}
                   </Typography>
                   {provider.automatic_limits && (
-                    <Typography variant="body2" gutterBottom>
-                      Default Daily Limit: {provider.automatic_limits.daily_downloads || 'None'}
+                    <Typography variant="body2" sx={{ mt: 1, fontWeight: 'bold' }}>
+                      Daily Limit: {provider.automatic_limits.daily_downloads || 'Unlimited'}
                     </Typography>
                   )}
                   {providerCookies.length > 0 && (
-                    <Box sx={{ mt: 2 }}>
+                    <Box sx={{ mt: 3, width: '100%' }}>
                       <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold' }}>Active Session Quotas</Typography>
                       {providerCookies.map(cookie => {
                         const limit = cookie.download_limit || 0;
@@ -401,9 +597,14 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
                     </Box>
                   )}
                 </CardContent>
-                <CardActions>
-                  <Button size="small" variant="contained" color="primary" onClick={() => handleOpenConfig(provider)}>
-                    Manage Auth & Session
+                <CardActions sx={{ justifyContent: 'center', pb: 3 }}>
+                  <Button 
+                    size="small" 
+                    variant="contained" 
+                    color="primary" 
+                    onClick={() => handleOpenConfig(provider)}
+                  >
+                    Edit Provider
                   </Button>
                 </CardActions>
               </Card>
@@ -422,7 +623,7 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
           >
             {activeProvider?.name ? activeProvider.name.charAt(0).toUpperCase() : '?'}
           </Avatar>
-          Auth & Session: {activeProvider?.name}
+          Manage: {activeProvider?.name}
         </DialogTitle>
         
         <Tabs 
@@ -431,12 +632,14 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
           variant="fullWidth"
           sx={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}
         >
-          <Tab label="API Credentials" />
+          <Tab label="Details" />
+          <Tab label="Credentials" />
           <Tab label="Session Cookies" />
         </Tabs>
 
         <DialogContent dividers>
-          {dialogTab === 0 ? (
+          {dialogTab === 0 && renderProviderFormDetails()}
+          {dialogTab === 1 && (
             <Box component="form" onSubmit={handleSaveCredentials} sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               <Typography variant="body2" color="text.secondary" paragraph>
                 Configure credentials to let Voyarr query metadata, index search categories, and authenticate API connections contextually.
@@ -473,23 +676,26 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
                 </Button>
               </Box>
             </Box>
-          ) : (
+          )}
+
+          {dialogTab === 2 && (
             <Box>
               <Typography variant="body2" color="text.secondary" paragraph>
-                Add netscape session cookie text to authenticate downloads, bypassed links, or rate-limited direct feeds securely.
+                Add session cookie text to authenticate downloads, bypassed links, or rate-limited direct feeds securely.
               </Typography>
               
-              {/* Existing Cookies list */}
-              <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
-                Configured Cookies
-              </Typography>
-              <TableContainer component={Paper} sx={{ mb: 3, maxHeight: 180 }}>
+              <Box sx={{ mt: 3, mb: 1 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+                  Configured Cookies
+                </Typography>
+              </Box>
+          <TableContainer component={Paper} sx={{ mb: 3, maxHeight: 180, overflowX: 'auto' }}>
                 <Table size="small" stickyHeader>
                   <TableHead>
                     <TableRow>
-                      <TableCell>Status</TableCell>
-                      <TableCell>Usage / Limit</TableCell>
-                      <TableCell align="right">Actions</TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Status</TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Usage / Limit</TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Actions</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -500,15 +706,15 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
                     ) : (
                       cookies.filter(c => c.provider_id === activeProvider?.id).map((cookie) => (
                         <TableRow key={cookie.id}>
-                          <TableCell>
+                      <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                             <Chip 
                               label={cookie.status} 
                               color={cookie.status === 'active' ? 'success' : cookie.status === 'expired' ? 'error' : 'warning'} 
                               size="small" 
                             />
                           </TableCell>
-                          <TableCell>{cookie.downloads_used} / {cookie.download_limit || '∞'}</TableCell>
-                          <TableCell align="right">
+                      <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>{cookie.downloads_used} / {cookie.download_limit || '∞'}</TableCell>
+                      <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                             <IconButton size="small" color="error" onClick={() => handleDeleteCookie(cookie.id)}>
                               <DeleteIcon fontSize="small" />
                             </IconButton>
@@ -560,141 +766,15 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
         </DialogActions>
       </Dialog>
 
-      {/* Provider Add/Edit Modal */}
+      {/* Provider Create Modal */}
       <Dialog open={openProviderForm} onClose={() => setOpenProviderForm(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontWeight: 'bold' }}>
-          {editProviderMode ? 'Edit Provider' : 'Create Provider'}
+          Create Provider
         </DialogTitle>
-        <Box component="form" onSubmit={handleSaveProvider}>
-          <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField
-              fullWidth
-              label="Provider Name"
-              required
-              value={providerForm.name}
-              onChange={(e) => setProviderForm({ ...providerForm, name: e.target.value })}
-            />
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <TextField
-                fullWidth
-                label="Base URL"
-                required
-                value={providerForm.base_url}
-                placeholder="https://example.com"
-                onChange={(e) => setProviderForm({ ...providerForm, base_url: e.target.value })}
-              />
-              <Button 
-                variant="outlined" 
-                color="primary" 
-                onClick={handleScrapeSiteDetails}
-                disabled={!providerForm.base_url || isScraping}
-                sx={{ whiteSpace: 'nowrap' }}
-              >
-                {isScraping ? 'Scraping...' : 'Scrape Site Details'}
-              </Button>
-            </Box>
-            <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
-              <TextField
-                fullWidth
-                label="Logo URL"
-                value={providerForm.logo_url}
-                placeholder="https://example.com/logo.png"
-                onChange={(e) => setProviderForm({ ...providerForm, logo_url: e.target.value })}
-              />
-              {(providerForm.logo_url || providerForm.favicon_url) && (
-                <Avatar
-                  src={providerForm.logo_url || providerForm.favicon_url}
-                  alt="Logo preview"
-                  sx={{ width: 48, height: 48, mt: 1, bgcolor: 'action.hover' }}
-                >
-                  {providerForm.name?.charAt(0)?.toUpperCase() || '?'}
-                </Avatar>
-              )}
-            </Box>
-            <TextField
-              fullWidth
-              label="Favicon URL"
-              value={providerForm.favicon_url}
-              placeholder="https://example.com/favicon.ico"
-              onChange={(e) => setProviderForm({ ...providerForm, favicon_url: e.target.value })}
-            />
-            <TextField
-              fullWidth
-              label="Description"
-              multiline
-              rows={3}
-              value={providerForm.description}
-              placeholder="Site description..."
-              onChange={(e) => setProviderForm({ ...providerForm, description: e.target.value })}
-            />
-          <Accordion variant="outlined" sx={{ mt: 1, boxShadow: 'none', '&:before': { display: 'none' } }}>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography fontWeight="bold">Advanced Settings</Typography>
-            </AccordionSummary>
-            <AccordionDetails sx={{ display: 'flex', flexDirection: 'column', gap: 2, px: 1, pb: 2 }}>
-              <TextField
-                fullWidth
-                label="File Naming Pattern"
-                required
-                value={providerForm.naming_pattern}
-                onChange={(e) => setProviderForm({ ...providerForm, naming_pattern: e.target.value })}
-              />
-              <Box sx={{ display: 'flex', gap: 2 }}>
-                <TextField
-                  fullWidth
-                  label="Separator"
-                  required
-                  value={providerForm.separator}
-                  onChange={(e) => setProviderForm({ ...providerForm, separator: e.target.value })}
-                />
-                <TextField
-                  fullWidth
-                  label="Space Replacement"
-                  required
-                  value={providerForm.space_replacement}
-                  onChange={(e) => setProviderForm({ ...providerForm, space_replacement: e.target.value })}
-                />
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={providerLimitEnabled}
-                      onChange={(e) => {
-                        setProviderLimitEnabled(e.target.checked);
-                        if (!e.target.checked) {
-                          setProviderForm(prev => ({ ...prev, automatic_limits: { ...prev.automatic_limits, daily_downloads: 0 } }));
-                        }
-                      }}
-                    />
-                  }
-                  label="Enable Daily Limit"
-                  sx={{ minWidth: '180px', whiteSpace: 'nowrap' }}
-                />
-                <TextField
-                  fullWidth
-                  label="Daily Limit"
-                  type="number"
-                  disabled={!providerLimitEnabled}
-                  required={providerLimitEnabled}
-                  value={providerForm.automatic_limits.daily_downloads || ''}
-                  onChange={(e) => setProviderForm({ 
-                    ...providerForm, 
-                    automatic_limits: { daily_downloads: parseInt(e.target.value, 10) || 0 } 
-                  })}
-                />
-              </Box>
-            </AccordionDetails>
-          </Accordion>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setOpenProviderForm(false)}>Cancel</Button>
-            <Button type="submit" variant="contained" color="secondary">
-              Save
-            </Button>
-          </DialogActions>
-        </Box>
+        <DialogContent dividers>
+          {renderProviderFormDetails(true)}
+        </DialogContent>
       </Dialog>
-    </div>
+    </Box>
   )
 }

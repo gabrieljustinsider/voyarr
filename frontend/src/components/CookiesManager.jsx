@@ -74,23 +74,23 @@ export default function CookiesManager() {
   };
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4">Session Cookies Manager</Typography>
-        <Button variant="contained" startIcon={<Plus size={20} />} onClick={() => setOpenDialog(true)}>
+    <Box sx={{ maxWidth: 1400, mx: 'auto', width: '100%' }}>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: 'center', gap: 2, mb: 3 }}>
+        <Typography variant="h4" sx={{ textAlign: { xs: 'center', sm: 'left' } }}>Session Cookies Manager</Typography>
+        <Button variant="contained" startIcon={<Plus size={20} />} onClick={() => setOpenDialog(true)} sx={{ width: { xs: '100%', sm: 'auto' } }}>
           Add Session Cookie
         </Button>
       </Box>
 
-      <TableContainer component={Paper}>
+      <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Provider</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Usage / Limit</TableCell>
-              <TableCell>Expiration</TableCell>
-              <TableCell align="right">Actions</TableCell>
+              <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Provider</TableCell>
+              <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Status</TableCell>
+              <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Usage / Limit</TableCell>
+              <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Expiration</TableCell>
+              <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -101,17 +101,17 @@ export default function CookiesManager() {
             ) : (
               cookies.map((cookie) => (
                 <TableRow key={cookie.id}>
-                  <TableCell>{providers.find(p => p.id === cookie.provider_id)?.name || `Provider ID: ${cookie.provider_id}`}</TableCell>
-                  <TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>{providers.find(p => p.id === cookie.provider_id)?.name || `Provider ID: ${cookie.provider_id}`}</TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                     <Chip 
                       label={cookie.status} 
                       color={cookie.status === 'active' ? 'success' : cookie.status === 'expired' ? 'error' : 'warning'} 
                       size="small" 
                     />
                   </TableCell>
-                  <TableCell>{cookie.downloads_used} / {cookie.download_limit || '∞'}</TableCell>
-                  <TableCell>{cookie.expires_at ? new Date(cookie.expires_at).toLocaleString() : 'Never'}</TableCell>
-                  <TableCell align="right">
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>{cookie.downloads_used} / {cookie.download_limit || '∞'}</TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>{cookie.expires_at ? new Date(cookie.expires_at).toLocaleString() : 'Never'}</TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                     <IconButton color="error" onClick={() => handleDelete(cookie.id)}>
                       <Trash2 size={20} />
                     </IconButton>

@@ -268,7 +268,7 @@ export default function P2PSync() {
   }
 
   return (
-    <Box sx={{ pb: 5 }}>
+    <Box sx={{ pb: 5, maxWidth: 1400, mx: 'auto', width: '100%' }}>
       {/* Dynamic visual page header with subtle glassmorphic backdrop */}
       <Box sx={{
         background: 'linear-gradient(135deg, rgba(0,240,255,0.05) 0%, rgba(255,0,127,0.05) 100%)',
@@ -446,26 +446,26 @@ export default function P2PSync() {
                     ) : nodeLogs[node.id].length === 0 ? (
                       <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>No sync history logged yet.</Typography>
                     ) : (
-                      <TableContainer component={Paper} sx={{ maxHeight: 200, background: 'transparent', boxShadow: 'none' }}>
+                    <TableContainer component={Paper} sx={{ maxHeight: 200, background: 'transparent', boxShadow: 'none', overflowX: 'auto' }}>
                         <Table size="small" stickyHeader>
                           <TableHead>
                             <TableRow>
-                              <TableCell sx={{ background: '#1e1e1e' }}>Run Time</TableCell>
-                              <TableCell sx={{ background: '#1e1e1e' }}>Direction</TableCell>
-                              <TableCell sx={{ background: '#1e1e1e' }}>Recipes</TableCell>
-                              <TableCell sx={{ background: '#1e1e1e' }}>Media Reconciled</TableCell>
-                              <TableCell sx={{ background: '#1e1e1e' }}>Status</TableCell>
-                              <TableCell sx={{ background: '#1e1e1e' }}>Details</TableCell>
+                            <TableCell align="center" sx={{ background: '#1e1e1e', whiteSpace: 'nowrap' }}>Run Time</TableCell>
+                            <TableCell align="center" sx={{ background: '#1e1e1e', whiteSpace: 'nowrap' }}>Direction</TableCell>
+                            <TableCell align="center" sx={{ background: '#1e1e1e', whiteSpace: 'nowrap' }}>Recipes</TableCell>
+                            <TableCell align="center" sx={{ background: '#1e1e1e', whiteSpace: 'nowrap' }}>Media Reconciled</TableCell>
+                            <TableCell align="center" sx={{ background: '#1e1e1e', whiteSpace: 'nowrap' }}>Status</TableCell>
+                            <TableCell align="center" sx={{ background: '#1e1e1e', whiteSpace: 'nowrap' }}>Details</TableCell>
                             </TableRow>
                           </TableHead>
                           <TableBody>
                             {nodeLogs[node.id].map(log => (
                               <TableRow key={log.id}>
-                                <TableCell>{new Date(log.created_at).toLocaleString()}</TableCell>
-                                <TableCell sx={{ textTransform: 'uppercase' }}>{log.direction}</TableCell>
-                                <TableCell>{log.recipes_synced}</TableCell>
-                                <TableCell>{log.media_synced}</TableCell>
-                                <TableCell>
+                              <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>{new Date(log.created_at).toLocaleString()}</TableCell>
+                              <TableCell align="center" sx={{ textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{log.direction}</TableCell>
+                              <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>{log.recipes_synced}</TableCell>
+                              <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>{log.media_synced}</TableCell>
+                              <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                                   <Chip
                                     size="small"
                                     label={log.status.toUpperCase()}
@@ -473,7 +473,7 @@ export default function P2PSync() {
                                     variant="outlined"
                                   />
                                 </TableCell>
-                                <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              <TableCell align="center" sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                   {log.error_message || 'OK'}
                                 </TableCell>
                               </TableRow>
@@ -533,25 +533,25 @@ export default function P2PSync() {
                   <Chip size="small" color="secondary" label={`${peerBlock.recipes?.length || 0} recipes pending`} />
                 </Box>
 
-                <TableContainer>
+                <TableContainer sx={{ overflowX: 'auto' }}>
                   <Table size="small">
                     <TableHead>
                       <TableRow>
-                        <TableCell>Provider</TableCell>
-                        <TableCell>CSS Selectors</TableCell>
-                        <TableCell>XPath Selectors</TableCell>
-                        <TableCell>Regex Patterns</TableCell>
-                        <TableCell align="right">Actions</TableCell>
+                        <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Provider</TableCell>
+                        <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>CSS Selectors</TableCell>
+                        <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>XPath Selectors</TableCell>
+                        <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Regex Patterns</TableCell>
+                        <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Actions</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {peerBlock.recipes?.map((recipe, rIdx) => (
                         <TableRow key={rIdx}>
-                          <TableCell fontWeight="bold">{recipe.provider_name}</TableCell>
-                          <TableCell>{Object.keys(recipe.css_selectors || {}).length} keys</TableCell>
-                          <TableCell>{Object.keys(recipe.xpath_selectors || {}).length} keys</TableCell>
-                          <TableCell>{Object.keys(recipe.regex_patterns || {}).length} keys</TableCell>
-                          <TableCell align="right">
+                          <TableCell align="center" sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>{recipe.provider_name}</TableCell>
+                          <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>{Object.keys(recipe.css_selectors || {}).length} keys</TableCell>
+                          <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>{Object.keys(recipe.xpath_selectors || {}).length} keys</TableCell>
+                          <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>{Object.keys(recipe.regex_patterns || {}).length} keys</TableCell>
+                          <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                             <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
                               <Button
                                 size="small"

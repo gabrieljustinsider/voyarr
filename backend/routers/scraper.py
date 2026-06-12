@@ -30,7 +30,7 @@ class SiteRecipeCreate(BaseModel):
     map_mode_data: Optional[Dict[str, Any]] = None
 
 
-@router.post("/")
+@router.post("")
 def create_recipe(recipe: SiteRecipeCreate, db: Session = Depends(get_db)):
     db_recipe = SiteRecipe(**recipe.dict())
     db.add(db_recipe)

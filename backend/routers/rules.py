@@ -26,7 +26,7 @@ class ListCreate(BaseModel):
     items: List[str]
 
 
-@router.post("/")
+@router.post("")
 def create_rule(rule: RuleCreate, db: Session = Depends(get_db)):
     db_rule = DownloadRule(**rule.dict())
     db.add(db_rule)
@@ -35,45 +35,9 @@ def create_rule(rule: RuleCreate, db: Session = Depends(get_db)):
     return db_rule
 
 
-@router.get("/")
+@router.get("")
 def get_rules(db: Session = Depends(get_db)):
     return db.query(DownloadRule).all()
-
-
-@router.get("/{rule_id}")
-def get_rule(rule_id: int, db: Session = Depends(get_db)):
-    from fastapi import HTTPException
-    rule = db.query(DownloadRule).filter(DownloadRule.id == rule_id).first()
-    if not rule:
-        raise HTTPException(status_code=404, detail="Rule not found")
-    return rule
-
-
-@router.put("/{rule_id}")
-def update_rule(rule_id: int, rule: RuleCreate, db: Session = Depends(get_db)):
-    from fastapi import HTTPException
-    db_rule = db.query(DownloadRule).filter(DownloadRule.id == rule_id).first()
-    if not db_rule:
-        raise HTTPException(status_code=404, detail="Rule not found")
-    
-    db_rule.name = rule.name
-    db_rule.criteria = rule.criteria
-    db_rule.action = rule.action
-    db_rule.scope = rule.scope
-    db_rule.is_active = rule.is_active
-    
-    db.commit()
-    db.refresh(db_rule)
-    return db_rule
-
-
-@router.delete("/{rule_id}")
-def delete_rule(rule_id: int, db: Session = Depends(get_db)):
-    rule = db.query(DownloadRule).filter(DownloadRule.id == rule_id).first()
-    if rule:
-        db.delete(rule)
-        db.commit()
-    return {"message": "Rule deleted"}
 
 
 @router.post("/lists")
@@ -125,3 +89,39 @@ def delete_custom_list(list_id: int, db: Session = Depends(get_db)):
     db.delete(custom_list)
     db.commit()
     return {"message": "Custom list deleted"}
+
+
+@router.get("/{rule_id}")
+def get_rule(rule_id: int, db: Session = Depends(get_db)):
+    from fastapi import HTTPException
+    rule = db.query(DownloadRule).filter(DownloadRule.id == rule_id).first()
+    if not rule:
+        raise HTTPException(status_code=404, detail="Rule not found")
+    return rule
+
+
+@router.put("/{rule_id}")
+def update_rule(rule_id: int, rule: RuleCreate, db: Session = Depends(get_db)):
+    from fastapi import HTTPException
+    db_rule = db.query(DownloadRule).filter(DownloadRule.id == rule_id).first()
+    if not db_rule:
+        raise HTTPException(status_code=404, detail="Rule not found")
+    
+    db_rule.name = rule.name
+    db_rule.criteria = rule.criteria
+    db_rule.action = rule.action
+    db_rule.scope = rule.scope
+    db_rule.is_active = rule.is_active
+    
+    db.commit()
+    db.refresh(db_rule)
+    return db_rule
+
+
+@router.delete("/{rule_id}")
+def delete_rule(rule_id: int, db: Session = Depends(get_db)):
+    rule = db.query(DownloadRule).filter(DownloadRule.id == rule_id).first()
+    if rule:
+        db.delete(rule)
+        db.commit()
+    return {"message": "Rule deleted"}

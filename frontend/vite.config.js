@@ -19,11 +19,16 @@ const getHttpsConfig = () => {
   return false; // Fallback to standard HTTP if no certificates are found
 };
 
+const packageJson = JSON.parse(fs.readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8'));
+
 export default defineConfig(({ mode }) => {
   // Automatically load env variables (e.g., .env, .env.development, .env.production)
   const env = loadEnv(mode, process.cwd(), '');
 
   return {
+    define: {
+      '__APP_VERSION__': JSON.stringify(packageJson.version),
+    },
     plugins: [
       react(),
       VitePWA({
