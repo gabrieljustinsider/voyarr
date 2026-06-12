@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
-from sqlalchemy.orm import Session, defer
+from sqlalchemy.orm import Session, defer, selectinload
 from database import get_db
 from models import LibraryEntry, DownloadPreference, FileNamingHistory
 from typing import Optional, List
@@ -98,7 +98,8 @@ def get_library_entries(
     db: Session = Depends(get_db),
     current_user = Depends(require_permission("library", "view"))
 ):
-    query = db.query(LibraryEntry).options(defer(LibraryEntry.entry_metadata))
+    # PERFORMANCE: Eagerly fetch 1-to-Many chapters to prevent N+1 queries during Pydantic serialization
+    query = db.query(LibraryEntry).options(defer(LibraryEntry.entry_metadata), selectinload(LibraryEntry.chapters))
 
     # Enforce restricted tags filtering server-side
     if hasattr(current_user, "permissions") and current_user.permissions:

@@ -170,3 +170,30 @@ This ensures that the database port is completely unreachable directly over the 
 4. **Test Connection:**
    * Click **Test Connection** at the bottom left.
    * DBeaver will securely authenticate over SSH first, map the remote `127.0.0.1:5432` loopback socket locally over the encrypted tunnel, and establish a fully secure connection to your Postgres instance!
+
+---
+
+## 10. Browserless / Scraping Connection Errors
+
+**Error Log Example:**
+`WebSocket connection failed` or `Connection refused to wss://chrome.browserless.io` or `net::ERR_NAME_NOT_RESOLVED` for `ws://browserless:3000`
+
+**Cause:**
+The backend or celery worker cannot connect to the headless Chrome instance required for advanced metadata scraping. This is usually due to a missing/invalid API token, incorrect URL, or the local container not running.
+
+**Solution:**
+Depending on whether you are using the cloud-hosted Browserless service or running it locally, check the following in your `.env` file:
+
+* **If using Cloud (Browserless.io - Default):**
+  1. Ensure your URL is correct: `BROWSERLESS_URL=wss://chrome.browserless.io`
+  2. Make sure you signed up for an account and provided a valid token: `BROWSERLESS_TOKEN=your_actual_api_key`
+
+* **If using Local Docker Container:**
+  1. Ensure you have explicitly started the browserless container (it is disabled by default). Run: `docker compose --profile browserless up -d`
+  2. Ensure your URL points to the local container: `BROWSERLESS_URL=ws://browserless:3000`
+  3. Verify the token matches the default or what you set in the compose file: `BROWSERLESS_TOKEN=voyarr-secure-browserless-token`
+
+After making any changes to your `.env` file, restart your containers to apply them:
+```bash
+docker compose down && docker compose up -d
+```

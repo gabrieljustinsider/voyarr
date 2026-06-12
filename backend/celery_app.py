@@ -60,6 +60,14 @@ celery_app.conf.update(  # type: ignore
     result_serializer="json",
     timezone="UTC",
     enable_utc=True,
+    broker_connection_retry_on_startup=True,
+    worker_prefetch_multiplier=1,
+    broker_transport_options={
+        # PERFORMANCE & STABILITY: 24-hour visibility timeout for long-running tasks.
+        # Prevents Redis from mistakenly re-queueing 4K video transcodes to another 
+        # worker if they take longer than the default 1 hour to finish!
+        "visibility_timeout": 86400,
+    },
     # Distributed Worker Nodes support via Task Routing
     task_routes={
         "tasks.download_tasks.*": {"queue": "downloads"},

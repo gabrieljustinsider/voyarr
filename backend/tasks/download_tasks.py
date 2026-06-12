@@ -38,6 +38,7 @@ def real_download_task(self: Any, task_id: int, prefs_dict: dict[str, Any], meta
                         "yt_browser_cookies",
                         "yt_custom_format",
                         "download_destination",
+                            "global_speed_limit_kbps",
                     ]
                 )
             )
@@ -137,6 +138,14 @@ def real_download_task(self: Any, task_id: int, prefs_dict: dict[str, Any], meta
             ydl_opts["cookiesfrombrowser"] = (
                 global_settings.get("yt_browser_cookies"),
             )
+
+        # PERFORMANCE: Apply global bandwidth speed limits if configured to prevent network saturation
+        speed_limit_kbps = global_settings.get("global_speed_limit_kbps", "0")
+        if speed_limit_kbps and speed_limit_kbps != "0":
+            try:
+                ydl_opts["ratelimit"] = float(speed_limit_kbps) * 1024
+            except ValueError:
+                pass
 
         cookie_temp_path = None
         active_cookie = (
@@ -353,7 +362,8 @@ def mass_rip_task(self: Any, session_id: int) -> None:
         # provider = db.query(Provider).filter(Provider.id == provider_id).first()
         prefs = db.query(DownloadPreference).filter(DownloadPreference.provider_id == provider_id).first()
         
-        ydl_opts: dict[str, Any] = {"extract_flat": True, "quiet": True}
+        # PERFORMANCE: skip_download prevents accidental binary fetching, extract_flat="in_playlist" is significantly faster than True
+        ydl_opts: dict[str, Any] = {"extract_flat": "in_playlist", "skip_download": True, "quiet": True, "ignoreerrors": True}
         if prefs:
             proxy_url = getattr(prefs, "proxy_url", None)
             if proxy_url is not None and str(proxy_url):  # type: ignore

@@ -7,6 +7,10 @@ from sqlalchemy.orm import Session
 @contextmanager
 def get_db_session():
     db = database.SessionLocal()
+    # PERFORMANCE: Disabling expire_on_commit prevents SQLAlchemy from executing 
+    # redundant SELECT queries to refresh object attributes after every db.commit()
+    # This is a massive optimization for Celery tasks running in long loops.
+    db.expire_on_commit = False
     try:
         yield db
         db.commit()

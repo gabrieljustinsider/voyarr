@@ -218,6 +218,11 @@ Open `.env` and configure the following parameters:
   > [!NOTE]
   > **Secure Database Access**: By default, the PostgreSQL database port (`POSTGRES_PORT`) is bound strictly to the local loopback interface (`127.0.0.1`). This isolates the database from raw LAN access while facilitating encrypted management connections via SSH Tunneling (e.g., using DBeaver). For complete connection instructions, see [Section 9 in TROUBLESHOOTING.md](TROUBLESHOOTING.md#9-securely-connecting-to-the-postgresql-database-dbeaver-via-ssh-tunnel).
 
+* **Browserless (Web Scraping Engine)**: To save ~4.6 GB of RAM/disk space locally, Voyarr defaults to using the free cloud-hosted `browserless.io` service for advanced metadata scraping.
+  1. Sign up at browserless.io for a free account.
+  2. Set `BROWSERLESS_TOKEN=your_api_key_here` in your `.env` file.
+  *(If you prefer to run the heavy container locally instead, instructions are provided inside the `.env.example` file!)*
+
 ### 3. Choose Your Deployment Method
 
 Depending on your preference, you can deploy Voyarr using **Docker Compose** (recommended for easy one-step management) or via the **Standard Docker CLI** (for manual container-by-container control).

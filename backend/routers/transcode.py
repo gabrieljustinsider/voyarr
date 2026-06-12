@@ -4,7 +4,7 @@ import json
 import asyncio
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import IntegrityError
 from database import get_db
 from models import LibraryEntry, TranscodingQueue
@@ -87,7 +87,8 @@ def get_transcode_jobs(
     Retrieves all transcoding jobs, optionally filtered by status.
     """
 
-    query = db.query(TranscodingQueue).order_by(
+    # PERFORMANCE: Prevent N+1 queries when accessing library_entry.title
+    query = db.query(TranscodingQueue).options(joinedload(TranscodingQueue.library_entry)).order_by(
         TranscodingQueue.priority.desc(), TranscodingQueue.created_at.asc()
     )
     if status:
@@ -105,6 +106,7 @@ def stream_transcode_queue(request: Request, current_user = Depends(require_perm
         with get_db_session() as db:
             jobs = (
                 db.query(TranscodingQueue)
+                .options(joinedload(TranscodingQueue.library_entry))
                 .filter(
                     TranscodingQueue.status.in_(["pending", "running", "paused"])
                 )

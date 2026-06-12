@@ -65,6 +65,14 @@ def scrape_url_task(url: str, recipe_id: int) -> dict[str, Any] | None:
                     context = browser.new_context(user_agent=ua)
                     page = context.new_page()
 
+                    # PERFORMANCE: Block heavy, non-metadata resources to dramatically speed up scraping and save RAM
+                    page.route(
+                        "**/*",
+                        lambda route: route.abort()
+                        if route.request.resource_type in ["image", "media", "font", "stylesheet"]
+                        else route.continue_()
+                    )
+
                     # networkidle ensures dynamic scripts have finished fetching data
                     page.goto(url, wait_until="networkidle", timeout=20000)
                     html_content = page.content()

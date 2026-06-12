@@ -1,7 +1,9 @@
 from bs4 import BeautifulSoup
 import re
 from typing import Dict, Any
+import logging
 
+logger = logging.getLogger(__name__)
 
 class DynamicScraper:
     def __init__(self, recipe):
@@ -27,21 +29,27 @@ class DynamicScraper:
             if not selector:
                 continue
 
-            elements = soup.select(selector)
-            if not elements:
-                continue
+            try:
+                elements = soup.select(selector)
+                if not elements:
+                    continue
 
-            # If multiple elements match (e.g., tags, performers), return a list.
-            # If only one matches (e.g., title, description), return a single string.
-            if len(elements) == 1:
-                result[field] = elements[0].get_text(strip=True)
-            else:
-                result[field] = [el.get_text(strip=True) for el in elements]
+                # If multiple elements match (e.g., tags, performers), return a list.
+                # If only one matches (e.g., title, description), return a single string.
+                if len(elements) == 1:
+                    result[field] = elements[0].get_text(strip=True)
+                else:
+                    result[field] = [el.get_text(strip=True) for el in elements]
+            except Exception as e:
+                logger.warning(f"Invalid CSS selector '{selector}' for field '{field}': {e}")
 
         # 2. Apply Regex Patterns (useful for extracting IDs from scripts or raw text)
         for field, pattern in self.regex_patterns.items():
-            if pattern and (match := re.search(pattern, html_content)):
-                result[field] = match.group(1) if match.groups() else match.group(0)
+            try:
+                if pattern and (match := re.search(pattern, html_content)):
+                    result[field] = match.group(1) if match.groups() else match.group(0)
+            except Exception as e:
+                logger.warning(f"Invalid Regex pattern '{pattern}' for field '{field}': {e}")
 
         # 3. Apply Fallbacks for missing core fields
         for field, value in fallback_data.items():

@@ -75,8 +75,8 @@ services:
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:5432/${POSTGRES_DB:-voyarr}}
       - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
-      - BROWSERLESS_URL=${BROWSERLESS_URL:-ws://browserless:3000}
-      - BROWSERLESS_TOKEN=${BROWSERLESS_TOKEN:-voyarr-secure-browserless-token}
+      - BROWSERLESS_URL=${BROWSERLESS_URL:-wss://chrome.browserless.io}
+      - BROWSERLESS_TOKEN=${BROWSERLESS_TOKEN:-}
       - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
       - CONTAINER_MEDIA_PATHS=${CONTAINER_MEDIA_PATHS:-/media/storage}
       - DEFAULT_DOWNLOAD_PATH=${DEFAULT_DOWNLOAD_PATH:-/media/storage/downloads}
@@ -123,8 +123,8 @@ services:
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:5432/${POSTGRES_DB:-voyarr}}
       - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
-      - BROWSERLESS_URL=${BROWSERLESS_URL:-ws://browserless:3000}
-      - BROWSERLESS_TOKEN=${BROWSERLESS_TOKEN:-voyarr-secure-browserless-token}
+      - BROWSERLESS_URL=${BROWSERLESS_URL:-wss://chrome.browserless.io}
+      - BROWSERLESS_TOKEN=${BROWSERLESS_TOKEN:-}
       - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
       - CONTAINER_MEDIA_PATHS=${CONTAINER_MEDIA_PATHS:-/media/storage}
       - DEFAULT_DOWNLOAD_PATH=${DEFAULT_DOWNLOAD_PATH:-/media/storage/downloads}

@@ -3,7 +3,7 @@ import re
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select, update, delete
 
 from database import get_db
@@ -76,16 +76,26 @@ def delete_tier(tier_id: int, db: Session = Depends(get_db), current_user: User 
 
 @router.get("", response_model=List[SubscriptionResponse])
 def get_subscriptions(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    # PERFORMANCE: Prevent 3x N+1 queries per subscription row
+    stmt = select(Subscription).options(
+        joinedload(Subscription.provider),
+        joinedload(Subscription.tier),
+        joinedload(Subscription.biller)
+    )
     # if admin, can see all? Let's just return for current_user if regular
     if current_user.role == "admin":
-        subs = db.execute(select(Subscription)).scalars().all()
+        subs = db.execute(stmt).scalars().all()
     else:
-        subs = db.execute(select(Subscription).where(Subscription.user_id == current_user.id)).scalars().all()
+        subs = db.execute(stmt.where(Subscription.user_id == current_user.id)).scalars().all()
     return subs
 
 @router.get("/{sub_id}", response_model=SubscriptionResponse)
 def get_subscription(sub_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    sub = db.get(Subscription, sub_id)
+    sub = db.execute(
+        select(Subscription)
+        .options(joinedload(Subscription.provider), joinedload(Subscription.tier), joinedload(Subscription.biller))
+        .where(Subscription.id == sub_id)
+    ).scalar_one_or_none()
     if not sub:
         raise HTTPException(status_code=404, detail="Subscription not found")
     if current_user.role != "admin" and sub.user_id != current_user.id:
