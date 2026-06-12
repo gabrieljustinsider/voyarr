@@ -38,34 +38,33 @@ def extract_frame_base64(file_path: str) -> str:
         duration = float(duration_str)
         midpoint = duration / 2.0
 
-        try:
-            cmd_extract = [
-                "ffmpeg",
-                "-y",
-                "-ss",
-                str(midpoint),
-                "-i",
-                abs_file_path,
-                "-vframes",
-                "1",
-                "-q:v",
-                "2",
-                "-f",
-                "image2pipe",
-                "-vcodec",
-                "mjpeg",
-                "-"
-            ]
-            process = subprocess.run(
-                cmd_extract,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-                stdin=subprocess.DEVNULL,
-                check=True,
-                timeout=60,
-            )  # nosec B603
+        cmd_extract = [
+            "ffmpeg",
+            "-y",
+            "-ss",
+            str(midpoint),
+            "-i",
+            abs_file_path,
+            "-vframes",
+            "1",
+            "-q:v",
+            "2",
+            "-f",
+            "image2pipe",
+            "-vcodec",
+            "mjpeg",
+            "-"
+        ]
+        process = subprocess.run(
+            cmd_extract,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
+            check=True,
+            timeout=60,
+        )  # nosec B603
 
-            return base64.b64encode(process.stdout).decode("utf-8")
+        return base64.b64encode(process.stdout).decode("utf-8")
 
     except subprocess.TimeoutExpired as e:
         logger.error(f"Timeout while extracting frame from {abs_file_path}: {e}")
