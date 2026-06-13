@@ -17,6 +17,10 @@ on:
       - '.github/workflows/codeql.yml'
   schedule:
     - cron: '37 20 * * 1'
+  # your existing triggers here (push, pull_request, etc.)
+  # Allows you to manually trigger the workflow from the Actions tab
+  workflow_dispatch:
+
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
