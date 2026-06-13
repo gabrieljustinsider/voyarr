@@ -228,3 +228,45 @@ def validate_url_ssrf(url_str: str):
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(status_code=400, detail=f"Invalid URL: {str(e)}")
+
+
+def validate_path(path: str, allowed_roots: List[str] = None) -> str:
+    """
+    Normalizes a path, resolves realpath (following symlinks),
+    and validates that it resides within the allowed_roots directory list.
+    If allowed_roots is None, it defaults to get_media_roots() + standard application paths.
+    """
+    if not path:
+        raise HTTPException(status_code=400, detail="Invalid path: path cannot be empty.")
+
+    abs_path = os.path.realpath(os.path.abspath(path))
+
+    if allowed_roots is None:
+        allowed_roots = get_media_roots()
+        # Add standard container storage, temp directories, config, backups
+        for standard_dir in ["/tmp", "/media", "/app/config", "/app/backups", "/downloads", "/mnt"]:
+            real_std = os.path.realpath(os.path.abspath(standard_dir))
+            if real_std not in allowed_roots:
+                allowed_roots.append(real_std)
+
+    # Check if the resolved path starts with any of the allowed roots
+    is_safe = False
+    for root in allowed_roots:
+        real_root = os.path.realpath(os.path.abspath(root))
+        # Exact match or prefix match with trailing directory separator to prevent matching /media/storage2 vs /media/storage
+        if abs_path == real_root or abs_path.startswith(real_root + os.sep):
+            is_safe = True
+            break
+
+    if not is_safe:
+        # Also check forbidden prefixes strictly
+        raise HTTPException(status_code=403, detail="Access denied: Path is outside allowed directories.")
+
+    # Prevent access to sensitive system directories explicitly
+    forbidden_prefixes = ["/etc", "/proc", "/sys", "/root", "/var/run", "/boot", "/dev"]
+    for fp in forbidden_prefixes:
+        real_fp = os.path.realpath(os.path.abspath(fp))
+        if abs_path == real_fp or abs_path.startswith(real_fp + os.sep):
+            raise HTTPException(status_code=403, detail="Access to sensitive system directories is forbidden.")
+
+    return abs_path

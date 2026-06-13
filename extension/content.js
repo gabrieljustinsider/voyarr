@@ -300,7 +300,8 @@ if (typeof window.__voyarrContentScriptInjected === 'undefined') {
       if (!attributeFound) {
         const ariaLabel = current.getAttribute('aria-label');
         if (ariaLabel && ariaLabel.trim() && ariaLabel.length < 50) {
-          selector += `[aria-label="${ariaLabel.replace(/"/g, '\\"')}"]`;
+          const escapedAriaLabel = ariaLabel.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+          selector += `[aria-label="${escapedAriaLabel}"]`;
           attributeFound = true;
         }
       }

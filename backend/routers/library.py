@@ -13,7 +13,7 @@ from tasks.transcode_tasks import generate_hls_task
 from tasks.scanner_tasks import process_missing_hashes_task
 
 from dependencies import verify_api_key, require_permission
-from utils import get_media_roots
+from utils import get_media_roots, validate_path
 from rate_limiter import rate_limit
 from routers.deovr import verify_deovr_auth
 
@@ -415,13 +415,14 @@ def rename_library_file(entry_id: int, req: RenameRequest, db: Session = Depends
     if not safe_new_filename:
         raise HTTPException(status_code=400, detail="Invalid new filename")
 
-    new_path = os.path.join(old_dir, safe_new_filename)
+    new_path = validate_path(os.path.join(old_dir, safe_new_filename))
+    old_path = validate_path(old_path)
 
-    if os.path.exists(new_path) and new_path != old_path:  # lgtm [py/path-injection]
+    if os.path.exists(new_path) and new_path != old_path:
         raise HTTPException(status_code=400, detail="Target filename already exists on disk")
 
     try:
-        os.rename(old_path, new_path)  # lgtm [py/path-injection]
+        os.rename(old_path, new_path)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to physically rename file: {str(e)}")
 
@@ -444,7 +445,7 @@ def rename_library_file(entry_id: int, req: RenameRequest, db: Session = Depends
         db.rollback()
         # Roll back physical rename to keep disk in sync with DB
         try:
-            os.rename(new_path, old_path)  # lgtm [py/path-injection]
+            os.rename(new_path, old_path)
         except Exception as fs_err:
             import logging
             logger = logging.getLogger(__name__)

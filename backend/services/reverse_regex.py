@@ -24,24 +24,13 @@ class ReverseRegexMatcher:
 
     def scan_directory(self, directory: str, provider_id: int, pattern: str) -> dict:
         # SECURITY: Prevent path traversal and arbitrary file reads outside of media roots
-        from utils import get_media_roots
+        from utils import validate_path
         try:
-            real_dir = os.path.realpath(directory)
-        except Exception:
-            return {"error": f"Invalid directory path: {directory}"}
+            real_dir = validate_path(directory)
+        except Exception as e:
+            return {"error": f"Access denied or invalid directory path: {str(e)}"}
 
-        is_valid_base = False
-        for root_dir in get_media_roots():
-            try:
-                if os.path.commonpath([root_dir, real_dir]) == root_dir:
-                    is_valid_base = True
-                    break
-            except ValueError:
-                continue
-        if not is_valid_base:
-            return {"error": f"Access denied: directory '{directory}' is outside configured media roots."}
-
-        if not os.path.exists(real_dir):  # lgtm [py/path-injection]
+        if not os.path.exists(real_dir):
             return {"error": f"Directory not found: {directory}"}
 
         regex = self.pattern_to_regex(pattern)

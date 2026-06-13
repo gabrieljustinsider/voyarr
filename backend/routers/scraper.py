@@ -184,6 +184,7 @@ def parse_url(
         from bs4 import BeautifulSoup
         import os
 
+        validate_url_ssrf(req.url)
         session = requests.Session()
         global_ua = os.getenv("DEFAULT_USER_AGENT", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
         session.headers.update({"User-Agent": global_ua})

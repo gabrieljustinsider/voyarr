@@ -9,6 +9,7 @@ from typing import Optional
 from dependencies import verify_api_key
 from security import encrypt_data, decrypt_data
 from rate_limiter import rate_limit
+from utils import validate_path
 
 router = APIRouter(
     prefix="/settings", tags=["settings"], dependencies=[Depends(verify_api_key)]
@@ -258,23 +259,15 @@ def browse_directory(path: Optional[str] = Query(None)):
     target_path = path if path else "/"
 
     try:
-        # SECURITY: Use realpath to resolve symlinks and prevent bypasses
-        target_path = os.path.realpath(target_path)
-    except Exception:
+        # Enforce safe path validation to mitigate path injection
+        target_path = validate_path(target_path)
+    except HTTPException:
         target_path = "/"
 
-    if not os.path.exists(target_path):  # lgtm [py/path-injection]
+    if not os.path.exists(target_path):
         target_path = "/"
 
-    # SECURITY: Prevent access to sensitive system directories
-    forbidden_prefixes = ["/etc", "/proc", "/sys", "/root", "/var", "/dev"]
-    if any(target_path.startswith(fp) for fp in forbidden_prefixes):
-        raise HTTPException(
-            status_code=403,
-            detail="Access to sensitive system directories is forbidden.",
-        )
-
-    if not os.path.isdir(target_path):  # lgtm [py/path-injection]
+    if not os.path.isdir(target_path):
         target_path = os.path.dirname(target_path)
 
     try:
@@ -285,20 +278,20 @@ def browse_directory(path: Optional[str] = Query(None)):
         folders = []
         files = []
 
-        for item in os.listdir(target_path):  # lgtm [py/path-injection]
+        for item in os.listdir(target_path):
             if item.startswith("."):
                 continue
 
             full_path = os.path.join(target_path, item)
             try:
-                if os.path.isdir(full_path):  # lgtm [py/path-injection]
+                if os.path.isdir(full_path):
                     folders.append({"name": item, "path": full_path})
                 else:
                     files.append(
                         {
                             "name": item,
                             "path": full_path,
-                            "size": os.path.getsize(full_path),  # lgtm [py/path-injection]
+                            "size": os.path.getsize(full_path),
                         }
                     )
             except (PermissionError, FileNotFoundError):
@@ -331,38 +324,33 @@ def autocomplete_path(q: str = Query("")):
 
     ends_with_slash = q.endswith(os.sep) or q.endswith("/")
 
-    if os.path.isdir(q_norm) and (ends_with_slash or q_norm == "/"):  # lgtm [py/path-injection]
+    if os.path.isdir(q_norm) and (ends_with_slash or q_norm == "/"):
         parent_dir = q_norm
         prefix = ""
     else:
         parent_dir = os.path.dirname(q_norm)
         prefix = os.path.basename(q_norm)
 
+    # Validate parent_dir via validate_path helper
     try:
-        # SECURITY: Resolve symlinks to prevent bypasses
-        parent_dir = os.path.realpath(parent_dir)
-    except Exception:
-        parent_dir = "/"
-
-    # SECURITY: Prevent access to sensitive system directories
-    forbidden_prefixes = ["/etc", "/proc", "/sys", "/root", "/var", "/dev"]
-    if any(parent_dir.startswith(fp) for fp in forbidden_prefixes):
+        parent_dir = validate_path(parent_dir)
+    except HTTPException:
         return {"suggestions": []}
 
-    if not os.path.exists(parent_dir) or not os.path.isdir(parent_dir):  # lgtm [py/path-injection]
+    if not os.path.exists(parent_dir) or not os.path.isdir(parent_dir):
         parent_dir = "/"
         prefix = ""
 
     suggestions = []
     try:
-        for item in os.listdir(parent_dir):  # lgtm [py/path-injection]
+        for item in os.listdir(parent_dir):
             if item.startswith("."):
                 continue
 
             if item.lower().startswith(prefix.lower()):
                 full_path = os.path.join(parent_dir, item)
                 try:
-                    is_dir = os.path.isdir(full_path)  # lgtm [py/path-injection]
+                    is_dir = os.path.isdir(full_path)
                     suggestions.append(
                         {
                             "name": item,
