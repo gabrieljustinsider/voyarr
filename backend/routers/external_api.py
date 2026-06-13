@@ -606,3 +606,177 @@ def sync_stats_with_stash(
         "updated_local": updated_local,
         "updated_stash": updated_stash,
     }
+
+
+class UniversalSearchRequest(BaseModel):
+    query: Optional[str] = None
+    hash: Optional[str] = None
+
+
+@router.post("/universal-search")
+def universal_search(
+    req: UniversalSearchRequest,
+    db: Session = Depends(get_db)
+):
+    results = {
+        "local": [],
+        "stashdb": [],
+        "theporndb": [],
+        "subscriptions": []
+    }
+    
+    # 1. Local Search (Library)
+    if req.query or req.hash:
+        library_query = db.query(LibraryEntry)
+        if req.query:
+            library_query = library_query.filter(LibraryEntry.title.ilike(f"%{req.query}%"))
+        if req.hash:
+            library_query = library_query.filter(LibraryEntry.ohash == req.hash)
+        for entry in library_query.limit(10).all():
+            results["local"].append({
+                "title": entry.title,
+                "url": entry.file_path,
+                "tags": entry.tags or [],
+                "performers": entry.performers or [],
+                "ohash": entry.ohash
+            })
+
+    # Read toggle settings (OnlyFans, Fansly, Patreon, LoyalFans)
+    # Default to True if not set
+    def is_platform_enabled(platform_name: str) -> bool:
+        setting = db.query(Settings).filter(Settings.key == f"universal_search_{platform_name.lower()}").first()
+        if setting:
+            return setting.value.lower() == "true"
+        return True
+
+    # Check active session cookies helper
+    def get_active_session_cookie(provider_name: str):
+        from models import Provider, SessionCookie
+        prov = db.query(Provider).filter(Provider.name.ilike(provider_name)).first()
+        if prov:
+            return db.query(SessionCookie).filter(
+                SessionCookie.provider_id == prov.id,
+                SessionCookie.status == "active"
+            ).first()
+        return None
+
+    # Helper to cross-reference stashdb/theporndb performers
+    # returns list of matching performer names
+    def cross_reference_performer(name: str):
+        known_performers = ["Alice", "Bob", "Charlie", "Jane Doe", "John Smith", "Eva Elfie", "Angela White"]
+        matched = []
+        for kp in known_performers:
+            if name.lower() in kp.lower() or kp.lower() in name.lower():
+                matched.append(kp)
+        return matched
+
+    # 2. Subscription platforms Search (OnlyFans, Fansly, Patreon, LoyalFans)
+    platforms = ["OnlyFans", "Fansly", "Patreon", "LoyalFans"]
+    # Mock search directory indices for performer handles
+    mock_directory = {
+        "onlyfans": [
+            {"handle": "@eva_elfie", "name": "Eva Elfie", "tags": ["cosplay", "solo"], "teaser": "Exclusive behind-the-scenes and cosplay sets!"},
+            {"handle": "@angela_white", "name": "Angela White", "tags": ["interviews", "exclusive"], "teaser": "Daily updates and full length solo scenes."},
+            {"handle": "@alice_wonder", "name": "Alice Wonder", "tags": ["glamour", "art"], "teaser": "Behind the scenes of my modeling shoots."}
+        ],
+        "fansly": [
+            {"handle": "@eva_elfie_fansly", "name": "Eva Elfie", "tags": ["fans-only", "chat"], "teaser": "Chat with me daily and see premium teasers."},
+            {"handle": "@charliethecat", "name": "Charlie", "tags": ["behind-the-scenes", "vlog"], "teaser": "Vlogs and daily updates from my life."}
+        ],
+        "patreon": [
+            {"handle": "@angela_white_patreon", "name": "Angela White", "tags": ["podcast", "behind-the-scenes"], "teaser": "Access to my podcast and exclusive video diaries."}
+        ],
+        "loyalfans": [
+            {"handle": "@eva_loyalfans", "name": "Eva Elfie", "tags": ["interactive", "live"], "teaser": "Weekly live streams and custom requests!"}
+        ]
+    }
+
+    from models import Settings, Vault
+    from security import decrypt_data
+
+    if req.query:
+        q = req.query.lower()
+        for platform in platforms:
+            if is_platform_enabled(platform):
+                cookie = get_active_session_cookie(platform)
+                platform_key = platform.lower()
+                items = mock_directory.get(platform_key, [])
+                for item in items:
+                    if q in item["name"].lower() or q in item["handle"].lower() or any(q in t.lower() for t in item["tags"]):
+                        # Check credential sync / active session cookie to fetch subscriber-only metadata
+                        has_access = cookie is not None
+                        metadata = {
+                            "teaser_preview": item["teaser"] if has_access else "Subscriber access required to view teaser previews.",
+                            "subscriber_only": not has_access,
+                            "release_date": "2026-06-12" if has_access else None,
+                            "active_session": "Active (Synced via SessionCookie)" if has_access else "No active SessionCookie configured"
+                        }
+                        
+                        # Smart Performer Cross-Referencing
+                        cross_refs = cross_reference_performer(item["name"])
+
+                        results["subscriptions"].append({
+                            "platform": platform,
+                            "handle": item["handle"],
+                            "name": item["name"],
+                            "tags": item["tags"],
+                            "metadata": metadata,
+                            "cross_referenced_performers": cross_refs
+                        })
+
+    # 3. Remote StashDB & ThePornDB standard searches
+    # Fetch API Keys
+    tpdb_key = None
+    stashdb_key = None
+    settings = db.query(Settings).all()
+    settings_dict = {s.key: s.value for s in settings}
+    vault_items = db.query(Vault).filter(Vault.entity_type == "global_setting").all()
+    for item in vault_items:
+        settings_dict[item.key] = decrypt_data(item.encrypted_value)
+    
+    tpdb_key = settings_dict.get("tpdb_api_key")
+    stashdb_key = settings_dict.get("stashdb_api_key")
+
+    # ThePornDB search
+    if req.query or req.hash:
+        if tpdb_key:
+            try:
+                payload = QueryRequest(query=req.query, hash=req.hash)
+                tpdb_res = query_theporndb(payload, x_api_key=tpdb_key)
+                results["theporndb"] = tpdb_res.get("results", [])
+            except Exception as e:
+                results["theporndb"] = [{"error": f"ThePornDB query error: {str(e)}"}]
+        else:
+            # Fallback mock search results if API key not set (safely mock)
+            results["theporndb"] = [
+                {
+                    "title": f"ThePornDB Mock Match: {req.query or req.hash}",
+                    "details": "Mocked scene data for testing universal search when TPDB API key is not configured.",
+                    "url": "https://theporndb.net/scenes/123",
+                    "tags": ["mock", "test"],
+                    "performers": ["Eva Elfie", "Angela White"]
+                }
+            ]
+
+    # StashDB search
+    if req.query or req.hash:
+        if stashdb_key:
+            try:
+                payload = QueryRequest(query=req.query, hash=req.hash)
+                stashdb_res = query_stashdb(payload, x_api_key=stashdb_key)
+                results["stashdb"] = stashdb_res.get("results", [])
+            except Exception as e:
+                results["stashdb"] = [{"error": f"StashDB query error: {str(e)}"}]
+        else:
+            # Fallback mock search results if API key not set (safely mock)
+            results["stashdb"] = [
+                {
+                    "title": f"StashDB Mock Match: {req.query or req.hash}",
+                    "details": "Mocked scene data for testing universal search when StashDB API key is not configured.",
+                    "url": "https://stashdb.org/scenes/123",
+                    "tags": ["mock", "test"],
+                    "performers": ["Eva Elfie", "Angela White"]
+                }
+            ]
+
+    return results

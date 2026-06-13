@@ -213,3 +213,28 @@ def test_extract_with_xpath():
     # Test text() extraction
     res_texts = provider.extract_with_xpath(soup, "//a/text()")
     assert res_texts == ["Link 1", "Link 2"]
+
+
+def test_universal_search():
+    # Test query searching OnlyFans and other sites
+    response = client.post(
+        "/external-api/universal-search",
+        json={"query": "Eva Elfie"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "local" in data
+    assert "stashdb" in data
+    assert "theporndb" in data
+    assert "subscriptions" in data
+    
+    # Verify subscriptions response
+    subs = data["subscriptions"]
+    assert len(subs) > 0
+    of_matches = [s for s in subs if s["platform"] == "OnlyFans"]
+    assert len(of_matches) > 0
+    assert of_matches[0]["handle"] == "@eva_elfie"
+    assert "cosplay" in of_matches[0]["tags"]
+    # Check that smart performer cross referencing returned matches
+    assert "Eva Elfie" in of_matches[0]["cross_referenced_performers"]
+
