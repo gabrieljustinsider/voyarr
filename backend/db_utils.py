@@ -379,6 +379,25 @@ def run_schema_migrations(engine: Any) -> None:
                         pass
                     logger.warning(f"Failed to add column {col} to subscriptions: {e}")
 
+        # 12. Check if providers table has favicon_url column, if not, add it
+        try:
+            conn.execute(text("SELECT favicon_url FROM providers LIMIT 1"))
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            try:
+                conn.execute(text("ALTER TABLE providers ADD COLUMN favicon_url VARCHAR(500)"))
+                conn.commit()
+                logger.info("Database migration successfully added 'favicon_url' to 'providers'.")
+            except Exception as e:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                logger.warning(f"Failed to add column favicon_url to providers: {e}")
+
 def is_feature_enabled(db: Session, feature: str, user: Optional[Any] = None) -> bool:
     from models import Settings
     if feature == "streaming":
