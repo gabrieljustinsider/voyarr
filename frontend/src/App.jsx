@@ -888,7 +888,7 @@ function App() {
     { label: "Backup", component: <BackupManager />, visible: true },
     { label: "Logs", component: <LogsViewer />, visible: true },
     { label: "Scraper Tester", component: <ScraperTester />, visible: true },
-    { label: "Request Manager", component: <RequestManager />, visible: true },
+    { label: "Request Manager", component: <RequestManager userRole={userRole} />, visible: true },
 
     { label: "Help", component: <HelpArea userRole={userRole} />, visible: true },
   ], [uiConfig, filteredProviders, queue, fetchQueue, searchQuery, userRole])

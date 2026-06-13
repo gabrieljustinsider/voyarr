@@ -245,6 +245,26 @@ def real_download_task(self: Any, task_id: int, prefs_dict: dict[str, Any], meta
                 try:
                     from services.notification_service import NotificationService
 
+                    # Check and update matching approved MediaRequests
+                    try:
+                        from models import MediaRequest
+                        matching_req = db.query(MediaRequest).filter(
+                            MediaRequest.url == task.url,
+                            MediaRequest.status == "approved"
+                        ).first()
+                        if matching_req:
+                            matching_req.status = "downloaded"
+                            db.commit()
+                            
+                            NotificationService.notify_global(
+                                db,
+                                "task_completed",
+                                "Media Request Ready",
+                                f"📣 Requested media '{matching_req.title}' (requested by {matching_req.requested_by}) is now ready for streaming!",
+                            )
+                    except Exception as req_err:
+                        print(f"Error updating request status: {req_err}")
+
                     NotificationService.check_and_notify_favorites(db, new_entry)  # type: ignore
                     NotificationService.notify_global(
                         db,

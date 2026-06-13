@@ -69,6 +69,32 @@ def approve_request(
 
     validate_url_ssrf(db_req.url)
 
+    # 1. Resolve requesting user and enforce daily rip quota
+    requester = db.query(User).filter(User.username == db_req.requested_by).first()
+    requester_user_id = None
+    if requester:
+        requester_user_id = str(requester.id)
+        if requester.permissions:
+            quotas = requester.permissions.get("quotas", {})
+            daily_rip_quota = quotas.get("dailyRips", 0)
+            if daily_rip_quota > 0:
+                from sqlalchemy import func
+                from models import MassRipSession
+                from datetime import datetime, timezone
+                today = datetime.now(timezone.utc).date()
+                
+                # Count rips today by the requesting user
+                rips_today = db.query(MassRipSession).filter(
+                    MassRipSession.user_id == str(requester.id),
+                    func.date(MassRipSession.created_at) == today
+                ).count()
+                
+                if rips_today >= daily_rip_quota:
+                    raise HTTPException(
+                        status_code=403,
+                        detail=f"Quota Exceeded: The requesting user '{requester.username}' has exceeded their daily quota of {daily_rip_quota} downloads."
+                    )
+
     # Route the approved request directly into the mass rip/download engine
     api_base = os.getenv(
         "INTERNAL_API_URL", f"http://backend:{os.getenv('PORT', '8000')}"
@@ -82,6 +108,7 @@ def approve_request(
                 "provider_id": provider_id,
                 "url": db_req.url,
                 "action": "metadata_and_download",
+                "user_id": requester_user_id,
             },
             headers={"X-Voyarr-Api-Key": api_key},
             timeout=10,
@@ -93,7 +120,8 @@ def approve_request(
             detail=f"Failed to communicate with internal download engine: {str(e)}",
         )
 
-    db.delete(db_req)
+    # Transition status to approved
+    db_req.status = "approved"
     db.commit()
     return {"message": f"Request '{db_req.title}' approved and queued for download."}
 
@@ -104,7 +132,7 @@ def reject_request(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Admin Only: Reject and delete a request."""
+    """Admin Only: Reject and update request status."""
     if current_user.role != "admin":
         raise HTTPException(
             status_code=403, detail="Forbidden: Only admins can reject requests"
@@ -114,6 +142,6 @@ def reject_request(
     if not db_req:
         raise HTTPException(status_code=404, detail="Request not found")
 
-    db.delete(db_req)
+    db_req.status = "rejected"
     db.commit()
-    return {"message": "Request deleted successfully"}
+    return {"message": "Request marked as rejected"}

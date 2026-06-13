@@ -591,6 +591,7 @@ class MassRipRequest(BaseModel):
     url: str
     action: Optional[str] = "metadata_and_download"
     criteria: Optional[Dict[str, Any]] = None
+    user_id: Optional[str] = None
 
 
 @router.post("/mass_rip")
@@ -604,9 +605,23 @@ def mass_rip(req: MassRipRequest, db: Session = Depends(get_db), current_user = 
     # SECURITY: Prevent SSRF
     validate_url_ssrf(req.url)
 
+    user_id_to_use = None
+    if isinstance(current_user, dict):
+        user_id_to_use = req.user_id or "master_key"
+    else:
+        user_id_to_use = str(current_user.id)
+
     # 0. Enforce Daily Rip Quota
-    if hasattr(current_user, "permissions") and current_user.permissions:
-        quotas = current_user.permissions.get("quotas", {})
+    # If triggered by master key, check the quota for the specified user_id if provided
+    quota_user = None
+    if user_id_to_use and user_id_to_use != "master_key":
+        from models import User
+        quota_user = db.query(User).filter(User.id == int(user_id_to_use)).first()
+    elif not isinstance(current_user, dict):
+        quota_user = current_user
+
+    if quota_user and hasattr(quota_user, "permissions") and quota_user.permissions:
+        quotas = quota_user.permissions.get("quotas", {})
         daily_rip_quota = quotas.get("dailyRips", 0)
 
         if daily_rip_quota > 0:
@@ -614,14 +629,14 @@ def mass_rip(req: MassRipRequest, db: Session = Depends(get_db), current_user = 
             from models import MassRipSession
             today = datetime.now(timezone.utc).date()
             rips_today = db.query(MassRipSession).filter(
-                MassRipSession.user_id == str(current_user.id),
+                MassRipSession.user_id == str(quota_user.id),
                 func.date(MassRipSession.created_at) == today
             ).count()
             
             if rips_today >= daily_rip_quota:
                 raise HTTPException(
                     status_code=403,
-                    detail=f"Quota Exceeded: The system is limited to {daily_rip_quota} mass rips per day."
+                    detail=f"Quota Exceeded: The user '{quota_user.username}' is limited to {daily_rip_quota} mass rips per day."
                 )
 
     provider = db.query(Provider).filter(Provider.id == req.provider_id).first()
@@ -634,7 +649,7 @@ def mass_rip(req: MassRipRequest, db: Session = Depends(get_db), current_user = 
         url=req.url,
         criteria=req.criteria or {},
         status="pending",
-        user_id=str(current_user.id)
+        user_id=user_id_to_use
     )
     db.add(session)
     db.commit()
