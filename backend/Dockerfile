@@ -42,6 +42,7 @@ WORKDIR /app
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     ffmpeg \
     libpq5 \
+    postgresql-client \
     libgomp1 \
     libopenblas0 \
     && rm -rf /var/lib/apt/lists/*

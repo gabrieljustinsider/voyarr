@@ -9,6 +9,7 @@ from schemas import (
     PeerSyncLogResponse,
 )
 from dependencies import verify_api_key
+from utils import get_version
 from typing import List, Dict, Any, Optional
 import json
 from datetime import datetime, timezone
