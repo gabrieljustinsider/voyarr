@@ -32,6 +32,8 @@ def sync_with_peer_task(peer_id: int) -> None:
             "X-P2P-Token": str(peer.outbound_key),
             "Content-Type": "application/json",
         }
+        from utils import validate_url_ssrf
+        validate_url_ssrf(peer.peer_url)
         peer_url = peer.peer_url.rstrip("/")
 
         recipes_synced_count = 0

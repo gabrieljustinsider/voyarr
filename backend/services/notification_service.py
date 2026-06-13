@@ -40,6 +40,8 @@ class NotificationService:
     def send_discord_webhook(url: str, message: str):
         """Dispatches an incoming Discord webhook message."""
         try:
+            from utils import validate_url_ssrf
+            validate_url_ssrf(url)
             payload = {"content": message}
             resp = requests.post(url, json=payload, timeout=5)
             if resp.status_code not in [200, 204]:

@@ -181,6 +181,7 @@ def scrape_url_details(req: ScrapeUrlRequest):
     """
     if not req.url or not req.url.startswith("http"):
         raise HTTPException(status_code=400, detail="A valid http(s) URL is required.")
+
     try:
         result = _scrape_url_for_details(req.url)
         return ScrapedSiteDetails(**result)

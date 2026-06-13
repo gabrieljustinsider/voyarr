@@ -464,6 +464,9 @@ async def test_peer_connection(node_id: int, db: Session = Depends(get_db)):
     if not db_node:
         raise HTTPException(status_code=404, detail="Peer node not found.")
 
+    from utils import validate_url_ssrf
+    validate_url_ssrf(db_node.peer_url)
+
     import httpx
 
     try:
