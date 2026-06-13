@@ -229,7 +229,3 @@ async def root():
 @app.get("/api/health")
 async def health():
     return {"status": "healthy"}
-)
-@app.get("/api/health")
-async def health():
-    return {"status": "healthy"}
