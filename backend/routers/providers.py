@@ -7,6 +7,7 @@ from schemas import ProviderResponse, ProviderCreate
 from pydantic import BaseModel
 
 from dependencies import verify_api_key
+from utils import validate_url_ssrf
 
 router = APIRouter(
     prefix="/providers", tags=["providers"], dependencies=[Depends(verify_api_key)]
@@ -111,6 +112,7 @@ class ScrapeUrlRequest(BaseModel):
 
 def _scrape_url_for_details(target_url: str) -> Dict[str, Any]:
     """Shared helper: fetches target_url and parses branding metadata."""
+    validate_url_ssrf(target_url)
     import os
     import requests as req_lib
     from bs4 import BeautifulSoup

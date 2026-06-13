@@ -18,10 +18,10 @@ router = APIRouter(
 
 
 def _get_log_file(source: str):
-    if source not in ["celery", "fastapi"]:
-        source = "celery"
+    # Map to strict hardcoded strings to prevent CodeQL path injection alerts
+    log_name = "fastapi.log" if source == "fastapi" else "celery.log"
     primary_root = get_primary_root()
-    return os.path.join(primary_root, "logs", f"{source}.log")
+    return os.path.join(primary_root, "logs", log_name)
 
 
 @router.websocket("/ws")

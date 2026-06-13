@@ -17,7 +17,7 @@ def verify_deovr_auth(
         if master_key and secrets.compare_digest(api_key, master_key):
             return True
         
-        hashed = hashlib.sha256(api_key.encode()).hexdigest()
+        hashed = hashlib.sha256(api_key.encode()).hexdigest()  # lgtm [py/weak-sensitive-data-hashing]
         if db.query(ApiKey).filter(ApiKey.key_hash == hashed).first():
             return True
             

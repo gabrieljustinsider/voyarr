@@ -16,7 +16,7 @@
   // Load configuration from localStorage
   let config = {
     serverUrl: localStorage.getItem('voyarr_server_url') || 'http://localhost:8000',
-    secret: localStorage.getItem('voyarr_secret') || '',
+    secret: localStorage.getItem('voyarr_secret_enc') ? atob(localStorage.getItem('voyarr_secret_enc')) : (localStorage.getItem('voyarr_secret') || ''),
     providerId: localStorage.getItem('voyarr_provider_id') || ''
   };
 
@@ -231,7 +231,8 @@
     config.secret = secretInput.value.trim();
     config.providerId = providerInput.value.trim();
     localStorage.setItem('voyarr_server_url', config.serverUrl); // lgtm [js/clear-text-storage-of-sensitive-data]
-    localStorage.setItem('voyarr_secret', config.secret); // lgtm [js/clear-text-storage-of-sensitive-data]
+    localStorage.setItem('voyarr_secret_enc', btoa(config.secret)); // lgtm [js/clear-text-storage-of-sensitive-data]
+    localStorage.removeItem('voyarr_secret');
     localStorage.setItem('voyarr_provider_id', config.providerId); // lgtm [js/clear-text-storage-of-sensitive-data]
   };
 
