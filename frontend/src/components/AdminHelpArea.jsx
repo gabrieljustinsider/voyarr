@@ -33,10 +33,11 @@ export default function AdminHelpArea() {
           VPN & Sidecar Architecture
         </Typography>
         <Typography variant="body1" paragraph>
-          When using <code>docker-compose.vpn.yml</code>, all backend and worker containers are forced to route their network traffic through the Gluetun VPN container using <code>network_mode: "service:vpn"</code>.
+          <strong>Gluetun VPN Sidecar:</strong> When using <code>docker-compose.vpn.yml</code>, all backend and worker containers are forced to route their network traffic through the Gluetun VPN container using <code>network_mode: "service:vpn"</code>.
+          Ensure you configure your VPN credentials correctly in <code>.env.vpn</code> before launching the stack, as an unhealthy VPN sidecar will block all external API and scraping requests.
         </Typography>
         <Typography variant="body1" paragraph>
-          Ensure you configure your VPN credentials correctly in <code>.env.vpn</code> before launching the stack, as an unhealthy VPN sidecar will block all external API and scraping requests.
+          <strong>Tailscale Mesh VPN:</strong> For secure, remote access without exposing ports, you can deploy the <code>docker-compose.tailscale.yml</code> sidecar. It utilizes Tailscale Serve (via <code>tailscale-serve.json</code>) to automatically reverse proxy the Nginx frontend to your authorized private Tailnet nodes over HTTPS. You must provide a valid <code>TS_AUTHKEY</code> in your environment variables.
         </Typography>
       </Paper>
 

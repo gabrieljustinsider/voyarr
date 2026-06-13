@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Box, Typography, TextField, Button, Paper, Grid, Snackbar, Alert, Divider, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Select, MenuItem, FormControl, InputLabel, Tabs, Tab, Switch, FormControlLabel, InputAdornment, Autocomplete, Chip, LinearProgress } from '@mui/material'
+import { Box, Typography, TextField, Button, Paper, Grid, Snackbar, Alert, Divider, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Select, MenuItem, FormControl, InputLabel, Tabs, Tab, Switch, FormControlLabel, InputAdornment, Autocomplete, Chip, LinearProgress, Stack } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
 import SyncIcon from '@mui/icons-material/Sync'
 import Visibility from '@mui/icons-material/Visibility'
@@ -166,15 +166,7 @@ export default function Settings() {
     ripping_enabled: 'false'
   })
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
-  const [apiKeys, setApiKeys] = useState([])
-  const [newKeyName, setNewKeyName] = useState('')
-  const [generatedKey, setGeneratedKey] = useState(null)
   const [masterKeyInput, setMasterKeyInput] = useState(localStorage.getItem('voyarr_api_key') || '')
-  const [deleteConfirm, setDeleteConfirm] = useState({ open: false, keyId: null })
-  const handleCopyKey = () => {
-    navigator.clipboard.writeText(generatedKey || '')
-    setSnackbar({ open: true, message: 'API Key copied to clipboard!', severity: 'success' })
-  }
   const [diagnosticLoading, setDiagnosticLoading] = useState(false)
   const [diagnosticResult, setDiagnosticResult] = useState(null)
   const [showProxyUrl, setShowProxyUrl] = useState(false)
@@ -570,13 +562,6 @@ export default function Settings() {
     }
   }
 
-  const fetchApiKeys = async () => {
-    try {
-      const res = await apiFetch('/apikeys')
-      if (res.ok) setApiKeys(await res.json())
-    } catch (err) { console.error('Failed to fetch API keys:', err) }
-  }
-
   const fetchUsersList = async () => {
     try {
       const res = await apiFetch('/auth/users')
@@ -784,7 +769,6 @@ export default function Settings() {
         if (data && data.bookmarklet) setBookmarkletCode(data.bookmarklet)
       })
       .catch(console.error)
-    fetchApiKeys()
     fetchPasskeys()
     fetchSsoLinks()
     fetchUsersList()
@@ -855,44 +839,6 @@ export default function Settings() {
     window.crypto.getRandomValues(array)
     const newKey = Array.from(array, byte => ('0' + byte.toString(16)).slice(-2)).join('')
     setSettings(prev => ({ ...prev, extension_secret: newKey }))
-  }
-
-  const handleCreateApiKey = async () => {
-    try {
-      const res = await apiFetch('/apikeys', {
-        method: 'POST',
-        body: JSON.stringify({ name: newKeyName })
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setGeneratedKey(data.raw_key)
-        setNewKeyName('')
-        fetchApiKeys()
-      } else {
-        setSnackbar({ open: true, message: `Failed to create API key. Server returned ${res.status}`, severity: 'error' })
-      }
-    } catch (err) {
-      console.error(err)
-      setSnackbar({ open: true, message: 'Network error creating API key.', severity: 'error' })
-      console.error(err) 
-    }
-  }
-
-  const handleDeleteApiKey = (id) => {
-    setDeleteConfirm({ open: true, keyId: id })
-  }
-
-  const confirmDeleteApiKey = async () => {
-    if (!deleteConfirm.keyId) return
-    try {
-      await apiFetch(`/apikeys/${deleteConfirm.keyId}`, { 
-        method: 'DELETE'
-      })
-      setDeleteConfirm({ open: false, keyId: null })
-      fetchApiKeys()
-    } catch (err) {
-      console.error('Failed to revoke API key:', err)
-    }
   }
 
   const handleSaveMasterKey = () => {
@@ -998,7 +944,7 @@ export default function Settings() {
             )}
           </Grid>
 
-          <Grid item xs={12}>
+          <Grid item xs={12} md={7}>
             <PathPicker
               value={settings.download_destination || ''}
               onChange={(val) => {
@@ -1011,7 +957,7 @@ export default function Settings() {
             />
           </Grid>
 
-          <Grid item xs={12}>
+          <Grid item xs={12} md={7}>
             <PathPicker
               value={settings.library_folder || ''}
               onChange={(val) => {
@@ -1024,7 +970,7 @@ export default function Settings() {
             />
           </Grid>
 
-          <Grid item xs={12}>
+          <Grid item xs={12} md={7}>
             <PathPicker
               value={settings.scan_folder || ''}
               onChange={(val) => {
@@ -1048,21 +994,23 @@ export default function Settings() {
         
         <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3 }}>
           <Box sx={{ p: 2, flex: 1, backgroundColor: 'rgba(33, 150, 243, 0.1)', borderRadius: 1, border: '1px solid #2196f3' }}>
-            <Typography variant="subtitle2" color="info.main" gutterBottom style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <strong>1. Chrome / Edge Extension (Standard)</strong>
+            <Typography variant="subtitle2" color="info.main" gutterBottom style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+              <strong>Chrome / Edge Extension (Standard)</strong>
             </Typography>
-            <Typography variant="body2">
-              1. Open Chrome or Edge and navigate to <code>chrome://extensions/</code><br/>
-              2. Enable <strong>Developer mode</strong> in the top right corner.<br/>
-              3. Click <strong>Load unpacked</strong> and select the <code>/extension</code> folder from your Voyarr installation directory.
+            <Divider sx={{ my: 1, borderColor: 'info.main', opacity: 0.3 }} />
+            <Typography variant="body2" sx={{ textAlign: 'left' }}>
+              • Open Chrome or Edge and navigate to <code>chrome://extensions/</code><br/>
+              • Enable <strong>Developer mode</strong> in the top right corner.<br/>
+              • Click <strong>Load unpacked</strong> and select the <code>/extension</code> folder from your Voyarr installation directory.
             </Typography>
           </Box>
           
           <Box sx={{ p: 2, flex: 1, backgroundColor: 'rgba(76, 175, 80, 0.1)', borderRadius: 1, border: '1px solid #4caf50' }}>
-            <Typography variant="subtitle2" color="success.main" gutterBottom style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <strong>2. Meta Quest & Mobile (Universal Bookmarklet)</strong>
+            <Typography variant="subtitle2" color="success.main" gutterBottom style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+              <strong>Meta Quest & Mobile (Universal Bookmarklet)</strong>
             </Typography>
-            <Typography variant="body2" sx={{ mb: 1.5 }}>
+            <Divider sx={{ my: 1, borderColor: 'success.main', opacity: 0.3 }} />
+            <Typography variant="body2" sx={{ mb: 1.5, textAlign: 'left' }}>
               For VR Headsets (Meta Quest Browser) or mobile devices: Copy the bookmarklet code below, save it as a browser bookmark, and click it on any website to map selectors in 3D Space!
             </Typography>
             {bookmarkletCode ? (
@@ -1112,14 +1060,14 @@ export default function Settings() {
           Sync your Voyarr credentials with a 1Password Connect server.
         </Typography>
         <Divider sx={{ mb: 2 }} />
-        <Grid container spacing={3}>
-          <Grid item xs={12}>
+        <Grid container spacing={3} justifyContent="center">
+          <Grid item xs={12} md={8}>
             <TextField fullWidth label="1Password Connect Host" name="op_connect_host" value={settings.op_connect_host || ''} onChange={handleChange} helperText="e.g. http://localhost:8080" />
           </Grid>
-          <Grid item xs={12}>
+          <Grid item xs={12} md={8}>
             <TextField fullWidth type="password" label="1Password Connect Token" name="op_connect_token" value={settings.op_connect_token || ''} onChange={handleChange} />
           </Grid>
-          <Grid item xs={12}>
+          <Grid item xs={12} md={8}>
             <TextField fullWidth label="1Password Vault ID" name="op_vault_id" value={settings.op_vault_id || ''} onChange={handleChange} helperText="The ID of the vault to sync with." />
           </Grid>
           <Grid item xs={12}>
@@ -1147,14 +1095,14 @@ export default function Settings() {
         Sync your Voyarr credentials with Bitwarden or Vaultwarden via the Bitwarden CLI REST server ('bw serve').
       </Typography>
       <Divider sx={{ mb: 2 }} />
-      <Grid container spacing={3}>
-        <Grid item xs={12}>
+      <Grid container spacing={3} justifyContent="center">
+        <Grid item xs={12} md={8}>
           <TextField fullWidth label="Bitwarden Serve Host" name="bw_connect_host" value={settings.bw_connect_host || ''} onChange={handleChange} helperText="e.g. http://localhost:8087" />
         </Grid>
-        <Grid item xs={12}>
+        <Grid item xs={12} md={8}>
           <TextField fullWidth type="password" label="Bitwarden Session Token" name="bw_session_token" value={settings.bw_session_token || ''} onChange={handleChange} helperText="The BW_SESSION token generated upon unlocking your vault." />
         </Grid>
-        <Grid item xs={12}>
+        <Grid item xs={12} md={8}>
           <TextField fullWidth label="Bitwarden Folder ID" name="bw_folder_id" value={settings.bw_folder_id || ''} onChange={handleChange} helperText="Optional: The ID of the folder to sync with." />
         </Grid>
         <Grid item xs={12}>
@@ -1181,15 +1129,15 @@ export default function Settings() {
         mb: 3, 
         borderRadius: 2
       }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, mb: 1 }}>
           <SecurityIcon color="primary" sx={{ fontSize: 32 }} />
           <Typography variant="h6" sx={{ fontWeight: '700', letterSpacing: '0.5px' }}>Account Security & Authentication</Typography>
         </Box>
-        <Typography variant="body2" sx={{ mb: 3, opacity: 0.8 }} color="textSecondary">
+        <Typography variant="body2" sx={{ mb: 3, opacity: 0.8, textAlign: 'center' }} color="textSecondary">
           Secure your account using enterprise-grade passwordless passkeys (WebAuthn) or link external identity providers for one-click single sign-on access.
         </Typography>
         
-        <Divider sx={{ mb: 3, opacity: 0.2 }} />
+        <Divider sx={{ mb: 2, opacity: 0.2 }} />
         
         {/* Passkeys Panel */}
         <Box sx={{ mb: 4 }}>
@@ -1370,7 +1318,7 @@ export default function Settings() {
             <Typography variant="subtitle1" sx={{ fontWeight: '600' }}>Linked Identities (SSO)</Typography>
           </Box>
           
-          <Grid container spacing={2}>
+          <Grid container spacing={2} justifyContent="center">
             {['google', 'github', 'discord'].map(provider => {
               const link = ssoLinks.find(l => l.provider === provider)
               const isLinked = !!link
@@ -1649,7 +1597,7 @@ export default function Settings() {
             </Box>
           )}
 
-          <Grid container spacing={2} sx={{ justifyContent: 'center' }}>
+          <Grid container spacing={2} sx={{ justifyContent: 'center', alignItems: 'stretch' }}>
             {/* Trusted Subnet Bypass */}
             <Grid item xs={12} md={6}>
               <Paper elevation={1} sx={{ p: 2, borderRadius: 2, height: '100%' }}>
@@ -1722,34 +1670,34 @@ export default function Settings() {
         </Box>
       </Paper>
 
-      <Paper sx={{ p: 3, mb: 3 }}>
+      <Box sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>User Management</Typography>
         <Typography variant="body2" sx={{ mb: 2 }} color="textSecondary">
           Create user accounts to grant access to the UI without sharing your Master Key.
         </Typography>
         <Divider sx={{ mb: 2 }} />
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} md={3}>
-            <TextField fullWidth size="small" label="Username" value={newUser.username} onChange={e => setNewUser({...newUser, username: e.target.value})} />
+        <Grid container spacing={4}>
+          <Grid item xs={12} md={6}>
+            <Stack spacing={2}>
+              <TextField fullWidth size="small" label="Username" value={newUser.username} onChange={e => setNewUser({...newUser, username: e.target.value})} />
+              <TextField fullWidth size="small" type="password" label="Password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} />
+              <FormControl fullWidth size="small">
+                <InputLabel>Role</InputLabel>
+                <Select value={newUser.role} label="Role" onChange={e => setNewUser({...newUser, role: e.target.value})}>
+                  <MenuItem value="admin">Admin</MenuItem>
+                  <MenuItem value="user">User</MenuItem>
+                </Select>
+              </FormControl>
+            </Stack>
           </Grid>
-          <Grid item xs={12} md={4}>
-            <TextField fullWidth size="small" type="password" label="Password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} />
+          <Grid item xs={12} md={6}>
             <PasswordChecklist password={newUser.password} />
           </Grid>
-          <Grid item xs={12} md={3}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Role</InputLabel>
-              <Select value={newUser.role} label="Role" onChange={e => setNewUser({...newUser, role: e.target.value})}>
-                <MenuItem value="admin">Admin</MenuItem>
-                <MenuItem value="user">User</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} md={2}>
+          <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'center' }}>
             <Button fullWidth variant="contained" onClick={handleCreateUser} disabled={!newUser.username || !newUser.password}>Create User</Button>
           </Grid>
         </Grid>
-      </Paper>
+      </Box>
 
       {/* Users List & Advanced Management Dashboard */}
       {usersList.length > 0 && (
@@ -1936,91 +1884,9 @@ export default function Settings() {
         </DialogActions>
       </Dialog>
 
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>External API Keys</Typography>
-        <Typography variant="body2" sx={{ mb: 2 }} color="textSecondary">
-          Generate scoped API keys for external tools (e.g., third-party scrapers, automation scripts, or the *arr stack) to interact with Voyarr securely without exposing your MASTER_KEY.
-        </Typography>
-        <Divider sx={{ mb: 2 }} />
-        
-        <Grid container spacing={2} alignItems="center" sx={{ mb: 3 }}>
-          <Grid item xs={12} md={9}>
-            <TextField fullWidth size="small" label="New Key Name (e.g. 'Stash Webhook')" value={newKeyName} onChange={e => setNewKeyName(e.target.value)} />
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <Button fullWidth variant="contained" onClick={handleCreateApiKey} disabled={!newKeyName}>Generate Key</Button>
-          </Grid>
-        </Grid>
-
-        <TableContainer component={Paper} variant="outlined">
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Name</TableCell>
-                <TableCell>Created</TableCell>
-                <TableCell>Last Used</TableCell>
-                <TableCell align="right">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {apiKeys.length === 0 ? (
-                <TableRow><TableCell colSpan={4} align="center">No external API keys configured.</TableCell></TableRow>
-              ) : (
-                apiKeys.map(key => (
-                  <TableRow key={key.id}>
-                    <TableCell>{key.name}</TableCell>
-                    <TableCell>{new Date(key.created_at).toLocaleDateString()}</TableCell>
-                    <TableCell>{key.last_used ? new Date(key.last_used).toLocaleString() : 'Never'}</TableCell>
-                    <TableCell align="right">
-                      <IconButton color="error" size="small" onClick={() => handleDeleteApiKey(key.id)}><DeleteIcon /></IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Paper>
-
       <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={() => setSnackbar({ ...snackbar, open: false })}>
         <Alert severity={snackbar.severity} sx={{ width: '100%' }}>{snackbar.message}</Alert>
       </Snackbar>
-
-      <Dialog open={!!generatedKey} onClose={() => setGeneratedKey(null)} maxWidth="sm" fullWidth>
-        <DialogTitle>API Key Generated</DialogTitle>
-        <DialogContent dividers>
-          <Alert severity="warning" sx={{ mb: 2 }}>Please copy this key now. For your security, it will never be shown again!</Alert>
-          <TextField 
-            fullWidth 
-            value={generatedKey || ''} 
-            InputProps={{ 
-              readOnly: true,
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton onClick={handleCopyKey} edge="end" color="primary" title="Copy to Clipboard">
-                    <ContentCopyIcon />
-                  </IconButton>
-                </InputAdornment>
-              )
-            }} 
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCopyKey} variant="outlined" color="primary" startIcon={<ContentCopyIcon />}>Copy Key</Button>
-          <Button variant="contained" onClick={() => setGeneratedKey(null)}>I have copied it</Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog open={deleteConfirm.open} onClose={() => setDeleteConfirm({ open: false, keyId: null })}>
-        <DialogTitle>Revoke API Key</DialogTitle>
-        <DialogContent>
-          <Typography>Revoke this API Key? Any scripts currently using it will immediately lose access.</Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteConfirm({ open: false, keyId: null })}>Cancel</Button>
-          <Button variant="contained" color="error" onClick={confirmDeleteApiKey}>Revoke</Button>
-        </DialogActions>
-      </Dialog>
 
       {/* Advanced User Management Details Dialog */}
       <Dialog 

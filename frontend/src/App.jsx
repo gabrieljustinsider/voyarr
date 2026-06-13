@@ -332,6 +332,27 @@ function App() {
         }
       },
       components: {
+        MuiCssBaseline: {
+          styleOverrides: {
+            'ul, ol, li, dl, dd, dt': {
+              textAlign: 'left',
+            }
+          }
+        },
+        MuiList: {
+          styleOverrides: {
+            root: {
+              textAlign: 'left',
+            }
+          }
+        },
+        MuiListItemText: {
+          styleOverrides: {
+            root: {
+              textAlign: 'left',
+            }
+          }
+        },
         MuiCard: {
           styleOverrides: {
             root: ({ theme }) => {
@@ -370,6 +391,16 @@ function App() {
                   boxShadow: theme.palette.mode === 'dark' ? '0 12px 40px rgba(0,0,0,0.5)' : '0 8px 30px rgba(0,0,0,0.2)'
                 }
               };
+            }
+          }
+        },
+        MuiCardContent: {
+          styleOverrides: {
+            root: {
+              padding: '24px',
+              '&:last-child': {
+                paddingBottom: '24px'
+              }
             }
           }
         },
@@ -436,6 +467,20 @@ function App() {
                 boxShadow: theme.palette.mode === 'dark' ? '0 12px 40px rgba(0,0,0,0.6)' : '0 12px 40px rgba(0,0,0,0.2)',
                 borderRadius: '16px'
               };
+            }
+          }
+        },
+        MuiDialogContent: {
+          styleOverrides: {
+            root: {
+              padding: '32px',
+            }
+          }
+        },
+        MuiDialogActions: {
+          styleOverrides: {
+            root: {
+              padding: '16px 32px 24px 32px',
             }
           }
         },
@@ -513,6 +558,11 @@ function App() {
                 styles.minWidth = `${Math.max(180, estimatedWidth)}px`;
               }
               return styles;
+            },
+            input: {
+              '&[type="number"]': {
+                textAlign: 'right'
+              }
             }
           }
         },
@@ -527,6 +577,17 @@ function App() {
                 transform: 'translate(14px, -6px) scale(0.75)',
               }
             })
+          }
+        },
+        MuiTableCell: {
+          styleOverrides: {
+            root: {
+              textAlign: 'center',
+              padding: '16px'
+            },
+            head: {
+              fontWeight: 800
+            }
           }
         }
       }

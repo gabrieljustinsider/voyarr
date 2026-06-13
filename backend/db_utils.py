@@ -397,6 +397,56 @@ def run_schema_migrations(engine: Any) -> None:
                 except Exception:
                     pass
                 logger.warning(f"Failed to add column favicon_url to providers: {e}")
+                
+        # 13. Check if subscriptions table has subscription_id and order_number columns
+        for col, col_type in [
+            ("subscription_id", "VARCHAR(255)"),
+            ("order_number", "VARCHAR(255)")
+        ]:
+            try:
+                conn.execute(text(f"SELECT {col} FROM subscriptions LIMIT 1"))
+            except Exception:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                try:
+                    conn.execute(text(f"ALTER TABLE subscriptions ADD COLUMN {col} {col_type}"))
+                    conn.commit()
+                    logger.info(f"Database migration successfully added '{col}' to 'subscriptions'.")
+                except Exception as e:
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        pass
+                    logger.warning(f"Failed to add column {col} to subscriptions: {e}")
+
+        # 14. Seed default adult billers
+        try:
+            check_seeded = conn.execute(text("SELECT id FROM billers WHERE name = 'CCBill' LIMIT 1")).fetchone()
+            if not check_seeded:
+                default_billers = [
+                    ("CCBill", "https://ccbill.com", "consumersupport@ccbill.com", "1-888-596-9279", "Common payment gateway."),
+                    ("Epoch", "https://epoch.com", "billing@epoch.com", "1-800-893-8871", "Epoch payment services."),
+                    ("Vendo", "https://vendoservices.com", "support@vendoservices.com", "1-877-327-8341", "Vendo billing."),
+                    ("Verotel", "https://verotel.com", "support@verotel.com", "1-877-873-0550", "Verotel billing gateway."),
+                    ("Segpay", "https://segpay.com", "help@segpay.com", "1-866-567-1500", "Segpay payment solutions."),
+                    ("Centrobill", "https://centrobill.com", "support@centrobill.com", "1-844-469-8088", "Centrobill safe payments.")
+                ]
+                for name, url, email, phone, desc in default_billers:
+                    if dialect_name == "postgresql":
+                        query = "INSERT INTO billers (name, url, support_email, support_phone, description) VALUES (:name, :url, :email, :phone, :desc) ON CONFLICT (name) DO NOTHING"
+                    else:
+                        query = "INSERT OR IGNORE INTO billers (name, url, support_email, support_phone, description) VALUES (:name, :url, :email, :phone, :desc)"
+                    conn.execute(text(query), {"name": name, "url": url, "email": email, "phone": phone, "desc": desc})
+                conn.commit()
+                logger.info("Database migration successfully seeded default billers.")
+        except Exception as e:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            logger.warning(f"Failed to seed default billers: {e}")
 
 def is_feature_enabled(db: Session, feature: str, user: Optional[Any] = None) -> bool:
     from models import Settings

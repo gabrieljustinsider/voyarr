@@ -140,6 +140,22 @@ def delete_subscription(sub_id: int, db: Session = Depends(get_db), current_user
     db.commit()
     return {"message": "Subscription deleted successfully"}
 
+# ==================== SECURE DATA ====================
+
+@router.get("/{sub_id}/reveal-card")
+def reveal_subscription_card(sub_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    sub = db.get(Subscription, sub_id)
+    if not sub:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+    if current_user.role != "admin" and sub.user_id != current_user.id:
+         raise HTTPException(status_code=403, detail="Not authorized")
+    
+    decrypted_card_data = sub.get_secure_card_info(db)
+    if not decrypted_card_data:
+         raise HTTPException(status_code=404, detail="No secure data found")
+         
+    return {"card_info": decrypted_card_data}
+
 # ==================== PARSERS ====================
 
 @router.post("/parse-email")

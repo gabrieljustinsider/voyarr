@@ -1,0 +1,25 @@
+name: voyarr-tailscale
+services:
+  tailscale:
+    image: tailscale/tailscale:latest
+    container_name: voyarr-tailscale
+    hostname: voyarr
+    environment:
+      - TS_AUTHKEY=${TS_AUTHKEY:?Tailscale auth key required}
+      - TS_EXTRA_ARGS=--advertise-tags=tag:container
+      - TS_STATE_DIR=/var/lib/tailscale
+      # Serve Voyarr Frontend securely over the Tailnet
+      - TS_SERVE_CONFIG=/config/serve.json
+    volumes:
+      - voyarr-tailscale-state:/var/lib/tailscale
+      - ./tailscale-serve.json:/config/serve.json:ro
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - net_admin
+      - sys_module
+    restart: unless-stopped
+    networks:
+      - voyarr_network
+
+volumes:
+  voyarr-tailscale-state:

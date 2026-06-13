@@ -349,15 +349,42 @@ If you realize a file was misidentified and named incorrectly, you don't need to
 When a new version of Voyarr is released, updating your system is quick and completely safe. Because your configurations and database are stored in isolated volumes on your server, updating the app will **never** delete your files!
 
 **To Update via Terminal / SSH:**
+For your convenience, we have provided an `update.sh` script that automatically verifies your environment variables, performs a safety database backup, and upgrades your containers.
 1. Open your terminal and navigate to your Voyarr folder.
-2. Run the following command to download the newest files:
+2. Make the script executable (first time only):
    ```bash
-   docker compose pull
+   chmod +x update.sh
    ```
-3. Restart the app using the new files:
+3. Run the update script:
    ```bash
-   docker compose up -d
+   ./update.sh
    ```
+
+### Updating your Environment Variables (`.env`)
+When upgrading to a new major or minor version, new environment variables may be introduced to support new features. To ensure your configuration is up to date:
+1. Compare your existing `.env` file with the updated `.env.example` file in the repository.
+2. Copy any new variables from `.env.example` into your `.env` file.
+3. Refer to the documentation in this `README.md` or the `USER_GUIDE.md` for explanations of what the new variables do and how to configure them.
+4. Restart your containers using `docker compose up -d` to apply the new environment variables.
+
+### Automating Updates & Backups via Cron (Host OS)
+You can completely automate both your updates and standalone database backups using your host OS's cron scheduler.
+
+**1. Standalone Backup Script**
+We have provided a `backup.sh` script that executes the PostgreSQL database dump without pulling new images or updating. Make sure it is executable:
+```bash
+chmod +x backup.sh
+```
+
+**2. Set up the Cron Jobs**
+Open your host system's crontab editor (`crontab -e`) and add the following lines (be sure to replace `/path/to/voyarr` with your actual directory path):
+```bash
+# Run a standalone database backup every night at 2:00 AM
+0 2 * * * cd /path/to/voyarr && ./backup.sh >> /path/to/voyarr/backup.log 2>&1
+
+# Run the full update script (with pre-upgrade backup) every Sunday at 3:00 AM
+0 3 * * 0 cd /path/to/voyarr && ./update.sh >> /path/to/voyarr/update.log 2>&1
+```
 
 **To Update via Synology Container Manager:**
 1. Open **Container Manager** and go to the **Project** tab.

@@ -169,7 +169,7 @@ export default function PathPicker({
   const filteredFiles = files.filter(f => f.name.toLowerCase().includes(filterText.toLowerCase()))
 
   return (
-    <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', width: fullWidth ? '75%' : 'auto' }}>
+    <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', width: fullWidth ? '100%' : 'auto' }}>
       <Autocomplete
         freeSolo
         fullWidth={fullWidth}
@@ -208,6 +208,20 @@ export default function PathPicker({
                     <React.Fragment>
                       {loading ? <CircularProgress color="inherit" size={20} /> : null}
                       {InputProps?.endAdornment}
+                      <Tooltip title="Browse Filesystem">
+                        <IconButton
+                          onClick={handleOpenBrowser}
+                          size="small"
+                          sx={{
+                            color: 'var(--accent)',
+                            '&:hover': {
+                              color: '#fff',
+                            },
+                          }}
+                        >
+                          <FolderOpenIcon />
+                        </IconButton>
+                      </Tooltip>
                     </React.Fragment>
                   ),
                 },
@@ -217,24 +231,6 @@ export default function PathPicker({
           );
         }}
       />
-      <Tooltip title="Browse Filesystem">
-        <IconButton
-          onClick={handleOpenBrowser}
-          sx={{
-            mt: 1,
-            backgroundColor: 'var(--accent-bg)',
-            border: '1px solid var(--accent-border)',
-            color: 'var(--accent)',
-            '&:hover': {
-              backgroundColor: 'var(--accent)',
-              color: '#fff',
-            },
-            transition: 'all 0.2s ease-in-out',
-          }}
-        >
-          <FolderOpenIcon />
-        </IconButton>
-      </Tooltip>
 
       {/* Premium Glassmorphic Directory Explorer Modal */}
       <Dialog
