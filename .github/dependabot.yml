@@ -16,10 +16,10 @@ updates:
     directory: "/frontend"
     schedule:
       interval: "monthly"
-  - package-ecosystem: "docker"
+  - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "monthly"
+      interval: "weekly"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
