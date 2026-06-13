@@ -10,5 +10,15 @@
 			"path": "../../../../../../../Volumes/webdav-nas-t.gameproductions.synology.me/docker/voyarr"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"python-envs.pythonProjects": [
+			{
+				"path": "screenshots",
+				"envManager": "ms-python.python:venv",
+				"packageManager": "ms-python.python:pip",
+				"workspace": "voyarr"
+			}
+		],
+		"codeQL.createQuery.qlPackLocation": "/Users/morenicano/Documents/coding/projects/gabrieljustinsider/voyarr"
+	}
 }

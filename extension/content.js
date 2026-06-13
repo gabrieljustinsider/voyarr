@@ -350,4 +350,3 @@ if (typeof window.__voyarrContentScriptInjected === 'undefined') {
     return path.join(" > ");
   }
 }
-}
