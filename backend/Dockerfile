@@ -3,7 +3,7 @@
 # Compile all C-extension wheels (psycopg2, face-recognition, opencv, etc.)
 # build-essential and libpq-dev are only needed here, not in the final image.
 ############################
-FROM python:3.12-slim-bookworm AS builder
+FROM python:3.14-slim-bookworm AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
@@ -26,7 +26,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Stage 2 — Runtime
 # Only copy compiled wheels + install ffmpeg (runtime-only, no compiler needed)
 ############################
-FROM python:3.12-slim-bookworm
+FROM python:3.14-slim-bookworm
 
 LABEL version="1.18.9"
 LABEL org.opencontainers.image.version="1.18.9"
