@@ -182,22 +182,23 @@ Open `.env` and configure the following parameters:
   ```env
   # 1. Point this to the config folder you created inside your chosen root path
   CONFIG_ROOT=/volume1/docker/voyarr/config
-  
+
   # 2. Point this to the db-data folder you created inside your chosen root path
   DB_DATA_PATH=/volume1/docker/voyarr/db-data
 
   # 3. Point this to the backups folder you created inside your chosen root path
   BACKUP_ROOT=/volume1/docker/voyarr/backups
-  
+
   # 4. Point this to your existing media folder (e.g. /volume1/video)
   HOST_MEDIA_PATH_1=/volume1/video
   ```
 
   > [!NOTE]
   > **Why are there multiple media variables?**
-  > * **`MEDIA_ROOT_1` (Host Path)**: This is where your actual files live on your NAS. Voyarr mounts this host folder inside the container so it can access it.
-  > * **`MEDIA_ROOT` (Inside-Container Scanner Path)**: This tells the backend app *inside the container* where to look for media. By default, it is set to `/media/storage` (which corresponds to `MEDIA_ROOT_1` inside the container).
-  > * **Multi-Drive Setup (Advanced)**: If your media library is spread across multiple drives, you can configure additional folders using `MEDIA_ROOT_2` and `MEDIA_ROOT_3`, and then tell the scanner to look at all of them by listing their internal mounts as a comma-separated list in `MEDIA_ROOT` (e.g., `MEDIA_ROOT=/media/storage,/media/storage_alt1`). For 95% of users with a single drive, you can completely ignore `MEDIA_ROOT_2`, `MEDIA_ROOT_3`, and `MEDIA_ROOT`!
+  > * **`HOST_MEDIA_PATH_1` (Host Path)**: This is where your actual files live on your NAS. Voyarr mounts this host folder inside the container so it can access it.
+  > * **`CONTAINER_MEDIA_PATHS` (Inside-Container Scanner Path)**: This tells the backend app *inside the container* where to look for media. By default, it is set to `/media/storage` (which corresponds to `HOST_MEDIA_PATH_1` inside the container).
+  > * **Multi-Drive Setup (Advanced)**: If your media library is spread across multiple drives, you can configure additional folders using `HOST_MEDIA_PATH_2` and `HOST_MEDIA_PATH_3`, and then tell the scanner to look at all of them by listing their internal mounts as a comma-separated list (e.g., `CONTAINER_MEDIA_PATHS=/media/storage,/media/storage_alt1`). For 95% of users with a single drive, you can safely ignore the extra paths.
+  > * **`DEFAULT_DOWNLOAD_PATH`**: Where new downloads are saved. By default, it saves inside a 'downloads' folder in your primary media folder (`/media/storage/downloads`).
 
 * **Standard Container & Permission Settings**: Map container time zones and host system permissions to avoid locking out files:
   ```env
@@ -208,20 +209,45 @@ Open `.env` and configure the following parameters:
   # files generated inside the container (e.g. logs, backups, downloads) from being locked.
   PUID=1000
   PGID=1000
+
+  # Add supplementary group IDs to the container's user (comma-separated if multiple).
+  # This gives the container's user extra permissions to access files or hardware devices
+  # owned by other host groups (e.g., video group for GPU hardware transcoding).
+  SUPPLEMENTARY_GID=1000
   ```
-* **Ports**: Under *Host Ports Configuration*, you have two options:
-  - **Auto-Allocation (Recommended)**: Leave `PORT=`, `FRONTEND_PORT=`, `REDIS_PORT=`, and `POSTGRES_PORT=` **blank/empty**.
+
+* **Database Connection Configuration**:
+  By default, Voyarr uses `POSTGRES_DB`, `POSTGRES_USER`, and `POSTGRES_PASSWORD` to create and connect to the built-in database.
+  > **Alternative Database Connection (External DB)**: If you prefer to connect to an external PostgreSQL database, you can comment out the individual `POSTGRES_*` variables in your `.env` file and instead provide a unified connection string:
+  > `DATABASE_URL=postgresql://user:password@host:port/database`
+
+* **Ports & Network Security**: Under *Host Ports Configuration*, you have two options:
+  - **Auto-Allocation (Recommended)**: Leave `BACKEND_PORT=`, `FRONTEND_PORT=`, `REDIS_PORT=`, and `POSTGRES_PORT=` **blank/empty**.
     * *On Synology (Container Manager)*: Synology will automatically select unused ports on your NAS, **remember them permanently**, and maintain the assignment across restarts and container upgrades.
     * *On CLI*: Docker will assign random ports. Check them via `docker compose ps` and, if desired, add them to your `.env` to lock them in.
-  - **Static Allocation**: Specify static ports (e.g., `PORT=8000`, `FRONTEND_PORT=3000`) if you already know they are free.
+  - **Static Allocation**: Specify static ports (e.g., `BACKEND_PORT=8000`, `FRONTEND_PORT=3000`) if you already know they are free.
 
   > [!NOTE]
   > **Secure Database Access**: By default, the PostgreSQL database port (`POSTGRES_PORT`) is bound strictly to the local loopback interface (`127.0.0.1`). This isolates the database from raw LAN access while facilitating encrypted management connections via SSH Tunneling (e.g., using DBeaver). For complete connection instructions, see [Section 9 in TROUBLESHOOTING.md](TROUBLESHOOTING.md#9-securely-connecting-to-the-postgresql-database-dbeaver-via-ssh-tunnel).
 
+* **Reverse Proxy & P2P Sync Routing (Advanced)**:
+  - **API Root Path (`ROOT_PATH`)**: If you host Voyarr's API behind a reverse proxy under a specific subpath (e.g. `https://yourdomain.com/voyarr/api`), set `ROOT_PATH=/voyarr/api`. Alternatively, set `ROOT_PATH=/api` to access the interactive Swagger API documentation securely through the built-in Nginx proxy without exposing the raw backend port.
+  - **Cookies**: Use `COOKIE_SAMESITE=lax` (or `none`) and `COOKIE_SECURE=true` if exposing Voyarr over HTTPS to ensure robust cross-site tracking protections.
+  - **P2P Syncing**: If you run Voyarr behind a reverse proxy (Nginx/Traefik) or Cloudflare tunnel, you MUST configure your proxy to forward the custom P2P sync headers (`x-api-key` and `X-P2P-Token`) for remote recipe exchanges to succeed.
+
+* **Authentication (SSO & OIDC)**: Voyarr supports native linking and logins using Google, GitHub, and Discord OAuth, as well as any OpenID Connect (OIDC) identity provider. Detailed setup for these credentials is comprehensively covered in the [Authentication Policies & Administration](#-authentication-policies--administration) section below.
+
+* **Integrations (Celery & Discord)**:
+  - **Celery Redis Broker**: Background task tracking is routed by default using `CELERY_BROKER_URL=redis://redis:6379/0` and `CELERY_RESULT_BACKEND=redis://redis:6379/0`.
+  - **Discord Bot**: To enable remote Discord slash commands (e.g. `/search`, `/add`) directly against your library, provide your bot token:
+    ```env
+    DISCORD_BOT_TOKEN=your_bot_token_here
+    ```
+
 * **Browserless (Web Scraping Engine)**: To save ~4.6 GB of RAM/disk space locally, Voyarr defaults to using the free cloud-hosted `browserless.io` service for advanced metadata scraping.
   1. Sign up at browserless.io for a free account.
-  2. Set `BROWSERLESS_TOKEN=your_api_key_here` in your `.env` file.
-  *(If you prefer to run the heavy container locally instead, instructions are provided inside the `.env.example` file!)*
+  2. Set `BROWSERLESS_TOKEN=your_api_key_here` and `BROWSERLESS_URL=wss://chrome.browserless.io` in your `.env` file.
+  *(If you prefer to run the heavy container locally instead, set `BROWSERLESS_URL=ws://browserless:3000` and start your stack using the browserless profile: `docker compose --profile browserless up -d`)*
 
 ### 3. Choose Your Deployment Method
 
@@ -428,15 +454,42 @@ Voyarr features a secure, multi-user environment with Role-Based Access Control 
 
 To update Voyarr to the latest version, simply pull the newest Docker images and recreate the containers. Your data is safe within your configured volumes.
 
+**To Update via Terminal / SSH:**
+For your convenience, we have provided an `update.sh` script that automatically verifies your environment variables, performs a safety database backup, and upgrades your containers.
+1. Open your terminal and navigate to your Voyarr folder.
+2. Make the script executable (first time only):
+   ```bash
+   chmod +x update.sh
+   ```
+3. Run the update script:
+   ```bash
+   ./update.sh
+   ```
+
+### Updating your Environment Variables (`.env`)
+When upgrading to a new major or minor version, new environment variables may be introduced to support new features. To ensure your configuration is up to date:
+1. Compare your existing `.env` file with the updated `.env.example` file in the repository.
+2. Copy any new variables from `.env.example` into your `.env` file.
+3. Refer to the documentation in this `README.md` or the `USER_GUIDE.md` for explanations of what the new variables do and how to configure them.
+4. Restart your containers using `docker compose up -d` to apply the new environment variables.
+
+### Automating Updates & Backups via Cron (Host OS)
+You can completely automate both your updates and standalone database backups using your host OS's cron scheduler.
+
+**1. Standalone Backup Script**
+We have provided a `backup.sh` script that executes the PostgreSQL database dump without pulling new images or updating. Make sure it is executable:
 ```bash
-# 1. Navigate to your Voyarr directory
-cd /path/to/voyarr
+chmod +x backup.sh
+```
 
-# 2. Pull the latest images
-docker compose pull
+**2. Set up the Cron Jobs**
+Open your host system's crontab editor (`crontab -e`) and add the following lines (be sure to replace `/path/to/voyarr` with your actual directory path):
+```bash
+# Run a standalone database backup every night at 2:00 AM
+0 2 * * * cd /path/to/voyarr && ./backup.sh >> /path/to/voyarr/backup.log 2>&1
 
-# 3. Recreate the containers with the new images
-docker compose up -d
+# Run the full update script (with pre-upgrade backup) every Sunday at 3:00 AM
+0 3 * * 0 cd /path/to/voyarr && ./update.sh >> /path/to/voyarr/update.log 2>&1
 ```
 
 ## 🔒 Customizable Network Proxies & VPN Integration
@@ -455,9 +508,9 @@ Within the **Settings** screen in the frontend, administrators can toggle and co
 
 ### 2. Infrastructure-Level Routing (Docker VPN Sidecar via Gluetun)
 For complete, leakproof VPN routing across all scraper backend engines, headless Playwright browsers, and downloaders without container overhead:
-1.  Verify host support for tun interfaces (`/dev/net/tun` or `NET_ADMIN` capabilities).
-2.  Configure your credentials (e.g. Wireguard private keys or OpenVPN logins) inside the newly provided [docker-compose.vpn.yml](docker-compose.vpn.yml) file.
-3.  Deploy using the vpn composition profile alongside the main file:
+1. Verify host support for tun interfaces (`/dev/net/tun` or `NET_ADMIN` capabilities).
+2. All VPN/WireGuard-specific environment variables are managed inside a dedicated sidecar environment file: `.env.vpn`. Copy the template `.env.vpn.example` to `.env.vpn` and configure your commercial VPN credentials (Mullvad, WireGuard keys, etc.) there.
+3. Deploy using the vpn composition profile alongside the main file:
     ```bash
     docker compose -f docker-compose.yml -f docker-compose.vpn.yml up -d
     ```

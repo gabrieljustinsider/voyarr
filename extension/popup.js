@@ -19,12 +19,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const serverListContainer = document.getElementById('serverListContainer');
   const newServerNameInput = document.getElementById('newServerNameInput');
   const newServerUrlInput = document.getElementById('newServerUrlInput');
+  const newServerApiKeyInput = document.getElementById('newServerApiKeyInput');
   const usePortToggle = document.getElementById('usePortToggle');
   const newServerPortInput = document.getElementById('newServerPortInput');
-  const newServerApiKeyInput = document.getElementById('newServerApiKeyInput');
   const addServerBtn = document.getElementById('addServerBtn');
   const scanNetworkBtn = document.getElementById('scanNetworkBtn');
-  const scanPortInput = document.getElementById('scanPortInput');
   const localScanResultsContainer = document.getElementById('localScanResultsContainer');
   const settingsToast = document.getElementById('settingsToast');
   const sslTroubleCard = document.getElementById('sslTroubleCard');
@@ -61,6 +60,23 @@ document.addEventListener('DOMContentLoaded', () => {
   let activeTabHost = "";
   let servers = [];
   let activeServerId = "";
+
+  // Setup port toggle logic
+  if (usePortToggle && newServerPortInput) {
+    usePortToggle.addEventListener('change', () => {
+      newServerPortInput.disabled = !usePortToggle.checked;
+    });
+  }
+
+  const clearStorageBtn = document.getElementById('clearStorageBtn');
+  if (clearStorageBtn) {
+    clearStorageBtn.addEventListener('click', () => {
+      showConfirmToast("Are you sure you want to clear all settings and reset Voyarr Lens?", async () => {
+        await chrome.storage.local.clear();
+        window.location.reload();
+      });
+    });
+  }
 
   // Tab Switcher
   tabBtns.forEach(btn => {
@@ -138,8 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'voyarrSecret',
         'pendingSelector',
         'pendingSelectorCount',
-        'savedField',
-        'scanPort'
+        'savedField'
       ]);
 
       servers = config.voyarrServers || [];
@@ -181,10 +196,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       } else {
         updateStatus(false, "Configure settings");
-      }
-
-      if (scanPortInput) {
-        scanPortInput.value = config.scanPort || "8000";
       }
 
       if (config.savedField) {
@@ -302,9 +313,11 @@ document.addEventListener('DOMContentLoaded', () => {
       deleteBtn.style.borderColor = "rgba(239, 68, 68, 0.2)";
       deleteBtn.style.color = "var(--error)";
       deleteBtn.textContent = "Delete";
-      deleteBtn.addEventListener('click', async (e) => {
+      deleteBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        await deleteServer(s.id);
+        showConfirmToast(`Are you sure you want to delete the server "${s.name}"?`, async () => {
+          await deleteServer(s.id);
+        });
       });
 
       card.appendChild(infoDiv);
@@ -370,34 +383,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  usePortToggle.addEventListener('change', () => {
-    newServerPortInput.disabled = !usePortToggle.checked;
-  });
-
-  newServerUrlInput.addEventListener('input', () => {
-    const val = newServerUrlInput.value.trim();
-    const match = val.match(/^(https?:\/\/)?([^:\/]+):(\d+)(.*)?$/i);
-    if (match) {
-      const proto = match[1] || "";
-      const host = match[2];
-      const port = match[3];
-      const rest = match[4] || "";
-      
-      newServerPortInput.value = port;
-      usePortToggle.checked = true;
-      newServerPortInput.disabled = false;
-      newServerUrlInput.value = proto + host + rest;
-    } else {
-      const match2 = val.match(/^([^:\/]+):(\d+)$/i);
-      if (match2) {
-        newServerPortInput.value = match2[2];
-        usePortToggle.checked = true;
-        newServerPortInput.disabled = false;
-        newServerUrlInput.value = match2[1];
-      }
-    }
-  });
-
   // Add Server Form handler
   addServerBtn.addEventListener('click', async () => {
     const name = newServerNameInput.value.trim();
@@ -413,7 +398,7 @@ document.addEventListener('DOMContentLoaded', () => {
       url = 'http://' + url;
     }
 
-    if (usePortToggle.checked && newServerPortInput.value) {
+    if (usePortToggle && usePortToggle.checked && newServerPortInput && newServerPortInput.value) {
       try {
         const u = new URL(url);
         u.port = newServerPortInput.value;
@@ -423,8 +408,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    url = url.replace(/\/$/, ''); // Ensure no trailing slash exists
+
     addServerBtn.disabled = true;
-    addServerBtn.innerText = "Testing Server...";
+    addServerBtn.innerHTML = '<span class="spinner"></span> Testing...';
 
     try {
       const { latencyMs, providers } = await testConnection(url, key);
@@ -462,7 +449,7 @@ document.addEventListener('DOMContentLoaded', () => {
       updateStatus(false, "Disconnected");
     } finally {
       addServerBtn.disabled = false;
-      addServerBtn.innerText = "Add & Test Server";
+      addServerBtn.textContent = "Add & Test Server";
     }
   });
 
@@ -471,24 +458,12 @@ document.addEventListener('DOMContentLoaded', () => {
     await scanLocalNetwork();
   });
 
-  if (scanPortInput) {
-    scanPortInput.addEventListener('change', async () => {
-      let val = parseInt(scanPortInput.value, 10);
-      if (isNaN(val) || val < 1 || val > 65535) {
-        val = 8000;
-        scanPortInput.value = "8000";
-      }
-      await chrome.storage.local.set({ scanPort: val.toString() });
-    });
-  }
-
   // Local network subnet discovery scan
   async function scanLocalNetwork() {
     scanNetworkBtn.disabled = true;
-    scanNetworkBtn.innerText = "Scanning...";
+    scanNetworkBtn.innerHTML = '<span class="spinner"></span> Scanning...';
 
-    const scanPort = scanPortInput ? parseInt(scanPortInput.value, 10) : 8000;
-    const port = isNaN(scanPort) || scanPort < 1 || scanPort > 65535 ? 8000 : scanPort;
+    const port = 8000;
     
     // Clear and display results container
     localScanResultsContainer.innerHTML = `<div style="font-size: 10px; color: var(--text-muted); text-align: center; padding: 6px 0;">Pinging local IP ranges on port ${port}...</div>`;
@@ -693,14 +668,6 @@ document.addEventListener('DOMContentLoaded', () => {
     detectedUrlText.textContent = origin;
     detectedIndicators.innerHTML = "";
 
-    try {
-      const parsed = new URL(origin);
-      if (parsed.port && scanPortInput) {
-        scanPortInput.value = parsed.port;
-        chrome.storage.local.set({ scanPort: parsed.port });
-      }
-    } catch(e) {}
-
     const analysis = analyzeUrl(origin);
     
     // Add location badge
@@ -761,10 +728,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Test Connection helper (returns promise)
   async function testConnection(url, key) {
+    const cleanUrl = url.replace(/\/$/, '');
     updateStatus(false, "Testing...");
     const startTime = performance.now();
     try {
-      const res = await fetch(`${url}/providers`, {
+      const res = await fetch(`${cleanUrl}/providers`, {
         method: 'GET',
         headers: {
           'X-Voyarr-Api-Key': key,
@@ -828,6 +796,34 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateStatus(connected, text) {
     statusDot.className = "status-dot " + (connected ? "connected" : "disconnected");
     statusText.textContent = text;
+  }
+
+  // Interactive Confirm Toast helper
+  function showConfirmToast(message, onConfirm) {
+    const toast = document.getElementById('actionToast');
+    const msgEl = document.getElementById('actionToastMessage');
+    const btnYes = document.getElementById('actionToastYes');
+    const btnNo = document.getElementById('actionToastNo');
+    
+    msgEl.textContent = message;
+    toast.style.display = "flex";
+    
+    // Clean up old event listeners by cloning
+    const newBtnYes = btnYes.cloneNode(true);
+    const newBtnNo = btnNo.cloneNode(true);
+    btnYes.parentNode.replaceChild(newBtnYes, btnYes);
+    btnNo.parentNode.replaceChild(newBtnNo, btnNo);
+    
+    const closeToast = () => {
+      toast.style.animation = "slideDownFade 0.25s ease-in forwards";
+      setTimeout(() => {
+        toast.style.display = "none";
+        toast.style.animation = "slideUpFade 0.3s ease-out forwards"; // Reset for next open
+      }, 250);
+    };
+
+    newBtnYes.addEventListener('click', () => { closeToast(); onConfirm(); });
+    newBtnNo.addEventListener('click', closeToast);
   }
 
   // Toast alert helper
@@ -894,6 +890,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const helpModal = document.getElementById('helpModal');
   const closeHelpBtn = document.getElementById('closeHelpBtn');
 
+  if (helpModal) {
+    helpModal.style.display = 'none';
+  }
+
   if (helpBtn) {
     helpBtn.addEventListener('click', () => {
       helpModal.style.display = 'flex';
@@ -908,21 +908,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Expandable cards logic
   document.querySelectorAll('.expandable-card .card-header').forEach(header => {
+    const body = header.nextElementSibling;
+    const indicator = header.querySelector('.indicator');
+    
+    // Ensure cards are closed by default to prevent layout bleed
+    if (body) body.style.display = 'none';
+
     header.addEventListener('click', () => {
-      const body = header.nextElementSibling;
-      const indicator = header.querySelector('.indicator');
-      if (body.style.display === 'none') {
+      if (body.style.display === 'none' || body.style.display === '') {
         body.style.display = 'block';
-        indicator.textContent = '▲';
+        if (indicator) indicator.textContent = '▲';
       } else {
         body.style.display = 'none';
-        indicator.textContent = '▼';
+        if (indicator) indicator.textContent = '▼';
       }
     });
   });
 
   // Save Mapping to Voyarr
-  saveBtn.addEventListener('click', async () => {
+  saveBtn.addEventListener('click', () => {
     const finalSelector = selectorVal.value.trim() || currentSelector;
 
     if (!finalSelector || !activeTabHost) {
@@ -930,38 +934,40 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const payload = {
-      host: activeTabHost,
-      property: fieldSelect.value,
-      selector: finalSelector
-    };
+    showConfirmToast("Are you sure you want to save this recipe mapping to Voyarr?", async () => {
+      const payload = {
+        host: activeTabHost,
+        property: fieldSelect.value,
+        selector: finalSelector
+      };
 
-    if (providerSelect.value) {
-      payload.provider_id = parseInt(providerSelect.value, 10);
-    }
-
-    saveBtn.disabled = true;
-    saveBtn.innerText = "Saving...";
-
-    try {
-      const response = await chrome.runtime.sendMessage({ action: "SAVE_RECIPE_MAPPING", payload });
-      if (response && response.success) {
-        showToast(mapToast, "Successfully saved to recipe!", true);
-        saveBtn.style.display = "none";
-        if (clearBtn) clearBtn.style.display = "none";
-        selectorPreview.style.display = "none";
-        currentSelector = "";
-        selectorVal.value = "";
-      } else {
-        const errMsg = response && response.error ? response.error : "Unknown connection error";
-        showToast(mapToast, `Failed to save: ${errMsg}`, false);
+      if (providerSelect.value) {
+        payload.provider_id = parseInt(providerSelect.value, 10);
       }
-    } catch (err) {
-      showToast(mapToast, `Failed to save: ${err.message}`, false);
-    } finally {
-      saveBtn.disabled = false;
-      saveBtn.innerText = "Save to Voyarr";
-    }
+
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<span class="spinner"></span> Saving...';
+
+      try {
+        const response = await chrome.runtime.sendMessage({ action: "SAVE_RECIPE_MAPPING", payload });
+        if (response && response.success) {
+          showToast(mapToast, "Successfully saved to recipe!", true);
+          saveBtn.style.display = "none";
+          if (clearBtn) clearBtn.style.display = "none";
+          selectorPreview.style.display = "none";
+          currentSelector = "";
+          selectorVal.value = "";
+        } else {
+          const errMsg = response && response.error ? response.error : "Unknown connection error";
+          showToast(mapToast, `Failed to save: ${errMsg}`, false);
+        }
+      } catch (err) {
+        showToast(mapToast, `Failed to save: ${err.message}`, false);
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = "Save to Voyarr";
+      }
+    });
   });
 
   // Clear Button
@@ -985,7 +991,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tab) return;
 
-      testSelectorBtn.innerText = "...";
+      testSelectorBtn.disabled = true;
+      testSelectorBtn.innerHTML = '<span class="spinner" style="width: 10px; height: 10px; border-width: 2px;"></span>';
       
       try {
         await chrome.scripting.executeScript({
@@ -1003,7 +1010,8 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       updateMatchBadge(0);
     } finally {
-      testSelectorBtn.innerText = "Test";
+      testSelectorBtn.disabled = false;
+      testSelectorBtn.textContent = "Test";
     }
   });
 
@@ -1017,59 +1025,59 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Lens Tab logic
-  scanSubscriptionBtn.addEventListener('click', async () => {
-    const permit = confirm("Allow Voyarr to scan this page for subscription and billing details? This may include sensitive account information on the current page.");
-    if (!permit) return;
+  scanSubscriptionBtn.addEventListener('click', () => {
+    showConfirmToast("Allow Voyarr to scan this page for subscription and billing details? This may include sensitive account information on the current page.", async () => {
+      scanSubscriptionBtn.innerHTML = '<span class="spinner"></span> Scanning...';
+      scanSubscriptionBtn.disabled = true;
 
-    scanSubscriptionBtn.innerText = "Scanning...";
-    scanSubscriptionBtn.disabled = true;
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (!tab) throw new Error("No active tab.");
 
-    try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (!tab) throw new Error("No active tab.");
+        const [{ result }] = await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => document.body.innerText
+        });
 
-      const [{ result }] = await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: () => document.body.innerText
-      });
+        const serverUrl = activeServerSelect.value;
+        const activeServer = servers.find(s => s.id === serverUrl);
+        if (!activeServer || !activeServer.url) {
+          throw new Error("No active Voyarr server configured.");
+        }
 
-      const serverUrl = activeServerSelect.value;
-      const activeServer = servers.find(s => s.id === serverUrl);
-      if (!activeServer || !activeServer.url) {
-        throw new Error("No active Voyarr server configured.");
+        const cleanUrl = activeServer.url.replace(/\/$/, '');
+        const res = await fetch(`${cleanUrl}/subscriptions/parse-email`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Voyarr-Api-Key': activeServer.apiKey
+          },
+          body: JSON.stringify({ email_text: result || "" })
+        });
+
+        if (!res.ok) throw new Error("Backend parse failed.");
+        
+        const data = await res.json();
+        currentScannedSubscription = data.parsed_data;
+        
+        scanResultText.innerText = JSON.stringify(currentScannedSubscription, null, 2);
+        scanResultBox.style.display = "block";
+        showToast(lensToast, "Scan complete!", true);
+
+      } catch (e) {
+        console.error(e);
+        showToast(lensToast, `Failed to scan: ${e.message}`, false);
+      } finally {
+        scanSubscriptionBtn.textContent = "Scan Active Tab";
+        scanSubscriptionBtn.disabled = false;
       }
-
-      const res = await fetch(`${activeServer.url}/subscriptions/parse-email`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Voyarr-Api-Key': activeServer.apiKey
-        },
-        body: JSON.stringify({ email_text: result || "" })
-      });
-
-      if (!res.ok) throw new Error("Backend parse failed.");
-      
-      const data = await res.json();
-      currentScannedSubscription = data.parsed_data;
-      
-      scanResultText.innerText = JSON.stringify(currentScannedSubscription, null, 2);
-      scanResultBox.style.display = "block";
-      showToast(lensToast, "Scan complete!", "success");
-
-    } catch (e) {
-      console.error(e);
-      showToast(lensToast, `Failed to scan: ${e.message}`, "error");
-    } finally {
-      scanSubscriptionBtn.innerText = "Scan Active Tab";
-      scanSubscriptionBtn.disabled = false;
-    }
+    });
   });
 
   saveSubscriptionBtn.addEventListener('click', async () => {
     if (!currentScannedSubscription) return;
 
-    saveSubscriptionBtn.innerText = "Saving...";
+    saveSubscriptionBtn.innerHTML = '<span class="spinner"></span> Saving...';
     saveSubscriptionBtn.disabled = true;
 
     try {
@@ -1086,7 +1094,8 @@ document.addEventListener('DOMContentLoaded', () => {
         status: currentScannedSubscription.status
       };
 
-      const res = await fetch(`${activeServer.url}/subscriptions/`, {
+      const cleanUrl = activeServer.url.replace(/\/$/, '');
+      const res = await fetch(`${cleanUrl}/subscriptions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1100,17 +1109,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) {
       showToast(lensToast, `Save failed: ${e.message}`, "error");
     } finally {
-      saveSubscriptionBtn.innerText = "Save to Voyarr";
-      saveSubscriptionBtn.disabled = false;
-    }
-  });
-
-});failed.");
-      showToast(lensToast, "Saved successfully!", "success");
-    } catch (e) {
-      showToast(lensToast, `Save failed: ${e.message}`, "error");
-    } finally {
-      saveSubscriptionBtn.innerText = "Save to Voyarr";
+      saveSubscriptionBtn.textContent = "Save to Voyarr";
       saveSubscriptionBtn.disabled = false;
     }
   });

@@ -227,7 +227,7 @@
   let tooltip = null;
 
   const saveConfig = () => {
-    config.serverUrl = serverInput.value.trim();
+    config.serverUrl = serverInput.value.trim().replace(/\/$/, '');
     config.secret = secretInput.value.trim();
     config.providerId = providerInput.value.trim();
     localStorage.setItem('voyarr_server_url', config.serverUrl); // lgtm [js/clear-text-storage-of-sensitive-data]
@@ -395,6 +395,25 @@
     return path.join(" > ");
   }
 
+  // Custom Toast Notifier
+  function showVoyarrToast(msg, isSuccess = true) {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: ${isSuccess ? '#10b981' : '#ef4444'}; color: #fff;
+      padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500;
+      z-index: 2147483647; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      transition: opacity 0.3s; opacity: 0; pointer-events: none;
+    `;
+    toast.textContent = msg;
+    document.body.appendChild(toast);
+    requestAnimationFrame(() => toast.style.opacity = '1');
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
+  }
+
   // 6. Action Button Actions
   document.getElementById('voyarr-close-btn').addEventListener('click', cleanup);
 
@@ -412,9 +431,9 @@
     }, null, 2);
     
     navigator.clipboard.writeText(recipeJSON).then(() => {
-      alert('📋 Recipe JSON copied to clipboard successfully!');
+      showVoyarrToast('📋 Recipe JSON copied to clipboard successfully!', true);
     }).catch(err => {
-      alert('Failed to copy: ' + err);
+      showVoyarrToast('Failed to copy: ' + err, false);
     });
   });
 
@@ -424,7 +443,7 @@
     const originalText = saveBtn.textContent;
     
     if (!config.serverUrl) {
-      alert('Please configure your Voyarr Server URL!');
+      showVoyarrToast('Please configure your Voyarr Server URL!', false);
       return;
     }
 
@@ -469,9 +488,9 @@
     saveBtn.disabled = false;
 
     if (successCount > 0) {
-      alert(`✅ Mapped ${successCount} selector(s) directly to your server!`);
+      showVoyarrToast(`✅ Mapped ${successCount} selector(s) directly to your server!`, true);
     } else {
-      alert(`❌ Failed to save selectors. Check CORS/secrets or use the 📋 Copy button to paste manually!`);
+      showVoyarrToast(`❌ Failed to save selectors. Check CORS/secrets or use the 📋 Copy button to paste manually!`, false);
     }
   });
 

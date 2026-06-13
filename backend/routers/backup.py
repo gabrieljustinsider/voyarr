@@ -12,6 +12,7 @@ import hashlib
 import hmac
 import base64
 import os
+import subprocess
 from typing import Optional
 from decimal import Decimal
 from dependencies import verify_api_key
@@ -463,7 +464,7 @@ def list_local_backups():
     try:
         files = []
         for item in os.listdir(backup_dir):
-            if item.endswith(".json"):
+            if item.endswith(".json") or item.endswith(".sql"):
                 full_path = os.path.join(backup_dir, item)
                 files.append(
                     {
@@ -503,6 +504,19 @@ def verify_local_backup(
     if not os.path.exists(abs_filepath):
         raise HTTPException(status_code=404, detail="Local backup file not found")
 
+    if abs_filepath.endswith(".sql"):
+        size_mb = os.path.getsize(abs_filepath) / (1024 * 1024)
+        return {
+            "valid": True,
+            "encrypted": False,
+            "verified_signature": False,
+            "type": "full",
+            "timestamp": datetime.fromtimestamp(os.path.getmtime(abs_filepath)).isoformat(),
+            "table_count": "All",
+            "record_count": f"{size_mb:.2f} MB SQL Dump",
+            "message": "Raw SQL Database Dump ready for restore.",
+        }
+
     try:
         with open(abs_filepath, "r") as f:
             backup_data = json.load(f)
@@ -537,6 +551,32 @@ def restore_local_backup(
 
     if not os.path.exists(abs_filepath):
         raise HTTPException(status_code=404, detail="Local backup file not found")
+
+    if abs_filepath.endswith(".sql"):
+        try:
+            db_user = os.getenv("POSTGRES_USER", "voyarr_user")
+            db_name = os.getenv("POSTGRES_DB", "voyarr")
+            
+            env = os.environ.copy()
+            env["PGPASSWORD"] = os.getenv("POSTGRES_PASSWORD", "voyarr_password")
+            
+            cmd = [
+                "psql",
+                "-h", "db",
+                "-U", db_user,
+                "-d", db_name,
+                "-f", abs_filepath
+            ]
+            
+            result = subprocess.run(cmd, env=env, capture_output=True, text=True) # nosec B603
+            
+            if result.returncode != 0:
+                raise Exception(result.stderr)
+                
+            return {"message": "SQL Database restored successfully!"}
+        except Exception as e:
+            print(f"SQL restore error: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to execute SQL restore: {str(e)}")
 
     try:
         with open(abs_filepath, "r") as f:

@@ -69,8 +69,6 @@ class Provider(Base):
     supported_methods = Column(
         JSON().with_variant(JSONB, "postgresql"), default=list
     )  # e.g., ["yt-dlp", "cookies", "direct", "api"]
-
-
 class Biller(Base):
     __tablename__ = "billers"
 
@@ -116,6 +114,8 @@ class Subscription(Base):
     cost = Column(DECIMAL(10, 2), nullable=True)
     charge_type = Column(String(50), default="bulk") # bulk, installments
     installment_frequency = Column(String(50), nullable=True) # weekly, biweekly, monthly
+    subscription_id = Column(String(255), nullable=True)
+    order_number = Column(String(255), nullable=True)
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
     updated_at = Column(TIMESTAMP, default=func.current_timestamp(), onupdate=func.current_timestamp())
 
@@ -123,6 +123,18 @@ class Subscription(Base):
     tier = relationship("SubscriptionTier")
     biller = relationship("Biller")
 
+    def get_secure_card_info(self, db_session):
+        """Helper method to decrypt and retrieve card info from the secure Vault."""
+        from models import Vault
+        from security import decrypt_data
+        vault_item = db_session.query(Vault).filter_by(
+            entity_type="subscription_card", 
+            entity_id=self.id
+        ).first()
+        
+        if vault_item and vault_item.encrypted_value:
+            return decrypt_data(vault_item.encrypted_value)
+        return None
 
 class SiteRecipe(Base):
     __tablename__ = "site_recipes"

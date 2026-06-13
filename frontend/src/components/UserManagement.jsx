@@ -3,7 +3,7 @@ import {
   Box, Typography, TextField, Button, Paper, Grid, Snackbar, Alert, Divider, 
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, 
   Dialog, DialogTitle, DialogContent, DialogActions, Select, MenuItem, FormControl, 
-  InputLabel, Tabs, Tab, Switch, FormControlLabel, InputAdornment, Chip, LinearProgress 
+  InputLabel, Tabs, Tab, Switch, FormControlLabel, InputAdornment, Chip, LinearProgress, Stack, CircularProgress 
 } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
 import SyncIcon from '@mui/icons-material/Sync'
@@ -17,6 +17,7 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import TuneIcon from '@mui/icons-material/Tune'
 import LanIcon from '@mui/icons-material/Lan'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
+import CheckIcon from '@mui/icons-material/Check'
 import { apiFetch } from '../api'
 import PasswordChecklist from './PasswordChecklist'
 import PermissionsManager from './PermissionsManager'
@@ -68,6 +69,8 @@ export default function UserManagement() {
   const [newUser, setNewUser] = useState({ username: '', password: '', role: 'user' })
   const [usersList, setUsersList] = useState([])
   const [adminLogs, setAdminLogs] = useState([])
+  const [isCreating, setIsCreating] = useState(false)
+  const [creationSuccess, setCreationSuccess] = useState(false)
   
   // Dialog & Notification States
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
@@ -93,6 +96,29 @@ export default function UserManagement() {
     url_parsing: 'edit'
   })
 
+  const isUsernameTaken = useMemo(() => {
+    if (!newUser.username) return false;
+    return usersList.some(u => u.username.toLowerCase() === newUser.username.toLowerCase());
+  }, [newUser.username, usersList]);
+
+  const fetchUsersList = async () => {
+    try {
+      const res = await apiFetch('/auth/users')
+      if (res.ok) {
+        setUsersList(await res.json())
+      }
+    } catch (err) { console.error('Failed to fetch users list:', err) }
+  }
+
+  const fetchAdminLogs = async () => {
+    try {
+      const res = await apiFetch('/auth/admin-logs')
+      if (res.ok) {
+        setAdminLogs(await res.json())
+      }
+    } catch (err) { console.error('Failed to fetch admin logs:', err) }
+  }
+  
   useEffect(() => {
     fetchUsersList()
     fetchAdminLogs()
@@ -112,23 +138,6 @@ export default function UserManagement() {
     }
   }, [selectedUserForManage])
 
-  const fetchUsersList = async () => {
-    try {
-      const res = await apiFetch('/auth/users')
-      if (res.ok) {
-        setUsersList(await res.json())
-      }
-    } catch (err) { console.error('Failed to fetch users list:', err) }
-  }
-
-  const fetchAdminLogs = async () => {
-    try {
-      const res = await apiFetch('/settings/logs')
-      if (res.ok) {
-        setAdminLogs(await res.json())
-      }
-    } catch (err) { console.error('Failed to fetch admin logs:', err) }
-  }
 
   const handleCreateUser = async () => {
     const password = newUser.password || ''
@@ -141,16 +150,22 @@ export default function UserManagement() {
       setSnackbar({ open: true, message: 'Password does not meet all security requirements.', severity: 'error' })
       return
     }
+    
+    setIsCreating(true)
     try {
       const res = await apiFetch('/auth/register', {
         method: 'POST',
         body: JSON.stringify(newUser)
       })
       if (res.ok) {
+        setCreationSuccess(true)
         setSnackbar({ open: true, message: `User ${newUser.username} created successfully!`, severity: 'success' })
-        setNewUser({ username: '', password: '', role: 'user' })
         fetchUsersList()
         fetchAdminLogs()
+        setTimeout(() => {
+          setCreationSuccess(false)
+          setNewUser({ username: '', password: '', role: 'user' })
+        }, 2000)
       } else {
         const err = await res.json()
         setSnackbar({ open: true, message: `Failed: ${err.detail}`, severity: 'error' })
@@ -158,6 +173,8 @@ export default function UserManagement() {
     } catch (err) {
       console.error(err)
       setSnackbar({ open: true, message: 'Network error creating user.', severity: 'error' })
+    } finally {
+      setIsCreating(false)
     }
   }
 
@@ -321,30 +338,52 @@ export default function UserManagement() {
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>User Management</Typography>
         <Typography variant="body2" sx={{ mb: 2 }} color="textSecondary">
-          Create user accounts to grant access to the UI without sharing your Master Key.
+          Create user accounts to grant access to the UI.
         </Typography>
         <Divider sx={{ mb: 2 }} />
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} md={3}>
-            <TextField fullWidth size="small" label="Username" value={newUser.username} onChange={e => setNewUser({...newUser, username: e.target.value})} />
+        <Grid container spacing={4} sx={{ alignItems: 'flex-start' }}>
+          <Grid item xs={12} sm={6}>
+            <Stack spacing={2.5}>
+              <TextField 
+                fullWidth 
+                size="small" 
+                label="Username" 
+                value={newUser.username} 
+                onChange={e => setNewUser({...newUser, username: e.target.value})} 
+                error={isUsernameTaken}
+                helperText={isUsernameTaken ? "Username already exists" : ""}
+              />
+              <TextField fullWidth size="small" type="password" label="Password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} />
+              <FormControl fullWidth size="small">
+                <InputLabel>Role</InputLabel>
+                <Select value={newUser.role} label="Role" onChange={e => setNewUser({...newUser, role: e.target.value})}>
+                  <MenuItem value="admin">Admin</MenuItem>
+                  <MenuItem value="user">User</MenuItem>
+                </Select>
+              </FormControl>
+            </Stack>
           </Grid>
-          <Grid item xs={12} md={4}>
-            <TextField fullWidth size="small" type="password" label="Password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} />
+          <Grid item xs={12} sm={6}>
             <PasswordChecklist password={newUser.password} />
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Role</InputLabel>
-              <Select value={newUser.role} label="Role" onChange={e => setNewUser({...newUser, role: e.target.value})}>
-                <MenuItem value="admin">Admin</MenuItem>
-                <MenuItem value="user">User</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} md={2}>
-            <Button fullWidth variant="contained" onClick={handleCreateUser} disabled={!newUser.username || !newUser.password}>Create User</Button>
-          </Grid>
         </Grid>
+        </Grid>
+        <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center', width: '100%' }}>
+          <Button 
+            variant="contained" 
+            color={creationSuccess ? "success" : "primary"}
+            onClick={handleCreateUser} 
+            disabled={!newUser.username || !newUser.password || newUser.password.length < 8 || isUsernameTaken || isCreating} 
+            sx={{ minWidth: 220, transition: 'all 0.3s ease' }}
+          >
+            {creationSuccess ? (
+              <><CheckIcon sx={{ mr: 1 }} /> Success!</>
+            ) : isCreating ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              'Create User'
+            )}
+          </Button>
+        </Box>
       </Paper>
 
       {/* Users List & Advanced Management Dashboard */}
@@ -843,7 +882,7 @@ export default function UserManagement() {
                                   return Object.entries(details)
                                     .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`)
                                     .join(' | ')
-                                } catch (e) {
+                                } catch {
                                   return String(log.details)
                                 }
                               })()}

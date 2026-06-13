@@ -28,8 +28,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
 ############################
 FROM python:3.12-slim-bookworm
 
-LABEL version="1.58.6"
-LABEL org.opencontainers.image.version="1.58.6"
+LABEL version="1.58.7"
+LABEL org.opencontainers.image.version="1.58.7"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
@@ -42,6 +42,7 @@ WORKDIR /app
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     ffmpeg \
     libpq5 \
+    postgresql-client \
     libgomp1 \
     libopenblas0 \
     && rm -rf /var/lib/apt/lists/*
