@@ -7,6 +7,7 @@ from security import JWT_SECRET, ALGORITHM
 from contextlib import asynccontextmanager
 from database import engine
 from models import Base
+from utils import get_version
 from routers import (
     providers,
     credentials,
@@ -88,7 +89,7 @@ async def lifespan(app: FastAPI):
                 import sys
                 sys.exit(1)
 
-    from utils import initialize_network_settings, get_version
+        from utils import initialize_network_settings
     initialize_network_settings()
     yield
 

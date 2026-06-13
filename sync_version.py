@@ -55,24 +55,7 @@ def main():
             f.write("\n")
         print(f"Updated {ext_manifest_path}")
 
-    # 5. Update backend/main.py FastAPI instantiation version
-    backend_main_path = os.path.join(root_dir, "backend", "main.py")
-    if os.path.exists(backend_main_path):
-        with open(backend_main_path, "r") as f:
-            content = f.read()
-        
-        # Match app = FastAPI(..., version="...")
-        pattern = r'(app\s*=\s*FastAPI\([^)]*version\s*=\s*")[^"]*(")'
-        new_content, count = re.subn(pattern, rf'\g<1>{version}\g<2>', content)
-        
-        if count > 0:
-            with open(backend_main_path, "w") as f:
-                f.write(new_content)
-            print(f"Updated {backend_main_path}")
-        else:
-            print(f"Warning: Could not find version parameter in FastAPI instantiation in {backend_main_path}")
-
-    # 5b. Update backend/Dockerfile and frontend/Dockerfile version LABELs
+    # 5. Update backend/Dockerfile and frontend/Dockerfile version LABELs
     dockerfiles = [
         os.path.join(root_dir, "backend", "Dockerfile"),
         os.path.join(root_dir, "frontend", "Dockerfile")
