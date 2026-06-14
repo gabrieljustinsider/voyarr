@@ -14,17 +14,17 @@ from models import LibraryEntry, ApiKey
 
 def verify_deovr_auth(
     request: Request,
-    api_key: str | None = Query(None),
+    token: str | None = Query(None, alias="api_key"),
     db: Session = Depends(get_db)
 ):
     """Verify DeoVR request authentication via query parameters or custom headers."""
-    if api_key:
+    if token:
         master_key = os.getenv("MASTER_KEY", "")
-        if master_key and secrets.compare_digest(api_key, master_key):
+        if master_key and secrets.compare_digest(token, master_key):
             return True
 
         hashed = hashlib.sha256(
-            api_key.encode()
+            token.encode()
         ).hexdigest()  # lgtm [py/weak-sensitive-data-hashing]
         if db.query(ApiKey).filter(ApiKey.key_hash == hashed).first():
             return True

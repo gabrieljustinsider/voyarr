@@ -185,11 +185,16 @@ def parse_url(
         import os
 
         validate_url_ssrf(req.url)
+        parsed_url = urllib.parse.urlparse(req.url)
+        if parsed_url.scheme not in ("http", "https"):
+            raise HTTPException(status_code=400, detail="Invalid URL scheme")
+        safe_url = urllib.parse.urlunparse(parsed_url)
+        
         session = requests.Session()
         global_ua = os.getenv("DEFAULT_USER_AGENT", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
         session.headers.update({"User-Agent": global_ua})
 
-        response = session.get(req.url, timeout=10)
+        response = session.get(safe_url, timeout=10)
         response.raise_for_status()
         soup = BeautifulSoup(response.content, "html.parser")
     except Exception as e:

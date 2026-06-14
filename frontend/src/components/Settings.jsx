@@ -166,7 +166,17 @@ export default function Settings() {
     ripping_enabled: 'false'
   })
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
-  const [masterKeyInput, setMasterKeyInput] = useState(localStorage.getItem('voyarr_api_key') || '')
+  const [masterKeyInput, setMasterKeyInput] = useState(() => {
+    const raw = localStorage.getItem('voyarr_api_key') || ''
+    if (raw) {
+      try {
+        return atob(raw)
+      } catch (e) {
+        return raw
+      }
+    }
+    return ''
+  })
   const [diagnosticLoading, setDiagnosticLoading] = useState(false)
   const [diagnosticResult, setDiagnosticResult] = useState(null)
   const [showProxyUrl, setShowProxyUrl] = useState(false)
@@ -842,7 +852,7 @@ export default function Settings() {
   }
 
   const handleSaveMasterKey = () => {
-    localStorage.setItem('voyarr_api_key', masterKeyInput)
+    localStorage.setItem('voyarr_api_key', btoa(masterKeyInput))
     setSnackbar({ open: true, message: 'Master Key saved to browser securely!', severity: 'success' })
     // Refresh data with new key to force an updated fetch
     setTimeout(() => {

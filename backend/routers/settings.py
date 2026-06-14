@@ -264,6 +264,13 @@ def browse_directory(path: Optional[str] = Query(None)):
     except HTTPException:
         target_path = "/"
 
+    # Inline sanitization for CodeQL path injection tracking
+    abs_target = os.path.abspath(target_path)
+    if not (abs_target.startswith("/media") or abs_target.startswith("/downloads") or abs_target.startswith("/mnt") or abs_target.startswith("/app") or abs_target.startswith("/tmp") or abs_target == "/"):
+        target_path = "/"
+    else:
+        target_path = abs_target
+
     if not os.path.exists(target_path):
         target_path = "/"
 
@@ -336,6 +343,13 @@ def autocomplete_path(q: str = Query("")):
         parent_dir = validate_path(parent_dir)
     except HTTPException:
         return {"suggestions": []}
+
+    # Inline sanitization for CodeQL path injection tracking
+    abs_parent = os.path.abspath(parent_dir)
+    if not (abs_parent.startswith("/media") or abs_parent.startswith("/downloads") or abs_parent.startswith("/mnt") or abs_parent.startswith("/app") or abs_parent.startswith("/tmp") or abs_parent == "/"):
+        parent_dir = "/"
+    else:
+        parent_dir = abs_parent
 
     if not os.path.exists(parent_dir) or not os.path.isdir(parent_dir):
         parent_dir = "/"
