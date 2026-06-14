@@ -7,7 +7,7 @@ from security import JWT_SECRET, ALGORITHM
 from contextlib import asynccontextmanager
 from database import engine
 from models import Base
-from utils import get_version
+from utils import get_version, initialize_network_settings
 from routers import (
     providers,
     credentials,

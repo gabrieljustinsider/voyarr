@@ -421,6 +421,25 @@ def run_schema_migrations(engine: Any) -> None:
                         pass
                     logger.warning(f"Failed to add column {col} to subscriptions: {e}")
 
+        # 13b. Check if providers table has description column, if not, add it
+        try:
+            conn.execute(text("SELECT description FROM providers LIMIT 1"))
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            try:
+                conn.execute(text("ALTER TABLE providers ADD COLUMN description TEXT"))
+                conn.commit()
+                logger.info("Database migration successfully added 'description' to 'providers'.")
+            except Exception as e:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                logger.warning(f"Failed to add column description to providers: {e}")
+
         # 14. Seed default adult billers
         try:
             check_seeded = conn.execute(text("SELECT id FROM billers WHERE name = 'CCBill' LIMIT 1")).fetchone()
