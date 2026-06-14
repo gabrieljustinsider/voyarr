@@ -197,3 +197,26 @@ After making any changes to your `.env` file, restart your containers to apply t
 ```bash
 docker compose down && docker compose up -d
 ```
+
+---
+
+## 11. "504 Gateway Timeout" During Portainer Stack Deployment
+
+**Error Example:**
+Portainer UI throws an error: `504 Gateway Timeout` or `Gateway Timeout` when attempting to deploy, start, or update the Voyarr stack.
+
+**Cause:**
+Portainer has a default web request timeout (usually 60 seconds) when deploying stacks. If you are starting Voyarr for the first time, Docker needs to pull the backend, frontend, database, and background images. If your internet connection is slow, or if the optional heavy `browserless/chrome` image is being downloaded, the process exceeds 60 seconds. Portainer's UI times out, even though the host's Docker daemon continues pulling the images in the background.
+
+**Solution:**
+1. **Pre-pull the images:** SSH into your host server and run the pull commands manually before deploying in Portainer:
+   ```bash
+   docker pull ghcr.io/gabrieljustinsider/voyarr-backend:latest
+   docker pull browserless/chrome:latest
+   ```
+   Once the images are cached on the host, Portainer's stack deployment will finish instantly without timing out.
+2. **Use Cloud Browserless (Default):** Make sure you do not start the stack with the local `browserless` profile enabled unless necessary. This avoids downloading the heavy Chrome image entirely.
+3. **Deploy via CLI:** If you continue to experience UI timeouts, bypass Portainer's editor and deploy directly from your host shell:
+   ```bash
+   docker compose up -d
+   ```
