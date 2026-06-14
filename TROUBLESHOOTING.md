@@ -220,3 +220,33 @@ Portainer has a default web request timeout (usually 60 seconds) when deploying 
    ```bash
    docker compose up -d
    ```
+
+---
+
+## 12. "500 Internal Server Error" During Portainer Stack Deployment
+
+**Error Example:**
+Portainer UI displays a generic red banner: `500 Internal Server Error` or `Request failed with status code 500` when clicking **Deploy the stack**.
+
+**Cause:**
+Because Portainer passes stack deployment requests directly to the underlying Docker daemon, a `500` status is a generic catch-all error wrapping several potential Docker engine issues:
+1. **Relative Volume Paths:** The `docker-compose.yml` defaults to relative volumes for media (e.g., `${HOST_MEDIA_PATH_1:-./media}`). Portainer Community Edition (CE) does not automatically resolve relative host directories unless configured.
+2. **Missing Host Folders:** Docker cannot mount host paths that do not exist, throwing an internal daemon error.
+3. **Port Conflicts:** If ports `80` (frontend default) or `5432` (database default) are already in use on the host, the deployment fails.
+
+**Solution:**
+1. **Examine the True Error:**
+   Before deploying, open your browser's Developer Tools (**F12 -> Network tab**). Click **Deploy the stack**, locate the failed red request (usually under `/api/stacks`), and check the **Response** tab. This will reveal the exact Docker error message (e.g., `bind source path does not exist`).
+2. **Define Absolute Paths in the Environment:**
+   In your stack environment variables (or `.env` file), configure `HOST_MEDIA_PATH_1` to point to a valid, **absolute** directory path on your host machine:
+   ```env
+   HOST_MEDIA_PATH_1=/volume1/docker/voyarr/media
+   ```
+3. **Verify Folders Exist:**
+   Ensure that you manually create the directory specified in `HOST_MEDIA_PATH_1` on the host server before deploying.
+4. **Resolve Port Conflicts:**
+   Set custom frontend and backend ports in your stack variables if the defaults (`80`, `8000`) are already occupied:
+   ```env
+   FRONTEND_PORT=8082
+   BACKEND_PORT=8083
+   ```
