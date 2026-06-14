@@ -1,6 +1,6 @@
 # Terms of Service for Voyarr
 
-**Last Updated:** May 21, 2026
+**Last Updated:** June 14, 2026
 
 Please read these Terms of Service ("Terms") carefully before using the Voyarr software ("the Software"). Your access to and use of the Software is conditioned on your acceptance of and compliance with these Terms.
 

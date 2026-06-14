@@ -442,24 +442,28 @@ def run_schema_migrations(engine: Any) -> None:
 
         # 14. Seed default adult billers
         try:
-            check_seeded = conn.execute(text("SELECT id FROM billers WHERE name = 'CCBill' LIMIT 1")).fetchone()
-            if not check_seeded:
-                default_billers = [
-                    ("CCBill", "https://ccbill.com", "consumersupport@ccbill.com", "1-888-596-9279", "Common payment gateway."),
-                    ("Epoch", "https://epoch.com", "billing@epoch.com", "1-800-893-8871", "Epoch payment services."),
-                    ("Vendo", "https://vendoservices.com", "support@vendoservices.com", "1-877-327-8341", "Vendo billing."),
-                    ("Verotel", "https://verotel.com", "support@verotel.com", "1-877-873-0550", "Verotel billing gateway."),
-                    ("Segpay", "https://segpay.com", "help@segpay.com", "1-866-567-1500", "Segpay payment solutions."),
-                    ("Centrobill", "https://centrobill.com", "support@centrobill.com", "1-844-469-8088", "Centrobill safe payments.")
-                ]
-                for name, url, email, phone, desc in default_billers:
-                    if dialect_name == "postgresql":
-                        query = "INSERT INTO billers (name, url, support_email, support_phone, description) VALUES (:name, :url, :email, :phone, :desc) ON CONFLICT (name) DO NOTHING"
-                    else:
-                        query = "INSERT OR IGNORE INTO billers (name, url, support_email, support_phone, description) VALUES (:name, :url, :email, :phone, :desc)"
-                    conn.execute(text(query), {"name": name, "url": url, "email": email, "phone": phone, "desc": desc})
-                conn.commit()
-                logger.info("Database migration successfully seeded default billers.")
+            default_billers = [
+                ("CCBill", "https://ccbill.com", "consumersupport@ccbill.com", "1-888-596-9279", "CCBill payment gateway."),
+                ("Epoch", "https://epoch.com", "billing@epoch.com", "1-800-893-8871", "Epoch payment services."),
+                ("Vendo", "https://vendoservices.com", "support@vendoservices.com", "1-877-327-8341", "Vendo billing."),
+                ("Verotel", "https://verotel.com", "support@verotel.com", "1-877-873-0550", "Verotel billing gateway."),
+                ("Segpay", "https://segpay.com", "help@segpay.com", "1-866-567-1500", "Segpay payment solutions."),
+                ("Centrobill", "https://centrobill.com", "support@centrobill.com", "1-844-469-8088", "Centrobill safe payments."),
+                ("Probiller", "https://probiller.com", "support@probiller.com", "1-855-232-9555", "Probiller subscription billing services."),
+                ("Rocketgate", "https://rocketgate.com", "support@rocketgate.com", "1-702-997-2347", "Rocketgate high-risk payment gateway."),
+                ("Netbilling", "https://netbilling.com", "support@netbilling.com", "1-888-357-8166", "Netbilling payment processing solutions."),
+                ("Paxum", "https://paxum.com", "support@paxum.com", "1-866-380-2986", "Paxum e-wallet and provider payout services."),
+                ("Cosmopayment", "https://cosmopayment.com", "support@cosmopayment.com", "+1-954-890-2821", "Cosmopayment global payment services."),
+                ("MojoHost", "https://mojohost.com", "billing@mojohost.com", "1-877-665-6467", "MojoHost hosting and infrastructure billing.")
+            ]
+            for name, url, email, phone, desc in default_billers:
+                if dialect_name == "postgresql":
+                    query = "INSERT INTO billers (name, url, support_email, support_phone, description) VALUES (:name, :url, :email, :phone, :desc) ON CONFLICT (name) DO NOTHING"
+                else:
+                    query = "INSERT OR IGNORE INTO billers (name, url, support_email, support_phone, description) VALUES (:name, :url, :email, :phone, :desc)"
+                conn.execute(text(query), {"name": name, "url": url, "email": email, "phone": phone, "desc": desc})
+            conn.commit()
+            logger.info("Database migration successfully seeded default billers.")
         except Exception as e:
             try:
                 conn.rollback()

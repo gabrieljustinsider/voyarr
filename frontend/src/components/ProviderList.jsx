@@ -374,6 +374,7 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
           <Avatar
             src={providerForm.logo_url || providerForm.favicon_url}
             alt="Logo preview"
+            imgProps={{ style: { objectFit: 'contain', padding: '2px' } }}
             sx={{ width: 56, height: 56, mt: 0, bgcolor: 'action.hover' }}
           >
             {providerForm.name?.charAt(0)?.toUpperCase() || '?'}
@@ -551,6 +552,7 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
                   <Avatar
                     src={provider.logo_url || provider.favicon_url || ''}
                     alt={provider.name}
+                    imgProps={{ style: { objectFit: 'contain', padding: '4px' } }}
                     sx={{ width: 80, height: 80, bgcolor: 'primary.main', fontSize: '2rem', fontWeight: 'bold', mb: 2 }}
                   >
                     {provider.name ? provider.name.charAt(0).toUpperCase() : '?'}
@@ -619,6 +621,7 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
           <Avatar
             src={activeProvider?.logo_url || activeProvider?.favicon_url || ''}
             alt={activeProvider?.name}
+            imgProps={{ style: { objectFit: 'contain', padding: '2px' } }}
             sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: '0.9rem' }}
           >
             {activeProvider?.name ? activeProvider.name.charAt(0).toUpperCase() : '?'}

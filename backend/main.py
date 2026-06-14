@@ -46,6 +46,7 @@ from routers import (
     billers,
     scanner,
     logs,
+    system_status,
 )
 
 # Database initialization with retry logic for container environments
@@ -218,6 +219,7 @@ app.include_router(deovr.router)
 app.include_router(subscriptions.router)
 app.include_router(billers.router)
 app.include_router(logs.router)
+app.include_router(system_status.router)
 
 
 @app.get("/")

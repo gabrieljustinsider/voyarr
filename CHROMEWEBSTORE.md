@@ -59,11 +59,17 @@ The Chrome Web Store review team requires explicit, plain-English justifications
 
 ## **📈 Version History**
 
-### **v1.18.0** (Current Release)
-* **Biller Management**: Added full support for mapping subscriptions to specific payment gateways.
+### **v1.18.13** (Current Release)
+* **System Status subtab**: Added a dedicated status subtab under System & Admin detailing the health, logs, active workers, and resource usages of the database, Redis, Celery, and Browserless.
+* **Universal Search Relocation**: Moved the Universal Search subtab into the primary "Library & Media" category to streamline media aggregation workflows.
+* **Robust Scraper Fallbacks**: Expanded site details scraper to search for regular image tags and favicons if standard Open Graph / Twitter metadata is missing.
+* **Database Migration Updates**: Resolved table creation and seeding mismatches by implementing schema updates for `providers.description` dynamically.
+* **Biller Management**: Added full support for mapping subscriptions to specific payment gateways (such as CCBill, Epoch, Vendo, and netbilling).
 * **Async Architecture**: Upgraded log streaming to non-blocking asynchronous operations (`aiofiles`) and modernized server startup lifespan events.
 * **Subscription UI**: Introduced nested eager-loading for Provider and Tier details, plus a new filterable interface with clean currency/date formatting.
-* **Database Resilience**: Implemented automatic dynamic schema migrations for missing columns upon startup.
+
+### **v1.18.0**
+* **Previous Stable Release**: Introduced initial async logging structure.
 
 ### **v1.17.1**
 * **Bug Fix**: Resolved a frontend build error caused by a malformed JSX tag inside the user settings dialog.

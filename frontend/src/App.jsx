@@ -23,6 +23,8 @@ const Library = lazy(() => import('./components/Library'))
 const Duplicates = lazy(() => import('./components/Duplicates'))
 const MetadataManager = lazy(() => import('./components/MetadataManager'))
 const ExternalAPIs = lazy(() => import('./components/ExternalAPIs'))
+const UniversalSearch = lazy(() => import('./components/UniversalSearch'))
+const SystemStatus = lazy(() => import('./components/SystemStatus'))
 const DownloadRules = lazy(() => import('./components/DownloadRules'))
 const MassRip = lazy(() => import('./components/MassRip'))
 const ScheduleManager = lazy(() => import('./components/ScheduleManager'))
@@ -858,6 +860,7 @@ function App() {
   const allTabs = useMemo(() => [
     { label: "Dashboard", component: <Dashboard />, visible: true },
     { label: "Library", component: <Library />, visible: true },
+    { label: "Universal Search", component: <UniversalSearch />, visible: true },
     { label: "Favorites", component: <Favorites />, visible: uiConfig.showFavorites },
     { label: "Studios", component: <Studios />, visible: uiConfig.showStudios },
     { label: "Live Streams", component: <LiveStreams />, visible: uiConfig.showLive },
@@ -877,6 +880,7 @@ function App() {
     { label: "Duplicates", component: <Duplicates />, visible: true },
 
     { label: "Metadata", component: <MetadataManager />, visible: true },
+    { label: "System Status", component: <SystemStatus />, visible: true },
     { label: "External APIs", component: <ExternalAPIs />, visible: true },
     { label: "Settings", component: <Settings />, visible: true },
     { label: "User Management", component: <UserManagement />, visible: true },
@@ -901,7 +905,7 @@ function App() {
       id: "media",
       label: "Library & Media",
       icon: <Clapperboard size={20} />,
-      tabs: ["Dashboard", "Library", "Favorites", "Studios", "Live Streams", "Analytics", "Request Manager"]
+      tabs: ["Dashboard", "Library", "Universal Search", "Favorites", "Studios", "Live Streams", "Analytics", "Request Manager"]
     },
     {
       id: "scraping",
@@ -925,7 +929,7 @@ function App() {
       id: "system",
       label: "System & Admin",
       icon: <Wrench size={20} />,
-      tabs: ["External APIs", "Settings", "User Management", "P2P Sync", "Notification Settings", "Backup", "Logs", "Help"]
+      tabs: ["System Status", "External APIs", "Settings", "User Management", "P2P Sync", "Notification Settings", "Backup", "Logs", "Help"]
     }
   ], []);
 
