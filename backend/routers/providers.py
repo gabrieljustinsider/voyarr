@@ -149,6 +149,12 @@ def _scrape_url_for_details(target_url: str) -> Dict[str, Any]:
         title_tag = soup.find("title")
         if title_tag and title_tag.string:
             site_name = title_tag.string.strip().split("|")[0].split("-")[0].strip()
+    if not site_name:
+        parsed_url = urlparse(base_url)
+        domain = parsed_url.netloc or parsed_url.path
+        if domain.startswith("www."):
+            domain = domain[4:]
+        site_name = domain.split(".")[0].capitalize()
 
     description: Optional[str] = (
         get_meta("property", "og:description")
@@ -157,6 +163,25 @@ def _scrape_url_for_details(target_url: str) -> Dict[str, Any]:
     )
 
     logo_url: Optional[str] = get_meta("property", "og:image") or get_meta("name", "twitter:image")
+    if not logo_url:
+        # Fallback: Search for img tags containing 'logo' in their properties
+        for img in soup.find_all("img"):
+            src = img.get("src")
+            if not src:
+                continue
+            img_id = str(img.get("id", "")).lower()
+            img_classes = [str(c).lower() for c in (img.get("class") or [])]
+            img_alt = str(img.get("alt", "")).lower()
+            img_src = str(src).lower()
+            if (
+                "logo" in img_id
+                or any("logo" in c for c in img_classes)
+                or "logo" in img_alt
+                or "logo" in img_src
+            ):
+                logo_url = src
+                break
+
     if logo_url and not logo_url.startswith("http"):
         logo_url = urljoin(base_url, logo_url)
 
@@ -170,6 +195,10 @@ def _scrape_url_for_details(target_url: str) -> Dict[str, Any]:
     if not favicon_url:
         parsed = urlparse(base_url)
         favicon_url = f"{parsed.scheme}://{parsed.netloc}/favicon.ico"
+
+    # If no logo_url was found, fall back to favicon_url as the site logo
+    if not logo_url:
+        logo_url = favicon_url
 
     return {
         "site_name": site_name,
