@@ -34,3 +34,9 @@ file:testdb_*
 
 # Extension Upload Archive
 voyarr-extension.zip
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
