@@ -26,6 +26,8 @@ services:
 
   browserless:
     network_mode: "service:vpn"
+    profiles:
+      - browserless
     ports: !reset []
     networks: !reset []
     depends_on:

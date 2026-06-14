@@ -46,7 +46,7 @@ async def get_system_status(db: Session = Depends(get_db)):
     celery_status = "unknown"
     celery_details = {}
     try:
-        from celery_app.celery_app import celery_app
+        from celery_app import celery_app
         inspect = celery_app.control.inspect(timeout=1.0)
         pings = inspect.ping()
         if pings:

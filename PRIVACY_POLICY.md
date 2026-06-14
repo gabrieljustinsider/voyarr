@@ -18,6 +18,7 @@ The Voyarr software, running on your server, stores and processes the following 
 *   **Provider Credentials:** Usernames, passwords, and API keys for third-party websites you configure. This information is always encrypted at rest in your database using AES-256-GCM. It can only be decrypted at runtime using your `MASTER_KEY`, which is stored only in your server's memory and is never saved to disk by Voyarr.
 *   **Password Manager Tokens:** Connection tokens for 1Password and Bitwarden are similarly encrypted at rest via AES-256-GCM and stored in the secure Vault.
 *   **User Accounts:** If you utilize the Multi-User RBAC system, hashed passwords for your created users are stored in the database.
+*   **Passkeys (WebAuthn metadata):** Cryptographic public keys and associated connection metadata (AAGUID, browser, OS, registered IP address, and domain/Relying Party ID) are stored in your database to secure, display, and verify passwordless login bindings.
 *   **Configuration Data:** Settings, download rules, schedules, provider configurations, and other operational data are stored in your database.
 *   **Media Metadata:** Information about media files, such as titles, performers, tags, and file hashes (ohash/phash), is stored in your database. This data is either generated from your local files, or securely collected from third-party sites at your explicit direction (via configured administrative scraping tools).
 *   **Session & API Keys:** Session cookies for providers and API keys you generate for third-party access are stored in your database.
@@ -34,6 +35,9 @@ This information is used solely to connect the extension to your personal Voyarr
 ## 4. Third-Party Services
 
 When you configure Voyarr to interact with third-party services (such as media providers, StashDB, ThePornDB, etc.), Voyarr will send and receive information from these services as required for its operation. Your interaction with these services is subject to their respective privacy policies and terms of service.
+
+Additionally:
+*   **Hosted Scraper Service (Browserless.io):** By default, web scraping is routed to a third-party hosted headless browser engine (browserless.io free tier or self-hosted endpoint you specify) to reduce local container disk and memory consumption. Target page contents being parsed are processed by this hosted service under their privacy terms. You can fully override this behaviour and keep scraping 100% local by starting the optional local Docker container (`--profile browserless`) and setting your own local WS URL.
 
 ## 5. Data Security
 
