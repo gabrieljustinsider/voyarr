@@ -103,6 +103,7 @@ TZ=America/New_York
   ```
 - **If using Synology Container Manager**: Go to Project -> Create, upload your `docker-compose.yml`, select your `.env` file, and click Next.
 - **If using Portainer**: Go to Stacks -> Add Stack, paste the contents of `docker-compose.yml`, upload `.env`, and click Deploy.
+  * *Note: If deployment takes longer than 60 seconds (due to slow network speeds or pulling the browserless image), Portainer's UI might throw a `504 Gateway Timeout`. See the [Troubleshooting Guide](TROUBLESHOOTING.md#11-504-gateway-timeout-during-portainer-stack-deployment) for how to handle this.*
 
 ---
 

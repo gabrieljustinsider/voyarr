@@ -293,6 +293,7 @@ docker compose up -d --build
   2. Paste the contents of `docker-compose.yml` into the Web editor.
   3. Add environment variables under **Environment variables** or upload the `.env` file.
   4. Click **Deploy the stack**.
+     * *Note: If deployment takes longer than 60 seconds (due to slow network speeds or pulling the browserless image), Portainer's UI might throw a `504 Gateway Timeout`. See the [Troubleshooting Guide](TROUBLESHOOTING.md#11-504-gateway-timeout-during-portainer-stack-deployment) to resolve it.*
 
 ---
 
