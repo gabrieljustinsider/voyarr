@@ -70,9 +70,12 @@ def scan_library(
     }
 
     for d in target_dirs:
-        if not os.path.exists(d):
+        abs_d = os.path.abspath(d)
+        if not (abs_d.startswith("/media") or abs_d.startswith("/downloads") or abs_d.startswith("/mnt") or abs_d.startswith("/app") or abs_d.startswith("/tmp")):
             continue
-        result = matcher.scan_directory(d, provider_id, pattern)
+        if not os.path.exists(abs_d):
+            continue
+        result = matcher.scan_directory(abs_d, provider_id, pattern)
         if "error" in result:
             raise HTTPException(status_code=400, detail=result["error"])
 
@@ -258,8 +261,15 @@ def rename_facial_cluster(
     old_thumb = os.path.join(faces_dir, f"{safe_old_name}.jpg")
     new_thumb = os.path.join(faces_dir, f"{safe_new_name}.jpg")
 
-    if os.path.exists(old_thumb):  # lgtm [py/path-injection]
-        os.rename(old_thumb, new_thumb)  # lgtm [py/path-injection]
+    # Inline sanitization for CodeQL path injection tracking
+    abs_old = os.path.abspath(old_thumb)
+    abs_new = os.path.abspath(new_thumb)
+    for path_to_check in (abs_old, abs_new):
+        if not (path_to_check.startswith("/media") or path_to_check.startswith("/downloads") or path_to_check.startswith("/mnt") or path_to_check.startswith("/app") or path_to_check.startswith("/tmp")):
+            raise HTTPException(status_code=403, detail="Access denied")
+
+    if os.path.exists(abs_old):  # lgtm [py/path-injection]
+        os.rename(abs_old, abs_new)  # lgtm [py/path-injection]
 
     return {"message": "Cluster renamed successfully", "new_name": safe_new_name}
 
@@ -304,7 +314,12 @@ def serve_hls_file(entry_id: int, filename: str, db: Session = Depends(get_db)):
     hls_dir = f"{file_path}.hls"
     file_path = os.path.join(hls_dir, safe_filename)
 
-    if not os.path.exists(file_path):  # lgtm [py/path-injection]
+    # Inline sanitization for CodeQL path injection tracking
+    abs_file_path = os.path.abspath(file_path)
+    if not (abs_file_path.startswith("/media") or abs_file_path.startswith("/downloads") or abs_file_path.startswith("/mnt") or abs_file_path.startswith("/app") or abs_file_path.startswith("/tmp")):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    if not os.path.exists(abs_file_path):  # lgtm [py/path-injection]
         raise HTTPException(
             status_code=404, detail="HLS file not found. Ensure generation is complete."
         )
@@ -314,7 +329,7 @@ def serve_hls_file(entry_id: int, filename: str, db: Session = Depends(get_db)):
         if safe_filename.endswith(".m3u8")
         else "video/MP2T"
     )
-    return FileResponse(file_path, media_type=media_type)  # lgtm [py/path-injection]
+    return FileResponse(abs_file_path, media_type=media_type)  # lgtm [py/path-injection]
 
 
 class ManualBulkEditRequest(BaseModel):
@@ -418,11 +433,18 @@ def rename_library_file(entry_id: int, req: RenameRequest, db: Session = Depends
     new_path = validate_path(os.path.join(old_dir, safe_new_filename))
     old_path = validate_path(old_path)
 
-    if os.path.exists(new_path) and new_path != old_path:
+    # Inline sanitization for CodeQL path injection tracking
+    abs_old = os.path.abspath(old_path)
+    abs_new = os.path.abspath(new_path)
+    for path_to_check in (abs_old, abs_new):
+        if not (path_to_check.startswith("/media") or path_to_check.startswith("/downloads") or path_to_check.startswith("/mnt") or path_to_check.startswith("/app") or path_to_check.startswith("/tmp")):
+            raise HTTPException(status_code=403, detail="Access denied")
+
+    if os.path.exists(abs_new) and abs_new != abs_old:
         raise HTTPException(status_code=400, detail="Target filename already exists on disk")
 
     try:
-        os.rename(old_path, new_path)
+        os.rename(abs_old, abs_new)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to physically rename file: {str(e)}")
 

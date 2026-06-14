@@ -38,7 +38,12 @@ class ReverseRegexMatcher:
         except Exception as e:  # pylint: disable=broad-exception-caught
             return {"error": f"Access denied or invalid directory path: {str(e)}"}
 
-        if not os.path.exists(real_dir):
+        # Inline sanitization for CodeQL path injection tracking
+        abs_real_dir = os.path.abspath(real_dir)
+        if not (abs_real_dir.startswith("/media") or abs_real_dir.startswith("/downloads") or abs_real_dir.startswith("/mnt") or abs_real_dir.startswith("/app") or abs_real_dir.startswith("/tmp")):
+            return {"error": "Access denied: invalid path prefix"}
+
+        if not os.path.exists(abs_real_dir):
             return {"error": f"Directory not found: {directory}"}
 
         regex = self.pattern_to_regex(pattern)
@@ -46,12 +51,17 @@ class ReverseRegexMatcher:
         matched = 0
         errors = []
 
-        for root, _, files in os.walk(real_dir):  # lgtm [py/path-injection]
+        for root, _, files in os.walk(abs_real_dir):  # lgtm [py/path-injection]
             for filename in files:
                 if not filename.lower().endswith((".mp4", ".mkv", ".avi", ".mov", ".webm")):
                     continue
 
                 file_path = os.path.join(root, filename)
+                # Inline check for CodeQL path injection tracking
+                abs_file_path = os.path.abspath(file_path)
+                if not (abs_file_path.startswith("/media") or abs_file_path.startswith("/downloads") or abs_file_path.startswith("/mnt") or abs_file_path.startswith("/app") or abs_file_path.startswith("/tmp")):
+                    continue
+                file_path = abs_file_path
                 filename_no_ext = os.path.splitext(filename)[0]
 
                 match = regex.match(filename_no_ext)

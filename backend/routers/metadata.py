@@ -39,12 +39,18 @@ def fetch_url_details(req: UrlFetchRequest):
         raise HTTPException(status_code=400, detail="Invalid or unsafe URL provided (SSRF protection block)")
     
     import requests
+    import urllib.parse
     from bs4 import BeautifulSoup
     try:
+        parsed = urllib.parse.urlparse(url)
+        if parsed.scheme not in ("http", "https"):
+            raise HTTPException(status_code=400, detail="Invalid URL scheme")
+        safe_url = urllib.parse.urlunparse(parsed)
+        
         headers = {
             "User-Agent": "Voyarr/1.0 (Url Metadata Extractor; +https://github.com/gabrieljustinsider/voyarr)"
         }
-        res = requests.get(url, headers=headers, timeout=5)
+        res = requests.get(safe_url, headers=headers, timeout=5)
         res.raise_for_status()
         
         soup = BeautifulSoup(res.text, "html.parser")

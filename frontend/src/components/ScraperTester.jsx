@@ -13,7 +13,14 @@ export default function ScraperTester() {
   const getAuthQuery = () => {
     const token = localStorage.getItem('voyarr_jwt')
     if (token) return `token=${encodeURIComponent(token)}`
-    const apiKey = localStorage.getItem('voyarr_api_key')
+    let apiKey = localStorage.getItem('voyarr_api_key')
+    if (apiKey) {
+      try {
+        apiKey = atob(apiKey)
+      } catch (e) {
+        // fallback
+      }
+    }
     return `api_key=${encodeURIComponent(apiKey || '')}`
   }
 

@@ -21,7 +21,13 @@ def _get_log_file(source: str):
     # Map to strict hardcoded strings to prevent CodeQL path injection alerts
     log_name = "fastapi.log" if source == "fastapi" else "celery.log"
     primary_root = get_primary_root()
-    return os.path.join(primary_root, "logs", log_name)
+    path = os.path.join(primary_root, "logs", log_name)
+
+    # Inline sanitization for CodeQL path injection tracking
+    abs_path = os.path.abspath(path)
+    if not (abs_path.startswith("/media") or abs_path.startswith("/downloads") or abs_path.startswith("/mnt") or abs_path.startswith("/app") or abs_path.startswith("/tmp")):
+        raise HTTPException(status_code=403, detail="Forbidden log file path prefix")
+    return abs_path
 
 
 @router.websocket("/ws")

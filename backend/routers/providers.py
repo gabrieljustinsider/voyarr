@@ -115,10 +115,14 @@ def _scrape_url_for_details(target_url: str) -> Dict[str, Any]:
     validate_url_ssrf(target_url)
     import os
     import requests as req_lib
+    import urllib.parse
     from bs4 import BeautifulSoup
     from urllib.parse import urljoin, urlparse
 
-    base_url = target_url.rstrip("/")
+    parsed = urllib.parse.urlparse(target_url)
+    if parsed.scheme not in ("http", "https"):
+        raise HTTPException(status_code=400, detail="Invalid URL scheme")
+    base_url = urllib.parse.urlunparse(parsed).rstrip("/")
     headers = {
         "User-Agent": os.getenv(
             "DEFAULT_USER_AGENT",

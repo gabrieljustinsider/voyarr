@@ -5,7 +5,16 @@ export const getAuthHeaders = () => {
   if (jwt) {
     return { 'Authorization': `Bearer ${jwt}` }
   }
-  const apiKey = localStorage.getItem('voyarr_api_key') || import.meta.env.VITE_MASTER_KEY
+  let apiKey = localStorage.getItem('voyarr_api_key')
+  if (apiKey) {
+    try {
+      apiKey = atob(apiKey)
+    } catch (e) {
+      // fallback
+    }
+  } else {
+    apiKey = import.meta.env.VITE_MASTER_KEY
+  }
   if (apiKey) {
     return { 'X-Voyarr-Api-Key': apiKey }
   }

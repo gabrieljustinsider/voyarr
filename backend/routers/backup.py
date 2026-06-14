@@ -491,6 +491,12 @@ def verify_local_backup(
 ):
     backup_dir = get_backup_dir()
     abs_backup_dir = os.path.abspath(backup_dir)
+    
+    # Inline sanitization for CodeQL path injection tracking
+    candidate_path = os.path.abspath(filepath)
+    if not (candidate_path.startswith(abs_backup_dir + os.sep) or candidate_path == abs_backup_dir):
+        raise HTTPException(status_code=403, detail="Forbidden: path traversal detected")
+        
     abs_filepath = validate_path(filepath, allowed_roots=[abs_backup_dir])
 
     if not os.path.exists(abs_filepath):
@@ -530,6 +536,12 @@ def restore_local_backup(
 ):
     backup_dir = get_backup_dir()
     abs_backup_dir = os.path.abspath(backup_dir)
+    
+    # Inline sanitization for CodeQL path injection tracking
+    candidate_path = os.path.abspath(filepath)
+    if not (candidate_path.startswith(abs_backup_dir + os.sep) or candidate_path == abs_backup_dir):
+        raise HTTPException(status_code=403, detail="Forbidden: path traversal detected")
+        
     abs_filepath = validate_path(filepath, allowed_roots=[abs_backup_dir])
 
     if not os.path.exists(abs_filepath):

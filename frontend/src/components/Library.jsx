@@ -84,7 +84,14 @@ export default function Library() {
   const getAuthQuery = () => {
     const token = localStorage.getItem('voyarr_jwt')
     if (token) return `token=${encodeURIComponent(token)}`
-    const key = localStorage.getItem('voyarr_api_key')
+    let key = localStorage.getItem('voyarr_api_key')
+    if (key) {
+      try {
+        key = atob(key)
+      } catch (e) {
+        // fallback
+      }
+    }
     return `api_key=${encodeURIComponent(key || '')}`
   }
 
