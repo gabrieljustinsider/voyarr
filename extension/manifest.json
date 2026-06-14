@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Voyarr Lens",
-  "version": "1.18.13",
+  "version": "1.18.14",
   "description": "Voyarr companion extension for visual CSS mapping and element scoping.",
   "permissions": [
     "activeTab",
@@ -31,6 +31,18 @@
   "background": {
     "service_worker": "background.js"
   },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "detect-pairing.js"
+      ],
+      "run_at": "document_start"
+    }
+  ],
   "icons": {
     "16": "icon-16.png",
     "48": "icon-48.png",

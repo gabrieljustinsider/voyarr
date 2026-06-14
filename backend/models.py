@@ -813,6 +813,7 @@ class Passkey(Base):
     public_key = Column(Text, nullable=False)
     sign_count = Column(Integer, default=0)
     aaguid = Column(String(64), nullable=True)
+    rp_id = Column(String(255), nullable=True)
 
     # Metadata and logging
     created_at = Column(TIMESTAMP, default=func.current_timestamp())

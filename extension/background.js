@@ -32,6 +32,17 @@ async function activateMapMode(tab) {
 }
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === "VOYARR_PAIRING_CODE_DETECTED") {
+        chrome.storage.local.set({
+            pendingPairing: {
+                url: request.url,
+                pairingCode: request.pairingCode,
+                timestamp: Date.now()
+            }
+        });
+        return;
+    }
+
     if (request.action === "SAVE_RECIPE_MAPPING") {
         (async () => {
             try {

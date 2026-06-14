@@ -319,6 +319,21 @@
       </div>
     </div>
 
+    <!-- Pairing Banner -->
+    <div id="pairingBanner" style="display: none; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 8px; padding: 10px; font-size: 11px; animation: fadeIn 0.3s ease; flex-direction: column; gap: 6px; margin-bottom: 8px;">
+      <div style="font-weight: 600; color: #10b981; display: flex; align-items: center; gap: 4px;">
+        <span>🔐 Voyarr Lens Pairing Request</span>
+      </div>
+      <div style="color: var(--text-main); font-family: monospace; font-size: 10px; word-break: break-all;" id="pairingUrlText">http://localhost:8000</div>
+      <div style="font-size: 10px; color: var(--text-muted);">
+        A pairing request was initiated. Click below to automatically pair.
+      </div>
+      <div style="display: flex; gap: 6px; margin-top: 2px;">
+        <button id="confirmPairBtn" class="btn" style="flex: 2; padding: 5px; font-size: 10px; border-radius: 4px; height: auto; box-shadow: none; background: #10b981; color: white;">Pair Now</button>
+        <button id="dismissPairBtn" class="btn btn-secondary" style="flex: 1; padding: 5px; font-size: 10px; border-radius: 4px; height: auto;">Dismiss</button>
+      </div>
+    </div>
+
     <!-- Navigation Tabs -->
     <div class="tabs">
       <button class="tab-btn active" data-tab="map-tab">Remote Map</button>

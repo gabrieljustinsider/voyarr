@@ -85,7 +85,8 @@ def list_passkeys(current_user: User = Depends(get_current_user), db: Session = 
             "os_name": pk.os_name,
             "backup_eligible": pk.backup_eligible,
             "backup_state": pk.backup_state,
-            "aaguid_info": aaguid_meta
+            "aaguid_info": aaguid_meta,
+            "rp_id": pk.rp_id
         })
     return result
 
@@ -138,6 +139,7 @@ def register_verify(
     
     client_ip = request.client.host if request.client else "127.0.0.1"
     location = resolve_ip_location(client_ip)
+    rp_id = get_rp_id(request)
     
     passkey = Passkey(
         user_id=current_user.id,
@@ -145,6 +147,7 @@ def register_verify(
         credential_id=req.credential_id,
         public_key=req.public_key,
         aaguid=req.aaguid,
+        rp_id=rp_id,
         ip_address=client_ip,
         location=location,
         browser=req.browser,

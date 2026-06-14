@@ -34,6 +34,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const addDetectedBtn = document.getElementById('addDetectedBtn');
   const dismissDetectedBtn = document.getElementById('dismissDetectedBtn');
 
+  // Pairing Elements
+  const pairingBanner = document.getElementById('pairingBanner');
+  const pairingUrlText = document.getElementById('pairingUrlText');
+  const confirmPairBtn = document.getElementById('confirmPairBtn');
+  const dismissPairBtn = document.getElementById('dismissPairBtn');
+
   const providerSelect = document.getElementById('providerSelect');
   const fieldSelect = document.getElementById('fieldSelect');
   const toggleBtn = document.getElementById('toggleBtn');
@@ -606,6 +612,19 @@ document.addEventListener('DOMContentLoaded', () => {
   // Probe active tab for Voyarr Server
   async function probeActiveTab() {
     try {
+      // 1. Check for pending pairing requests first
+      const stored = await chrome.storage.local.get(['pendingPairing']);
+      if (stored.pendingPairing) {
+        const { url, pairingCode, timestamp } = stored.pendingPairing;
+        // Expire pairing proposal after 5 minutes (300000ms)
+        if (Date.now() - timestamp < 300000) {
+          showPairingInvitation(url, pairingCode);
+          return;
+        } else {
+          await chrome.storage.local.remove(['pendingPairing']);
+        }
+      }
+
       const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tabs || !tabs[0] || !tabs[0].url) return;
 
@@ -624,6 +643,23 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       if (isAlreadyConfigured) return;
+
+      // 2. Perform DOM-based check first (more secure/no noise fetches)
+      let hasMetaTag = false;
+      try {
+        const [{ result }] = await chrome.scripting.executeScript({
+          target: { tabId: tabs[0].id },
+          func: () => !!document.querySelector('meta[name="voyarr-server"]')
+        });
+        hasMetaTag = result;
+      } catch (err) {
+        console.warn("DOM discovery failed/blocked (falling back to fetch):", err);
+      }
+
+      if (hasMetaTag) {
+        showDetectedServer(origin, 0); // Latency 0 for DOM detection
+        return;
+      }
 
       // Ping /api/health to auto-detect
       const controller = new AbortController();
@@ -662,6 +698,74 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) {
       console.error("Probing active tab error:", e);
     }
+  }
+
+  function showPairingInvitation(url, pairingCode) {
+    pairingUrlText.textContent = url;
+    pairingBanner.style.display = "flex";
+
+    confirmPairBtn.onclick = async () => {
+      confirmPairBtn.disabled = true;
+      confirmPairBtn.textContent = "Pairing...";
+
+      try {
+        const response = await fetch(`${url.replace(/\/$/, '')}/api/auth/pair/confirm`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ pairing_code: pairingCode })
+        });
+
+        if (!response.ok) {
+          throw new Error("Invalid or expired pairing code");
+        }
+
+        const result = await response.json();
+        if (result.status === "success" && result.raw_key) {
+          // Add paired server to configurations
+          const newServer = {
+            id: 'server-' + Date.now(),
+            name: "Paired Voyarr Server",
+            url: url.replace(/\/$/, ''),
+            apiKey: result.raw_key,
+            latency: 5
+          };
+
+          servers.push(newServer);
+          activeServerId = newServer.id;
+
+          await chrome.storage.local.set({
+            voyarrServers: servers,
+            activeServerId: activeServerId,
+            voyarrApiUrl: newServer.url,
+            voyarrSecret: newServer.apiKey
+          });
+
+          await chrome.storage.local.remove(['pendingPairing']);
+          showToast(settingsToast, "Successfully paired and connected!", true);
+          pairingBanner.style.display = "none";
+          
+          populateActiveServerSelect();
+          renderServerList();
+          
+          // Test connection to fetch providers
+          await testConnection(newServer.url, newServer.apiKey);
+        } else {
+          throw new Error("Pairing failed: no key returned");
+        }
+      } catch (err) {
+        showToast(settingsToast, "Pairing failed: " + err.message, false);
+      } finally {
+        confirmPairBtn.disabled = false;
+        confirmPairBtn.textContent = "Pair Now";
+      }
+    };
+
+    dismissPairBtn.onclick = async () => {
+      await chrome.storage.local.remove(['pendingPairing']);
+      pairingBanner.style.display = "none";
+    };
   }
 
   function showDetectedServer(origin, latencyMs) {

@@ -155,17 +155,30 @@ The browser companion is a highly interactive extension that connects Google Chr
 5. The **Voyarr Lens** icon (a blue lens logo) will appear in your extensions list. Pin it to your browser toolbar for quick access!
 
 ### Connecting it to Your Server:
-1. Click the **Voyarr Lens** icon in your toolbar.
-2. In the popup, enter your self-hosted server URL (e.g., `http://192.168.1.50:8000`).
-3. Enter your **Master API Key** (you can find or generate this in your web app under **Settings > Developer & API Keys**).
-4. Click **Connect**. Once connected, a green indicator will light up, showing you are ready to map!
+There are two ways to connect Voyarr Lens to your self-hosted Voyarr server:
 
-### 📡 Local Network Server Auto-Discovery (Scan Local):
-If you do not know your self-hosted server's IP address, you can use the **Scan Local** button in the popup to scan your local network:
-* **Configurable Port**: Enter the port to be scanned directly inside the port input field adjacent to the scan button (defaults to `8000`).
-* **Subnets Searched**: The scanner probes common local private networks (`192.168.1.x`, `192.168.0.x`, and `10.0.0.x`). If the active tab is running on a local numerical IP, that subnet is automatically prioritized and scanned first.
-* **Host Range & Performance**: Probes host identifiers sequentially from `.1` to `.60` in parallel batches of `15`. To ensure high performance, each probe is restricted to a fast `400ms` connection timeout.
-* **Server Verification Criteria**: An HTTP `GET` request is dispatched to `http://<ip>:<port>/api/health`, with a fallback to `http://<ip>:<port>/health`. The scanned IP is verified as a valid active Voyarr server only if it responds with a successful HTTP code (2xx) and a JSON payload containing `"status": "healthy"`.
+#### Option A: One-Click Secure Pairing (Recommended)
+Voyarr now supports a secure, zero-config pairing handshake:
+1. Log into your Voyarr Web App and navigate to **Settings > External API Keys**.
+2. Click **Initiate Pairing** in the **Voyarr Lens Companion Pairing** panel. This will generate a temporary 6-digit numeric pairing code (valid for 5 minutes) and broadcast it securely.
+3. Click the **Voyarr Lens** icon in your browser toolbar.
+4. Lens will automatically detect the active pairing request and display a banner: **"🔐 Voyarr Lens Pairing Request: Pair Now"**.
+5. Click **Pair Now**. Lens will securely negotiate a scoped API key directly with the server, auto-configure the URL, and establish the connection instantly!
+
+#### Option B: Manual Setup
+1. Click the **Voyarr Lens** icon in your toolbar.
+2. In the popup under the **Settings** tab, enter your self-hosted server URL (e.g., `http://192.168.1.50:8000`).
+3. Enter an API Key generated under **Settings > External API Keys** or your **Master API Key**.
+4. Click **Add & Test Server**. Once connected, you are ready to map!
+
+### 🔍 Auto-Discovery Methods:
+In addition to manual entry, Voyarr Lens uses two automated methods to locate your server:
+1. **Instant DOM-Based Discovery**: The Voyarr web application includes a secure `<meta name="voyarr-server" content="true">` tag in its DOM. When you open the extension popup while viewing the Voyarr web app, Lens reads the DOM to instantly detect the server without making external cross-origin HTTP ping requests.
+2. **📡 Local Network Server Scan (Scan Local)**: If you are not on the Voyarr page, click the **Scan Local** button in the popup to probe your local subnet:
+   * **Configurable Port**: Enter the port directly adjacent to the scan button (defaults to `8000`).
+   * **Subnets Searched**: The scanner probes common local private networks (`192.168.1.x`, `192.168.0.x`, and `10.0.0.x`). If the active tab is running on a local numerical IP, that subnet is automatically prioritized and scanned first.
+   * **Host Range & Performance**: Probes host identifiers sequentially from `.1` to `.60` in parallel batches of `15`. To ensure high performance, each probe is restricted to a fast `400ms` connection timeout.
+   * **Server Verification Criteria**: An HTTP `GET` request is dispatched to `http://<ip>:<port>/api/health`, with a fallback to `http://<ip>:<port>/health`. The scanned IP is verified as a valid active Voyarr server only if it responds with a successful HTTP code (2xx) and a JSON payload containing `"status": "healthy"`.
 
 ### 🕶️ Meta Quest Browser & Mobile VR Setup (Universal Bookmarklet):
 Since the **Meta Quest Browser** runs on an isolated virtual reality OS, it does not allow you to install third-party unpacked folders from the Chrome Web Store. 

@@ -1043,3 +1043,81 @@ def get_current_user_profile(
         "passkeys": passkeys_list,
         "sso_links": sso_list
     }
+
+
+import time
+from hashlib import sha256
+
+PENDING_PAIRINGS = {}  # pairing_code -> {"key_hash": str, "raw_key": str, "expires_at": float}
+
+
+class PairConfirmRequest(BaseModel):
+    pairing_code: str
+
+
+@router.post("/pair/initiate")
+def initiate_pairing(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Initiates a secure pairing flow for Voyarr Lens.
+    Requires user to be logged in. Generates a 6-digit numeric pairing code.
+    """
+    # Generate user-friendly 6-digit code
+    pairing_code = "".join(secrets.choice("0123456789") for _ in range(6))
+    
+    # Pre-generate a secure API key
+    raw_key = f"vyr_lens_{secrets.token_urlsafe(32)}"
+    key_hash = sha256(raw_key.encode()).hexdigest()
+    
+    # Store with a 5-minute expiry
+    PENDING_PAIRINGS[pairing_code] = {
+        "key_hash": key_hash,
+        "raw_key": raw_key,
+        "expires_at": time.time() + 300
+    }
+    
+    return {"pairing_code": pairing_code, "expires_in": 300}
+
+
+@router.post("/pair/confirm")
+def confirm_pairing(
+    req: PairConfirmRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Confirmed by the extension.
+    Verifies the pairing code, registers the API key, and returns the raw key.
+    """
+    code = req.pairing_code.strip()
+    
+    # Clean up expired entries
+    now = time.time()
+    expired = [k for k, v in PENDING_PAIRINGS.items() if v["expires_at"] < now]
+    for k in expired:
+        PENDING_PAIRINGS.pop(k, None)
+        
+    if code not in PENDING_PAIRINGS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired pairing code."
+        )
+        
+    pairing_data = PENDING_PAIRINGS.pop(code)
+    
+    from models import ApiKey
+    
+    new_key = ApiKey(
+        name="Voyarr Lens Companion (Paired)",
+        key_hash=pairing_data["key_hash"]
+    )
+    db.add(new_key)
+    db.commit()
+    db.refresh(new_key)
+    
+    return {
+        "status": "success",
+        "raw_key": pairing_data["raw_key"]
+    }
+

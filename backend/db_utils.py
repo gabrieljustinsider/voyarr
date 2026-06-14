@@ -89,6 +89,25 @@ def run_schema_migrations(engine: Any) -> None:
                     pass
                 logger.warning(f"Failed to add last_login_at column: {e}")
 
+        # 1c. Check if passkeys table has rp_id column, if not, add it
+        try:
+            conn.execute(text("SELECT rp_id FROM passkeys LIMIT 1"))
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            try:
+                conn.execute(text("ALTER TABLE passkeys ADD COLUMN rp_id VARCHAR(255) NULL"))
+                conn.commit()
+                logger.info("Database migration successfully added 'rp_id' to 'passkeys'.")
+            except Exception as e:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                logger.warning(f"Failed to add rp_id column to passkeys: {e}")
+
         # 2. Check if admin_logs table exists, if not, create it
         try:
             conn.execute(text("SELECT id FROM admin_logs LIMIT 1"))

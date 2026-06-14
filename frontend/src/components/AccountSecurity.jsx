@@ -361,6 +361,7 @@ export default function AccountSecurity({ setSnackbar }) {
                 <TableRow>
                   <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Name</TableCell>
                   <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Created</TableCell>
+                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Binding Target</TableCell>
                   <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
@@ -375,6 +376,29 @@ export default function AccountSecurity({ setSnackbar }) {
                       />
                     </TableCell>
                     <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>{new Date(pk.created_at).toLocaleDateString()}</TableCell>
+                    <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
+                      {pk.rp_id ? (
+                        <Chip
+                          label={pk.rp_id === 'localhost' ? 'Local Link (localhost / IP)' : `Domain (${pk.rp_id})`}
+                          size="small"
+                          color={pk.rp_id === 'localhost' ? 'default' : 'primary'}
+                          variant="outlined"
+                          sx={{ 
+                            fontSize: '11px',
+                            borderColor: pk.rp_id === 'localhost' ? 'rgba(255,255,255,0.1)' : 'rgba(99, 102, 241, 0.3)',
+                            color: pk.rp_id === 'localhost' ? 'text.secondary' : 'primary.light'
+                          }}
+                        />
+                      ) : (
+                        <Chip
+                          label="Legacy (Any Domain)"
+                          size="small"
+                          variant="outlined"
+                          color="warning"
+                          sx={{ fontSize: '11px', opacity: 0.7 }}
+                        />
+                      )}
+                    </TableCell>
                     <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                       <IconButton color="error" size="small" onClick={() => handleDeletePasskey(pk.id)}>
                         <Trash2 size={18} />

@@ -532,7 +532,8 @@ CREATE TABLE passkeys (
     browser VARCHAR(100),
     os_name VARCHAR(100),
     backup_eligible BOOLEAN DEFAULT TRUE,
-    backup_state BOOLEAN DEFAULT TRUE
+    backup_state BOOLEAN DEFAULT TRUE,
+    rp_id VARCHAR(255) NULL
 );
 CREATE INDEX idx_passkeys_user_id ON passkeys(user_id);
 CREATE INDEX idx_passkeys_credential_id ON passkeys(credential_id);
