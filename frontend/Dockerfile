@@ -19,8 +19,8 @@ RUN npm run build
 
 # Production stage
 FROM nginx:alpine
-LABEL version="1.18.14"
-LABEL org.opencontainers.image.version="1.18.14"
+LABEL version="1.18.15"
+LABEL org.opencontainers.image.version="1.18.15"
 
 # Copy built app
 COPY --from=build /app/dist /usr/share/nginx/html
