@@ -921,20 +921,59 @@ export default function Settings() {
         <Divider sx={{ mb: 2 }} />
 
         <Grid container spacing={3}>
-          {/* Media Root Paths List Management */}
+          {/* Left Column: All Input Fields Vertically Stacked */}
           <Grid item xs={12} md={7}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>Media Root Scan Paths</Typography>
-            <PathPicker
-              value=""
-              onChange={(val) => {
-                if (val) {
-                  handleAddMediaPath(val);
-                }
-              }}
-              label="Add Media Root Path"
-              mode="folder"
-            />
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>Media Root Scan Paths</Typography>
+                <PathPicker
+                  value=""
+                  onChange={(val) => {
+                    if (val) {
+                      handleAddMediaPath(val);
+                    }
+                  }}
+                  label="Add Media Root Path"
+                  mode="folder"
+                />
+              </Box>
+
+              <PathPicker
+                value={settings.download_destination || ''}
+                onChange={(val) => {
+                  setSettings(prev => ({ ...prev, download_destination: val }));
+                  handleSave('download_destination', val);
+                }}
+                label="Download Destination Path"
+                helperText="Target directory for new downloads"
+                mode="folder"
+              />
+
+              <PathPicker
+                value={settings.library_folder || ''}
+                onChange={(val) => {
+                  setSettings(prev => ({ ...prev, library_folder: val }));
+                  handleSave('library_folder', val);
+                }}
+                label="Library Folder Path"
+                helperText="Root directory for sorted media library"
+                mode="folder"
+              />
+
+              <PathPicker
+                value={settings.scan_folder || ''}
+                onChange={(val) => {
+                  setSettings(prev => ({ ...prev, scan_folder: val }));
+                  handleSave('scan_folder', val);
+                }}
+                label="Scan Folder Path"
+                helperText="Directory to monitor for incoming files"
+                mode="folder"
+              />
+            </Box>
           </Grid>
+
+          {/* Right Column: Added Paths Chips */}
           <Grid item xs={12} md={5}>
             <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>Added Paths</Typography>
             {mediaPaths.length === 0 ? (
@@ -952,45 +991,6 @@ export default function Settings() {
                 ))}
               </Box>
             )}
-          </Grid>
-
-          <Grid item xs={12} md={7}>
-            <PathPicker
-              value={settings.download_destination || ''}
-              onChange={(val) => {
-                setSettings(prev => ({ ...prev, download_destination: val }));
-                handleSave('download_destination', val);
-              }}
-              label="Download Destination Path"
-              helperText="Target directory for new downloads"
-              mode="folder"
-            />
-          </Grid>
-
-          <Grid item xs={12} md={7}>
-            <PathPicker
-              value={settings.library_folder || ''}
-              onChange={(val) => {
-                setSettings(prev => ({ ...prev, library_folder: val }));
-                handleSave('library_folder', val);
-              }}
-              label="Library Folder Path"
-              helperText="Root directory for sorted media library"
-              mode="folder"
-            />
-          </Grid>
-
-          <Grid item xs={12} md={7}>
-            <PathPicker
-              value={settings.scan_folder || ''}
-              onChange={(val) => {
-                setSettings(prev => ({ ...prev, scan_folder: val }));
-                handleSave('scan_folder', val);
-              }}
-              label="Scan Folder Path"
-              helperText="Directory to monitor for incoming files"
-              mode="folder"
-            />
           </Grid>
         </Grid>
       </Paper>
