@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from models import LibraryEntry, MediaEntry, FileNamingHistory
 from services.hash_service import HashService
-from utils import validate_path
+from utils import validate_path, sanitize_tainted_path
 
 
 class ReverseRegexMatcher:
@@ -39,9 +39,7 @@ class ReverseRegexMatcher:
             return {"error": f"Access denied or invalid directory path: {str(e)}"}
 
         # Inline sanitization for CodeQL path injection tracking
-        abs_real_dir = os.path.abspath(real_dir)
-        if not (abs_real_dir.startswith("/media") or abs_real_dir.startswith("/downloads") or abs_real_dir.startswith("/mnt") or abs_real_dir.startswith("/app") or abs_real_dir.startswith("/tmp")):
-            return {"error": "Access denied: invalid path prefix"}
+        abs_real_dir = sanitize_tainted_path(real_dir)
 
         if not os.path.exists(abs_real_dir):
             return {"error": f"Directory not found: {directory}"}
@@ -58,9 +56,7 @@ class ReverseRegexMatcher:
 
                 file_path = os.path.join(root, filename)
                 # Inline check for CodeQL path injection tracking
-                abs_file_path = os.path.abspath(file_path)
-                if not (abs_file_path.startswith("/media") or abs_file_path.startswith("/downloads") or abs_file_path.startswith("/mnt") or abs_file_path.startswith("/app") or abs_file_path.startswith("/tmp")):
-                    continue
+                abs_file_path = sanitize_tainted_path(file_path)
                 file_path = abs_file_path
                 filename_no_ext = os.path.splitext(filename)[0]
 

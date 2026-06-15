@@ -360,8 +360,8 @@ def _process_discord_command(db: Session, interaction_type: int, data: dict):
             db_status = "🟢 Dialect: " + engine.name
             try:
                 db.execute(text("SELECT 1"))
-            except Exception as e:
-                db_status = f"🔴 Error: {str(e)}"
+            except Exception:
+                db_status = "🔴 Connection failed"
 
             # 2. Redis Check
             import urllib.parse
@@ -376,8 +376,8 @@ def _process_discord_command(db: Session, interaction_type: int, data: dict):
                 s.connect((host, port))
                 s.close()
                 redis_status = "🟢 Healthy"
-            except Exception as e:
-                redis_status = f"🔴 Error: {str(e)}"
+            except Exception:
+                redis_status = "🔴 Connection failed"
 
             # 3. Environment details
             is_docker = os.path.exists("/.dockerenv")

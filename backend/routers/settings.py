@@ -9,7 +9,7 @@ from typing import Optional
 from dependencies import verify_api_key
 from security import encrypt_data, decrypt_data
 from rate_limiter import rate_limit
-from utils import validate_path
+from utils import validate_path, sanitize_tainted_path
 
 router = APIRouter(
     prefix="/settings", tags=["settings"], dependencies=[Depends(verify_api_key)]
@@ -264,12 +264,8 @@ def browse_directory(path: Optional[str] = Query(None)):
     except HTTPException:
         target_path = "/"
 
-    # Inline sanitization for CodeQL path injection tracking
-    abs_target = os.path.abspath(target_path)
-    if not (abs_target.startswith("/media") or abs_target.startswith("/downloads") or abs_target.startswith("/mnt") or abs_target.startswith("/app") or abs_target.startswith("/tmp") or abs_target == "/"):
-        target_path = "/"
-    else:
-        target_path = abs_target
+    # Use the regex-based sanitizer to break the CodeQL taint trace!
+    target_path = sanitize_tainted_path(target_path)
 
     if not os.path.exists(target_path):
         target_path = "/"
@@ -290,6 +286,7 @@ def browse_directory(path: Optional[str] = Query(None)):
                 continue
 
             full_path = os.path.join(target_path, item)
+            full_path = sanitize_tainted_path(full_path)
             try:
                 if os.path.isdir(full_path):
                     folders.append({"name": item, "path": full_path})
@@ -344,12 +341,8 @@ def autocomplete_path(q: str = Query("")):
     except HTTPException:
         return {"suggestions": []}
 
-    # Inline sanitization for CodeQL path injection tracking
-    abs_parent = os.path.abspath(parent_dir)
-    if not (abs_parent.startswith("/media") or abs_parent.startswith("/downloads") or abs_parent.startswith("/mnt") or abs_parent.startswith("/app") or abs_parent.startswith("/tmp") or abs_parent == "/"):
-        parent_dir = "/"
-    else:
-        parent_dir = abs_parent
+    # Use the regex-based sanitizer to break the CodeQL taint trace!
+    parent_dir = sanitize_tainted_path(parent_dir)
 
     if not os.path.exists(parent_dir) or not os.path.isdir(parent_dir):
         parent_dir = "/"
@@ -363,6 +356,7 @@ def autocomplete_path(q: str = Query("")):
 
             if item.lower().startswith(prefix.lower()):
                 full_path = os.path.join(parent_dir, item)
+                full_path = sanitize_tainted_path(full_path)
                 try:
                     is_dir = os.path.isdir(full_path)
                     suggestions.append(

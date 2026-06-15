@@ -25,9 +25,9 @@ async def get_system_status(db: Session = Depends(get_db)):
             "dialect": engine.name,
             "url": os.getenv("DATABASE_URL", "postgresql://voyarr_user:***@db:5432/voyarr").split("@")[-1]
         }
-    except Exception as e:
+    except Exception:
         db_status = "unhealthy"
-        db_details = {"error": str(e)}
+        db_details = {"error": "Database connection failed"}
 
     # 2. Redis check
     redis_status = "unknown"
@@ -38,9 +38,9 @@ async def get_system_status(db: Session = Depends(get_db)):
         redis_details = {
             "url": os.getenv("REDIS_URL", "redis://redis:6379/0").split("@")[-1]
         }
-    except Exception as e:
+    except Exception:
         redis_status = "unhealthy"
-        redis_details = {"error": str(e)}
+        redis_details = {"error": "Redis connection failed"}
 
     # 3. Celery check
     celery_status = "unknown"
@@ -59,23 +59,24 @@ async def get_system_status(db: Session = Depends(get_db)):
         else:
             celery_status = "unhealthy"
             celery_details = {"info": "No active workers detected"}
-    except Exception as e:
+    except Exception:
         celery_status = "unhealthy"
-        celery_details = {"error": str(e)}
+        celery_details = {"error": "Celery connection failed"}
 
     # 4. Browserless check
     browserless_status = "unknown"
     browserless_details = {}
     try:
         url = os.getenv("BROWSERLESS_URL", "wss://chrome.browserless.io")
-        is_cloud = "browserless.io" in url.lower()
+        import urllib.parse
+        parsed = urllib.parse.urlparse(url)
+        hostname = (parsed.hostname or "").lower()
+        is_cloud = hostname == "browserless.io" or hostname.endswith(".browserless.io")
         browserless_details = {
             "url": url,
             "type": "Cloud (Hosted)" if is_cloud else "Local (Docker)"
         }
         # Attempt a TCP connection check
-        import urllib.parse
-        parsed = urllib.parse.urlparse(url)
         host = parsed.hostname or "chrome.browserless.io"
         port = parsed.port or (443 if parsed.scheme in ("wss", "https") else 80)
         import socket
@@ -84,29 +85,20 @@ async def get_system_status(db: Session = Depends(get_db)):
         s.connect((host, port))
         s.close()
         browserless_status = "healthy"
-    except Exception as e:
+    except Exception:
         browserless_status = "unhealthy"
-        browserless_details["error"] = str(e)
+        browserless_details["error"] = "Browserless connection failed"
 
-    # 5. OS & Python Environment
-    is_docker = os.path.exists("/.dockerenv")
-    if not is_docker:
-        try:
-            with open("/proc/1/cgroup", "rt") as f:
-                is_docker = "docker" in f.read()
-        except Exception:
-            pass
-
-    import datetime
+    # 5. Disk space details
     now = datetime.datetime.now().astimezone()
-
     env_details = {
-        "os": f"{platform.system()} {platform.release()}",
-        "python_version": sys.version,
-        "is_docker": is_docker,
-        "system_time": {
-            "date": now.strftime("%Y-%m-%d"),
-            "time": now.strftime("%H:%M:%S"),
+        "os": platform.system(),
+        "release": platform.release(),
+        "python_version": sys.version.split()[0],
+        "docker_runtime": os.path.exists("/.dockerenv"),
+        "time": {
+            "utc": datetime.datetime.now(timezone.utc).isoformat(),
+            "local": now.isoformat(),
             "timezone": now.tzname() or "UTC"
         },
         "media_storage_disk": {},

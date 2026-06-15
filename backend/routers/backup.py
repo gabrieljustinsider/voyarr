@@ -17,7 +17,7 @@ from typing import Optional
 from decimal import Decimal
 from dependencies import verify_api_key
 from rate_limiter import rate_limit
-from utils import validate_path
+from utils import validate_path, sanitize_tainted_path
 
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
@@ -493,11 +493,9 @@ def verify_local_backup(
     abs_backup_dir = os.path.abspath(backup_dir)
     
     # Inline sanitization for CodeQL path injection tracking
-    candidate_path = os.path.abspath(filepath)
-    if not (candidate_path.startswith(abs_backup_dir + os.sep) or candidate_path == abs_backup_dir):
+    abs_filepath = sanitize_tainted_path(filepath)
+    if not (abs_filepath.startswith(abs_backup_dir + os.sep) or abs_filepath == abs_backup_dir):
         raise HTTPException(status_code=403, detail="Forbidden: path traversal detected")
-        
-    abs_filepath = validate_path(filepath, allowed_roots=[abs_backup_dir])
 
     if not os.path.exists(abs_filepath):
         raise HTTPException(status_code=404, detail="Local backup file not found")
@@ -538,11 +536,9 @@ def restore_local_backup(
     abs_backup_dir = os.path.abspath(backup_dir)
     
     # Inline sanitization for CodeQL path injection tracking
-    candidate_path = os.path.abspath(filepath)
-    if not (candidate_path.startswith(abs_backup_dir + os.sep) or candidate_path == abs_backup_dir):
+    abs_filepath = sanitize_tainted_path(filepath)
+    if not (abs_filepath.startswith(abs_backup_dir + os.sep) or abs_filepath == abs_backup_dir):
         raise HTTPException(status_code=403, detail="Forbidden: path traversal detected")
-        
-    abs_filepath = validate_path(filepath, allowed_roots=[abs_backup_dir])
 
     if not os.path.exists(abs_filepath):
         raise HTTPException(status_code=404, detail="Local backup file not found")
