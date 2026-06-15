@@ -233,23 +233,32 @@ Select your target **Provider** from the dropdown menu inside the extension popu
 
 ---
 
-## 🛡️ Biometric Passkeys, Social Logins, and Security Settings
+## 🛡️ User Profiles, Localization, and Security Settings
 
-Voyarr features premium security systems usually reserved for enterprise platforms, fully accessible to beginners.
+Voyarr features premium profile customization, regional localization settings, and security systems usually reserved for enterprise platforms, fully accessible to beginners.
 
-### 1. Setting Up Passkeys (Biometric Logins)
+### 1. User Profiles & Display Settings
+Every user can manage their personal identity, appearance, and regional preferences in Voyarr:
+- Go to **Settings > User Profile** (or click your username/avatar in the sidebar).
+- **Profile Info**: Customize your **Display Name**, configure your **Email Address** for recovery and notifications, and upload/paste a custom **Avatar URL** to personalize your interface.
+- **SSO Connections**: Link your personal Google, GitHub, or Discord accounts to sign in with one click. 
+  - *Lockout Protection*: Voyarr includes "Lockout Protection." If you try to unlink a social login, Voyarr checks if it is your last remaining way to sign in. If it is, Voyarr will block the action to make sure you never lock yourself out of your system!
+- **Regional Settings**: Configure your personal preference for **Language / Localization** (e.g. English, Español, Français, Deutsch), **Date & Time Format** (e.g. 12-hour AM/PM vs. 24-hour clock, and date formats like `MM/DD/YYYY` or `DD/MM/YYYY`), and your preferred **Time Zone**. Individual choices override the system defaults for personalized navigation.
+
+### 2. Setting Up Passkeys (Biometric Logins)
 Passkeys let you sign into Voyarr using your device's fingerprint scanner (TouchID), facial recognition (FaceID), or hardware keys (like YubiKeys).
-- Log into your Voyarr Web App.
 - Go to **Settings > Account Security > Manage Passkeys**.
 - Click **Register New Passkey**.
 - Your browser or operating system will pop up a window asking for your fingerprint, face scan, or PIN. Provide it, and enter a name for the key (e.g., "iPhone TouchID").
 - Done! The next time you visit the login screen, clicking in the username box will bring up a list of your passkeys. Tap your fingerprint, and you are logged in instantly—no password required!
 
-### 2. Linking Social SSO Accounts (Fast Access)
-You can link your Google, GitHub, or Discord accounts to sign in with one click:
-- Enable SSO in the **Settings > Global Authentication Policies** panel.
-- Link your personal profiles.
-- *Lockout Protection*: Voyarr includes "Lockout Protection." If you try to unlink a social login, Voyarr checks if it is your last remaining way to sign in. If it is, Voyarr will block the action to make sure you never lock yourself out of your system!
+### 3. System-Wide Settings & System Status
+Administrators can configure default behaviors and view real-time environment telemetry:
+- **System-Wide Settings**: Navigate to **Settings > System Settings** to configure the global defaults for language, date/time formats, and default timezone used for new users and guest-facing displays.
+- **System Status Page**: Accessible in the dashboard, the status page displays crucial environment info:
+  - **Docker Badge**: An indicator showing whether Voyarr is currently running inside a Docker container or directly on a host OS.
+  - **Live Clock**: Displays the current, live system date, time, and timezone.
+  - **Database & Redis Info**: Real-time status cards showing connections, health, and memory usage (grouped side-by-side in a clean row for easier inspection).
 
 ---
 

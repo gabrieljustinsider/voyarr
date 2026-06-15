@@ -222,13 +222,13 @@ Open `.env` and configure the following parameters:
   > `DATABASE_URL=postgresql://user:password@host:port/database`
 
 * **Ports & Network Security**: Under *Host Ports Configuration*, you have two options:
-  - **Auto-Allocation (Recommended)**: Leave `BACKEND_PORT=`, `FRONTEND_PORT=`, `REDIS_PORT=`, and `POSTGRES_PORT=` **blank/empty**.
+  - **Auto-Allocation (Recommended)**: Leave `BACKEND_PORT=` and `FRONTEND_PORT=` **blank/empty**.
     * *On Synology (Container Manager)*: Synology will automatically select unused ports on your NAS, **remember them permanently**, and maintain the assignment across restarts and container upgrades.
     * *On CLI*: Docker will assign random ports. Check them via `docker compose ps` and, if desired, add them to your `.env` to lock them in.
   - **Static Allocation**: Specify static ports (e.g., `BACKEND_PORT=8000`, `FRONTEND_PORT=3000`) if you already know they are free.
 
   > [!NOTE]
-  > **Secure Database Access**: By default, the PostgreSQL database port (`POSTGRES_PORT`) is bound strictly to the local loopback interface (`127.0.0.1`). This isolates the database from raw LAN access while facilitating encrypted management connections via SSH Tunneling (e.g., using DBeaver). For complete connection instructions, see [Section 9 in TROUBLESHOOTING.md](TROUBLESHOOTING.md#9-securely-connecting-to-the-postgresql-database-dbeaver-via-ssh-tunnel).
+  > **Isolated Database & Redis**: In the default `docker-compose.yml`, the database (`db`) and `redis` ports are completely omitted or commented out to prevent port conflicts with built-in host services (such as a Synology NAS's default PostgreSQL). If you need to connect external GUI tools (e.g., DBeaver), refer to [Section 9 in TROUBLESHOOTING.md](TROUBLESHOOTING.md#9-securely-connecting-to-the-postgresql-database-dbeaver-via-ssh-tunnel) to map the database port securely to your local loopback socket via SSH Tunneling.
 
 * **Reverse Proxy & P2P Sync Routing (Advanced)**:
   - **API Root Path (`ROOT_PATH`)**: If you host Voyarr's API behind a reverse proxy under a specific subpath (e.g. `https://yourdomain.com/voyarr/api`), set `ROOT_PATH=/voyarr/api`. Alternatively, set `ROOT_PATH=/api` to access the interactive Swagger API documentation securely through the built-in Nginx proxy without exposing the raw backend port.

@@ -143,9 +143,14 @@ If you are deploying via the CLI (instead of Synology Container Manager's auto-a
 Connect a database administration tool (such as **DBeaver**, **pgAdmin**, or **DataGrip**) from your desktop machine to the PostgreSQL database container running on your NAS or host server, without exposing the database port publicly to the local network (LAN) or the internet.
 
 **Why this is highly secure:**
-In the updated `docker-compose.yml`, the database port is mapped exclusively to the host's loopback interface:
-`"127.0.0.1:${POSTGRES_PORT:-5432}:5432"`
-This ensures that the database port is completely unreachable directly over the LAN (e.g., connecting directly to `http://<nas-ip>:5432` is blocked). To connect externally, you must establish an **SSH Tunnel** through the host server using secure credentials.
+In the production `docker-compose.yml`, the database container has its `ports:` mapping completely omitted by default to prevent any port conflicts on your host server (such as Synology NAS's built-in Postgres service using port 5432). 
+
+To connect an external tool, you must explicitly expose the database port on your host's loopback interface by adding the following section back to the `db` service inside your `docker-compose.yml`:
+```yaml
+    ports:
+      - "127.0.0.1:5435:5432"
+```
+*(By binding to `127.0.0.1` and using a non-conflicting port like `5435`, the database port remains unreachable directly over the LAN, but is accessible locally through an SSH Tunnel).*
 
 **Step-by-Step Configuration in DBeaver:**
 
@@ -154,7 +159,7 @@ This ensures that the database port is completely unreachable directly over the 
 
 2. **Configure the Main Connection Settings (Connection Tab):**
    * **Host:** `127.0.0.1` *(Leave this exactly as `127.0.0.1`. Do NOT type your NAS/server IP here, because from the perspective of the SSH tunnel terminal inside the NAS, the database port is bound to the NAS's localhost interface).*
-   * **Port:** `5432` *(Or your customized `POSTGRES_PORT` if overridden in `.env`)*
+   * **Port:** `5435` *(Or whichever custom loopback host port you configured in your `ports:` mapping)*
    * **Database:** `voyarr` *(Or the value of `POSTGRES_DB`)*
    * **Username:** `voyarr_user` *(Or the value of `POSTGRES_USER`)*
    * **Password:** `voyarr_password` *(Or the value of `POSTGRES_PASSWORD`)*
@@ -169,7 +174,7 @@ This ensures that the database port is completely unreachable directly over the 
 
 4. **Test Connection:**
    * Click **Test Connection** at the bottom left.
-   * DBeaver will securely authenticate over SSH first, map the remote `127.0.0.1:5432` loopback socket locally over the encrypted tunnel, and establish a fully secure connection to your Postgres instance!
+   * DBeaver will securely authenticate over SSH first, map the remote `127.0.0.1:5435` loopback socket locally over the encrypted tunnel, and establish a fully secure connection to your Postgres instance!
 
 ---
 
