@@ -122,6 +122,18 @@ def main():
     except Exception as e:
         print(f"Warning: Failed to update frontend package-lock.json: {e}")
 
+    try:
+        # Remove any nested VoyarrLens.zip inside extension folder first to avoid bloated zip
+        nested_zip = os.path.join(root_dir, "extension", "VoyarrLens.zip")
+        if os.path.exists(nested_zip):
+            os.remove(nested_zip)
+        
+        # Package extension
+        subprocess.run(["zip", "-r", "voyarr-extension.zip", "extension/"], cwd=root_dir, check=True)
+        print("voyarr-extension.zip packaged successfully.")
+    except Exception as e:
+        print(f"Warning: Failed to package extension: {e}")
+
     print("Version synchronization completed successfully!")
 
 if __name__ == "__main__":
