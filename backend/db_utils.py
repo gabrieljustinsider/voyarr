@@ -44,8 +44,49 @@ def get_or_create_studio_by_name(db: Session, studio_name: str) -> Optional[int]
 def run_schema_migrations(engine: Any) -> None:
     import logging
     logger = logging.getLogger(__name__)
-    from sqlalchemy import text
+    from sqlalchemy import text, inspect
     dialect_name = engine.name
+
+    # Pre-defined static SQL migrations to eliminate CodeQL dynamic query (SQL Injection) warnings
+    USERS_MIGRATIONS = {
+        "display_name": "ALTER TABLE users ADD COLUMN display_name VARCHAR(255) NULL",
+        "email": "ALTER TABLE users ADD COLUMN email VARCHAR(255) NULL",
+        "avatar_url": "ALTER TABLE users ADD COLUMN avatar_url VARCHAR(500) NULL",
+        "locale": "ALTER TABLE users ADD COLUMN locale VARCHAR(50) DEFAULT 'en'",
+        "date_format": "ALTER TABLE users ADD COLUMN date_format VARCHAR(50) DEFAULT 'YYYY-MM-DD'",
+        "time_format": "ALTER TABLE users ADD COLUMN time_format VARCHAR(50) DEFAULT 'HH:mm:ss'",
+        "timezone": "ALTER TABLE users ADD COLUMN timezone VARCHAR(100) DEFAULT 'UTC'"
+    }
+
+    LIBRARY_ENTRIES_MIGRATIONS = {
+        "adheres_to_naming_scheme": "ALTER TABLE library_entries ADD COLUMN adheres_to_naming_scheme BOOLEAN DEFAULT TRUE",
+        "has_metadata_match": "ALTER TABLE library_entries ADD COLUMN has_metadata_match BOOLEAN DEFAULT FALSE",
+        "has_chapters": "ALTER TABLE library_entries ADD COLUMN has_chapters BOOLEAN DEFAULT FALSE",
+        "has_facial_clusters": "ALTER TABLE library_entries ADD COLUMN has_facial_clusters BOOLEAN DEFAULT FALSE"
+    }
+
+    BILLERS_MIGRATIONS = {
+        "support_email": "ALTER TABLE billers ADD COLUMN support_email VARCHAR(255)",
+        "support_phone": "ALTER TABLE billers ADD COLUMN support_phone VARCHAR(50)",
+        "description": "ALTER TABLE billers ADD COLUMN description TEXT"
+    }
+
+    SUBSCRIPTIONS_MIGRATIONS = {
+        "biller_id": "ALTER TABLE subscriptions ADD COLUMN biller_id INTEGER REFERENCES billers(id) ON DELETE SET NULL",
+        "billing_cycle": "ALTER TABLE subscriptions ADD COLUMN billing_cycle VARCHAR(50)",
+        "cost": "ALTER TABLE subscriptions ADD COLUMN cost DECIMAL(10, 2)",
+        "charge_type": "ALTER TABLE subscriptions ADD COLUMN charge_type VARCHAR(50) DEFAULT 'bulk'",
+        "installment_frequency": "ALTER TABLE subscriptions ADD COLUMN installment_frequency VARCHAR(50)",
+        "subscription_id": "ALTER TABLE subscriptions ADD COLUMN subscription_id VARCHAR(255)",
+        "order_number": "ALTER TABLE subscriptions ADD COLUMN order_number VARCHAR(255)"
+    }
+
+    inspector = inspect(engine)
+    def get_existing_columns(table_name):
+        try:
+            return {c["name"] for c in inspector.get_columns(table_name)}
+        except Exception:
+            return set()
 
     with engine.connect() as conn:
         # 1. Check if users table has permissions column, if not, add it
@@ -90,24 +131,11 @@ def run_schema_migrations(engine: Any) -> None:
                 logger.warning(f"Failed to add last_login_at column: {e}")
 
         # Check and dynamically add profile/preference columns if they don't exist
-        for col_name, col_def in [
-            ("display_name", "VARCHAR(255) NULL"),
-            ("email", "VARCHAR(255) NULL"),
-            ("avatar_url", "VARCHAR(500) NULL"),
-            ("locale", "VARCHAR(50) DEFAULT 'en'"),
-            ("date_format", "VARCHAR(50) DEFAULT 'YYYY-MM-DD'"),
-            ("time_format", "VARCHAR(50) DEFAULT 'HH:mm:ss'"),
-            ("timezone", "VARCHAR(100) DEFAULT 'UTC'")
-        ]:
-            try:
-                conn.execute(text(f"SELECT {col_name} FROM users LIMIT 1"))
-            except Exception:
+        existing_user_cols = get_existing_columns("users")
+        for col_name in USERS_MIGRATIONS.keys():
+            if col_name not in existing_user_cols:
                 try:
-                    conn.rollback()
-                except Exception:
-                    pass
-                try:
-                    conn.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_def}"))
+                    conn.execute(text(USERS_MIGRATIONS[col_name]))
                     conn.commit()
                     logger.info(f"Database migration successfully added '{col_name}' to 'users'.")
                 except Exception as e:
@@ -178,21 +206,11 @@ def run_schema_migrations(engine: Any) -> None:
                 logger.warning(f"Failed to create admin_logs table (it may already exist): {e}")
 
         # 3. Check if library_entries table has new columns, if not, add them
-        for col, col_type, default_val in [
-            ("adheres_to_naming_scheme", "BOOLEAN", "TRUE"),
-            ("has_metadata_match", "BOOLEAN", "FALSE"),
-            ("has_chapters", "BOOLEAN", "FALSE"),
-            ("has_facial_clusters", "BOOLEAN", "FALSE")
-        ]:
-            try:
-                conn.execute(text(f"SELECT {col} FROM library_entries LIMIT 1"))
-            except Exception:
+        existing_lib_cols = get_existing_columns("library_entries")
+        for col in LIBRARY_ENTRIES_MIGRATIONS.keys():
+            if col not in existing_lib_cols:
                 try:
-                    conn.rollback()
-                except Exception:
-                    pass
-                try:
-                    conn.execute(text(f"ALTER TABLE library_entries ADD COLUMN {col} {col_type} DEFAULT {default_val}"))
+                    conn.execute(text(LIBRARY_ENTRIES_MIGRATIONS[col]))
                     conn.commit()
                     logger.info(f"Database migration successfully added '{col}' to 'library_entries'.")
                 except Exception as e:
@@ -377,20 +395,11 @@ def run_schema_migrations(engine: Any) -> None:
                 logger.warning(f"Failed to add logo_url column to providers: {e}")
 
         # 10. Check if billers table has new columns, if not, add them
-        for col, col_type in [
-            ("support_email", "VARCHAR(255)"),
-            ("support_phone", "VARCHAR(50)"),
-            ("description", "TEXT")
-        ]:
-            try:
-                conn.execute(text(f"SELECT {col} FROM billers LIMIT 1"))
-            except Exception:
+        existing_biller_cols = get_existing_columns("billers")
+        for col in BILLERS_MIGRATIONS.keys():
+            if col not in existing_biller_cols:
                 try:
-                    conn.rollback()
-                except Exception:
-                    pass
-                try:
-                    conn.execute(text(f"ALTER TABLE billers ADD COLUMN {col} {col_type}"))
+                    conn.execute(text(BILLERS_MIGRATIONS[col]))
                     conn.commit()
                     logger.info(f"Database migration successfully added '{col}' to 'billers'.")
                 except Exception as e:
@@ -400,23 +409,12 @@ def run_schema_migrations(engine: Any) -> None:
                         pass
                     logger.warning(f"Failed to add column {col} to billers: {e}")
 
-        # 11. Check if subscriptions table has new billing columns, if not, add them
-        for col, col_type in [
-            ("biller_id", "INTEGER REFERENCES billers(id) ON DELETE SET NULL"),
-            ("billing_cycle", "VARCHAR(50)"),
-            ("cost", "DECIMAL(10, 2)"),
-            ("charge_type", "VARCHAR(50) DEFAULT 'bulk'"),
-            ("installment_frequency", "VARCHAR(50)")
-        ]:
-            try:
-                conn.execute(text(f"SELECT {col} FROM subscriptions LIMIT 1"))
-            except Exception:
+        # 11. Check if subscriptions table has new billing/meta columns, if not, add them
+        existing_sub_cols = get_existing_columns("subscriptions")
+        for col in SUBSCRIPTIONS_MIGRATIONS.keys():
+            if col not in existing_sub_cols:
                 try:
-                    conn.rollback()
-                except Exception:
-                    pass
-                try:
-                    conn.execute(text(f"ALTER TABLE subscriptions ADD COLUMN {col} {col_type}"))
+                    conn.execute(text(SUBSCRIPTIONS_MIGRATIONS[col]))
                     conn.commit()
                     logger.info(f"Database migration successfully added '{col}' to 'subscriptions'.")
                 except Exception as e:
@@ -444,29 +442,6 @@ def run_schema_migrations(engine: Any) -> None:
                 except Exception:
                     pass
                 logger.warning(f"Failed to add column favicon_url to providers: {e}")
-                
-        # 13. Check if subscriptions table has subscription_id and order_number columns
-        for col, col_type in [
-            ("subscription_id", "VARCHAR(255)"),
-            ("order_number", "VARCHAR(255)")
-        ]:
-            try:
-                conn.execute(text(f"SELECT {col} FROM subscriptions LIMIT 1"))
-            except Exception:
-                try:
-                    conn.rollback()
-                except Exception:
-                    pass
-                try:
-                    conn.execute(text(f"ALTER TABLE subscriptions ADD COLUMN {col} {col_type}"))
-                    conn.commit()
-                    logger.info(f"Database migration successfully added '{col}' to 'subscriptions'.")
-                except Exception as e:
-                    try:
-                        conn.rollback()
-                    except Exception:
-                        pass
-                    logger.warning(f"Failed to add column {col} to subscriptions: {e}")
 
         # 13b. Check if providers table has description column, if not, add it
         try:
