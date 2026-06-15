@@ -97,10 +97,18 @@ async def get_system_status(db: Session = Depends(get_db)):
         except Exception:
             pass
 
+    import datetime
+    now = datetime.datetime.now().astimezone()
+
     env_details = {
         "os": f"{platform.system()} {platform.release()}",
         "python_version": sys.version,
         "is_docker": is_docker,
+        "system_time": {
+            "date": now.strftime("%Y-%m-%d"),
+            "time": now.strftime("%H:%M:%S"),
+            "timezone": now.tzname() or "UTC"
+        },
         "media_storage_disk": {},
         "app_disk": {}
     }

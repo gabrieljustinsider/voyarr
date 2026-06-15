@@ -15,6 +15,7 @@ export default function SystemStatus() {
   const [status, setStatus] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [liveTime, setLiveTime] = useState(null)
 
   const fetchStatus = useCallback(async () => {
     setLoading(true)
@@ -39,6 +40,39 @@ export default function SystemStatus() {
     const interval = setInterval(fetchStatus, 15000)
     return () => clearInterval(interval)
   }, [fetchStatus])
+
+  // Live ticking system clock synced with server offset
+  useEffect(() => {
+    if (!status?.environment?.system_time) return
+
+    const { date, time, timezone } = status.environment.system_time
+    const serverDateStr = `${date}T${time}`
+    const serverTimeMs = new Date(serverDateStr).getTime()
+    const clientTimeMs = Date.now()
+    const offsetMs = isNaN(serverTimeMs) ? 0 : serverTimeMs - clientTimeMs
+
+    const updateClock = () => {
+      const currentServerTime = new Date(Date.now() + offsetMs)
+      
+      const pad = (num) => String(num).padStart(2, '0')
+      const yy = currentServerTime.getFullYear()
+      const mm = pad(currentServerTime.getMonth() + 1)
+      const dd = pad(currentServerTime.getDate())
+      const hh = pad(currentServerTime.getHours())
+      const min = pad(currentServerTime.getMinutes())
+      const ss = pad(currentServerTime.getSeconds())
+
+      setLiveTime({
+        date: `${yy}-${mm}-${dd}`,
+        time: `${hh}:${min}:${ss}`,
+        timezone: timezone
+      })
+    }
+
+    updateClock()
+    const clockInterval = setInterval(updateClock, 1000)
+    return () => clearInterval(clockInterval)
+  }, [status])
 
   const getStatusIcon = (compStatus) => {
     if (compStatus === 'healthy') return <CheckCircleIcon color="success" />
@@ -103,8 +137,19 @@ export default function SystemStatus() {
                     <Typography variant="body1" sx={{ mb: 2 }}>{status.environment?.os || 'Linux Container'}</Typography>
                     
                     <Typography variant="body2" sx={{ fontWeight: 'bold' }} color="textSecondary">Python Runtime</Typography>
-                    <Typography variant="body2" sx={{ mb: 3, fontStyle: 'italic', wordBreak: 'break-all' }}>
+                    <Typography variant="body2" sx={{ mb: 2, fontStyle: 'italic', wordBreak: 'break-all' }}>
                       {status.environment?.python_version}
+                    </Typography>
+
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }} color="textSecondary">System Date &amp; Time (Live)</Typography>
+                    <Typography variant="body1" sx={{ mb: 3, fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: '0.5px' }}>
+                      {liveTime ? (
+                        <span>
+                          {liveTime.date} &nbsp; {liveTime.time} &nbsp; <Chip label={liveTime.timezone} size="small" sx={{ fontSize: '11px', fontWeight: 'bold', height: '20px' }} />
+                        </span>
+                      ) : (
+                        'Syncing...'
+                      )}
                     </Typography>
 
                     <Divider sx={{ my: 2 }} />

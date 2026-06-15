@@ -1041,8 +1041,42 @@ def get_current_user_profile(
         "permissions": current_user.permissions or DEFAULT_PERMISSIONS,
         "daily_rip_usage": daily_rip_usage,
         "passkeys": passkeys_list,
-        "sso_links": sso_list
+        "sso_links": sso_list,
+        "display_name": getattr(current_user, "display_name", None),
+        "email": getattr(current_user, "email", None),
+        "avatar_url": getattr(current_user, "avatar_url", None),
+        "locale": getattr(current_user, "locale", "en"),
+        "date_format": getattr(current_user, "date_format", "YYYY-MM-DD"),
+        "time_format": getattr(current_user, "time_format", "HH:mm:ss"),
+        "timezone": getattr(current_user, "timezone", "UTC")
     }
+
+
+class ProfileUpdatePayload(BaseModel):
+    display_name: Optional[str] = None
+    email: Optional[str] = None
+    avatar_url: Optional[str] = None
+    locale: Optional[str] = "en"
+    date_format: Optional[str] = "YYYY-MM-DD"
+    time_format: Optional[str] = "HH:mm:ss"
+    timezone: Optional[str] = "UTC"
+
+
+@router.put("/users/me/profile")
+def update_own_profile(
+    payload: ProfileUpdatePayload,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    current_user.display_name = payload.display_name
+    current_user.email = payload.email
+    current_user.avatar_url = payload.avatar_url
+    current_user.locale = payload.locale or "en"
+    current_user.date_format = payload.date_format or "YYYY-MM-DD"
+    current_user.time_format = payload.time_format or "HH:mm:ss"
+    current_user.timezone = payload.timezone or "UTC"
+    db.commit()
+    return {"message": "Profile updated successfully"}
 
 
 import time

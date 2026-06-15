@@ -996,6 +996,96 @@ export default function Settings() {
       </Paper>
 
       <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>System-Wide Regional &amp; Localization Settings</Typography>
+        <Typography variant="body2" sx={{ mb: 2 }} color="textSecondary">
+          Configure default regional formats, timezone, and language preferences for the entire system dashboard.
+        </Typography>
+        <Divider sx={{ mb: 2 }} />
+
+        <Grid container spacing={3}>
+          <Grid item xs={12} sm={6} md={3}>
+            <FormControl fullWidth size="small">
+              <InputLabel id="global-locale-label">System Language</InputLabel>
+              <Select
+                labelId="global-locale-label"
+                value={settings.global_locale || 'en'}
+                label="System Language"
+                onChange={(e) => {
+                  setSettings(prev => ({ ...prev, global_locale: e.target.value }));
+                  handleSave('global_locale', e.target.value);
+                }}
+              >
+                <MenuItem value="en">English (en)</MenuItem>
+                <MenuItem value="es">Español (es)</MenuItem>
+                <MenuItem value="fr">Français (fr)</MenuItem>
+                <MenuItem value="de">Deutsch (de)</MenuItem>
+                <MenuItem value="it">Italiano (it)</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <FormControl fullWidth size="small">
+              <InputLabel id="global-date-format-label">Date Format</InputLabel>
+              <Select
+                labelId="global-date-format-label"
+                value={settings.global_date_format || 'YYYY-MM-DD'}
+                label="Date Format"
+                onChange={(e) => {
+                  setSettings(prev => ({ ...prev, global_date_format: e.target.value }));
+                  handleSave('global_date_format', e.target.value);
+                }}
+              >
+                <MenuItem value="YYYY-MM-DD">YYYY-MM-DD (e.g. 2026-06-14)</MenuItem>
+                <MenuItem value="MM/DD/YYYY">MM/DD/YYYY (e.g. 06/14/2026)</MenuItem>
+                <MenuItem value="DD/MM/YYYY">DD/MM/YYYY (e.g. 14/06/2026)</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <FormControl fullWidth size="small">
+              <InputLabel id="global-time-format-label">Time Format</InputLabel>
+              <Select
+                labelId="global-time-format-label"
+                value={settings.global_time_format || 'HH:mm:ss'}
+                label="Time Format"
+                onChange={(e) => {
+                  setSettings(prev => ({ ...prev, global_time_format: e.target.value }));
+                  handleSave('global_time_format', e.target.value);
+                }}
+              >
+                <MenuItem value="HH:mm:ss">24-hour (HH:mm:ss)</MenuItem>
+                <MenuItem value="hh:mm:ss A">12-hour (hh:mm:ss AM/PM)</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <FormControl fullWidth size="small">
+              <InputLabel id="global-timezone-label">System Timezone</InputLabel>
+              <Select
+                labelId="global-timezone-label"
+                value={settings.global_timezone || 'UTC'}
+                label="System Timezone"
+                onChange={(e) => {
+                  setSettings(prev => ({ ...prev, global_timezone: e.target.value }));
+                  handleSave('global_timezone', e.target.value);
+                }}
+              >
+                <MenuItem value="UTC">Coordinated Universal Time (UTC)</MenuItem>
+                <MenuItem value="America/New_York">Eastern Time (America/New_York)</MenuItem>
+                <MenuItem value="America/Los_Angeles">Pacific Time (America/Los_Angeles)</MenuItem>
+                <MenuItem value="Europe/London">Greenwich Mean Time (Europe/London)</MenuItem>
+                <MenuItem value="Europe/Paris">Central European Time (Europe/Paris)</MenuItem>
+                <MenuItem value="Asia/Tokyo">Japan Standard Time (Asia/Tokyo)</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+        </Grid>
+      </Paper>
+
+      <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>Browser Extension Integration</Typography>
         <Typography variant="body2" sx={{ mb: 2 }} color="textSecondary">
           Connect your Voyarr Lens browser extension to easily map CSS selectors on live websites.

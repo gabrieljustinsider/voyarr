@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react'
 import { 
   Box, Typography, TextField, Button, Paper, Grid, Divider, CircularProgress, 
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, 
-  Alert, Dialog, DialogTitle, DialogContent, DialogActions
+  Alert, Dialog, DialogTitle, DialogContent, DialogActions, Select, MenuItem,
+  FormControl, InputLabel, Avatar, Chip
 } from '@mui/material'
-import { Trash2, Link, Link2Off, Fingerprint, KeyRound, Plus, ShieldCheck } from 'lucide-react'
+import { Trash2, Link, Link2Off, Fingerprint, KeyRound, Plus, ShieldCheck, User, Globe } from 'lucide-react'
 import { apiFetch } from '../api'
 import PasswordChecklist from './PasswordChecklist'
 import InlineTextField from './InlineTextField'
@@ -34,6 +35,16 @@ const WindowsHelloSvg = () => (
 )
 
 export default function AccountSecurity({ setSnackbar }) {
+  // Profile & Preferences State
+  const [displayName, setDisplayName] = useState('')
+  const [email, setEmail] = useState('')
+  const [avatarUrl, setAvatarUrl] = useState('')
+  const [locale, setLocale] = useState('en')
+  const [dateFormat, setDateFormat] = useState('YYYY-MM-DD')
+  const [timeFormat, setTimeFormat] = useState('HH:mm:ss')
+  const [timezone, setTimezone] = useState('UTC')
+  const [profileLoading, setProfileLoading] = useState(false)
+
   // Password Change State
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -49,9 +60,58 @@ export default function AccountSecurity({ setSnackbar }) {
   const [ssoLinks, setSsoLinks] = useState([])
 
   useEffect(() => {
+    fetchProfile()
     fetchPasskeys()
     fetchSsoLinks()
   }, [])
+
+  const fetchProfile = async () => {
+    try {
+      const res = await apiFetch('/auth/me')
+      if (res.ok) {
+        const data = await res.json()
+        setDisplayName(data.display_name || '')
+        setEmail(data.email || '')
+        setAvatarUrl(data.avatar_url || '')
+        setLocale(data.locale || 'en')
+        setDateFormat(data.date_format || 'YYYY-MM-DD')
+        setTimeFormat(data.time_format || 'HH:mm:ss')
+        setTimezone(data.timezone || 'UTC')
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault()
+    setProfileLoading(true)
+    try {
+      const res = await apiFetch('/auth/users/me/profile', {
+        method: 'PUT',
+        body: JSON.stringify({
+          display_name: displayName,
+          email: email,
+          avatar_url: avatarUrl,
+          locale: locale,
+          date_format: dateFormat,
+          time_format: timeFormat,
+          timezone: timezone
+        })
+      })
+      if (res.ok) {
+        setSnackbar({ open: true, message: 'Profile and regional preferences saved successfully!', severity: 'success' })
+        fetchProfile()
+      } else {
+        const err = await res.json()
+        setSnackbar({ open: true, message: `Failed: ${err.detail}`, severity: 'error' })
+      }
+    } catch (err) {
+      setSnackbar({ open: true, message: 'Network error updating profile.', severity: 'error' })
+    } finally {
+      setProfileLoading(false)
+    }
+  }
 
   const fetchPasskeys = async () => {
     try {
@@ -257,6 +317,152 @@ export default function AccountSecurity({ setSnackbar }) {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, maxWidth: 1400, mx: 'auto', width: '100%' }}>
+      {/* Overhauled User Profile & Regional Preferences Card */}
+      <Paper sx={{ p: 4, border: '1px solid rgba(255, 255, 255, 0.05)', background: 'rgba(255, 255, 255, 0.01)', borderRadius: '12px' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3, color: 'primary.main' }}>
+          <User size={24} />
+          <Typography variant="h6" fontWeight="bold" color="text.primary">Profile &amp; Display Preferences</Typography>
+        </Box>
+        <form onSubmit={handleUpdateProfile}>
+          <Grid container spacing={4}>
+            {/* Left side: Avatar & Info */}
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 2 }} color="textSecondary">User Profile Info</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mb: 3 }}>
+                <Avatar 
+                  src={avatarUrl} 
+                  sx={{ width: 80, height: 80, bgcolor: 'primary.main', fontSize: '2rem' }}
+                >
+                  {displayName ? displayName.charAt(0).toUpperCase() : '?'}
+                </Avatar>
+                <Box sx={{ flexGrow: 1 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Avatar Image URL"
+                    value={avatarUrl}
+                    onChange={e => setAvatarUrl(e.target.value)}
+                    placeholder="https://example.com/avatar.png"
+                    sx={{ mb: 1 }}
+                  />
+                  <Typography variant="caption" color="textSecondary">Provide a URL to your custom profile picture</Typography>
+                </Box>
+              </Box>
+
+              <Grid container spacing={2}>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Display Name"
+                    value={displayName}
+                    onChange={e => setDisplayName(e.target.value)}
+                    placeholder="e.g. John Doe"
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    type="email"
+                    label="Email Address"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    placeholder="e.g. john@example.com"
+                  />
+                </Grid>
+              </Grid>
+            </Grid>
+
+            {/* Right side: Display & Regional settings */}
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 2 }} color="textSecondary">Display &amp; Regional Preferences</Typography>
+              <Grid container spacing={2.5}>
+                <Grid item xs={12}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel id="user-locale-label">Language / Locale</InputLabel>
+                    <Select
+                      labelId="user-locale-label"
+                      value={locale}
+                      label="Language / Locale"
+                      onChange={e => setLocale(e.target.value)}
+                    >
+                      <MenuItem value="en">English (en)</MenuItem>
+                      <MenuItem value="es">Español (es)</MenuItem>
+                      <MenuItem value="fr">Français (fr)</MenuItem>
+                      <MenuItem value="de">Deutsch (de)</MenuItem>
+                      <MenuItem value="it">Italiano (it)</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel id="user-date-label">Date Format</InputLabel>
+                    <Select
+                      labelId="user-date-label"
+                      value={dateFormat}
+                      label="Date Format"
+                      onChange={e => setDateFormat(e.target.value)}
+                    >
+                      <MenuItem value="YYYY-MM-DD">YYYY-MM-DD (e.g. 2026-06-14)</MenuItem>
+                      <MenuItem value="MM/DD/YYYY">MM/DD/YYYY (e.g. 06/14/2026)</MenuItem>
+                      <MenuItem value="DD/MM/YYYY">DD/MM/YYYY (e.g. 14/06/2026)</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel id="user-time-label">Time Format</InputLabel>
+                    <Select
+                      labelId="user-time-label"
+                      value={timeFormat}
+                      label="Time Format"
+                      onChange={e => setTimeFormat(e.target.value)}
+                    >
+                      <MenuItem value="HH:mm:ss">24-hour (HH:mm:ss)</MenuItem>
+                      <MenuItem value="hh:mm:ss A">12-hour (hh:mm:ss AM/PM)</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                <Grid item xs={12}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel id="user-timezone-label">Timezone</InputLabel>
+                    <Select
+                      labelId="user-timezone-label"
+                      value={timezone}
+                      label="Timezone"
+                      onChange={e => setTimezone(e.target.value)}
+                    >
+                      <MenuItem value="UTC">Coordinated Universal Time (UTC)</MenuItem>
+                      <MenuItem value="America/New_York">Eastern Time (America/New_York)</MenuItem>
+                      <MenuItem value="America/Los_Angeles">Pacific Time (America/Los_Angeles)</MenuItem>
+                      <MenuItem value="Europe/London">Greenwich Mean Time (Europe/London)</MenuItem>
+                      <MenuItem value="Europe/Paris">Central European Time (Europe/Paris)</MenuItem>
+                      <MenuItem value="Asia/Tokyo">Japan Standard Time (Asia/Tokyo)</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+              </Grid>
+            </Grid>
+
+            {/* Save Button */}
+            <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+              <Button 
+                type="submit" 
+                variant="contained" 
+                color="primary"
+                disabled={profileLoading}
+              >
+                {profileLoading ? <CircularProgress size={24} /> : 'Save Profile & Preferences'}
+              </Button>
+            </Grid>
+          </Grid>
+        </form>
+      </Paper>
+
       {/* Change Password Card */}
       <Paper sx={{ p: 3, border: '1px solid rgba(255, 255, 255, 0.05)', background: 'rgba(255, 255, 255, 0.01)', borderRadius: '12px' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, color: 'primary.main' }}>

@@ -89,6 +89,34 @@ def run_schema_migrations(engine: Any) -> None:
                     pass
                 logger.warning(f"Failed to add last_login_at column: {e}")
 
+        # Check and dynamically add profile/preference columns if they don't exist
+        for col_name, col_def in [
+            ("display_name", "VARCHAR(255) NULL"),
+            ("email", "VARCHAR(255) NULL"),
+            ("avatar_url", "VARCHAR(500) NULL"),
+            ("locale", "VARCHAR(50) DEFAULT 'en'"),
+            ("date_format", "VARCHAR(50) DEFAULT 'YYYY-MM-DD'"),
+            ("time_format", "VARCHAR(50) DEFAULT 'HH:mm:ss'"),
+            ("timezone", "VARCHAR(100) DEFAULT 'UTC'")
+        ]:
+            try:
+                conn.execute(text(f"SELECT {col_name} FROM users LIMIT 1"))
+            except Exception:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                try:
+                    conn.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_def}"))
+                    conn.commit()
+                    logger.info(f"Database migration successfully added '{col_name}' to 'users'.")
+                except Exception as e:
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        pass
+                    logger.warning(f"Failed to add '{col_name}' column to users: {e}")
+
         # 1c. Check if passkeys table has rp_id column, if not, add it
         try:
             conn.execute(text("SELECT rp_id FROM passkeys LIMIT 1"))

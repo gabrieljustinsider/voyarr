@@ -35,6 +35,13 @@ class User(Base):
         default=lambda: {"can_stream": True, "can_scrape": False, "can_rip": False}
     )
     last_login_at = Column(TIMESTAMP, nullable=True)
+    display_name = Column(String(255), nullable=True)
+    email = Column(String(255), nullable=True)
+    avatar_url = Column(String(500), nullable=True)
+    locale = Column(String(50), default="en")
+    date_format = Column(String(50), default="YYYY-MM-DD")
+    time_format = Column(String(50), default="HH:mm:ss")
+    timezone = Column(String(100), default="UTC")
 
 
 class AdminLog(Base):
