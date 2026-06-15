@@ -628,6 +628,33 @@ document.addEventListener('DOMContentLoaded', () => {
       const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tabs || !tabs[0] || !tabs[0].url) return;
 
+      // Check active tab's sessionStorage as a secure fallback
+      try {
+        const activeTabId = tabs[0].id;
+        const [{ result }] = await chrome.scripting.executeScript({
+          target: { tabId: activeTabId },
+          func: () => {
+            try {
+              const data = sessionStorage.getItem('voyarr_pending_pairing');
+              if (data) {
+                const parsed = JSON.parse(data);
+                if (Date.now() - parsed.timestamp < 300000) {
+                  return parsed;
+                }
+              }
+            } catch (e) {}
+            return null;
+          }
+        });
+
+        if (result && result.url && result.pairingCode) {
+          showPairingInvitation(result.url, result.pairingCode);
+          return;
+        }
+      } catch (err) {
+        console.warn("Could not check active tab sessionStorage for pairing code:", err);
+      }
+
       const activeUrl = new URL(tabs[0].url);
       if (activeUrl.protocol !== "http:" && activeUrl.protocol !== "https:") return;
 
@@ -747,6 +774,20 @@ document.addEventListener('DOMContentLoaded', () => {
           });
 
           await chrome.storage.local.remove(['pendingPairing']);
+          
+          // Clear active tab's sessionStorage as well
+          try {
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tabs && tabs[0]) {
+              await chrome.scripting.executeScript({
+                target: { tabId: tabs[0].id },
+                func: () => {
+                  sessionStorage.removeItem('voyarr_pending_pairing');
+                }
+              });
+            }
+          } catch (e) {}
+
           showToast(settingsToast, "Successfully paired and connected!", true);
           pairingBanner.style.display = "none";
           
@@ -768,6 +809,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     dismissPairBtn.onclick = async () => {
       await chrome.storage.local.remove(['pendingPairing']);
+      try {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tabs && tabs[0]) {
+          await chrome.scripting.executeScript({
+            target: { tabId: tabs[0].id },
+            func: () => {
+              sessionStorage.removeItem('voyarr_pending_pairing');
+            }
+          });
+        }
+      } catch (e) {}
       pairingBanner.style.display = "none";
     };
   }

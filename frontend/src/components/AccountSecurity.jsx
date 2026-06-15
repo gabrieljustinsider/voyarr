@@ -170,6 +170,13 @@ export default function AccountSecurity({ setSnackbar }) {
             pairingCode: data.pairing_code
           }
         }))
+
+        // Save to sessionStorage for dynamic fallback retrieval by the extension popup
+        sessionStorage.setItem('voyarr_pending_pairing', JSON.stringify({
+          url: window.location.origin,
+          pairingCode: data.pairing_code,
+          timestamp: Date.now()
+        }))
         
         setSnackbar({ open: true, message: 'Pairing code generated! Opening the Voyarr Lens extension will now auto-detect and pair.', severity: 'info' })
       } else {
