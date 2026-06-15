@@ -429,8 +429,10 @@ Voyarr features a Discord Bot integration that allows you to remotely trigger sc
 
 ### Step 2: Configure Voyarr
 1. Open your `.env` file.
-2. Add the following line anywhere in the file:
+2. Add the following lines anywhere in the file:
    `DISCORD_BOT_TOKEN=your_copied_bot_token_here`
+   `DISCORD_ADMIN_CHANNEL_ID=your_admin_channel_id_here`
+   *(Setting the admin channel ID enables the bot to post interactive **Approve** and **Reject** buttons to that channel for incoming media requests).*
 3. Restart the Voyarr backend: `docker compose restart backend`
 
 ### Step 3: Configure the Interactions Endpoint URL (Required)
@@ -452,8 +454,9 @@ Once your bot is running and you have registered your commands with Discord, you
 
 | Command | Options | Required Role | Description |
 | :--- | :--- | :--- | :--- |
+| **`/status`** | None | Any | Returns a rich telemetry embed showing database, Redis, Docker container status, media storage usage, OS, and live clock. |
 | **`/search`** | `query` (required) | Any | Searches your local Voyarr library for a matching title and returns the result and resolution. |
-| **`/request`** | `title` (required), `url` (optional) | Any | Submits a media request directly into the Voyarr admin dashboard for approval. |
+| **`/request`** | `title` (required), `url` (optional) | Any | Submits a media request directly into the Voyarr admin dashboard. If `DISCORD_ADMIN_CHANNEL_ID` is set, the bot will post an embed with **Approve** and **Reject** buttons to that channel. Admins can click a button to instantly process/reject the request. |
 | **`/scrape`** | `url` (required) | Admin Only | Triggers an advanced administrative metadata sync job for the given URL. *(Admin restricted feature).* |
 | **`/add`** | `url` (required), `title` (optional) | Admin Only | Instantly queues the provided URL for administrative processing. *(Admin restricted feature).* |
 

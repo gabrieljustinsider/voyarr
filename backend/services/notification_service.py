@@ -37,12 +37,24 @@ class NotificationService:
                 logger.error(f"Failed to publish toast: {e}")
 
     @staticmethod
-    def send_discord_webhook(url: str, message: str):
-        """Dispatches an incoming Discord webhook message."""
+    def send_discord_webhook(url: str, title: str, message: str, event_type: str = "system"):
+        """Dispatches an incoming Discord webhook message with rich embeds."""
         try:
             from utils import validate_url_ssrf
             validate_url_ssrf(url)
-            payload = {"content": message}
+            color = 3066993 if "success" in title.lower() or "complete" in title.lower() else (15158332 if "error" in title.lower() or "fail" in title.lower() else 3447003)
+            payload = {
+                "embeds": [
+                    {
+                        "title": title,
+                        "description": message,
+                        "color": color,
+                        "footer": {
+                            "text": f"Voyarr Notification • {event_type.upper()}"
+                        }
+                    }
+                ]
+            }
             resp = requests.post(url, json=payload, timeout=5)
             if resp.status_code not in [200, 204]:
                 logger.error(
@@ -52,8 +64,8 @@ class NotificationService:
             logger.error(f"Failed to dispatch Discord Webhook: {e}")
 
     @staticmethod
-    def send_discord_dm(bot_token: str, discord_user_id: str, message: str):
-        """Creates a DM channel with a user and dispatches a message via bot token."""
+    def send_discord_dm(bot_token: str, discord_user_id: str, title: str, message: str, event_type: str = "system"):
+        """Creates a DM channel with a user and dispatches a message with a rich embed via bot token."""
         try:
             headers = {
                 "Authorization": f"Bot {bot_token}",
@@ -77,10 +89,23 @@ class NotificationService:
             if not channel_id:
                 return
 
-            # 2. Post message to DM channel
+            # 2. Post message with embed to DM channel
             msg_url = f"https://discord.com/api/v10/channels/{channel_id}/messages"
+            color = 3066993 if "success" in title.lower() or "complete" in title.lower() else (15158332 if "error" in title.lower() or "fail" in title.lower() else 3447003)
+            payload = {
+                "embeds": [
+                    {
+                        "title": title,
+                        "description": message,
+                        "color": color,
+                        "footer": {
+                            "text": f"Voyarr Notification • {event_type.upper()}"
+                        }
+                    }
+                ]
+            }
             msg_resp = requests.post(
-                msg_url, json={"content": message}, headers=headers, timeout=5
+                msg_url, json=payload, headers=headers, timeout=5
             )
             if msg_resp.status_code not in [200, 201]:
                 logger.error(
@@ -158,8 +183,7 @@ class NotificationService:
             )
 
             if discord_id and bot_token:
-                full_message = f"🔔 **{title}**\n{message}"
-                NotificationService.send_discord_dm(bot_token, discord_id, full_message)
+                NotificationService.send_discord_dm(bot_token, discord_id, title, message, event_type)
             else:
                 logger.warning(
                     f"Unable to send Discord DM: discord_user_id={discord_id is not None}, bot_token={bot_token is not None}"
@@ -188,12 +212,9 @@ class NotificationService:
 
         for r in rules:
             try:
-                full_message = (
-                    f"📣 **System Update [{event_type}]**\n**{title}**\n{message}"
-                )
                 if r.webhook_url:
                     NotificationService.send_discord_webhook(
-                        r.webhook_url, full_message
+                        r.webhook_url, title, message, event_type
                     )
                 elif r.discord_channel_id:
                     # Send via Bot Token to Channel
@@ -215,9 +236,22 @@ class NotificationService:
                             "Authorization": f"Bot {bot_token}",
                             "Content-Type": "application/json",
                         }
+                        color = 3066993 if "success" in title.lower() or "complete" in title.lower() else (15158332 if "error" in title.lower() or "fail" in title.lower() else 3447003)
+                        payload = {
+                            "embeds": [
+                                {
+                                    "title": title,
+                                    "description": message,
+                                    "color": color,
+                                    "footer": {
+                                        "text": f"Voyarr Notification • {event_type.upper()}"
+                                    }
+                                }
+                            ]
+                        }
                         requests.post(
                             url,
-                            json={"content": full_message},
+                            json=payload,
                             headers=headers,
                             timeout=5,
                         )

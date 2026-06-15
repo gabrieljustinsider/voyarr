@@ -317,6 +317,8 @@ async def oidc_callback(request: Request, provider: str = "oidc", db: Session = 
     email = None
     sub = None
     username_suggest = None
+    display_name = None
+    avatar_url = None
 
     if provider in ("oidc", "google"):
         userinfo = token.get("userinfo")
@@ -329,6 +331,8 @@ async def oidc_callback(request: Request, provider: str = "oidc", db: Session = 
             email = userinfo.get("email")
             sub = userinfo.get("sub")
             username_suggest = userinfo.get("preferred_username") or userinfo.get("name")
+            display_name = userinfo.get("name")
+            avatar_url = userinfo.get("picture")
     
     elif provider == "github":
         try:
@@ -337,6 +341,8 @@ async def oidc_callback(request: Request, provider: str = "oidc", db: Session = 
             sub = str(user_data.get("id"))
             username_suggest = user_data.get("login")
             email = user_data.get("email")
+            display_name = user_data.get("name")
+            avatar_url = user_data.get("avatar_url")
             if not email:
                 email_resp = await client.get("user/emails", token=token)
                 emails = email_resp.json()
@@ -353,6 +359,10 @@ async def oidc_callback(request: Request, provider: str = "oidc", db: Session = 
             sub = str(user_data.get("id"))
             username_suggest = user_data.get("username")
             email = user_data.get("email")
+            display_name = user_data.get("global_name") or user_data.get("username")
+            avatar_hash = user_data.get("avatar")
+            if avatar_hash:
+                avatar_url = f"https://cdn.discordapp.com/avatars/{sub}/{avatar_hash}.png"
         except Exception as e:
             logger.error(f"Failed to fetch Discord user info: {e}")
             raise HTTPException(status_code=400, detail="Could not retrieve user details from Discord.")
@@ -374,7 +384,8 @@ async def oidc_callback(request: Request, provider: str = "oidc", db: Session = 
     redirect_url, access_token = await asyncio.to_thread(
         _process_oidc_user,
         db, provider, str(sub), email, username_suggest,
-        auth_header, access_token_cookie, frontend_url
+        auth_header, access_token_cookie, frontend_url,
+        display_name, avatar_url
     )
 
     response = RedirectResponse(url=redirect_url)

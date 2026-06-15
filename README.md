@@ -31,7 +31,7 @@ Voyarr automates the tedious parts of managing a local media library. Watch and 
 8. **Multi-Drive Storage:** Spread your library across multiple hard drives seamlessly using comma-separated Docker volume mappings.
 9. **Multi-User RBAC:** Create restricted user accounts for friends and family without exposing your Master Key or admin privileges.
 10. **Remote Mapping Extension:** A Chrome browser extension with a "Map Mode" UI allowing you to click on elements on live websites to generate CSS selectors for site integration recipes.
-11. **Discord Bot Portal:** Remotely trigger advanced admin tasks, search the library, and manage media directly via Discord Slash Commands.
+11. **Discord Bot Portal:** Remotely trigger advanced admin tasks, check live system status/telemetry, approve/reject requests interactively via buttons, search the library, and manage media directly via Discord Slash Commands.
 12. **Automated Transcoding Engine:** Run background FFmpeg pipelines to convert video libraries to lightweight codecs (e.g. H.265) and set target resolutions.
 13. **Outbound Webhooks & Notifications:** Send real-time notifications to external endpoints for library scans, processing, and transcode completions.
 14. **Cron Schedules:** Schedule automated periodic channel scans and synchronization via custom cron-expression schedules.
@@ -45,7 +45,7 @@ Voyarr automates the tedious parts of managing a local media library. Watch and 
 21. **Relational Studio Database Modeling:** Uses a fully normalized PostgreSQL `studios` model, providing robust metadata structures and tag relations.
 22. **Bulk Duplicate Merging Engine:** Resolve multiple visual duplicates programmatically using similarity-based algorithms (`KEEP_HIGHEST_QUALITY`, `KEEP_OLDEST`, `KEEP_NEWEST`).
 23. **Passwordless Passkeys (WebAuthn):** Fully secure, modern passwordless logins using biometric security keys. Includes browser and OS credentials detection (1Password, Bitwarden, iCloud Keychain, Google Password Manager), AAGUID manufacturer resolving, geographic location auditing, and WebAuthn Conditional UI (autofill mediation) support.
-24. **SSO Provider Fast-Access Linking:** Link Google, GitHub, and Discord accounts to standard user profiles, with automated lockout guards ensuring you can never unlink your sole authentication method.
+24. **SSO Provider Fast-Access Linking:** Link Google, GitHub, and Discord accounts to standard user profiles, with automatic display name and avatar synchronization, and automated lockout guards ensuring you can never unlink your sole authentication method.
 25. **Secure String User Identifiers:** Uses randomly generated UUIDs prefixed with `usr_` instead of sequential integer primary keys to defend against user enumeration attacks.
 26. **OpenID Connect (OIDC) Integration:** Authenticate via any compliant OIDC provider including Keycloak, Authentik, Authelia, Azure AD / Entra ID, Okta, and Google Workspace. Users are auto-provisioned on first login.
 27. **Global Authentication Policy Controls:** Administrative switches to enable or disable Passkeys, SSO, and OIDC globally, with interactive setup notices and backend API enforcement.
@@ -239,9 +239,10 @@ Open `.env` and configure the following parameters:
 
 * **Integrations (Celery & Discord)**:
   - **Celery Redis Broker**: Background task tracking is routed by default using `CELERY_BROKER_URL=redis://redis:6379/0` and `CELERY_RESULT_BACKEND=redis://redis:6379/0`.
-  - **Discord Bot**: To enable remote Discord slash commands (e.g. `/search`, `/add`) directly against your library, provide your bot token:
+  - **Discord Bot**: To enable remote Discord slash commands (e.g. `/search`, `/add`, `/status`, and `/request` with button-based interactive approvals) directly against your library, provide your bot token:
     ```env
     DISCORD_BOT_TOKEN=your_bot_token_here
+    DISCORD_ADMIN_CHANNEL_ID=your_admin_channel_id_here
     ```
 
 * **Browserless (Web Scraping Engine)**: To save ~4.6 GB of RAM/disk space locally, Voyarr defaults to using the free cloud-hosted `browserless.io` service for advanced metadata scraping.

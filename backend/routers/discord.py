@@ -138,10 +138,59 @@ def _process_discord_command(db: Session, interaction_type: int, data: dict):
                 )
 
             db_req = MediaRequest(
-                title=title, url=url, requested_by=f"Discord: {username}"
+                title=title, url=url, requested_by=f"Discord: {username}", status="pending"
             )
             db.add(db_req)
             db.commit()
+            db.refresh(db_req)
+
+            # Post approval buttons to designated Discord Admin Channel if configured
+            admin_channel_setting = db.query(Settings).filter(Settings.key == "discord_admin_channel_id").first()
+            admin_channel_id = admin_channel_setting.value if admin_channel_setting else os.getenv("DISCORD_ADMIN_CHANNEL_ID")
+
+            bot_token_setting = db.query(Settings).filter(Settings.key == "discord_bot_token").first()
+            bot_token = bot_token_setting.value if bot_token_setting else os.getenv("DISCORD_BOT_TOKEN")
+
+            if admin_channel_id and bot_token:
+                import requests
+                msg_url = f"https://discord.com/api/v10/channels/{admin_channel_id}/messages"
+                headers = {
+                    "Authorization": f"Bot {bot_token}",
+                    "Content-Type": "application/json"
+                }
+                payload = {
+                    "content": "🔔 **New Media Request Submitted**",
+                    "embeds": [
+                        {
+                            "title": f"Media Request: {title}",
+                            "description": f"URL: {url or 'None'}\nRequested by: Discord: {username}\nStatus: 🟡 **Pending Approval**",
+                            "color": 3447003
+                        }
+                    ],
+                    "components": [
+                        {
+                            "type": 1,
+                            "components": [
+                                {
+                                    "type": 2,
+                                    "style": 3,
+                                    "label": "Approve",
+                                    "custom_id": f"approve_request_{db_req.id}"
+                                },
+                                {
+                                    "type": 2,
+                                    "style": 4,
+                                    "label": "Reject",
+                                    "custom_id": f"reject_request_{db_req.id}"
+                                }
+                            ]
+                        }
+                    ]
+                }
+                try:
+                    requests.post(msg_url, json=payload, headers=headers, timeout=5)
+                except Exception as e:
+                    logger.error(f"Failed to post approval buttons to Discord: {e}")
 
             return JSONResponse(
                 {
@@ -298,7 +347,163 @@ def _process_discord_command(db: Session, interaction_type: int, data: dict):
                 {"type": 4, "data": {"content": f"✅ Scrape job initiated for {url}."}}
             )
 
-    return JSONResponse({"type": 4, "data": {"content": "Unknown command."}})
+        # Command: /status (Access: Admin/User/Viewer)
+        elif command_name == "status":
+            import platform
+            import sys
+            import shutil
+            import datetime
+            from sqlalchemy import text
+            from database import engine
+
+            # 1. DB check
+            db_status = "🟢 Dialect: " + engine.name
+            try:
+                db.execute(text("SELECT 1"))
+            except Exception as e:
+                db_status = f"🔴 Error: {str(e)}"
+
+            # 2. Redis Check
+            import urllib.parse
+            import socket
+            redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+            parsed = urllib.parse.urlparse(redis_url)
+            host = parsed.hostname or "redis"
+            port = parsed.port or 6379
+            socket.setdefaulttimeout(1.0)
+            try:
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                s.connect((host, port))
+                s.close()
+                redis_status = "🟢 Healthy"
+            except Exception as e:
+                redis_status = f"🔴 Error: {str(e)}"
+
+            # 3. Environment details
+            is_docker = os.path.exists("/.dockerenv")
+            if not is_docker:
+                try:
+                    with open("/proc/1/cgroup", "rt") as f:
+                        is_docker = "docker" in f.read()
+                except Exception:
+                    pass
+
+            now = datetime.datetime.now().astimezone()
+            system_time_str = now.strftime("%Y-%m-%d %H:%M:%S ") + (now.tzname() or "UTC")
+
+            # Disk usage
+            storage_usage = "Unknown"
+            try:
+                total, used, free = shutil.disk_usage("/media/storage")
+                used_gb = round(used / (1024**3), 2)
+                total_gb = round(total / (1024**3), 2)
+                percent = round((used / total) * 100, 2)
+                storage_usage = f"{used_gb} GB / {total_gb} GB ({percent}%)"
+            except Exception:
+                pass
+
+            embed = {
+                "title": "📋 Voyarr System Status",
+                "color": 3447003,
+                "fields": [
+                    {"name": "Database Status", "value": db_status, "inline": True},
+                    {"name": "Redis Status", "value": redis_status, "inline": True},
+                    {"name": "Docker Container", "value": "🟢 Yes" if is_docker else "❌ No", "inline": True},
+                    {"name": "System Time", "value": system_time_str, "inline": False},
+                    {"name": "Media Storage Usage", "value": storage_usage, "inline": False},
+                    {"name": "OS Platform", "value": f"{platform.system()} {platform.release()}", "inline": False},
+                ],
+                "footer": {
+                    "text": "Voyarr Status Telemetry"
+                }
+            }
+
+            return JSONResponse({
+                "type": 4,
+                "data": {
+                    "embeds": [embed]
+                }
+            })
+
+    elif interaction_type == 3:
+        # Message component (button click)
+        component_data = data.get("data", {})
+        custom_id = component_data.get("custom_id", "")
+        
+        user_data = data.get("member", {}).get("user", {}) or data.get("user", {})
+        username = user_data.get("username", "Unknown Discord User")
+        user_id = str(user_data.get("id", ""))
+        
+        # Check if the user is authorized and has admin role
+        if not is_user_authorized(db, user_id):
+            return JSONResponse({
+                "type": 4,
+                "data": {"content": "❌ You are not authorized to interact with Voyarr.", "flags": 64}
+            })
+            
+        user_role = get_user_role_from_discord(db, user_id, username)
+        if user_role != "admin":
+            return JSONResponse({
+                "type": 4,
+                "data": {"content": "❌ Forbidden: Only administrators can approve/reject requests.", "flags": 64}
+            })
+
+        if custom_id.startswith("approve_request_") or custom_id.startswith("reject_request_"):
+            action = "approve" if custom_id.startswith("approve_request_") else "reject"
+            req_id = int(custom_id.split("_")[-1])
+            db_req = db.query(MediaRequest).filter(MediaRequest.id == req_id).first()
+            if not db_req:
+                return JSONResponse({
+                    "type": 4,
+                    "data": {"content": "❌ Request not found.", "flags": 64}
+                })
+                
+            if action == "approve":
+                db_req.status = "approved"
+                db.commit()
+                
+                # If a URL is attached, automatically kick off the scrape task!
+                if db_req.url:
+                    try:
+                        validate_url_ssrf(db_req.url)
+                        scrape_url_task.delay(db_req.url)
+                    except Exception:
+                        pass
+                
+                return JSONResponse({
+                    "type": 7, # Update original message
+                    "data": {
+                        "content": f"✅ Media request for **{db_req.title}** has been **approved** by @{username}!",
+                        "embeds": [
+                            {
+                                "title": f"Media Request: {db_req.title}",
+                                "description": f"URL: {db_req.url or 'None'}\nRequested by: {db_req.requested_by}\nStatus: 🟢 **Approved**",
+                                "color": 3066993,
+                            }
+                        ],
+                        "components": [] # Remove the buttons
+                    }
+                })
+            else:
+                db_req.status = "rejected"
+                db.commit()
+                
+                return JSONResponse({
+                    "type": 7, # Update original message
+                    "data": {
+                        "content": f"❌ Media request for **{db_req.title}** has been **rejected** by @{username}.",
+                        "embeds": [
+                            {
+                                "title": f"Media Request: {db_req.title}",
+                                "description": f"URL: {db_req.url or 'None'}\nRequested by: {db_req.requested_by}\nStatus: 🔴 **Rejected**",
+                                "color": 15158332,
+                            }
+                        ],
+                        "components": [] # Remove the buttons
+                    }
+                })
+
+    return JSONResponse({"type": 4, "data": {"content": "Unknown command or interaction type."}})
 
 
 @router.post("/interactions")
