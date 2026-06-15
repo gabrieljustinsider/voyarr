@@ -87,7 +87,17 @@ export default function SystemStatus() {
               <Grid item xs={12} md={6}>
                 <Card sx={{ height: '100%' }}>
                   <CardContent>
-                    <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>System Environment</Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                      <Typography variant="h6" sx={{ fontWeight: 'bold' }}>System Environment</Typography>
+                      {status.environment?.is_docker !== undefined && (
+                        <Chip 
+                          label={status.environment.is_docker ? "DOCKER CONTAINER" : "HOST SYSTEM"} 
+                          color={status.environment.is_docker ? "primary" : "default"} 
+                          size="small"
+                          sx={{ fontWeight: 'bold' }}
+                        />
+                      )}
+                    </Box>
                     
                     <Typography variant="body2" sx={{ fontWeight: 'bold' }} color="textSecondary">Host OS</Typography>
                     <Typography variant="body1" sx={{ mb: 2 }}>{status.environment?.os || 'Linux Container'}</Typography>

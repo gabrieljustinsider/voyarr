@@ -89,9 +89,18 @@ async def get_system_status(db: Session = Depends(get_db)):
         browserless_details["error"] = str(e)
 
     # 5. OS & Python Environment
+    is_docker = os.path.exists("/.dockerenv")
+    if not is_docker:
+        try:
+            with open("/proc/1/cgroup", "rt") as f:
+                is_docker = "docker" in f.read()
+        except Exception:
+            pass
+
     env_details = {
         "os": f"{platform.system()} {platform.release()}",
         "python_version": sys.version,
+        "is_docker": is_docker,
         "media_storage_disk": {},
         "app_disk": {}
     }
