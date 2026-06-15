@@ -5,6 +5,7 @@ import os
 import shutil
 import platform
 import sys
+from datetime import datetime, timezone
 from database import get_db, engine
 from dependencies import verify_api_key
 from rate_limiter import redis_client
@@ -90,14 +91,14 @@ async def get_system_status(db: Session = Depends(get_db)):
         browserless_details["error"] = "Browserless connection failed"
 
     # 5. Disk space details
-    now = datetime.datetime.now().astimezone()
+    now = datetime.now().astimezone()
     env_details = {
         "os": platform.system(),
         "release": platform.release(),
         "python_version": sys.version.split()[0],
         "docker_runtime": os.path.exists("/.dockerenv"),
         "time": {
-            "utc": datetime.datetime.now(timezone.utc).isoformat(),
+            "utc": datetime.now(timezone.utc).isoformat(),
             "local": now.isoformat(),
             "timezone": now.tzname() or "UTC"
         },
