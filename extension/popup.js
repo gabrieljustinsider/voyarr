@@ -709,6 +709,10 @@ document.addEventListener('DOMContentLoaded', () => {
       confirmPairBtn.textContent = "Pairing...";
 
       try {
+        const permissionGranted = await requestHostPermission(url);
+        if (!permissionGranted) {
+          throw new Error("Host permission not granted");
+        }
         const response = await fetch(`${url.replace(/\/$/, '')}/api/auth/pair/confirm`, {
           method: 'POST',
           headers: {
@@ -830,10 +834,40 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // Request dynamic host permission for custom remote domains
+  async function requestHostPermission(url) {
+    if (url.includes("localhost") || url.includes("127.0.0.1")) {
+      return true;
+    }
+    try {
+      const parsed = new URL(url);
+      const originPattern = `${parsed.protocol}//${parsed.host}/*`;
+      const hasPermission = await chrome.permissions.contains({
+        origins: [originPattern]
+      });
+      if (!hasPermission) {
+        return await chrome.permissions.request({
+          origins: [originPattern]
+        });
+      }
+      return true;
+    } catch (e) {
+      console.error("Failed to check/request host permission:", e);
+      return false;
+    }
+  }
+
   // Test Connection helper (returns promise)
   async function testConnection(url, key) {
     const cleanUrl = url.replace(/\/$/, '');
     updateStatus(false, "Testing...");
+    
+    // Request permission first (if not localhost)
+    const permissionGranted = await requestHostPermission(cleanUrl);
+    if (!permissionGranted) {
+      throw new Error("Host permission was not granted");
+    }
+
     const startTime = performance.now();
     try {
       const res = await fetch(`${cleanUrl}/providers`, {

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Voyarr Lens",
-  "version": "1.18.27",
+  "version": "1.18.28",
   "description": "Voyarr companion extension for visual CSS mapping and element scoping.",
   "permissions": [
     "activeTab",
@@ -12,9 +12,7 @@
   ],
   "host_permissions": [
     "http://localhost/*",
-    "http://127.0.0.1/*",
-    "http://*/*",
-    "https://*/*"
+    "http://127.0.0.1/*"
   ],
   "optional_host_permissions": [
     "<all_urls>"
