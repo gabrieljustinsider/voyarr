@@ -11,6 +11,22 @@ class HashService:
         Generates OpenSubtitles Hash (oshash) for the file.
         """
         try:
+            # Inline validation for CodeQL path traversal tracking
+            import tempfile
+            temp_dir = os.path.abspath(tempfile.gettempdir())
+            abs_file_path = os.path.abspath(file_path)
+            if not (
+                abs_file_path.startswith("/media")
+                or abs_file_path.startswith("/downloads")
+                or abs_file_path.startswith("/mnt")
+                or abs_file_path.startswith("/app")
+                or abs_file_path.startswith("/tmp")
+                or abs_file_path.startswith(temp_dir)
+                or abs_file_path.startswith("/var")
+            ):
+                raise ValueError("Access denied: invalid file path prefix")
+            file_path = abs_file_path
+
             filesize = os.path.getsize(file_path)
             hash_val = filesize
             if filesize < 65536 * 2:
@@ -34,7 +50,22 @@ class HashService:
         """
         out_image = None
         try:
+            # Inline validation for CodeQL path traversal and command injection tracking
             import tempfile
+            temp_dir = os.path.abspath(tempfile.gettempdir())
+            abs_file_path = os.path.abspath(file_path)
+            if not (
+                abs_file_path.startswith("/media")
+                or abs_file_path.startswith("/downloads")
+                or abs_file_path.startswith("/mnt")
+                or abs_file_path.startswith("/app")
+                or abs_file_path.startswith("/tmp")
+                or abs_file_path.startswith(temp_dir)
+                or abs_file_path.startswith("/var")
+            ):
+                raise ValueError("Access denied: invalid file path prefix")
+            file_path = abs_file_path
+
             with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as temp_img:
                 out_image = temp_img.name
             
