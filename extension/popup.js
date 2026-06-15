@@ -268,13 +268,86 @@ document.addEventListener('DOMContentLoaded', () => {
       infoDiv.style.flex = "1";
       infoDiv.style.minWidth = "0";
 
-      const nameDiv = document.createElement('div');
-      nameDiv.style.fontWeight = "600";
-      nameDiv.style.color = s.id === activeServerId ? "var(--success)" : "var(--text-main)";
-      nameDiv.style.overflow = "hidden";
-      nameDiv.style.textOverflow = "ellipsis";
-      nameDiv.style.whiteSpace = "nowrap";
-      nameDiv.textContent = s.name + (s.id === activeServerId ? " (Active)" : "");
+      const titleRow = document.createElement('div');
+      titleRow.style.display = "flex";
+      titleRow.style.alignItems = "center";
+      titleRow.style.gap = "6px";
+      titleRow.style.minWidth = "0";
+
+      const nameSpan = document.createElement('span');
+      nameSpan.style.fontWeight = "600";
+      nameSpan.style.color = s.id === activeServerId ? "var(--success)" : "var(--text-main)";
+      nameSpan.style.overflow = "hidden";
+      nameSpan.style.textOverflow = "ellipsis";
+      nameSpan.style.whiteSpace = "nowrap";
+      nameSpan.textContent = s.name + (s.id === activeServerId ? " (Active)" : "");
+
+      const editBtn = document.createElement('button');
+      editBtn.style.background = "none";
+      editBtn.style.border = "none";
+      editBtn.style.padding = "0";
+      editBtn.style.cursor = "pointer";
+      editBtn.style.fontSize = "9px";
+      editBtn.style.opacity = "0.7";
+      editBtn.style.transition = "opacity 0.2s";
+      editBtn.style.display = "inline-flex";
+      editBtn.style.alignItems = "center";
+      editBtn.title = "Rename Server";
+      editBtn.textContent = "✏️";
+      
+      editBtn.addEventListener('mouseenter', () => editBtn.style.opacity = "1");
+      editBtn.addEventListener('mouseleave', () => editBtn.style.opacity = "0.7");
+      
+      editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        
+        const nameInput = document.createElement('input');
+        nameInput.type = "text";
+        nameInput.value = s.name;
+        nameInput.style.fontSize = "11px";
+        nameInput.style.padding = "2px 6px";
+        nameInput.style.backgroundColor = "var(--bg-primary)";
+        nameInput.style.border = "1px solid rgba(168, 85, 247, 0.5)";
+        nameInput.style.borderRadius = "4px";
+        nameInput.style.color = "var(--text-main)";
+        nameInput.style.width = "110px";
+        nameInput.style.height = "16px";
+        nameInput.style.outline = "none";
+        
+        let saved = false;
+        const saveEdit = async () => {
+          if (saved) return;
+          saved = true;
+          const newName = nameInput.value.trim();
+          if (newName && newName !== s.name) {
+            s.name = newName;
+            await chrome.storage.local.set({ voyarrServers: servers });
+            renderServerList();
+            populateActiveServerSelect();
+          } else {
+            renderServerList();
+          }
+        };
+
+        nameInput.addEventListener('keydown', (ke) => {
+          if (ke.key === 'Enter') {
+            saveEdit();
+          } else if (ke.key === 'Escape') {
+            saved = true;
+            renderServerList();
+          }
+        });
+
+        nameInput.addEventListener('blur', saveEdit);
+
+        titleRow.innerHTML = "";
+        titleRow.appendChild(nameInput);
+        nameInput.focus();
+        nameInput.select();
+      });
+
+      titleRow.appendChild(nameSpan);
+      titleRow.appendChild(editBtn);
 
       const urlDiv = document.createElement('div');
       urlDiv.style.color = "var(--text-muted)";
@@ -306,7 +379,7 @@ document.addEventListener('DOMContentLoaded', () => {
         badgesRow.appendChild(createIndicatorBadge(latBadge));
       }
 
-      infoDiv.appendChild(nameDiv);
+      infoDiv.appendChild(titleRow);
       infoDiv.appendChild(urlDiv);
       infoDiv.appendChild(badgesRow);
 
