@@ -59,6 +59,26 @@ export default function AccountSecurity({ setSnackbar }) {
   // SSO Linking State
   const [ssoLinks, setSsoLinks] = useState([])
 
+  // Voyarr Lens Pairing States
+  const [pairingCode, setPairingCode] = useState('')
+  const [expiresIn, setExpiresIn] = useState(300)
+
+  useEffect(() => {
+    let timer
+    if (pairingCode && expiresIn > 0) {
+      timer = setInterval(() => {
+        setExpiresIn(prev => {
+          if (prev <= 1) {
+            setPairingCode('')
+            return 300
+          }
+          return prev - 1
+        })
+      }, 1000)
+    }
+    return () => clearInterval(timer)
+  }, [pairingCode, expiresIn])
+
   useEffect(() => {
     fetchProfile()
     fetchPasskeys()
@@ -132,6 +152,32 @@ export default function AccountSecurity({ setSnackbar }) {
       }
     } catch (err) {
       console.error(err)
+    }
+  }
+
+  const handleInitiatePairing = async () => {
+    try {
+      const res = await apiFetch('/auth/pair/initiate', { method: 'POST' })
+      if (res.ok) {
+        const data = await res.json()
+        setPairingCode(data.pairing_code)
+        setExpiresIn(data.expires_in || 300)
+        
+        // Dispatch custom event to notify Lens extension loaded on the tab
+        window.dispatchEvent(new CustomEvent('VOYARR_INITIATE_PAIRING', {
+          detail: {
+            url: window.location.origin,
+            pairingCode: data.pairing_code
+          }
+        }))
+        
+        setSnackbar({ open: true, message: 'Pairing code generated! Opening the Voyarr Lens extension will now auto-detect and pair.', severity: 'info' })
+      } else {
+        setSnackbar({ open: true, message: 'Failed to initiate pairing.', severity: 'error' })
+      }
+    } catch (err) {
+      console.error(err)
+      setSnackbar({ open: true, message: 'Error initiating pairing.', severity: 'error' })
     }
   }
 
@@ -666,6 +712,41 @@ export default function AccountSecurity({ setSnackbar }) {
             )
           })}
         </Grid>
+      </Paper>
+
+      {/* Voyarr Lens Companion Pairing Card */}
+      <Paper sx={{ p: 3, border: '1px solid rgba(255, 255, 255, 0.05)', background: 'rgba(255, 255, 255, 0.01)', borderRadius: '12px' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, color: 'primary.main' }}>
+          <Link size={24} />
+          <Typography variant="subtitle1" fontWeight="bold" color="text.primary">Voyarr Lens Companion Pairing</Typography>
+        </Box>
+        <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
+          Instantly pair the <strong>Voyarr Lens</strong> companion browser extension. Click below to generate a temporary pairing code.
+        </Typography>
+
+        {pairingCode ? (
+          <Box sx={{ 
+            textAlign: 'center', 
+            p: 3, 
+            border: '1px dashed #6366f1', 
+            borderRadius: 2, 
+            backgroundColor: 'rgba(99, 102, 241, 0.04)',
+            maxWidth: 400,
+            mx: 'auto'
+          }}>
+            <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
+              Active Pairing Code (expires in {expiresIn}s):
+            </Typography>
+            <Typography variant="h3" sx={{ letterSpacing: 6, fontWeight: 'bold', mb: 2, color: '#6366f1', fontFamily: 'monospace' }}>
+              {pairingCode}
+            </Typography>
+            <Button size="small" variant="outlined" color="inherit" onClick={() => setPairingCode('')}>Cancel</Button>
+          </Box>
+        ) : (
+          <Button variant="contained" color="secondary" onClick={handleInitiatePairing}>
+            Initiate Pairing
+          </Button>
+        )}
       </Paper>
     </Box>
   )

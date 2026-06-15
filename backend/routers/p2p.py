@@ -59,7 +59,7 @@ def ping_peer(peer: PeerNode = Depends(verify_p2p_token)):
     return {
         "status": "online",
         "peer_name": peer.name,
-        "version": "1.18.26",
+        "version": "1.18.27",
         "server_time": datetime.now(timezone.utc).isoformat(),
     }
 
