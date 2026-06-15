@@ -250,3 +250,26 @@ Because Portainer passes stack deployment requests directly to the underlying Do
    FRONTEND_PORT=8082
    BACKEND_PORT=8083
    ```
+
+---
+
+## 13. "Unable to start stack: Sorry, the page you are looking for is not found" (Synology Inc.) in Portainer
+
+**Error Example:**
+When deploying the stack, the Portainer UI fails and prints a raw HTML error containing:
+`Sorry, the page you are looking for is not found. ... Synology Inc.`
+
+**Cause:**
+This error indicates a communication disruption between your browser and Portainer, returned by the Synology Host's built-in Reverse Proxy/Web Station. The most common trigger is a **Port Conflict on Port 80**:
+1. The `docker-compose.yml` defaults the frontend service port to `80` (`${FRONTEND_PORT:-80}:80`).
+2. On Synology NAS, port `80` is permanently reserved by the host system (Web Station/DSM) to route HTTP traffic.
+3. When Docker attempts to bind the frontend container to host port `80`, the allocation fails. This startup crash/network error causes the Synology reverse proxy routing your traffic to Portainer to lose connection to the backend agent, returning a Synology `404 Not Found` HTML page instead.
+
+**Solution:**
+1. **Change the Frontend Port**:
+   In your Portainer stack environment variables (or `.env` file), set `FRONTEND_PORT` to an unused custom port (e.g., `8082` or `32786`):
+   ```env
+   FRONTEND_PORT=8082
+   ```
+2. **Re-deploy the Stack**:
+   Click **Deploy the stack** again. With the port conflict resolved, the containers will bind successfully and the stack will start without triggering the Synology proxy 404 response.
