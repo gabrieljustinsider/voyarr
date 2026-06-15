@@ -55,6 +55,151 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
   })
   const [settingsAnchorEl, setSettingsAnchorEl] = useState(null)
 
+  // Logo Crop & Pad Editor State
+  const [openLogoEditor, setOpenLogoEditor] = useState(false)
+  const [logoEditorImageSrc, setLogoEditorImageSrc] = useState('')
+  const [logoScale, setLogoScale] = useState(100)
+  const [logoPadding, setLogoPadding] = useState(20)
+  const [logoOffset, setLogoOffset] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+
+  const createCheckerboard = () => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 16
+    canvas.height = 16
+    const ctx = canvas.getContext('2d')
+    ctx.fillStyle = '#f0f0f0'
+    ctx.fillRect(0, 0, 16, 16)
+    ctx.fillStyle = '#e0e0e0'
+    ctx.fillRect(0, 0, 8, 8)
+    ctx.fillRect(8, 8, 8, 8)
+    return canvas
+  }
+
+  const drawLogoCanvas = useCallback((imageSrc, scale, padding, offset) => {
+    const canvas = document.getElementById('logo-editor-canvas')
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+    if (!imageSrc) return
+
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      // 1. Draw checkerboard pattern
+      const pattern = ctx.createPattern(createCheckerboard(), 'repeat')
+      ctx.fillStyle = pattern
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+      // 2. Calculate aspect ratio fitting
+      const aspect = img.width / img.height
+      let drawW, drawH
+
+      if (aspect > 1) {
+        drawW = canvas.width
+        drawH = canvas.width / aspect
+      } else {
+        drawH = canvas.height
+        drawW = canvas.height * aspect
+      }
+
+      // Apply transparent padding border (percent of canvas size)
+      const padAmount = (padding / 100) * canvas.width
+      drawW = Math.max(10, drawW - padAmount)
+      drawH = Math.max(10, drawH - padAmount)
+
+      // Apply zoom/scale factor
+      drawW = drawW * (scale / 100)
+      drawH = drawH * (scale / 100)
+
+      // Center with drag offsets
+      const x = (canvas.width - drawW) / 2 + offset.x
+      const y = (canvas.height - drawH) / 2 + offset.y
+
+      ctx.drawImage(img, x, y, drawW, drawH)
+    }
+    // Append unique query string to bypass CORS caching on some servers
+    img.src = imageSrc.startsWith('data:') ? imageSrc : `${imageSrc}${imageSrc.includes('?') ? '&' : '?'}v_cb=${Date.now()}`
+  }, [])
+
+  useEffect(() => {
+    if (openLogoEditor && logoEditorImageSrc) {
+      const timer = setTimeout(() => {
+        drawLogoCanvas(logoEditorImageSrc, logoScale, logoPadding, logoOffset)
+      }, 50)
+      return () => clearTimeout(timer)
+    }
+  }, [openLogoEditor, logoEditorImageSrc, logoScale, logoPadding, logoOffset, drawLogoCanvas])
+
+  const handleCanvasMouseDown = (e) => {
+    setIsDragging(true)
+    setDragStart({ x: e.clientX - logoOffset.x, y: e.clientY - logoOffset.y })
+  }
+
+  const handleCanvasMouseMove = (e) => {
+    if (!isDragging) return
+    setLogoOffset({
+      x: e.clientX - dragStart.x,
+      y: e.clientY - dragStart.y
+    })
+  }
+
+  const handleCanvasMouseUp = () => {
+    setIsDragging(false)
+  }
+
+  const handleApplyLogoEdit = () => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      const exportCanvas = document.createElement('canvas')
+      exportCanvas.width = 512
+      exportCanvas.height = 512
+      const ctx = exportCanvas.getContext('2d')
+      ctx.clearRect(0, 0, 512, 512)
+
+      const aspect = img.width / img.height
+      let drawW, drawH
+
+      if (aspect > 1) {
+        drawW = 512
+        drawH = 512 / aspect
+      } else {
+        drawH = 512
+        drawW = 512 * aspect
+      }
+
+      const padAmount = (logoPadding / 100) * 512
+      drawW = Math.max(10, drawW - padAmount)
+      drawH = Math.max(10, drawH - padAmount)
+
+      drawW = drawW * (logoScale / 100)
+      drawH = drawH * (logoScale / 100)
+
+      const scaleFactor = 512 / 300
+      const x = (512 - drawW) / 2 + (logoOffset.x * scaleFactor)
+      const y = (512 - drawH) / 2 + (logoOffset.y * scaleFactor)
+
+      ctx.drawImage(img, x, y, drawW, drawH)
+      
+      try {
+        const dataUrl = exportCanvas.toDataURL('image/png')
+        setProviderForm(prev => ({ ...prev, logo_url: dataUrl }))
+        setOpenLogoEditor(false)
+      } catch (err) {
+        // Tainted canvas fallback if CORS fails: set original URL and warn user
+        console.error('Failed to export canvas', err)
+        window.dispatchEvent(new CustomEvent('show-toast', { 
+          detail: { message: 'Image server blocked cropping. Saved original URL instead.', severity: 'warning' } 
+        }))
+        setOpenLogoEditor(false)
+      }
+    }
+    img.src = logoEditorImageSrc
+  }
+
   useEffect(() => {
     const savedPrefs = localStorage.getItem('voyarr_provider_card_prefs')
     if (savedPrefs) {
@@ -362,7 +507,7 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
           {isScraping ? 'Scraping...' : 'Scrape Site Details'}
         </Button>
       </Box>
-      <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+      <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', width: '100%' }}>
         <TextField
           fullWidth
           label="Logo URL"
@@ -370,16 +515,45 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
           placeholder="https://example.com/logo.png"
           onChange={(e) => setProviderForm({ ...providerForm, logo_url: e.target.value })}
         />
-        {(providerForm.logo_url || providerForm.favicon_url) && (
-          <Avatar
-            src={providerForm.logo_url || providerForm.favicon_url}
-            alt="Logo preview"
-            imgProps={{ style: { objectFit: 'contain', padding: '2px' } }}
-            sx={{ width: 56, height: 56, mt: 0, bgcolor: 'action.hover' }}
-          >
-            {providerForm.name?.charAt(0)?.toUpperCase() || '?'}
-          </Avatar>
-        )}
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+          {(providerForm.logo_url || providerForm.favicon_url) ? (
+            <Avatar
+              src={providerForm.logo_url || providerForm.favicon_url}
+              alt="Logo preview"
+              imgProps={{ style: { objectFit: 'contain', padding: '2px' } }}
+              onClick={() => {
+                setLogoEditorImageSrc(providerForm.logo_url || providerForm.favicon_url)
+                setLogoScale(100)
+                setLogoPadding(20)
+                setLogoOffset({ x: 0, y: 0 })
+                setOpenLogoEditor(true)
+              }}
+              sx={{ width: 56, height: 56, cursor: 'pointer', border: '1px dashed', borderColor: 'primary.main', bgcolor: 'action.hover', '&:hover': { opacity: 0.8 } }}
+            >
+              {providerForm.name?.charAt(0)?.toUpperCase() || '?'}
+            </Avatar>
+          ) : (
+            <Box sx={{ width: 56, height: 56, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed grey', borderRadius: '50%' }}>
+              ❓
+            </Box>
+          )}
+          {(providerForm.logo_url || providerForm.favicon_url) && (
+            <Button 
+              size="small" 
+              variant="text" 
+              onClick={() => {
+                setLogoEditorImageSrc(providerForm.logo_url || providerForm.favicon_url)
+                setLogoScale(100)
+                setLogoPadding(20)
+                setLogoOffset({ x: 0, y: 0 })
+                setOpenLogoEditor(true)
+              }}
+              sx={{ fontSize: '0.65rem', p: 0 }}
+            >
+              Autofit / Crop
+            </Button>
+          )}
+        </Box>
       </Box>
       <TextField
         fullWidth
@@ -766,6 +940,69 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenDialog(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Logo Crop & Autofit Dialog Modal */}
+      <Dialog open={openLogoEditor} onClose={() => setOpenLogoEditor(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 'bold' }}>Logo Crop & Pad Editor</DialogTitle>
+        <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+          <Typography variant="body2" color="text.secondary" textAlign="center">
+            Drag the image to center/pan, and use the controls below to resize and pad your logo into a perfect square.
+          </Typography>
+          <Box sx={{ position: 'relative', width: 300, height: 300, bgcolor: 'action.hover', borderRadius: 2, overflow: 'hidden' }}>
+            <canvas 
+              id="logo-editor-canvas" 
+              width={300} 
+              height={300} 
+              onMouseDown={handleCanvasMouseDown}
+              onMouseMove={handleCanvasMouseMove}
+              onMouseUp={handleCanvasMouseUp}
+              onMouseLeave={handleCanvasMouseUp}
+              style={{ cursor: isDragging ? 'grabbing' : 'grab', display: 'block' }}
+            />
+          </Box>
+          <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 1.5, mt: 1 }}>
+            <Box>
+              <Typography variant="caption" sx={{ fontWeight: 'bold' }}>Zoom / Scale ({logoScale}%)</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <span style={{ fontSize: '0.8rem' }}>➖</span>
+                <input 
+                  type="range" 
+                  min="10" 
+                  max="200" 
+                  value={logoScale} 
+                  onChange={(e) => setLogoScale(Number(e.target.value))} 
+                  style={{ flexGrow: 1 }}
+                />
+                <span style={{ fontSize: '0.8rem' }}>➕</span>
+              </Box>
+            </Box>
+            <Box>
+              <Typography variant="caption" sx={{ fontWeight: 'bold' }}>Transparent Padding ({logoPadding}%)</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <span style={{ fontSize: '0.8rem' }}>🔲</span>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="80" 
+                  value={logoPadding} 
+                  onChange={(e) => setLogoPadding(Number(e.target.value))} 
+                  style={{ flexGrow: 1 }}
+                />
+                <span style={{ fontSize: '0.8rem' }}>🔳</span>
+              </Box>
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => {
+            setLogoScale(100)
+            setLogoPadding(20)
+            setLogoOffset({ x: 0, y: 0 })
+          }} color="warning">Reset</Button>
+          <Button onClick={() => setOpenLogoEditor(false)}>Cancel</Button>
+          <Button onClick={handleApplyLogoEdit} variant="contained" color="primary">Apply</Button>
         </DialogActions>
       </Dialog>
 
