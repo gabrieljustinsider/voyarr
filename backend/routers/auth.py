@@ -16,7 +16,7 @@ from security import (
 )
 from datetime import timedelta
 from pydantic import BaseModel, Field
-from typing import Literal, Any
+from typing import Literal, Any, Optional
 from jose import jwt, JWTError
 from rate_limiter import rate_limit
 from dependencies import verify_api_key
