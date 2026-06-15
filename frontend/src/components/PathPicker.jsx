@@ -193,43 +193,37 @@ export default function PathPicker({
             </li>
           );
         }}
-        renderInput={(params) => {
-          const { InputProps, InputLabelProps, ...restParams } = params;
-          return (
-            <TextField
-              {...restParams}
-              label={label}
-              helperText={helperText}
-              size="small"
-              slotProps={{
-                input: {
-                  ...InputProps,
-                  endAdornment: (
-                    <React.Fragment>
-                      {loading ? <CircularProgress color="inherit" size={20} /> : null}
-                      {InputProps?.endAdornment}
-                      <Tooltip title="Browse Filesystem">
-                        <IconButton
-                          onClick={handleOpenBrowser}
-                          size="small"
-                          sx={{
-                            color: 'var(--accent)',
-                            '&:hover': {
-                              color: '#fff',
-                            },
-                          }}
-                        >
-                          <FolderOpenIcon />
-                        </IconButton>
-                      </Tooltip>
-                    </React.Fragment>
-                  ),
-                },
-                inputLabel: InputLabelProps,
-              }}
-            />
-          );
-        }}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            label={label}
+            helperText={helperText}
+            size="small"
+            InputProps={{
+              ...params.InputProps,
+              endAdornment: (
+                <React.Fragment>
+                  {loading ? <CircularProgress color="inherit" size={20} /> : null}
+                  {params.InputProps?.endAdornment}
+                  <Tooltip title="Browse Filesystem">
+                    <IconButton
+                      onClick={handleOpenBrowser}
+                      size="small"
+                      sx={{
+                        color: 'var(--accent)',
+                        '&:hover': {
+                          color: '#fff',
+                        },
+                      }}
+                    >
+                      <FolderOpenIcon />
+                    </IconButton>
+                  </Tooltip>
+                </React.Fragment>
+              ),
+            }}
+          />
+        )}
       />
 
       {/* Premium Glassmorphic Directory Explorer Modal */}
