@@ -82,206 +82,214 @@ export default function SystemStatus() {
       {status && (
         <Grid container spacing={3}>
           {/* Row 1: System Environment & Headless Scraper */}
-          <Grid item xs={12} md={6}>
-            <Card sx={{ height: '100%' }}>
-              <CardContent>
-                <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>System Environment</Typography>
-                
-                <Typography variant="body2" sx={{ fontWeight: 'bold' }} color="textSecondary">Host OS</Typography>
-                <Typography variant="body1" sx={{ mb: 2 }}>{status.environment?.os || 'Linux Container'}</Typography>
-                
-                <Typography variant="body2" sx={{ fontWeight: 'bold' }} color="textSecondary">Python Runtime</Typography>
-                <Typography variant="body2" sx={{ mb: 3, fontStyle: 'italic', wordBreak: 'break-all' }}>
-                  {status.environment?.python_version}
-                </Typography>
-
-                <Divider sx={{ my: 2 }} />
-
-                <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>Disk Usage</Typography>
-
-                {status.environment?.media_storage_disk?.total_gb && (
-                  <Box sx={{ mb: 3 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 'bold' }}>Media Storage (/media/storage)</Typography>
-                      <Typography variant="body2" color="textSecondary">
-                        {status.environment.media_storage_disk.percent_used}%
-                      </Typography>
-                    </Box>
-                    <LinearProgress 
-                      variant="determinate" 
-                      value={status.environment.media_storage_disk.percent_used} 
-                      color={status.environment.media_storage_disk.percent_used > 85 ? 'error' : 'primary'}
-                      sx={{ height: 10, borderRadius: 5, mb: 1 }}
-                    />
-                    <Typography variant="caption" color="textSecondary">
-                      Used: {status.environment.media_storage_disk.used_gb} GB / Free: {status.environment.media_storage_disk.free_gb} GB (Total: {status.environment.media_storage_disk.total_gb} GB)
+          <Grid item xs={12}>
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
+                <Card sx={{ height: '100%' }}>
+                  <CardContent>
+                    <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>System Environment</Typography>
+                    
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }} color="textSecondary">Host OS</Typography>
+                    <Typography variant="body1" sx={{ mb: 2 }}>{status.environment?.os || 'Linux Container'}</Typography>
+                    
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }} color="textSecondary">Python Runtime</Typography>
+                    <Typography variant="body2" sx={{ mb: 3, fontStyle: 'italic', wordBreak: 'break-all' }}>
+                      {status.environment?.python_version}
                     </Typography>
-                  </Box>
-                )}
 
-                {status.environment?.app_disk?.total_gb && (
-                  <Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 'bold' }}>Application Container Disk (/app)</Typography>
-                      <Typography variant="body2" color="textSecondary">
-                        {status.environment.app_disk.percent_used}%
-                      </Typography>
+                    <Divider sx={{ my: 2 }} />
+
+                    <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>Disk Usage</Typography>
+
+                    {status.environment?.media_storage_disk?.total_gb && (
+                      <Box sx={{ mb: 3 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 'bold' }}>Media Storage (/media/storage)</Typography>
+                          <Typography variant="body2" color="textSecondary">
+                            {status.environment.media_storage_disk.percent_used}%
+                          </Typography>
+                        </Box>
+                        <LinearProgress 
+                          variant="determinate" 
+                          value={status.environment.media_storage_disk.percent_used} 
+                          color={status.environment.media_storage_disk.percent_used > 85 ? 'error' : 'primary'}
+                          sx={{ height: 10, borderRadius: 5, mb: 1 }}
+                        />
+                        <Typography variant="caption" color="textSecondary">
+                          Used: {status.environment.media_storage_disk.used_gb} GB / Free: {status.environment.media_storage_disk.free_gb} GB (Total: {status.environment.media_storage_disk.total_gb} GB)
+                        </Typography>
+                      </Box>
+                    )}
+
+                    {status.environment?.app_disk?.total_gb && (
+                      <Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 'bold' }}>Application Container Disk (/app)</Typography>
+                          <Typography variant="body2" color="textSecondary">
+                            {status.environment.app_disk.percent_used}%
+                          </Typography>
+                        </Box>
+                        <LinearProgress 
+                          variant="determinate" 
+                          value={status.environment.app_disk.percent_used} 
+                          color={status.environment.app_disk.percent_used > 85 ? 'error' : 'secondary'}
+                          sx={{ height: 10, borderRadius: 5, mb: 1 }}
+                        />
+                        <Typography variant="caption" color="textSecondary">
+                          Used: {status.environment.app_disk.used_gb} GB / Free: {status.environment.app_disk.free_gb} GB (Total: {status.environment.app_disk.total_gb} GB)
+                        </Typography>
+                      </Box>
+                    )}
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <Card sx={{ height: '100%' }}>
+                  <CardContent>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                      <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Headless Browserless</Typography>
+                      <Chip 
+                        icon={getStatusIcon(status.browserless?.status)} 
+                        label={status.browserless?.status?.toUpperCase()} 
+                        color={getStatusChipColor(status.browserless?.status)}
+                        variant="outlined"
+                        size="small"
+                      />
                     </Box>
-                    <LinearProgress 
-                      variant="determinate" 
-                      value={status.environment.app_disk.percent_used} 
-                      color={status.environment.app_disk.percent_used > 85 ? 'error' : 'secondary'}
-                      sx={{ height: 10, borderRadius: 5, mb: 1 }}
-                    />
-                    <Typography variant="caption" color="textSecondary">
-                      Used: {status.environment.app_disk.used_gb} GB / Free: {status.environment.app_disk.free_gb} GB (Total: {status.environment.app_disk.total_gb} GB)
+                    <Typography variant="body2" color="textSecondary" gutterBottom>
+                      Dockerized Chromium engine providing headless scraping capabilities.
                     </Typography>
-                  </Box>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid item xs={12} md={6}>
-            <Card sx={{ height: '100%' }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                  <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Headless Browserless</Typography>
-                  <Chip 
-                    icon={getStatusIcon(status.browserless?.status)} 
-                    label={status.browserless?.status?.toUpperCase()} 
-                    color={getStatusChipColor(status.browserless?.status)}
-                    variant="outlined"
-                    size="small"
-                  />
-                </Box>
-                <Typography variant="body2" color="textSecondary" gutterBottom>
-                  Dockerized Chromium engine providing headless scraping capabilities.
-                </Typography>
-                {status.browserless?.details && (
-                  <TableContainer component={Paper} variant="outlined" sx={{ mt: 2 }}>
-                    <Table size="small">
-                      <TableBody>
-                        {status.browserless.details.type && (
-                          <TableRow>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Service Type</TableCell>
-                            <TableCell>
-                              <Chip 
-                                label={status.browserless.details.type} 
-                                color={status.browserless.details.type.includes("Cloud") ? "secondary" : "primary"} 
-                                size="small"
-                              />
-                            </TableCell>
-                          </TableRow>
-                        )}
-                        <TableRow>
-                          <TableCell sx={{ fontWeight: 'bold' }}>Target WebSocket Endpoint</TableCell>
-                          <TableCell sx={{ wordBreak: 'break-all' }}>{status.browserless.details.url}</TableCell>
-                        </TableRow>
-                        {status.browserless.details.error && (
-                          <TableRow>
-                            <TableCell colSpan={2} sx={{ color: 'error.main', fontSize: '0.85rem' }}>
-                              <strong>Error:</strong> {status.browserless.details.error}
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                )}
-              </CardContent>
-            </Card>
+                    {status.browserless?.details && (
+                      <TableContainer component={Paper} variant="outlined" sx={{ mt: 2 }}>
+                        <Table size="small">
+                          <TableBody>
+                            {status.browserless.details.type && (
+                              <TableRow>
+                                <TableCell sx={{ fontWeight: 'bold' }}>Service Type</TableCell>
+                                <TableCell>
+                                  <Chip 
+                                    label={status.browserless.details.type} 
+                                    color={status.browserless.details.type.includes("Cloud") ? "secondary" : "primary"} 
+                                    size="small"
+                                  />
+                                </TableCell>
+                              </TableRow>
+                            )}
+                            <TableRow>
+                              <TableCell sx={{ fontWeight: 'bold' }}>Target WebSocket Endpoint</TableCell>
+                              <TableCell sx={{ wordBreak: 'break-all' }}>{status.browserless.details.url}</TableCell>
+                            </TableRow>
+                            {status.browserless.details.error && (
+                              <TableRow>
+                                <TableCell colSpan={2} sx={{ color: 'error.main', fontSize: '0.85rem' }}>
+                                  <strong>Error:</strong> {status.browserless.details.error}
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    )}
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Grid>
           </Grid>
 
           {/* Row 2: Database & Redis */}
-          <Grid item xs={12} md={6}>
-            <Card sx={{ height: '100%' }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                  <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Database</Typography>
-                  <Chip 
-                    icon={getStatusIcon(status.database?.status)} 
-                    label={status.database?.status?.toUpperCase()} 
-                    color={getStatusChipColor(status.database?.status)}
-                    variant="outlined"
-                    size="small"
-                  />
-                </Box>
-                <Typography variant="body2" color="textSecondary" gutterBottom>
-                  Primary relational store for user accounts, credentials, and settings.
-                </Typography>
-                {status.database?.details && (
-                  <TableContainer component={Paper} variant="outlined" sx={{ mt: 2 }}>
-                    <Table size="small">
-                      <TableBody>
-                        <TableRow>
-                          <TableCell sx={{ fontWeight: 'bold' }}>Engine / Dialect</TableCell>
-                          <TableCell>{status.database.details.dialect || 'sqlite'}</TableCell>
-                        </TableRow>
-                        {status.database.details.url && (
-                          <TableRow>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Host Connection</TableCell>
-                            <TableCell sx={{ wordBreak: 'break-all', fontSize: '0.8rem' }}>
-                              {status.database.details.url}
-                            </TableCell>
-                          </TableRow>
-                        )}
-                        {status.database.details.error && (
-                          <TableRow>
-                            <TableCell colSpan={2} sx={{ color: 'error.main', fontSize: '0.85rem' }}>
-                              <strong>Error:</strong> {status.database.details.error}
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
+          <Grid item xs={12}>
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
+                <Card sx={{ height: '100%' }}>
+                  <CardContent>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                      <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Database</Typography>
+                      <Chip 
+                        icon={getStatusIcon(status.database?.status)} 
+                        label={status.database?.status?.toUpperCase()} 
+                        color={getStatusChipColor(status.database?.status)}
+                        variant="outlined"
+                        size="small"
+                      />
+                    </Box>
+                    <Typography variant="body2" color="textSecondary" gutterBottom>
+                      Primary relational store for user accounts, credentials, and settings.
+                    </Typography>
+                    {status.database?.details && (
+                      <TableContainer component={Paper} variant="outlined" sx={{ mt: 2 }}>
+                        <Table size="small">
+                          <TableBody>
+                            <TableRow>
+                              <TableCell sx={{ fontWeight: 'bold' }}>Engine / Dialect</TableCell>
+                              <TableCell>{status.database.details.dialect || 'sqlite'}</TableCell>
+                            </TableRow>
+                            {status.database.details.url && (
+                              <TableRow>
+                                <TableCell sx={{ fontWeight: 'bold' }}>Host Connection</TableCell>
+                                <TableCell sx={{ wordBreak: 'break-all', fontSize: '0.8rem' }}>
+                                  {status.database.details.url}
+                                </TableCell>
+                              </TableRow>
+                            )}
+                            {status.database.details.error && (
+                              <TableRow>
+                                <TableCell colSpan={2} sx={{ color: 'error.main', fontSize: '0.85rem' }}>
+                                  <strong>Error:</strong> {status.database.details.error}
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    )}
+                  </CardContent>
+                </Card>
+              </Grid>
 
-          <Grid item xs={12} md={6}>
-            <Card sx={{ height: '100%' }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                  <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Redis</Typography>
-                  <Chip 
-                    icon={getStatusIcon(status.redis?.status)} 
-                    label={status.redis?.status?.toUpperCase()} 
-                    color={getStatusChipColor(status.redis?.status)}
-                    variant="outlined"
-                    size="small"
-                  />
-                </Box>
-                <Typography variant="body2" color="textSecondary" gutterBottom>
-                  In-memory data store used as the Celery task broker and rate limiter.
-                </Typography>
-                {status.redis?.details && (
-                  <TableContainer component={Paper} variant="outlined" sx={{ mt: 2 }}>
-                    <Table size="small">
-                      <TableBody>
-                        {status.redis.details.url && (
-                          <TableRow>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Broker Address</TableCell>
-                            <TableCell sx={{ wordBreak: 'break-all', fontSize: '0.8rem' }}>
-                              {status.redis.details.url}
-                            </TableCell>
-                          </TableRow>
-                        )}
-                        {status.redis.details.error && (
-                          <TableRow>
-                            <TableCell colSpan={2} sx={{ color: 'error.main', fontSize: '0.85rem' }}>
-                              <strong>Error:</strong> {status.redis.details.error}
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                )}
-              </CardContent>
-            </Card>
+              <Grid item xs={12} md={6}>
+                <Card sx={{ height: '100%' }}>
+                  <CardContent>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                      <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Redis</Typography>
+                      <Chip 
+                        icon={getStatusIcon(status.redis?.status)} 
+                        label={status.redis?.status?.toUpperCase()} 
+                        color={getStatusChipColor(status.redis?.status)}
+                        variant="outlined"
+                        size="small"
+                      />
+                    </Box>
+                    <Typography variant="body2" color="textSecondary" gutterBottom>
+                      In-memory data store used as the Celery task broker and rate limiter.
+                    </Typography>
+                    {status.redis?.details && (
+                      <TableContainer component={Paper} variant="outlined" sx={{ mt: 2 }}>
+                        <Table size="small">
+                          <TableBody>
+                            {status.redis.details.url && (
+                              <TableRow>
+                                <TableCell sx={{ fontWeight: 'bold' }}>Broker Address</TableCell>
+                                <TableCell sx={{ wordBreak: 'break-all', fontSize: '0.8rem' }}>
+                                  {status.redis.details.url}
+                                </TableCell>
+                              </TableRow>
+                            )}
+                            {status.redis.details.error && (
+                              <TableRow>
+                                <TableCell colSpan={2} sx={{ color: 'error.main', fontSize: '0.85rem' }}>
+                                  <strong>Error:</strong> {status.redis.details.error}
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    )}
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Grid>
           </Grid>
 
           {/* Row 3: Celery Background Workers */}
