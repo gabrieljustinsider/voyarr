@@ -70,8 +70,8 @@ class Provider(Base):
     automatic_limits = Column(
         JSON().with_variant(JSONB, "postgresql")
     )  # Default limits for the provider (e.g., {"daily_downloads": 50, "concurrent_downloads": 2})
-    logo_url = Column(String(500), nullable=True)
-    favicon_url = Column(String(500), nullable=True)
+    logo_url = Column(Text, nullable=True)
+    favicon_url = Column(Text, nullable=True)
     description = Column(Text, nullable=True)
     supported_methods = Column(
         JSON().with_variant(JSONB, "postgresql"), default=list

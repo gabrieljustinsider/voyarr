@@ -243,8 +243,9 @@ def validate_path(path: str, allowed_roots: List[str] = None) -> str:
 
     if allowed_roots is None:
         allowed_roots = get_media_roots()
+        import tempfile
         # Add standard container storage, temp directories, config, backups
-        for standard_dir in ["/tmp", "/media", "/app/config", "/app/backups", "/downloads", "/mnt"]:
+        for standard_dir in ["/tmp", "/media", "/app/config", "/app/backups", "/downloads", "/mnt", tempfile.gettempdir()]:
             real_std = os.path.realpath(os.path.abspath(standard_dir))
             if real_std not in allowed_roots:
                 allowed_roots.append(real_std)
@@ -282,8 +283,8 @@ def sanitize_tainted_path(path: str) -> str:
         return "/"
     import re
     abs_path = os.path.abspath(path)
-    # Match safe prefixes: /media, /downloads, /mnt, /app, /tmp, /var
-    match = re.match(r"^(/media|/downloads|/mnt|/app|/tmp|/var)(/.*)?$", abs_path)
+    # Match safe prefixes: /media, /downloads, /mnt, /app, /tmp, /var, /private/var, /private/tmp
+    match = re.match(r"^(/media|/downloads|/mnt|/app|/tmp|/var|/private/var|/private/tmp)(/.*)?$", abs_path)
     if match:
         return match.group(1) + (match.group(2) or "")
     if abs_path == "/":

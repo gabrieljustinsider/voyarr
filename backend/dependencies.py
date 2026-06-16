@@ -98,8 +98,12 @@ def require_permission(module: str, required_level: str):
         auth_info: dict[str, Any] = Depends(verify_api_key),
         db: Session = Depends(get_db)
     ):
+        from db_utils import check_feature_permission
+
         # 1. Master Key and Admins bypass all restrictions automatically
         if auth_info.get("type") == "master_key" or auth_info.get("role") == "admin":
+            if module in ["streaming", "scraping", "ripping"]:
+                check_feature_permission(db, module, auth_info)
             return auth_info
 
         username = auth_info.get("user")
@@ -110,6 +114,9 @@ def require_permission(module: str, required_level: str):
         user = db.query(User).filter(User.username == username).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
+
+        if module in ["streaming", "scraping", "ripping"]:
+            check_feature_permission(db, module, user)
 
         user_permissions = user.permissions or {}
         

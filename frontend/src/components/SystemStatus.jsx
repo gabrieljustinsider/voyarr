@@ -254,8 +254,8 @@ export default function SystemStatus() {
 
           {/* Row 2: Database & Redis */}
           <Grid item xs={12}>
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
+            <Box sx={{ display: 'flex', gap: 3, flexWrap: 'nowrap', width: '100%' }}>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Card sx={{ height: '100%' }}>
                   <CardContent>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -300,9 +300,9 @@ export default function SystemStatus() {
                     )}
                   </CardContent>
                 </Card>
-              </Grid>
+              </Box>
 
-              <Grid item xs={12} md={6}>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Card sx={{ height: '100%' }}>
                   <CardContent>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -343,8 +343,8 @@ export default function SystemStatus() {
                     )}
                   </CardContent>
                 </Card>
-              </Grid>
-            </Grid>
+              </Box>
+            </Box>
           </Grid>
 
           {/* Row 3: Celery Background Workers */}

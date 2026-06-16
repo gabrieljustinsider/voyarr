@@ -145,6 +145,9 @@ def stream_video(
     entry_id: int,
     db: Session = Depends(get_db)
 ):
+    from db_utils import check_feature_permission
+    check_feature_permission(db, "streaming")
+
     file_path = (
         db.query(LibraryEntry.file_path).filter(LibraryEntry.id == entry_id).scalar()
     )
@@ -302,6 +305,9 @@ def trigger_hls_generation(entry_id: int, db: Session = Depends(get_db), current
 
 @router.get("/{entry_id}/hls/{filename}", dependencies=[Depends(verify_deovr_auth)])
 def serve_hls_file(entry_id: int, filename: str, db: Session = Depends(get_db)):
+    from db_utils import check_feature_permission
+    check_feature_permission(db, "streaming")
+
     file_path = (
         db.query(LibraryEntry.file_path).filter(LibraryEntry.id == entry_id).scalar()
     )

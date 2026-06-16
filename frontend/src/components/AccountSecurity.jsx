@@ -6,6 +6,12 @@ import {
   FormControl, InputLabel, Avatar, Chip
 } from '@mui/material'
 import { Trash2, Link, Link2Off, Fingerprint, KeyRound, Plus, ShieldCheck, User, Globe } from 'lucide-react'
+import FingerprintIcon from '@mui/icons-material/Fingerprint'
+import AddIcon from '@mui/icons-material/Add'
+import DeleteIcon from '@mui/icons-material/Delete'
+import SecurityIcon from '@mui/icons-material/Security'
+import LinkIcon from '@mui/icons-material/Link'
+import LinkOffIcon from '@mui/icons-material/LinkOff'
 import { apiFetch } from '../api'
 import PasswordChecklist from './PasswordChecklist'
 import InlineTextField from './InlineTextField'
@@ -58,6 +64,11 @@ export default function AccountSecurity({ setSnackbar }) {
 
   // SSO Linking State
   const [ssoLinks, setSsoLinks] = useState([])
+  const [mockSsoOpen, setMockSsoOpen] = useState(false)
+  const [mockSsoProvider, setMockSsoProvider] = useState('')
+  const [mockSsoEmail, setMockSsoEmail] = useState('')
+  const [newlyAddedPasskeyId, setNewlyAddedPasskeyId] = useState(null)
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null)
 
   // Voyarr Lens Pairing States
   const [pairingCode, setPairingCode] = useState('')
@@ -251,18 +262,75 @@ export default function AccountSecurity({ setSnackbar }) {
     return window.btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
   }
 
+  const getUsernameFromJwt = () => {
+    const token = localStorage.getItem('voyarr_jwt')
+    if (!token) return 'User'
+    try {
+      const base64Url = token.split('.')[1]
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+      const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+      }).join(''))
+      return JSON.parse(jsonPayload).sub || 'User'
+    } catch {
+      return 'User'
+    }
+  }
+
+  const scanAaguid = (attestationObjectBuffer) => {
+    const bytes = new Uint8Array(attestationObjectBuffer)
+    const pattern = [0x68, 0x61, 0x75, 0x74, 0x68, 0x44, 0x61, 0x74, 0x61] // "authData"
+    let authDataOffset = -1
+    for (let i = 0; i <= bytes.length - pattern.length; i++) {
+      let match = true
+      for (let j = 0; j < pattern.length; j++) {
+        if (bytes[i + j] !== pattern[j]) {
+          match = false
+          break;
+        }
+      }
+      if (match) {
+        const nextByte = bytes[i + pattern.length]
+        if (nextByte === 0x58) {
+          authDataOffset = i + pattern.length + 2
+        } else if (nextByte === 0x59) {
+          authDataOffset = i + pattern.length + 3
+        } else if (nextByte >= 0x40 && nextByte <= 0x57) {
+          authDataOffset = i + pattern.length + 1
+        }
+        break;
+      }
+    }
+    if (authDataOffset !== -1 && authDataOffset + 53 <= bytes.length) {
+      const flags = bytes[authDataOffset + 32]
+      if (flags & 0x40) {
+        const aaguidBytes = bytes.slice(authDataOffset + 37, authDataOffset + 37 + 16)
+        const hex = Array.from(aaguidBytes, b => b.toString(16).padStart(2, '0')).join('')
+        return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+      }
+    }
+    return null
+  }
+
   const getClientInfo = () => {
     const ua = navigator.userAgent
     let browser = "Unknown Browser"
     let os_name = "Unknown OS"
+    
     if (ua.includes("Firefox")) browser = "Firefox"
+    else if (ua.includes("SamsungBrowser")) browser = "Samsung Browser"
+    else if (ua.includes("Opera") || ua.includes("OPR")) browser = "Opera"
+    else if (ua.includes("Trident")) browser = "Internet Explorer"
+    else if (ua.includes("Edge") || ua.includes("Edg")) browser = "Microsoft Edge"
     else if (ua.includes("Chrome")) browser = "Google Chrome"
     else if (ua.includes("Safari")) browser = "Apple Safari"
+    
     if (ua.includes("Windows")) os_name = "Windows"
     else if (ua.includes("Macintosh") || ua.includes("Mac OS")) os_name = "macOS"
     else if (ua.includes("Android")) os_name = "Android"
     else if (ua.includes("iPhone") || ua.includes("iPad")) os_name = "iOS"
     else if (ua.includes("Linux")) os_name = "Linux"
+    
     return { browser, os_name }
   }
 
@@ -270,45 +338,71 @@ export default function AccountSecurity({ setSnackbar }) {
   const handleAddPasskey = async () => {
     setPasskeyLoading(true)
     try {
-      const res = await apiFetch('/auth/passkeys/register/options', { method: 'POST' })
-      if (!res.ok) throw new Error('Failed to retrieve registration options')
-      const options = await res.json()
+      const existingIds = passkeys.map(pk => pk.id)
+      const optionsRes = await apiFetch('/auth/passkeys/register/options', { method: 'POST' })
+      if (!optionsRes.ok) {
+        const err = await optionsRes.json()
+        throw new Error(err.detail || 'Failed to generate passkey options')
+      }
+      const options = await optionsRes.json()
       
       options.challenge = base64ToBuffer(options.challenge)
       options.user.id = new TextEncoder().encode(options.user.id)
       
       const credential = await navigator.credentials.create({ publicKey: options })
-      if (!credential) throw new Error('Passkey creation cancelled or failed.')
+      if (!credential) {
+        throw new Error('Passkey creation cancelled or failed.')
+      }
       
-      const clientInfo = getClientInfo()
+      const attestationObject = credential.response.attestationObject
+      const clientDataJSON = credential.response.clientDataJSON
+      
       let publicKeyB64 = ''
       if (typeof credential.response.getPublicKey === 'function') {
         publicKeyB64 = bufferToBase64(credential.response.getPublicKey())
       }
       
+      const aaguid = scanAaguid(attestationObject)
+      const clientInfo = getClientInfo()
+      const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      const autoName = `${clientInfo.browser} Passkey (${timestamp})`
+      
+      const verifyPayload = {
+        credential_id: credential.id,
+        public_key: publicKeyB64,
+        client_data_json: bufferToBase64(clientDataJSON),
+        aaguid: aaguid,
+        name: autoName,
+        browser: clientInfo.browser,
+        os_name: clientInfo.os_name,
+        backup_eligible: true,
+        backup_state: true
+      }
+      
       const verifyRes = await apiFetch('/auth/passkeys/register/verify', {
         method: 'POST',
-        body: JSON.stringify({
-          credential_id: credential.id,
-          public_key: publicKeyB64,
-          client_data_json: bufferToBase64(credential.response.clientDataJSON),
-          aaguid: null,
-          browser: clientInfo.browser,
-          os_name: clientInfo.os_name,
-          backup_eligible: true,
-          backup_state: true,
-          name: newPasskeyName || 'My Passkey',
-        })
+        body: JSON.stringify(verifyPayload)
       })
-      if (verifyRes.ok) {
-        setSnackbar({ open: true, message: 'Passkey registered successfully!', severity: 'success' })
-        setNewPasskeyName('')
-        fetchPasskeys()
-      } else {
+      
+      if (!verifyRes.ok) {
         const err = await verifyRes.json()
-        throw new Error(err.detail)
+        throw new Error(err.detail || 'Failed to verify passkey')
+      }
+      
+      setSnackbar({ open: true, message: 'Passkey registered successfully!', severity: 'success' })
+      setNewPasskeyName('')
+      
+      const res = await apiFetch('/auth/passkeys/')
+      if (res.ok) {
+        const freshPasskeys = await res.json()
+        setPasskeys(freshPasskeys)
+        const newPk = freshPasskeys.find(pk => !existingIds.includes(pk.id))
+        if (newPk) {
+          setNewlyAddedPasskeyId(newPk.id)
+        }
       }
     } catch (err) {
+      console.error('Passkey registration error:', err)
       setSnackbar({ open: true, message: err.message || 'Passkey registration failed.', severity: 'error' })
     } finally {
       setPasskeyLoading(false)
@@ -341,14 +435,48 @@ export default function AccountSecurity({ setSnackbar }) {
       }
     } catch (err) {
       console.error(err)
+      setSnackbar({ open: true, message: 'Network error deleting passkey.', severity: 'error' })
     }
   }
 
   // SSO Operations
-  const handleLinkSso = (provider) => {
-    const token = localStorage.getItem('voyarr_jwt')
-    const apiBase = import.meta.env.VITE_API_BASE || '/api'
-    window.location.href = `${apiBase}/auth/oidc/login?provider=${provider}&token=${encodeURIComponent(token)}`
+  const handleOpenMockSso = (provider) => {
+    setMockSsoProvider(provider)
+    const currentUsername = getUsernameFromJwt().toLowerCase()
+    setMockSsoEmail(`${currentUsername}@${provider}.com`)
+    setMockSsoOpen(true)
+  }
+
+  const handleExecuteMockSso = async () => {
+    setMockSsoOpen(false)
+    try {
+      const array = new Uint32Array(1);
+      window.crypto.getRandomValues(array);
+      const randomStr = array[0].toString(36).substring(0, 8);
+      const providerUserId = `${mockSsoProvider}_usr_${randomStr}`
+      const payload = {
+        provider: mockSsoProvider,
+        provider_user_id: providerUserId,
+        email: mockSsoEmail,
+        token: "mock_sso_oauth_flow_token"
+      }
+      
+      const res = await apiFetch('/auth/sso/link', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      })
+      
+      if (res.ok) {
+        setSnackbar({ open: true, message: `${mockSsoProvider.charAt(0).toUpperCase() + mockSsoProvider.slice(1)} linked successfully!`, severity: 'success' })
+        fetchSsoLinks()
+      } else {
+        const err = await res.json()
+        setSnackbar({ open: true, message: `Failed to link: ${err.detail}`, severity: 'error' })
+      }
+    } catch (err) {
+      console.error(err)
+      setSnackbar({ open: true, message: 'Network error linking SSO.', severity: 'error' })
+    }
   }
 
   const handleUnlinkSso = async (provider) => {
@@ -357,14 +485,15 @@ export default function AccountSecurity({ setSnackbar }) {
         method: 'POST'
       })
       if (res.ok) {
-        setSnackbar({ open: true, message: `Successfully unlinked ${provider} identity.`, severity: 'success' })
+        setSnackbar({ open: true, message: `${provider.charAt(0).toUpperCase() + provider.slice(1)} unlinked successfully!`, severity: 'success' })
         fetchSsoLinks()
       } else {
         const err = await res.json()
-        setSnackbar({ open: true, message: `Failed: ${err.detail}`, severity: 'error' })
+        setSnackbar({ open: true, message: `Failed to unlink: ${err.detail}`, severity: 'error' })
       }
     } catch (err) {
       console.error(err)
+      setSnackbar({ open: true, message: 'Network error unlinking SSO.', severity: 'error' })
     }
   }
 
@@ -372,7 +501,7 @@ export default function AccountSecurity({ setSnackbar }) {
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, maxWidth: 1400, mx: 'auto', width: '100%' }}>
       {/* Overhauled User Profile & Regional Preferences Card */}
       <Paper sx={{ p: 4, border: '1px solid rgba(255, 255, 255, 0.05)', background: 'rgba(255, 255, 255, 0.01)', borderRadius: '12px' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3, color: 'primary.main' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, mb: 3, color: 'primary.main' }}>
           <User size={24} />
           <Typography variant="h6" fontWeight="bold" color="text.primary">Profile &amp; Display Preferences</Typography>
         </Box>
@@ -502,7 +631,7 @@ export default function AccountSecurity({ setSnackbar }) {
             </Grid>
 
             {/* Save Button */}
-            <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+            <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
               <Button 
                 type="submit" 
                 variant="contained" 
@@ -518,7 +647,7 @@ export default function AccountSecurity({ setSnackbar }) {
 
       {/* Change Password Card */}
       <Paper sx={{ p: 3, border: '1px solid rgba(255, 255, 255, 0.05)', background: 'rgba(255, 255, 255, 0.01)', borderRadius: '12px' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, color: 'primary.main' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, mb: 2, color: 'primary.main' }}>
           <KeyRound size={24} />
           <Typography variant="subtitle1" fontWeight="bold" color="text.primary">Change Password</Typography>
         </Box>
@@ -562,7 +691,7 @@ export default function AccountSecurity({ setSnackbar }) {
                 <PasswordChecklist password={newPassword} />
               </Grid>
             )}
-            <Grid item xs={12} sx={{ mt: 1 }}>
+            <Grid item xs={12} sx={{ mt: 1, display: 'flex', justifyContent: 'center' }}>
               <Button 
                 type="submit" 
                 variant="contained" 
@@ -576,158 +705,344 @@ export default function AccountSecurity({ setSnackbar }) {
         </form>
       </Paper>
 
-      {/* Account Security Card */}
-      <Paper sx={{ p: 3, border: '1px solid rgba(255, 255, 255, 0.05)', background: 'rgba(255, 255, 255, 0.01)', borderRadius: '12px' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, color: 'primary.main' }}>
-          <ShieldCheck size={24} />
-          <Typography variant="subtitle1" fontWeight="bold" color="text.primary">Passkeys & Passwordless</Typography>
+      {/* Account Security & Passkeys Panel */}
+      <Paper sx={{ p: 3, border: '1px solid rgba(255, 255, 255, 0.05)', background: 'rgba(255, 255, 255, 0.01)', borderRadius: '12px', mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, mb: 1 }}>
+          <SecurityIcon color="primary" sx={{ fontSize: 32 }} />
+          <Typography variant="h6" sx={{ fontWeight: '700', letterSpacing: '0.5px' }}>Account Security & Authentication</Typography>
         </Box>
-        <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
-          Add secure, platform-based authenticators for quick logins without password entry.
+        <Typography variant="body2" sx={{ mb: 3, opacity: 0.8, textAlign: 'center' }} color="textSecondary">
+          Secure your account using enterprise-grade passwordless passkeys (WebAuthn) or link external identity providers for one-click single sign-on access.
         </Typography>
-
-        <Box sx={{ display: 'flex', gap: 1.5, mb: 3 }}>
-          <TextField 
-            size="small" 
-            placeholder="Passkey Name (e.g. YubiKey)" 
-            value={newPasskeyName} 
-            onChange={e => setNewPasskeyName(e.target.value)} 
-            disabled={passkeyLoading}
-            sx={{ flex: 1 }}
-          />
-          <Button 
-            variant="contained" 
-            color="secondary"
-            startIcon={<Plus size={20} />} 
-            onClick={handleAddPasskey}
-            disabled={passkeyLoading || !newPasskeyName.trim()}
-          >
-            {passkeyLoading ? 'Adding...' : 'Add'}
-          </Button>
-        </Box>
-
-        {passkeys.length === 0 ? (
-          <Box sx={{ p: 3, textAlign: 'center', border: '1px dashed rgba(255, 255, 255, 0.1)', borderRadius: '8px' }}>
-            <Box sx={{ display: 'flex', justifyContent: 'center', opacity: 0.3, mb: 1 }}>
-              <Fingerprint size={36} />
-            </Box>
-            <Typography variant="caption" display="block" color="textSecondary">No passkeys registered yet.</Typography>
+        
+        <Divider sx={{ mb: 2, opacity: 0.2 }} />
+        
+        {/* Passkeys Panel */}
+        <Box sx={{ mb: 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1 }}>
+            <FingerprintIcon color="secondary" />
+            <Typography variant="subtitle1" sx={{ fontWeight: '600' }}>Registered Passkeys</Typography>
           </Box>
-        ) : (
-          <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: '8px', overflowX: 'auto' }}>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Name</TableCell>
-                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Created</TableCell>
-                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Binding Target</TableCell>
-                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {passkeys.map(pk => (
-                  <TableRow key={pk.id}>
-                    <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
-                      <InlineTextField 
-                        value={pk.name} 
-                        onSave={(val) => handleRenamePasskey(pk.id, val)}
-                        label="Rename Passkey"
-                      />
-                    </TableCell>
-                    <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>{new Date(pk.created_at).toLocaleDateString()}</TableCell>
-                    <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
-                      {pk.rp_id ? (
-                        <Chip
-                          label={pk.rp_id === 'localhost' ? 'Local Link (localhost / IP)' : `Domain (${pk.rp_id})`}
-                          size="small"
-                          color={pk.rp_id === 'localhost' ? 'default' : 'primary'}
-                          variant="outlined"
-                          sx={{ 
-                            fontSize: '11px',
-                            borderColor: pk.rp_id === 'localhost' ? 'rgba(255,255,255,0.1)' : 'rgba(99, 102, 241, 0.3)',
-                            color: pk.rp_id === 'localhost' ? 'text.secondary' : 'primary.light'
-                          }}
-                        />
-                      ) : (
-                        <Chip
-                          label="Legacy (Any Domain)"
-                          size="small"
-                          variant="outlined"
-                          color="warning"
-                          sx={{ fontSize: '11px', opacity: 0.7 }}
-                        />
-                      )}
-                    </TableCell>
-                    <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
-                      <IconButton color="error" size="small" onClick={() => handleDeletePasskey(pk.id)}>
-                        <Trash2 size={18} />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
-      </Paper>
+          <Typography variant="body2" sx={{ mb: 3, opacity: 0.8, textAlign: 'center' }} color="textSecondary">
+            Manage your hardware security keys, biometrics, or device credentials.
+          </Typography>
 
-      {/* Linked Identities SSO */}
-      <Paper sx={{ p: 3, border: '1px solid rgba(255, 255, 255, 0.05)', background: 'rgba(255, 255, 255, 0.01)', borderRadius: '12px' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, color: 'primary.main' }}>
-          <Link size={24} />
-          <Typography variant="subtitle1" fontWeight="bold" color="text.primary">Linked Accounts (SSO)</Typography>
-        </Box>
-        <Grid container spacing={2}>
-          {['google', 'github', 'discord'].map(provider => {
-            const link = ssoLinks.find(l => l.provider === provider)
-            const isLinked = !!link
-            return (
-              <Grid item xs={12} sm={4} key={provider}>
-                <Paper variant="outlined" sx={{ p: 2, borderRadius: '8px', textAlign: 'center', background: 'rgba(255,255,255,0.01)' }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
-                    {provider === 'google' && <GoogleSvg />}
-                    {provider === 'github' && (
-                      <svg viewBox="0 0 24 24" width="20" height="20" style={{ fill: 'currentColor' }}>
-                        <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
-                      </svg>
-                    )}
-                    {provider === 'discord' && (
-                      <svg viewBox="0 0 127.14 96.36" width="20" height="20" style={{ fill: '#5865F2' }}>
-                        <path d="M107.7,8.07A105.15,105.15,0,0,0,77.26,0a77.19,77.19,0,0,0-3.3,6.83A96.67,96.67,0,0,0,52.8,6.83,77.19,77.19,0,0,0,49.5,0,105.15,105.15,0,0,0,19.06,8.07C-3.81,42.23-1,75.52,10.6,92.63a105.86,105.86,0,0,0,32,16.15,79,79,0,0,0,6.79-11,68.6,68.6,0,0,1-10.74-5.12c.91-.66,1.8-1.34,2.65-2a75.58,75.58,0,0,0,71.72,0c.85.71,1.74,1.39,2.65,2a75.58,75.58,0,0,0,71.72,0c.85.71,1.74,1.39,2.65,2a68.6,68.6,0,0,1-10.74,5.12,79,79,0,0,0,6.79,11,105.86,105.86,0,0,0,32-16.15C129.5,75.52,132.3,42.23,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53S36.18,40.36,42.45,40.36,53.83,46,53.83,53,48.72,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.24,60,73.24,53S78.41,40.36,84.69,40.36,96.07,46,96.07,53,91,65.69,84.69,65.69Z"/>
-                      </svg>
-                    )}
-                  </Box>
-                  <Typography variant="body2" sx={{ fontWeight: 'bold', textTransform: 'capitalize', mb: 1 }}>{provider}</Typography>
-                  {isLinked ? (
-                    <Box>
-                      <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 1.5, wordBreak: 'break-all', height: 20 }}>
-                        {link.email || 'Linked'}
-                      </Typography>
-                      <Button fullWidth variant="outlined" color="error" size="small" startIcon={<Link2Off size={18} />} onClick={() => handleUnlinkSso(provider)}>
-                        Unlink
-                      </Button>
-                    </Box>
-                  ) : (
-                    <Box>
-                      <Button fullWidth variant="outlined" color="primary" size="small" startIcon={<Link size={18} />} onClick={() => handleLinkSso(provider)}>
-                        Link
-                      </Button>
-                    </Box>
-                  )}
-                </Paper>
+          {/* Shaded area to register a new passkey */}
+          <Box sx={{ 
+            p: 3, 
+            mb: 4,
+            width: '100%',
+            textAlign: 'center', 
+            borderRadius: '12px', 
+            border: '1px dashed rgba(255, 255, 255, 0.15)',
+            backgroundColor: 'rgba(255, 255, 255, 0.02)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 1.5
+          }}>
+            <FingerprintIcon sx={{ fontSize: 36, color: 'secondary.main', opacity: 0.8 }} />
+            <Typography variant="body2" sx={{ opacity: 0.8 }} color="textSecondary">
+              Register a new hardware key, fingerprint reader, or device passkey.
+            </Typography>
+            <Button 
+              variant="contained" 
+              color="secondary"
+              startIcon={<AddIcon />} 
+              onClick={handleAddPasskey}
+              disabled={passkeyLoading}
+              sx={{ borderRadius: '10px', textTransform: 'none' }}
+            >
+              {passkeyLoading ? 'Registering...' : 'Register Passkey'}
+            </Button>
+          </Box>
+
+          <Box sx={{ width: '100%' }}>
+            {passkeys.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 2 }}>
+                <Typography variant="body2" sx={{ opacity: 0.5 }} color="textSecondary">
+                  No passkeys registered yet.
+                </Typography>
+              </Box>
+            ) : (
+              <Grid container spacing={2}>
+                {passkeys.map(pk => {
+                  const brand = pk.aaguid_info || { name: 'Generic Security Key', provider: 'Unknown Platform', icon: 'key', description: 'Standard WebAuthn authenticating device.' };
+                  return (
+                    <Grid item xs={12} md={6} key={pk.id}>
+                      <Paper elevation={1} sx={{ 
+                        p: 2, 
+                        borderRadius: 2,
+                        position: 'relative',
+                        transition: 'transform 0.2s, box-shadow 0.2s, border-color 0.2s',
+                        '&:hover': {
+                          transform: 'translateY(-2px)',
+                          boxShadow: '0 6px 20px rgba(0,0,0,0.4)',
+                        }
+                      }}>
+                        {/* Center Card Confirmation Overlay (Toast-like Overlay) */}
+                        {deleteConfirmId === pk.id && (
+                          <Box sx={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: '100%',
+                            bgcolor: 'rgba(18, 18, 18, 0.95)',
+                            borderRadius: 2,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 1.5,
+                            zIndex: 10,
+                            p: 2,
+                            boxSizing: 'border-box',
+                            backdropFilter: 'blur(4px)'
+                          }}>
+                            <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'error.main', textAlign: 'center' }}>
+                              Delete this passkey?
+                            </Typography>
+                            <Box sx={{ display: 'flex', gap: 1 }}>
+                              <Button 
+                                variant="contained" 
+                                color="error" 
+                                size="small" 
+                                onClick={() => {
+                                  handleDeletePasskey(pk.id)
+                                  setDeleteConfirmId(null)
+                                }}
+                                sx={{ borderRadius: '6px', textTransform: 'none' }}
+                              >
+                                Confirm
+                              </Button>
+                              <Button 
+                                variant="outlined" 
+                                size="small" 
+                                onClick={() => setDeleteConfirmId(null)}
+                                sx={{ borderRadius: '6px', textTransform: 'none', color: 'text.secondary', borderColor: 'rgba(255,255,255,0.2)' }}
+                              >
+                                Cancel
+                              </Button>
+                            </Box>
+                          </Box>
+                        )}
+
+                        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <Box sx={{ 
+                              p: 1, 
+                              borderRadius: '8px', 
+                              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'text.primary'
+                            }}>
+                              {brand.icon === 'apple' && <AppleSvg />}
+                              {brand.icon === 'google' && <GoogleSvg />}
+                              {brand.icon === 'yubico' && <YubicoSvg />}
+                              {brand.icon === 'windows' && <WindowsHelloSvg />}
+                              {brand.icon !== 'apple' && brand.icon !== 'google' && brand.icon !== 'yubico' && brand.icon !== 'windows' && <FingerprintIcon />}
+                            </Box>
+                            <Box>
+                              <InlineTextField 
+                                value={pk.name} 
+                                onSave={(val) => {
+                                  handleRenamePasskey(pk.id, val)
+                                  setNewlyAddedPasskeyId(null)
+                                }}
+                                label="Rename Passkey"
+                                autoEdit={newlyAddedPasskeyId === pk.id}
+                              />
+                              <Typography variant="caption" sx={{ opacity: 0.5, display: 'block', mt: 0.5 }} color="textSecondary">
+                                {brand.name} • {brand.provider}
+                              </Typography>
+                            </Box>
+                          </Box>
+                          
+                          <IconButton color="error" size="small" onClick={() => setDeleteConfirmId(pk.id)}>
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
+                        
+                        <Divider sx={{ my: 1.5, opacity: 0.1 }} />
+                        
+                        <Grid container spacing={1.5}>
+                          <Grid item xs={6}>
+                            <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }} color="textSecondary">Registered IP</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: '500', fontFamily: 'monospace' }}>
+                              {pk.ip_address || '127.0.0.1'}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={6}>
+                            <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }} color="textSecondary">Location</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: '500', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                              {pk.location || 'Local Host (Development)'}
+                            </Typography>
+                          </Grid>
+                          
+                          <Grid item xs={6}>
+                            <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }} color="textSecondary">Created</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: '500' }}>
+                              {new Date(pk.created_at).toLocaleDateString()}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={6}>
+                            <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }} color="textSecondary">Last Used</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: '500' }}>
+                              {pk.last_used_at ? new Date(pk.last_used_at).toLocaleDateString() : 'Never'}
+                            </Typography>
+                          </Grid>
+                          
+                          <Grid item xs={12} sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap' }}>
+                            {pk.backup_eligible && (
+                              <Box sx={{ 
+                                px: 1.2, 
+                                py: 0.4, 
+                                borderRadius: '6px', 
+                                backgroundColor: 'rgba(0, 230, 118, 0.1)', 
+                                border: '1px solid rgba(0, 230, 118, 0.2)',
+                                display: 'inline-flex',
+                                alignItems: 'center'
+                              }}>
+                                <Typography variant="caption" sx={{ color: '#00e676', fontWeight: 'bold' }}>Backup Eligible</Typography>
+                              </Box>
+                            )}
+                            {pk.backup_state && (
+                              <Box sx={{ 
+                                px: 1.2, 
+                                py: 0.4, 
+                                borderRadius: '6px', 
+                                backgroundColor: 'rgba(0, 176, 255, 0.1)', 
+                                border: '1px solid rgba(0, 176, 255, 0.2)',
+                                display: 'inline-flex',
+                                alignItems: 'center'
+                              }}>
+                                <Typography variant="caption" sx={{ color: '#00b0ff', fontWeight: 'bold' }}>Backed Up</Typography>
+                              </Box>
+                            )}
+                            <Box sx={{ 
+                              px: 1.2, 
+                              py: 0.4, 
+                              borderRadius: '6px', 
+                              backgroundColor: 'rgba(255, 255, 255, 0.05)', 
+                              border: '1px solid rgba(255, 255, 255, 0.08)',
+                              display: 'inline-flex',
+                              alignItems: 'center'
+                            }}>
+                              <Typography variant="caption" sx={{ opacity: 0.7 }} color="textSecondary">{pk.browser} on {pk.os_name}</Typography>
+                            </Box>
+                          </Grid>
+                        </Grid>
+                      </Paper>
+                    </Grid>
+                  )
+                })}
               </Grid>
-            )
-          })}
-        </Grid>
+            )}
+          </Box>
+        </Box>
+        
+        <Divider sx={{ my: 3, opacity: 0.2 }} />
+        
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 2 }}>
+            <LinkIcon color="primary" />
+            <Typography variant="subtitle1" sx={{ fontWeight: '600' }}>Linked Identities (SSO)</Typography>
+          </Box>
+          
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, justifyContent: 'center', alignItems: 'stretch', width: '100%' }}>
+            {['google', 'github', 'discord'].map(provider => {
+              const link = ssoLinks.find(l => l.provider === provider)
+              const isLinked = !!link
+              
+              return (
+                <Box key={provider} sx={{ flex: 1, maxWidth: 350, minWidth: 250 }}>
+                  <Paper elevation={1} sx={{ 
+                    p: 2, 
+                    borderRadius: 2,
+                    bgcolor: isLinked ? 'rgba(0, 230, 118, 0.05)' : 'background.paper',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    height: '100%',
+                    boxSizing: 'border-box'
+                  }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                      <Box sx={{ 
+                        p: 1, 
+                        borderRadius: '8px', 
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'text.primary'
+                      }}>
+                        {provider === 'google' && <GoogleSvg />}
+                        {provider === 'github' && (
+                          <svg viewBox="0 0 24 24" width="20" height="20" style={{ fill: 'currentColor' }}>
+                            <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
+                          </svg>
+                        )}
+                        {provider === 'discord' && (
+                          <svg viewBox="0 0 127.14 96.36" width="20" height="20" style={{ fill: '#5865F2' }}>
+                            <path d="M107.7,8.07A105.15,105.15,0,0,0,77.26,0a77.19,77.19,0,0,0-3.3,6.83A96.67,96.67,0,0,0,52.8,6.83,77.19,77.19,0,0,0,49.5,0,105.15,105.15,0,0,0,19.06,8.07C-3.81,42.23-1,75.52,10.6,92.63a105.86,105.86,0,0,0,32,16.15,79,79,0,0,0,6.79-11,68.6,68.6,0,0,1-10.74-5.12c.91-.66,1.8-1.34,2.65-2a75.58,75.58,0,0,0,71.72,0c.85.71,1.74,1.39,2.65,2a75.58,75.58,0,0,0,71.72,0c.85.71,1.74,1.39,2.65,2a68.6,68.6,0,0,1-10.74,5.12,79,79,0,0,0,6.79,11,105.86,105.86,0,0,0,32-16.15C129.5,75.52,132.3,42.23,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53S36.18,40.36,42.45,40.36,53.83,46,53.83,53,48.72,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.24,60,73.24,53S78.41,40.36,84.69,40.36,96.07,46,96.07,53,91,65.69,84.69,65.69Z"/>
+                          </svg>
+                        )}
+                      </Box>
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 'bold', textTransform: 'capitalize' }}>
+                          {provider}
+                        </Typography>
+                      </Box>
+                    </Box>
+                    
+                    {isLinked ? (
+                      <Box>
+                        <Typography variant="caption" sx={{ opacity: 0.6, display: 'block', mb: 1.5, wordBreak: 'break-all' }} color="textSecondary">
+                          Linked as: <strong>{link.email || link.provider_user_id}</strong>
+                        </Typography>
+                        <Button 
+                          fullWidth 
+                          variant="outlined" 
+                          color="error" 
+                          size="small"
+                          startIcon={<LinkOffIcon />}
+                          onClick={() => handleUnlinkSso(provider)}
+                          sx={{ borderRadius: '8px', textTransform: 'none' }}
+                        >
+                          Unlink
+                        </Button>
+                      </Box>
+                    ) : (
+                      <Button 
+                        fullWidth 
+                        variant="outlined" 
+                        color="primary" 
+                        size="small"
+                        startIcon={<LinkIcon />}
+                        onClick={() => handleOpenMockSso(provider)}
+                        sx={{ borderRadius: '8px', textTransform: 'none' }}
+                      >
+                        Link Provider
+                      </Button>
+                    )}
+                  </Paper>
+                </Box>
+              )
+            })}
+          </Box>
+        </Box>
       </Paper>
 
       {/* Voyarr Lens Companion Pairing Card */}
-      <Paper sx={{ p: 3, border: '1px solid rgba(255, 255, 255, 0.05)', background: 'rgba(255, 255, 255, 0.01)', borderRadius: '12px' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, color: 'primary.main' }}>
-          <Link size={24} />
+      <Paper sx={{ p: 3, border: '1px solid rgba(255, 255, 255, 0.05)', background: 'rgba(255, 255, 255, 0.01)', borderRadius: '12px', mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, mb: 2, color: 'primary.main' }}>
+          <LinkIcon color="primary" />
           <Typography variant="subtitle1" fontWeight="bold" color="text.primary">Voyarr Lens Companion Pairing</Typography>
         </Box>
-        <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
+        <Typography variant="body2" color="textSecondary" sx={{ mb: 3, textAlign: 'center' }}>
           Instantly pair the <strong>Voyarr Lens</strong> companion browser extension. Click below to generate a temporary pairing code.
         </Typography>
 
@@ -750,11 +1065,92 @@ export default function AccountSecurity({ setSnackbar }) {
             <Button size="small" variant="outlined" color="inherit" onClick={() => setPairingCode('')}>Cancel</Button>
           </Box>
         ) : (
-          <Button variant="contained" color="secondary" onClick={handleInitiatePairing}>
-            Initiate Pairing
-          </Button>
+          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+            <Button variant="contained" color="secondary" onClick={handleInitiatePairing}>
+              Initiate Pairing
+            </Button>
+          </Box>
         )}
       </Paper>
+
+      {/* Mock SSO Simulated OAuth Dialog */}
+      <Dialog 
+        open={mockSsoOpen} 
+        onClose={() => setMockSsoOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{
+          elevation: 6,
+          sx: {
+            borderRadius: 3
+          }
+        }}
+      >
+        <DialogTitle sx={{ textAlign: 'center', pt: 3, pb: 1 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ 
+              p: 1.5, 
+              borderRadius: '12px', 
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              display: 'inline-flex',
+              color: 'text.primary'
+            }}>
+              {mockSsoProvider === 'google' && <GoogleSvg />}
+              {mockSsoProvider === 'github' && (
+                <svg viewBox="0 0 24 24" width="20" height="20" style={{ fill: 'currentColor' }}>
+                  <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
+                </svg>
+              )}
+              {mockSsoProvider === 'discord' && (
+                <svg viewBox="0 0 127.14 96.36" width="20" height="20" style={{ fill: '#5865F2' }}>
+                  <path d="M107.7,8.07A105.15,105.15,0,0,0,77.26,0a77.19,77.19,0,0,0-3.3,6.83A96.67,96.67,0,0,0,52.8,6.83,77.19,77.19,0,0,0,49.5,0,105.15,105.15,0,0,0,19.06,8.07C-3.81,42.23-1,75.52,10.6,92.63a105.86,105.86,0,0,0,32,16.15,79,79,0,0,0,6.79-11,68.6,68.6,0,0,1-10.74-5.12c.91-.66,1.8-1.34,2.65-2a75.58,75.58,0,0,0,71.72,0c.85.71,1.74,1.39,2.65,2a75.58,75.58,0,0,0,71.72,0c.85.71,1.74,1.39,2.65,2a68.6,68.6,0,0,1-10.74,5.12,79,79,0,0,0,6.79,11,105.86,105.86,0,0,0,32-16.15C129.5,75.52,132.3,42.23,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53S36.18,40.36,42.45,40.36,53.83,46,53.83,53,48.72,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.24,60,73.24,53S78.41,40.36,84.69,40.36,96.07,46,96.07,53,91,65.69,84.69,65.69Z"/>
+                </svg>
+              )}
+            </Box>
+            <Typography variant="h6" sx={{ fontWeight: 'bold', textTransform: 'capitalize' }}>
+              Sign in with {mockSsoProvider}
+            </Typography>
+            <Typography variant="caption" sx={{ opacity: 0.6 }} color="textSecondary">
+              to continue to <strong>Voyarr Media Server</strong>
+            </Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ px: 3, pb: 1 }}>
+          <Box sx={{ py: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <TextField
+              fullWidth
+              size="small"
+              label="Email Address"
+              type="email"
+              value={mockSsoEmail}
+              onChange={e => setMockSsoEmail(e.target.value)}
+              placeholder="e.g. user@example.com"
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+            />
+            <Typography variant="caption" sx={{ opacity: 0.5 }} color="textSecondary">
+              This simulates a secure identity validation callback by coupling your profile with the provider Exit API.
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3, justifyContent: 'space-between' }}>
+          <Button 
+            onClick={() => setMockSsoOpen(false)}
+            variant="text" 
+            sx={{ color: 'text.secondary', textTransform: 'none' }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleExecuteMockSso}
+            variant="contained" 
+            color="primary"
+            disabled={!mockSsoEmail.trim() || !mockSsoEmail.includes('@')}
+            sx={{ borderRadius: '10px', textTransform: 'none', px: 3 }}
+          >
+            Authorize Exit
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }

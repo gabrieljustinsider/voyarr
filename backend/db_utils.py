@@ -388,13 +388,24 @@ def run_schema_migrations(engine: Any) -> None:
         # 9. Add logo_url to providers table if missing
         try:
             conn.execute(text("SELECT logo_url FROM providers LIMIT 1"))
+            # If exists, alter type to TEXT if postgresql
+            if dialect_name == "postgresql":
+                try:
+                    conn.execute(text("ALTER TABLE providers ALTER COLUMN logo_url TYPE TEXT"))
+                    conn.commit()
+                except Exception as e:
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        pass
+                    logger.warning(f"Failed to alter logo_url to TEXT: {e}")
         except Exception:
             try:
                 conn.rollback()
             except Exception:
                 pass
             try:
-                conn.execute(text("ALTER TABLE providers ADD COLUMN logo_url VARCHAR(500)"))
+                conn.execute(text("ALTER TABLE providers ADD COLUMN logo_url TEXT"))
                 conn.commit()
                 logger.info("Database migration successfully added 'logo_url' to 'providers'.")
             except Exception as e:
@@ -447,13 +458,24 @@ def run_schema_migrations(engine: Any) -> None:
         # 12. Check if providers table has favicon_url column, if not, add it
         try:
             conn.execute(text("SELECT favicon_url FROM providers LIMIT 1"))
+            # If exists, alter type to TEXT if postgresql
+            if dialect_name == "postgresql":
+                try:
+                    conn.execute(text("ALTER TABLE providers ALTER COLUMN favicon_url TYPE TEXT"))
+                    conn.commit()
+                except Exception as e:
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        pass
+                    logger.warning(f"Failed to alter favicon_url to TEXT: {e}")
         except Exception:
             try:
                 conn.rollback()
             except Exception:
                 pass
             try:
-                conn.execute(text("ALTER TABLE providers ADD COLUMN favicon_url VARCHAR(500)"))
+                conn.execute(text("ALTER TABLE providers ADD COLUMN favicon_url TEXT"))
                 conn.commit()
                 logger.info("Database migration successfully added 'favicon_url' to 'providers'.")
             except Exception as e:

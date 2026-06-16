@@ -48,4 +48,18 @@ export const apiFetch = async (endpoint, options = {}) => {
   return response
 }
 
+export const getErrorMessage = async (response, defaultMsg = 'An error occurred') => {
+  try {
+    const contentType = response.headers.get('content-type')
+    if (contentType && contentType.includes('application/json')) {
+      const data = await response.json()
+      return data.detail || data.message || defaultMsg
+    }
+    const text = await response.text()
+    return text || response.statusText || defaultMsg
+  } catch (e) {
+    return response.statusText || defaultMsg
+  }
+}
+
 export default apiFetch

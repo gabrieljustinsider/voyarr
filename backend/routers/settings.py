@@ -316,6 +316,38 @@ def browse_directory(path: Optional[str] = Query(None)):
         )
 
 
+class CreateFolderRequest(BaseModel):
+    path: str
+    name: str
+
+
+@router.post("/mkdir")
+def create_folder(req: CreateFolderRequest):
+    parent = req.path
+    folder_name = req.name
+
+    if not parent or not folder_name:
+        raise HTTPException(status_code=400, detail="Parent path and folder name cannot be empty.")
+
+    full_path = os.path.join(parent, folder_name)
+
+    try:
+        validated = validate_path(full_path)
+    except HTTPException as e:
+        raise HTTPException(status_code=400, detail=f"Invalid path location: {e.detail}")
+
+    sanitized = sanitize_tainted_path(validated)
+
+    if os.path.exists(sanitized):
+        raise HTTPException(status_code=400, detail="Folder already exists.")
+
+    try:
+        os.makedirs(sanitized, exist_ok=True)
+        return {"status": "success", "message": f"Folder '{folder_name}' created successfully."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create folder: {str(e)}")
+
+
 @router.get("/autocomplete")
 def autocomplete_path(q: str = Query("")):
     if not q:

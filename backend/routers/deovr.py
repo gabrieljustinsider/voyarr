@@ -51,6 +51,8 @@ def deovr_index(
     db: Session = Depends(get_db)
 ) -> dict[str, Any]:
     """Retrieve scenes index list formatted for DeoVR players."""
+    from db_utils import check_feature_permission
+    check_feature_permission(db, "streaming")
     entries = db.query(LibraryEntry).all()
     scenes: list[dict[str, Any]] = []
     for entry in entries:

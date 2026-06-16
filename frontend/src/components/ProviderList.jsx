@@ -11,7 +11,7 @@ import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import SettingsIcon from '@mui/icons-material/Settings'
-import apiFetch from '../api'
+import apiFetch, { getErrorMessage } from '../api'
 
 export default function ProviderList({ providers, searchQuery, setSearchQuery, onRefreshProviders }) {
   const [cookies, setCookies] = useState([])
@@ -336,9 +336,9 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
         setCookieLimit('')
         fetchCookies()
       } else {
-        const err = await res.json()
+        const errMsg = await getErrorMessage(res, 'Failed to add cookie')
         window.dispatchEvent(new CustomEvent('show-toast', { 
-          detail: { message: err.detail || 'Failed to add cookie', severity: 'error' } 
+          detail: { message: errMsg, severity: 'error' } 
         }))
       }
     } catch (e) {
@@ -412,9 +412,9 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
           detail: { message: 'Site details scraped successfully!', severity: 'success' } 
         }))
       } else {
-        const err = await res.json()
+        const errMsg = await getErrorMessage(res, 'Failed to scrape site details.')
         window.dispatchEvent(new CustomEvent('show-toast', { 
-          detail: { message: err.detail || 'Failed to scrape site details.', severity: 'error' } 
+          detail: { message: errMsg, severity: 'error' } 
         }))
       }
     } catch (err) {
@@ -443,9 +443,9 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
         setOpenProviderForm(false)
         if (onRefreshProviders) onRefreshProviders()
       } else {
-        const err = await res.json()
+        const errMsg = await getErrorMessage(res, 'Failed to save provider.')
         window.dispatchEvent(new CustomEvent('show-toast', { 
-          detail: { message: err.detail || 'Failed to save provider.', severity: 'error' } 
+          detail: { message: errMsg, severity: 'error' } 
         }))
       }
     } catch (err) {
@@ -467,9 +467,9 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
         }))
         if (onRefreshProviders) onRefreshProviders()
       } else {
-        const err = await res.json()
+        const errMsg = await getErrorMessage(res, 'Failed to delete provider.')
         window.dispatchEvent(new CustomEvent('show-toast', { 
-          detail: { message: err.detail || 'Failed to delete provider.', severity: 'error' } 
+          detail: { message: errMsg, severity: 'error' } 
         }))
       }
     } catch (err) {

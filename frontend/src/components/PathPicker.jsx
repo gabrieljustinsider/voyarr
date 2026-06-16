@@ -28,6 +28,7 @@ import SearchIcon from '@mui/icons-material/Search'
 import CloseIcon from '@mui/icons-material/Close'
 import HomeIcon from '@mui/icons-material/Home'
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
+import CreateNewFolderIcon from '@mui/icons-material/CreateNewFolder'
 import { apiFetch } from '../api'
 
 export default function PathPicker({
@@ -52,6 +53,33 @@ export default function PathPicker({
   const [browserLoading, setBrowserLoading] = useState(false)
 
   const debounceRef = useRef(null)
+
+  // New folder creation state
+  const [showNewFolderInput, setShowNewFolderInput] = useState(false)
+  const [newFolderName, setNewFolderName] = useState('')
+  const [folderError, setFolderError] = useState('')
+
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim()) return
+    try {
+      const res = await apiFetch('/settings/mkdir', {
+        method: 'POST',
+        body: JSON.stringify({ path: currentPath, name: newFolderName.trim() })
+      })
+      if (res.ok) {
+        setNewFolderName('')
+        setShowNewFolderInput(false)
+        setFolderError('')
+        loadDirectory(currentPath)
+      } else {
+        const err = await res.json()
+        setFolderError(err.detail || 'Failed to create folder')
+      }
+    } catch (error) {
+      console.error(error)
+      setFolderError('Network error creating folder.')
+    }
+  }
 
   useEffect(() => {
     setInputValue(value)
@@ -173,7 +201,8 @@ export default function PathPicker({
       <Autocomplete
         freeSolo
         fullWidth={fullWidth}
-        value={inputValue}
+        value={inputValue || ''}
+        inputValue={inputValue || ''}
         onChange={handleOptionSelect}
         onInputChange={handleInputChange}
         options={options}
@@ -292,7 +321,6 @@ export default function PathPicker({
             </Breadcrumbs>
           </Box>
 
-          {/* Filtering & Navigation Action */}
           <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
             <TextField
               size="small"
@@ -321,6 +349,27 @@ export default function PathPicker({
                 }
               }}
             />
+            <Button
+              variant="outlined"
+              color="secondary"
+              startIcon={<CreateNewFolderIcon />}
+              onClick={() => {
+                setShowNewFolderInput(true)
+                setFolderError('')
+              }}
+              sx={{
+                borderColor: 'rgba(255, 255, 255, 0.08)',
+                color: 'var(--accent)',
+                textTransform: 'none',
+                minWidth: '120px',
+                '&:hover': {
+                  borderColor: 'var(--accent)',
+                  backgroundColor: 'rgba(192, 132, 252, 0.05)',
+                }
+              }}
+            >
+              New Folder
+            </Button>
             {parentPath && (
               <Button
                 variant="outlined"
@@ -341,6 +390,60 @@ export default function PathPicker({
               </Button>
             )}
           </Box>
+
+          {showNewFolderInput && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2, p: 1.5, backgroundColor: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '8px' }}>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <TextField
+                  size="small"
+                  fullWidth
+                  autoFocus
+                  placeholder="New folder name..."
+                  value={newFolderName}
+                  onChange={(e) => {
+                    setNewFolderName(e.target.value)
+                    setFolderError('')
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleCreateFolder()
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: '8px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.02)'
+                    }
+                  }}
+                />
+                <Button 
+                  variant="contained" 
+                  size="small" 
+                  color="secondary" 
+                  onClick={handleCreateFolder}
+                  disabled={!newFolderName.trim()}
+                  sx={{ textTransform: 'none', borderRadius: '8px' }}
+                >
+                  Create
+                </Button>
+                <Button 
+                  variant="text" 
+                  size="small" 
+                  onClick={() => {
+                    setShowNewFolderInput(false)
+                    setNewFolderName('')
+                    setFolderError('')
+                  }}
+                  sx={{ textTransform: 'none', color: '#9ca3af' }}
+                >
+                  Cancel
+                </Button>
+              </Box>
+              {folderError && (
+                <Typography variant="caption" color="error" sx={{ mt: 0.5, pl: 1, display: 'block' }}>
+                  {folderError}
+                </Typography>
+              )}
+            </Box>
+          )}
 
           {/* File/Folder List */}
           <Box sx={{ maxHeight: '350px', overflowY: 'auto', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '8px', backgroundColor: 'rgba(0, 0, 0, 0.2)' }}>
