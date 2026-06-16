@@ -211,7 +211,8 @@ function App() {
     showFavorites: true,
     showStudios: true,
     showAnalytics: true,
-    showLive: true
+    showLive: true,
+    rememberLastTab: false
   })
   const [isTvMode, setIsTvMode] = useState(false)
   const [prefDialogOpen, setPrefDialogOpen] = useState(false)
@@ -223,7 +224,8 @@ function App() {
     showFavorites: true,
     showStudios: true,
     showAnalytics: true,
-    showLive: true
+    showLive: true,
+    rememberLastTab: false
   })
   const [tempTvMode, setTempTvMode] = useState(false)
   const [customThemeSettings, setCustomThemeSettings] = useState({
@@ -251,7 +253,8 @@ function App() {
             showFavorites: data.ui_config.showFavorites !== false,
             showStudios: data.ui_config.showStudios !== false,
             showAnalytics: data.ui_config.showAnalytics !== false,
-            showLive: data.ui_config.showLive !== false
+            showLive: data.ui_config.showLive !== false,
+            rememberLastTab: !!data.ui_config.rememberLastTab
           })
           setIsTvMode(data.ui_config.isTvMode || false)
           if (data.ui_config.customTheme) {
@@ -952,6 +955,28 @@ function App() {
     return idx >= 0 ? idx : 0;
   }, [activeCategorySubTabs, currentTabLabel]);
 
+  // Save last selected tab to localStorage if preference enabled
+  useEffect(() => {
+    if (uiConfig.rememberLastTab && currentTabLabel) {
+      localStorage.setItem('voyarr_last_tab', currentTabLabel)
+    } else if (uiConfig.rememberLastTab === false) {
+      localStorage.removeItem('voyarr_last_tab')
+    }
+  }, [currentTabLabel, uiConfig.rememberLastTab])
+
+  // Restore last selected tab from localStorage if preference enabled
+  useEffect(() => {
+    if (uiConfig.rememberLastTab && visibleTabs.length > 0) {
+      const savedTab = localStorage.getItem('voyarr_last_tab')
+      if (savedTab) {
+        const targetIdx = visibleTabs.findIndex(t => t.label === savedTab)
+        if (targetIdx >= 0 && targetIdx !== tabValue) {
+          setTabValue(targetIdx)
+        }
+      }
+    }
+  }, [uiConfig.rememberLastTab, visibleTabs])
+
   if (!isLoggedIn) {
     return (
       <ThemeProvider theme={currentMuiTheme}>
@@ -1436,6 +1461,15 @@ function App() {
                     />
                   }
                   label="Enable Analytics dashboard"
+                />
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={tempUiConfig.rememberLastTab || false}
+                      onChange={(e) => setTempUiConfig({ ...tempUiConfig, rememberLastTab: e.target.checked })}
+                    />
+                  }
+                  label="Remember Last Selected Tab"
                 />
               </Box>
             </>

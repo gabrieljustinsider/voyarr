@@ -4,13 +4,19 @@ import CheckIcon from '@mui/icons-material/Check'
 import CloseIcon from '@mui/icons-material/Close'
 import EditIcon from '@mui/icons-material/Edit'
 
-export default function InlineTextField({ value, onSave, label = '', disabled = false, fullWidth = false }) {
-  const [isEditing, setIsEditing] = useState(false)
+export default function InlineTextField({ value, onSave, label = '', disabled = false, fullWidth = false, autoEdit = false }) {
+  const [isEditing, setIsEditing] = useState(autoEdit)
   const [editValue, setEditValue] = useState(value)
 
   useEffect(() => {
     setEditValue(value)
   }, [value])
+
+  useEffect(() => {
+    if (autoEdit) {
+      setIsEditing(true)
+    }
+  }, [autoEdit])
 
   const handleStart = () => {
     if (disabled) return

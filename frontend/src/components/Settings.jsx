@@ -182,30 +182,7 @@ export default function Settings() {
   const [showProxyUrl, setShowProxyUrl] = useState(false)
   const [bookmarkletCode, setBookmarkletCode] = useState('')
 
-  const [newUser, setNewUser] = useState({ username: '', password: '', role: 'user' })
-  const [usersList, setUsersList] = useState([])
-  const [adminLogs, setAdminLogs] = useState([])
 
-  // Advanced User Management states
-  const [selectedUserForManage, setSelectedUserForManage] = useState(null)
-  const [manageUserOpen, setManageUserOpen] = useState(false)
-  const [manageUserTab, setManageUserTab] = useState(0)
-  const [manageUserLoading, setManageUserLoading] = useState(false)
-  const [adminResetPasswordOpen, setAdminResetPasswordOpen] = useState(false)
-  const [adminResetPasswordNew, setAdminResetPasswordNew] = useState('')
-  const [mergeTargetUserId, setMergeTargetUserId] = useState('')
-  const [userActivitySearch, setUserActivitySearch] = useState('')
-  const [userActivityActionFilter, setUserActivityActionFilter] = useState('all')
-
-  const [editUsername, setEditUsername] = useState('')
-  const [editRole, setEditRole] = useState('')
-  const [editIsActive, setEditIsActive] = useState(true)
-  const [editPermissions, setEditPermissions] = useState({
-    can_stream: true,
-    can_scrape: false,
-    can_rip: false,
-    url_parsing: 'edit'
-  })
 
   const [passkeys, setPasskeys] = useState([])
   const [ssoLinks, setSsoLinks] = useState([])
@@ -214,6 +191,8 @@ export default function Settings() {
   const [mockSsoOpen, setMockSsoOpen] = useState(false)
   const [mockSsoProvider, setMockSsoProvider] = useState('')
   const [mockSsoEmail, setMockSsoEmail] = useState('')
+  const [newlyAddedPasskeyId, setNewlyAddedPasskeyId] = useState(null)
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null)
 
   const [settingsTab, setSettingsTab] = useState(0)
 
@@ -223,7 +202,8 @@ export default function Settings() {
     showFavorites: true,
     showStudios: true,
     showAnalytics: true,
-    showLive: true
+    showLive: true,
+    rememberLastTab: false
   })
   const [isTvMode, setIsTvMode] = useState(false)
 
@@ -240,7 +220,8 @@ export default function Settings() {
               showFavorites: data.ui_config.showFavorites !== false,
               showStudios: data.ui_config.showStudios !== false,
               showAnalytics: data.ui_config.showAnalytics !== false,
-              showLive: data.ui_config.showLive !== false
+              showLive: data.ui_config.showLive !== false,
+              rememberLastTab: !!data.ui_config.rememberLastTab
             })
             setIsTvMode(data.ui_config.isTvMode || false)
           }
@@ -489,6 +470,7 @@ export default function Settings() {
   const handleAddPasskey = async () => {
     setPasskeyLoading(true)
     try {
+      const existingIds = passkeys.map(pk => pk.id)
       const optionsRes = await apiFetch('/auth/passkeys/register/options', { method: 'POST' })
       if (!optionsRes.ok) {
         const err = await optionsRes.json()
@@ -514,13 +496,15 @@ export default function Settings() {
       
       const aaguid = scanAaguid(attestationObject)
       const clientInfo = getClientInfo()
+      const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      const autoName = `${clientInfo.browser} Passkey (${timestamp})`
       
       const verifyPayload = {
         credential_id: credential.id,
         public_key: publicKeyB64,
         client_data_json: bufferToBase64(clientDataJSON),
         aaguid: aaguid,
-        name: newPasskeyName || 'My Passkey',
+        name: autoName,
         browser: clientInfo.browser,
         os_name: clientInfo.os_name,
         backup_eligible: true,
@@ -539,7 +523,16 @@ export default function Settings() {
       
       setSnackbar({ open: true, message: 'Passkey registered successfully!', severity: 'success' })
       setNewPasskeyName('')
-      fetchPasskeys()
+      
+      const res = await apiFetch('/auth/passkeys/')
+      if (res.ok) {
+        const freshPasskeys = await res.json()
+        setPasskeys(freshPasskeys)
+        const newPk = freshPasskeys.find(pk => !existingIds.includes(pk.id))
+        if (newPk) {
+          setNewlyAddedPasskeyId(newPk.id)
+        }
+      }
     } catch (err) {
       console.error('Passkey registration error:', err)
       setSnackbar({ open: true, message: err.message || 'Passkey registration failed.', severity: 'error' })
@@ -572,193 +565,7 @@ export default function Settings() {
     }
   }
 
-  const fetchUsersList = async () => {
-    try {
-      const res = await apiFetch('/auth/users')
-      if (res.ok) {
-        setUsersList(await res.json())
-      }
-    } catch (err) { console.error('Failed to fetch users list:', err) }
-  }
 
-  const fetchAdminLogs = async () => {
-    try {
-      const res = await apiFetch('/auth/admin-logs')
-      if (res.ok) {
-        setAdminLogs(await res.json())
-      }
-    } catch (err) { console.error('Failed to fetch admin logs:', err) }
-  }
-
-  const handleUpdateUserPermissions = async (userId, newRole, newPermissions) => {
-    try {
-      const res = await apiFetch(`/auth/users/${userId}/permissions`, {
-        method: 'PUT',
-        body: JSON.stringify({ role: newRole, permissions: newPermissions })
-      })
-      if (res.ok) {
-        setSnackbar({ open: true, message: 'User role and permissions updated successfully!', severity: 'success' })
-        fetchUsersList()
-        fetchAdminLogs()
-      } else {
-        const err = await res.json()
-        setSnackbar({ open: true, message: `Failed: ${err.detail}`, severity: 'error' })
-      }
-    } catch (err) {
-      console.error(err)
-      setSnackbar({ open: true, message: 'Network error updating user.', severity: 'error' })
-    }
-  }
-
-  const handleOpenManageUser = async (userId) => {
-    setManageUserLoading(true)
-    setManageUserOpen(true)
-    try {
-      const res = await apiFetch(`/auth/users/${userId}`)
-      if (res.ok) {
-        setSelectedUserForManage(await res.json())
-      } else {
-        setSnackbar({ open: true, message: 'Failed to retrieve user details.', severity: 'error' })
-        setManageUserOpen(false)
-      }
-    } catch (e) {
-      console.error(e)
-      setSnackbar({ open: true, message: 'Error retrieving user details.', severity: 'error' })
-      setManageUserOpen(false)
-    }
-    setManageUserLoading(false)
-  }
-
-  const handleAdminResetPassword = async (newPassword) => {
-    if (!newPassword || newPassword.length < 8) {
-      setSnackbar({ open: true, message: 'Password must be at least 8 characters long.', severity: 'error' })
-      return
-    }
-    try {
-      const res = await apiFetch(`/auth/users/${selectedUserForManage.id}/reset-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ new_password: newPassword })
-      })
-      if (res.ok) {
-        setSnackbar({ open: true, message: 'Password reset successfully.', severity: 'success' })
-        setAdminResetPasswordOpen(false)
-        setAdminResetPasswordNew('')
-        handleOpenManageUser(selectedUserForManage.id)
-      } else {
-        const err = await res.json()
-        setSnackbar({ open: true, message: `Failed: ${err.detail}`, severity: 'error' })
-      }
-    } catch (err) {
-      console.error(err)
-      setSnackbar({ open: true, message: 'Error resetting password.', severity: 'error' })
-    }
-  }
-
-  const handleAdminResetMfa = async () => {
-    try {
-      const res = await apiFetch(`/auth/users/${selectedUserForManage.id}/reset-mfa`, { method: 'POST' })
-      if (res.ok) {
-        setSnackbar({ open: true, message: 'Successfully revoked all enrolled passkeys.', severity: 'success' })
-        handleOpenManageUser(selectedUserForManage.id)
-      } else {
-        const err = await res.json()
-        setSnackbar({ open: true, message: `Failed: ${err.detail}`, severity: 'error' })
-      }
-    } catch (err) {
-      console.error(err)
-      setSnackbar({ open: true, message: 'Error revoking passkeys.', severity: 'error' })
-    }
-  }
-
-  const handleAdminResetSso = async () => {
-    try {
-      const res = await apiFetch(`/auth/users/${selectedUserForManage.id}/reset-sso`, { method: 'POST' })
-      if (res.ok) {
-        setSnackbar({ open: true, message: 'Successfully unlinked all SSO connections.', severity: 'success' })
-        handleOpenManageUser(selectedUserForManage.id)
-      } else {
-        const err = await res.json()
-        setSnackbar({ open: true, message: `Failed: ${err.detail}`, severity: 'error' })
-      }
-    } catch (err) {
-      console.error(err)
-      setSnackbar({ open: true, message: 'Error unlinking SSO links.', severity: 'error' })
-    }
-  }
-
-  const handleAdminSavePermissions = async (updatedUsername, updatedRole, updatedActive, updatedPermissions) => {
-    try {
-      const res = await apiFetch(`/auth/users/${selectedUserForManage.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: updatedUsername,
-          role: updatedRole,
-          is_active: updatedActive,
-          permissions: updatedPermissions
-        })
-      })
-      if (res.ok) {
-        setSnackbar({ open: true, message: 'Profile, role, and permissions updated successfully!', severity: 'success' })
-        fetchUsersList()
-        handleOpenManageUser(selectedUserForManage.id)
-      } else {
-        const err = await res.json()
-        setSnackbar({ open: true, message: `Failed: ${err.detail}`, severity: 'error' })
-      }
-    } catch (err) {
-      console.error(err)
-      setSnackbar({ open: true, message: 'Error updating user configuration.', severity: 'error' })
-    }
-  }
-
-  const handleAdminDeleteUser = async () => {
-    try {
-      const res = await apiFetch(`/auth/users/${selectedUserForManage.id}`, { method: 'DELETE' })
-      if (res.ok) {
-        setSnackbar({ open: true, message: `User account deleted successfully!`, severity: 'success' })
-        setManageUserOpen(false)
-        fetchUsersList()
-        fetchAdminLogs()
-      } else {
-        const err = await res.json()
-        setSnackbar({ open: true, message: `Failed: ${err.detail}`, severity: 'error' })
-      }
-    } catch (err) {
-      console.error(err)
-      setSnackbar({ open: true, message: 'Error deleting user account.', severity: 'error' })
-    }
-  }
-
-  const handleAdminMergeUsers = async (targetUserId) => {
-    if (!targetUserId) {
-      setSnackbar({ open: true, message: 'Please select a destination user to merge into.', severity: 'warning' })
-      return
-    }
-    try {
-      const res = await apiFetch('/auth/users/merge', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          source_user_id: selectedUserForManage.id,
-          target_user_id: targetUserId
-        })
-      })
-      if (res.ok) {
-        setSnackbar({ open: true, message: 'Users merged successfully! History has been consolidated.', severity: 'success' })
-        setManageUserOpen(false)
-        fetchUsersList()
-        fetchAdminLogs()
-      } else {
-        const err = await res.json()
-        setSnackbar({ open: true, message: `Failed: ${err.detail}`, severity: 'error' })
-      }
-    } catch (err) {
-      console.error(err)
-      setSnackbar({ open: true, message: 'Error merging user accounts.', severity: 'error' })
-    }
-  }
 
   useEffect(() => {
     apiFetch('/settings')
@@ -781,23 +588,7 @@ export default function Settings() {
       .catch(console.error)
     fetchPasskeys()
     fetchSsoLinks()
-    fetchUsersList()
-    fetchAdminLogs()
   }, [])
-
-  useEffect(() => {
-    if (selectedUserForManage) {
-      setEditUsername(selectedUserForManage.username || '')
-      setEditRole(selectedUserForManage.role || '')
-      setEditIsActive(selectedUserForManage.is_active !== false)
-      setEditPermissions(selectedUserForManage.permissions || {
-        can_stream: true,
-        can_scrape: false,
-        can_rip: false,
-        url_parsing: 'edit'
-      })
-    }
-  }, [selectedUserForManage])
 
   const handleSyncManager = async (provider, direction) => {
     try {
@@ -914,15 +705,15 @@ export default function Settings() {
   return (
     <Box sx={{ maxWidth: 1400, mx: 'auto', width: '100%' }}>
       <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>Storage &amp; Directory Paths</Typography>
-        <Typography variant="body2" sx={{ mb: 2 }} color="textSecondary">
+        <Typography variant="h6" align="center" gutterBottom>Storage &amp; Directory Paths</Typography>
+        <Typography variant="body2" sx={{ mb: 2, textAlign: 'center' }} color="textSecondary">
           Configure default filesystem paths for media scanning, downloads, and library structures.
         </Typography>
         <Divider sx={{ mb: 2 }} />
 
         <Grid container spacing={3}>
           {/* Left Column: All Input Fields Vertically Stacked */}
-          <Grid item xs={12} md={4}>
+          <Grid item xs={12} md={5}>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               <Box>
                 <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>Media Root Scan Paths</Typography>
@@ -974,7 +765,7 @@ export default function Settings() {
           </Grid>
 
           {/* Right Column: Added Paths Chips */}
-          <Grid item xs={12} md={8}>
+          <Grid item xs={12} md={7}>
             <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>Added Paths</Typography>
             {mediaPaths.length === 0 ? (
               <Typography variant="caption" color="textSecondary" display="block">No media root paths configured.</Typography>
@@ -996,14 +787,14 @@ export default function Settings() {
       </Paper>
 
       <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>System-Wide Regional &amp; Localization Settings</Typography>
-        <Typography variant="body2" sx={{ mb: 2 }} color="textSecondary">
-          Configure default regional formats, timezone, and language preferences for the entire system dashboard.
+        <Typography variant="h6" align="center" gutterBottom>System-Wide Regional &amp; Localization Settings</Typography>
+        <Typography variant="body2" sx={{ mb: 2, textAlign: 'center' }} color="textSecondary">
+          Configure default language, time formats, and system timezone behaviors for users and schedules.
         </Typography>
         <Divider sx={{ mb: 2 }} />
 
-        <Grid container spacing={3}>
-          <Grid item xs={12} sm={6} md={3}>
+        <Box sx={{ display: 'flex', flexWrap: 'nowrap', gap: 3, justifyContent: 'center', width: '100%', mt: 2 }}>
+          <Box sx={{ flex: 1, maxWidth: 300, minWidth: 0 }}>
             <FormControl fullWidth size="small">
               <InputLabel id="global-locale-label">System Language</InputLabel>
               <Select
@@ -1022,9 +813,9 @@ export default function Settings() {
                 <MenuItem value="it">Italiano (it)</MenuItem>
               </Select>
             </FormControl>
-          </Grid>
+          </Box>
 
-          <Grid item xs={12} sm={6} md={3}>
+          <Box sx={{ flex: 1, maxWidth: 300, minWidth: 0 }}>
             <FormControl fullWidth size="small">
               <InputLabel id="global-date-format-label">Date Format</InputLabel>
               <Select
@@ -1041,9 +832,9 @@ export default function Settings() {
                 <MenuItem value="DD/MM/YYYY">DD/MM/YYYY (e.g. 14/06/2026)</MenuItem>
               </Select>
             </FormControl>
-          </Grid>
+          </Box>
 
-          <Grid item xs={12} sm={6} md={3}>
+          <Box sx={{ flex: 1, maxWidth: 300, minWidth: 0 }}>
             <FormControl fullWidth size="small">
               <InputLabel id="global-time-format-label">Time Format</InputLabel>
               <Select
@@ -1059,9 +850,9 @@ export default function Settings() {
                 <MenuItem value="hh:mm:ss A">12-hour (hh:mm:ss AM/PM)</MenuItem>
               </Select>
             </FormControl>
-          </Grid>
+          </Box>
 
-          <Grid item xs={12} sm={6} md={3}>
+          <Box sx={{ flex: 1, maxWidth: 300, minWidth: 0 }}>
             <FormControl fullWidth size="small">
               <InputLabel id="global-timezone-label">System Timezone</InputLabel>
               <Select
@@ -1081,14 +872,14 @@ export default function Settings() {
                 <MenuItem value="Asia/Tokyo">Japan Standard Time (Asia/Tokyo)</MenuItem>
               </Select>
             </FormControl>
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
       </Paper>
 
       <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>Browser Extension Integration</Typography>
-        <Typography variant="body2" sx={{ mb: 2 }} color="textSecondary">
-          Connect your Voyarr Lens browser extension to easily map CSS selectors on live websites.
+        <Typography variant="h6" align="center" gutterBottom>Browser Extension Integration</Typography>
+        <Typography variant="body2" sx={{ mb: 2, textAlign: 'center' }} color="textSecondary">
+          Integrate Voyarr directly with your web browser to dynamically trigger remote downloads while browsing media sites.
         </Typography>
         <Divider sx={{ mb: 2 }} />
         
@@ -1155,73 +946,73 @@ export default function Settings() {
       </Paper>
 
       <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>1Password Connect Integration</Typography>
-        <Typography variant="body2" sx={{ mb: 2 }} color="textSecondary">
+        <Typography variant="h6" align="center" gutterBottom>1Password Connect Integration</Typography>
+        <Typography variant="body2" sx={{ mb: 2, textAlign: 'center' }} color="textSecondary">
           Sync your Voyarr credentials with a 1Password Connect server.
         </Typography>
         <Divider sx={{ mb: 2 }} />
-        <Grid container spacing={3} justifyContent="center">
-          <Grid item xs={12} md={8}>
-            <TextField fullWidth label="1Password Connect Host" name="op_connect_host" value={settings.op_connect_host || ''} onChange={handleChange} helperText="e.g. http://localhost:8080" />
-          </Grid>
-          <Grid item xs={12} md={8}>
-            <TextField fullWidth type="password" label="1Password Connect Token" name="op_connect_token" value={settings.op_connect_token || ''} onChange={handleChange} />
-          </Grid>
-          <Grid item xs={12} md={8}>
-            <TextField fullWidth label="1Password Vault ID" name="op_vault_id" value={settings.op_vault_id || ''} onChange={handleChange} helperText="The ID of the vault to sync with." />
-          </Grid>
-          <Grid item xs={12}>
-            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap', mt: 1 }}>
-              <Button variant="contained" color="primary" onClick={() => {
-                Promise.all([
-                  apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'op_connect_host', value: String(settings.op_connect_host ?? '') }) }),
-                  apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'op_connect_token', value: String(settings.op_connect_token ?? '') }) }),
-                  apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'op_vault_id', value: String(settings.op_vault_id ?? '') }) })
-                ]).then(results => {
-                  if (results.every(r => r.ok)) setSnackbar({ open: true, message: '1Password settings saved!', severity: 'success' })
-                  else setSnackbar({ open: true, message: 'Some 1Password settings failed to save.', severity: 'warning' })
-                }).catch(() => setSnackbar({ open: true, message: 'Failed to save 1Password settings.', severity: 'error' }))
-              }}>Save 1Password Settings</Button>
-              <Button variant="outlined" color="primary" onClick={() => handleSyncManager('1password', 'push')}>Push to 1Password</Button>
-              <Button variant="outlined" color="secondary" onClick={() => handleSyncManager('1password', 'pull')}>Pull from 1Password</Button>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Box sx={{ display: 'flex', flexWrap: 'nowrap', gap: 3, justifyContent: 'center', width: '100%' }}>
+            <Box sx={{ flex: 1, maxWidth: 350, minWidth: 0 }}>
+              <TextField fullWidth label="1Password Connect Host" name="op_connect_host" value={settings.op_connect_host || ''} onChange={handleChange} helperText="e.g. http://localhost:8080" />
             </Box>
-          </Grid>
-        </Grid>
-      </Paper>
-
-    <Paper sx={{ p: 3, mb: 3 }}>
-      <Typography variant="h6" gutterBottom>Bitwarden Integration</Typography>
-      <Typography variant="body2" sx={{ mb: 2 }} color="textSecondary">
-        Sync your Voyarr credentials with Bitwarden or Vaultwarden via the Bitwarden CLI REST server ('bw serve').
-      </Typography>
-      <Divider sx={{ mb: 2 }} />
-      <Grid container spacing={3} justifyContent="center">
-        <Grid item xs={12} md={8}>
-          <TextField fullWidth label="Bitwarden Serve Host" name="bw_connect_host" value={settings.bw_connect_host || ''} onChange={handleChange} helperText="e.g. http://localhost:8087" />
-        </Grid>
-        <Grid item xs={12} md={8}>
-          <TextField fullWidth type="password" label="Bitwarden Session Token" name="bw_session_token" value={settings.bw_session_token || ''} onChange={handleChange} helperText="The BW_SESSION token generated upon unlocking your vault." />
-        </Grid>
-        <Grid item xs={12} md={8}>
-          <TextField fullWidth label="Bitwarden Folder ID" name="bw_folder_id" value={settings.bw_folder_id || ''} onChange={handleChange} helperText="Optional: The ID of the folder to sync with." />
-        </Grid>
-        <Grid item xs={12}>
+            <Box sx={{ flex: 1, maxWidth: 350, minWidth: 0 }}>
+              <TextField fullWidth type="password" label="1Password Connect Token" name="op_connect_token" value={settings.op_connect_token || ''} onChange={handleChange} />
+            </Box>
+            <Box sx={{ flex: 1, maxWidth: 350, minWidth: 0 }}>
+              <TextField fullWidth label="1Password Vault ID" name="op_vault_id" value={settings.op_vault_id || ''} onChange={handleChange} helperText="The ID of the vault to sync with." />
+            </Box>
+          </Box>
           <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap', mt: 1 }}>
             <Button variant="contained" color="primary" onClick={() => {
               Promise.all([
-                apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'bw_connect_host', value: String(settings.bw_connect_host ?? '') }) }),
-                apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'bw_session_token', value: String(settings.bw_session_token ?? '') }) }),
-                apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'bw_folder_id', value: String(settings.bw_folder_id ?? '') }) })
+                apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'op_connect_host', value: String(settings.op_connect_host ?? '') }) }),
+                apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'op_connect_token', value: String(settings.op_connect_token ?? '') }) }),
+                apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'op_vault_id', value: String(settings.op_vault_id ?? '') }) })
               ]).then(results => {
-                if (results.every(r => r.ok)) setSnackbar({ open: true, message: 'Bitwarden settings saved!', severity: 'success' })
-                else setSnackbar({ open: true, message: 'Some Bitwarden settings failed to save.', severity: 'warning' })
-              }).catch(() => setSnackbar({ open: true, message: 'Failed to save Bitwarden settings.', severity: 'error' }))
-            }}>Save Bitwarden Settings</Button>
-            <Button variant="outlined" color="primary" onClick={() => handleSyncManager('bitwarden', 'push')}>Push to Bitwarden</Button>
-            <Button variant="outlined" color="secondary" onClick={() => handleSyncManager('bitwarden', 'pull')}>Pull from Bitwarden</Button>
+                if (results.every(r => r.ok)) setSnackbar({ open: true, message: '1Password settings saved!', severity: 'success' })
+                else setSnackbar({ open: true, message: 'Some 1Password settings failed to save.', severity: 'warning' })
+              }).catch(() => setSnackbar({ open: true, message: 'Failed to save 1Password settings.', severity: 'error' }))
+            }}>Save 1Password Settings</Button>
+            <Button variant="outlined" color="primary" onClick={() => handleSyncManager('1password', 'push')}>Push to 1Password</Button>
+            <Button variant="outlined" color="secondary" onClick={() => handleSyncManager('1password', 'pull')}>Pull from 1Password</Button>
           </Box>
-        </Grid>
-      </Grid>
+        </Box>
+      </Paper>
+
+    <Paper sx={{ p: 3, mb: 3 }}>
+      <Typography variant="h6" align="center" gutterBottom>Bitwarden Integration</Typography>
+      <Typography variant="body2" sx={{ mb: 2, textAlign: 'center' }} color="textSecondary">
+        Sync your Voyarr credentials with Bitwarden or Vaultwarden via the Bitwarden CLI REST server ('bw serve').
+      </Typography>
+      <Divider sx={{ mb: 2 }} />
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <Box sx={{ display: 'flex', flexWrap: 'nowrap', gap: 3, justifyContent: 'center', width: '100%' }}>
+          <Box sx={{ flex: 1, maxWidth: 350, minWidth: 0 }}>
+            <TextField fullWidth label="Bitwarden Serve Host" name="bw_connect_host" value={settings.bw_connect_host || ''} onChange={handleChange} helperText="e.g. http://localhost:8087" />
+          </Box>
+          <Box sx={{ flex: 1, maxWidth: 350, minWidth: 0 }}>
+            <TextField fullWidth type="password" label="Bitwarden Session Token" name="bw_session_token" value={settings.bw_session_token || ''} onChange={handleChange} helperText="The BW_SESSION token generated upon unlocking your vault." />
+          </Box>
+          <Box sx={{ flex: 1, maxWidth: 350, minWidth: 0 }}>
+            <TextField fullWidth label="Bitwarden Folder ID" name="bw_folder_id" value={settings.bw_folder_id || ''} onChange={handleChange} helperText="Optional: The ID of the folder to sync with." />
+          </Box>
+        </Box>
+        <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap', mt: 1 }}>
+          <Button variant="contained" color="primary" onClick={() => {
+            Promise.all([
+              apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'bw_connect_host', value: String(settings.bw_connect_host ?? '') }) }),
+              apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'bw_session_token', value: String(settings.bw_session_token ?? '') }) }),
+              apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'bw_folder_id', value: String(settings.bw_folder_id ?? '') }) })
+            ]).then(results => {
+              if (results.every(r => r.ok)) setSnackbar({ open: true, message: 'Bitwarden settings saved!', severity: 'success' })
+              else setSnackbar({ open: true, message: 'Some Bitwarden settings failed to save.', severity: 'warning' })
+            }).catch(() => setSnackbar({ open: true, message: 'Failed to save Bitwarden settings.', severity: 'error' }))
+          }}>Save Bitwarden Settings</Button>
+          <Button variant="outlined" color="primary" onClick={() => handleSyncManager('bitwarden', 'push')}>Push to Bitwarden</Button>
+          <Button variant="outlined" color="secondary" onClick={() => handleSyncManager('bitwarden', 'pull')}>Pull from Bitwarden</Button>
+        </Box>
+      </Box>
     </Paper>
 
       <Paper elevation={2} sx={{ 
@@ -1240,191 +1031,247 @@ export default function Settings() {
         <Divider sx={{ mb: 2, opacity: 0.2 }} />
         
         {/* Passkeys Panel */}
-        <Box sx={{ mb: 4 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <FingerprintIcon color="secondary" />
-              <Typography variant="subtitle1" sx={{ fontWeight: '600' }}>Registered Passkeys</Typography>
-            </Box>
-            
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <TextField 
-                size="small" 
-                placeholder="Passkey Name (e.g. YubiKey)" 
-                value={newPasskeyName} 
-                onChange={e => setNewPasskeyName(e.target.value)} 
-                disabled={passkeyLoading}
-                sx={{ 
-                  width: 220,
-                  '& .MuiOutlinedInput-root': { borderRadius: '10px' }
-                }}
-              />
-              <Button 
-                variant="contained" 
-                color="secondary"
-                startIcon={<AddIcon />} 
-                onClick={handleAddPasskey}
-                disabled={passkeyLoading || !newPasskeyName.trim()}
-                sx={{ borderRadius: '10px', textTransform: 'none' }}
-              >
-                {passkeyLoading ? 'Creating...' : 'Add Passkey'}
-              </Button>
-            </Box>
+        <Box sx={{ mb: 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1 }}>
+            <FingerprintIcon color="secondary" />
+            <Typography variant="subtitle1" sx={{ fontWeight: '600' }}>Registered Passkeys</Typography>
           </Box>
-          
-          {passkeys.length === 0 ? (
-            <Box sx={{ 
-              p: 4, 
-              textAlign: 'center', 
-              borderRadius: '12px', 
-              border: '1px dashed rgba(255, 255, 255, 0.15)',
-              backgroundColor: 'rgba(255, 255, 255, 0.02)'
-            }}>
-              <FingerprintIcon sx={{ fontSize: 48, opacity: 0.3, mb: 1 }} />
-              <Typography variant="body2" sx={{ opacity: 0.6 }} color="textSecondary">No passkeys registered yet. Add one to enable secure, passwordless authentication.</Typography>
-            </Box>
-          ) : (
-            <Grid container spacing={2}>
-              {passkeys.map(pk => {
-                const brand = pk.aaguid_info || { name: 'Generic Security Key', provider: 'Unknown Platform', icon: 'key', description: 'Standard WebAuthn authenticating device.' };
-                return (
-                  <Grid item xs={12} md={6} key={pk.id}>
-                    <Paper elevation={1} sx={{ 
-                      p: 2, 
-                      borderRadius: 2,
-                      transition: 'transform 0.2s, box-shadow 0.2s, border-color 0.2s',
-                      '&:hover': {
-                        transform: 'translateY(-2px)',
-                        boxShadow: '0 6px 20px rgba(0,0,0,0.4)',
-                      }
-                    }}>
-                      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                          <Box sx={{ 
-                            p: 1, 
-                            borderRadius: '8px', 
-                            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+          <Typography variant="body2" sx={{ mb: 3, opacity: 0.8, textAlign: 'center' }} color="textSecondary">
+            Manage your hardware security keys, biometrics, or device credentials.
+          </Typography>
+
+          {/* Shaded area to register a new passkey */}
+          <Box sx={{ 
+            p: 3, 
+            mb: 4,
+            width: '100%',
+            textAlign: 'center', 
+            borderRadius: '12px', 
+            border: '1px dashed rgba(255, 255, 255, 0.15)',
+            backgroundColor: 'rgba(255, 255, 255, 0.02)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 1.5
+          }}>
+            <FingerprintIcon sx={{ fontSize: 36, color: 'secondary.main', opacity: 0.8 }} />
+            <Typography variant="body2" sx={{ opacity: 0.8 }} color="textSecondary">
+              Register a new hardware key, fingerprint reader, or device passkey.
+            </Typography>
+            <Button 
+              variant="contained" 
+              color="secondary"
+              startIcon={<AddIcon />} 
+              onClick={handleAddPasskey}
+              disabled={passkeyLoading}
+              sx={{ borderRadius: '10px', textTransform: 'none' }}
+            >
+              {passkeyLoading ? 'Registering...' : 'Register Passkey'}
+            </Button>
+          </Box>
+
+          <Box sx={{ width: '100%' }}>
+            {passkeys.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 2 }}>
+                <Typography variant="body2" sx={{ opacity: 0.5 }} color="textSecondary">
+                  No passkeys registered yet.
+                </Typography>
+              </Box>
+            ) : (
+              <Grid container spacing={2}>
+                {passkeys.map(pk => {
+                  const brand = pk.aaguid_info || { name: 'Generic Security Key', provider: 'Unknown Platform', icon: 'key', description: 'Standard WebAuthn authenticating device.' };
+                  return (
+                    <Grid item xs={12} md={6} key={pk.id}>
+                      <Paper elevation={1} sx={{ 
+                        p: 2, 
+                        borderRadius: 2,
+                        position: 'relative',
+                        transition: 'transform 0.2s, box-shadow 0.2s, border-color 0.2s',
+                        '&:hover': {
+                          transform: 'translateY(-2px)',
+                          boxShadow: '0 6px 20px rgba(0,0,0,0.4)',
+                        }
+                      }}>
+                        {/* Center Card Confirmation Overlay (Toast-like Overlay) */}
+                        {deleteConfirmId === pk.id && (
+                          <Box sx={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: '100%',
+                            bgcolor: 'rgba(18, 18, 18, 0.95)',
+                            borderRadius: 2,
                             display: 'flex',
+                            flexDirection: 'column',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            color: 'text.primary'
+                            gap: 1.5,
+                            zIndex: 10,
+                            p: 2,
+                            boxSizing: 'border-box',
+                            backdropFilter: 'blur(4px)'
                           }}>
-                            {brand.icon === 'apple' && <AppleSvg />}
-                            {brand.icon === 'google' && <GoogleSvg />}
-                            {brand.icon === 'yubico' && <YubicoSvg />}
-                            {brand.icon === 'windows' && <WindowsHelloSvg />}
-                            {brand.icon !== 'apple' && brand.icon !== 'google' && brand.icon !== 'yubico' && brand.icon !== 'windows' && <FingerprintIcon />}
-                          </Box>
-                          <Box>
-                            <InlineTextField 
-                              value={pk.name} 
-                              onSave={(val) => handleRenamePasskey(pk.id, val)}
-                              label="Rename Passkey"
-                            />
-                            <Typography variant="caption" sx={{ opacity: 0.5, display: 'block', mt: 0.5 }} color="textSecondary">
-                              {brand.name} • {brand.provider}
+                            <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'error.main', textAlign: 'center' }}>
+                              Delete this passkey?
                             </Typography>
+                            <Box sx={{ display: 'flex', gap: 1 }}>
+                              <Button 
+                                variant="contained" 
+                                color="error" 
+                                size="small" 
+                                onClick={() => {
+                                  handleDeletePasskey(pk.id)
+                                  setDeleteConfirmId(null)
+                                }}
+                                sx={{ borderRadius: '6px', textTransform: 'none' }}
+                              >
+                                Confirm
+                              </Button>
+                              <Button 
+                                variant="outlined" 
+                                size="small" 
+                                onClick={() => setDeleteConfirmId(null)}
+                                sx={{ borderRadius: '6px', textTransform: 'none', color: 'text.secondary', borderColor: 'rgba(255,255,255,0.2)' }}
+                              >
+                                Cancel
+                              </Button>
+                            </Box>
                           </Box>
+                        )}
+
+                        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <Box sx={{ 
+                              p: 1, 
+                              borderRadius: '8px', 
+                              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'text.primary'
+                            }}>
+                              {brand.icon === 'apple' && <AppleSvg />}
+                              {brand.icon === 'google' && <GoogleSvg />}
+                              {brand.icon === 'yubico' && <YubicoSvg />}
+                              {brand.icon === 'windows' && <WindowsHelloSvg />}
+                              {brand.icon !== 'apple' && brand.icon !== 'google' && brand.icon !== 'yubico' && brand.icon !== 'windows' && <FingerprintIcon />}
+                            </Box>
+                            <Box>
+                              <InlineTextField 
+                                value={pk.name} 
+                                onSave={(val) => {
+                                  handleRenamePasskey(pk.id, val)
+                                  setNewlyAddedPasskeyId(null)
+                                }}
+                                label="Rename Passkey"
+                                autoEdit={newlyAddedPasskeyId === pk.id}
+                              />
+                              <Typography variant="caption" sx={{ opacity: 0.5, display: 'block', mt: 0.5 }} color="textSecondary">
+                                {brand.name} • {brand.provider}
+                              </Typography>
+                            </Box>
+                          </Box>
+                          
+                          <IconButton color="error" size="small" onClick={() => setDeleteConfirmId(pk.id)}>
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
                         </Box>
                         
-                        <IconButton color="error" size="small" onClick={() => handleDeletePasskey(pk.id)}>
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Box>
-                      
-                      <Divider sx={{ my: 1.5, opacity: 0.1 }} />
-                      
-                      <Grid container spacing={1.5}>
-                        <Grid item xs={6}>
-                          <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }} color="textSecondary">Registered IP</Typography>
-                          <Typography variant="body2" sx={{ fontWeight: '500', fontFamily: 'monospace' }}>
-                            {pk.ip_address || '127.0.0.1'}
-                          </Typography>
-                        </Grid>
-                        <Grid item xs={6}>
-                          <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }} color="textSecondary">Location</Typography>
-                          <Typography variant="body2" sx={{ fontWeight: '500', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                            {pk.location || 'Local Host (Development)'}
-                          </Typography>
-                        </Grid>
+                        <Divider sx={{ my: 1.5, opacity: 0.1 }} />
                         
-                        <Grid item xs={6}>
-                          <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }} color="textSecondary">Created</Typography>
-                          <Typography variant="body2" sx={{ fontWeight: '500' }}>
-                            {new Date(pk.created_at).toLocaleDateString()}
-                          </Typography>
-                        </Grid>
-                        <Grid item xs={6}>
-                          <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }} color="textSecondary">Last Used</Typography>
-                          <Typography variant="body2" sx={{ fontWeight: '500' }}>
-                            {pk.last_used_at ? new Date(pk.last_used_at).toLocaleDateString() : 'Never'}
-                          </Typography>
-                        </Grid>
-                        
-                        <Grid item xs={12} sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap' }}>
-                          {pk.backup_eligible && (
+                        <Grid container spacing={1.5}>
+                          <Grid item xs={6}>
+                            <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }} color="textSecondary">Registered IP</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: '500', fontFamily: 'monospace' }}>
+                              {pk.ip_address || '127.0.0.1'}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={6}>
+                            <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }} color="textSecondary">Location</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: '500', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                              {pk.location || 'Local Host (Development)'}
+                            </Typography>
+                          </Grid>
+                          
+                          <Grid item xs={6}>
+                            <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }} color="textSecondary">Created</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: '500' }}>
+                              {new Date(pk.created_at).toLocaleDateString()}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={6}>
+                            <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }} color="textSecondary">Last Used</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: '500' }}>
+                              {pk.last_used_at ? new Date(pk.last_used_at).toLocaleDateString() : 'Never'}
+                            </Typography>
+                          </Grid>
+                          
+                          <Grid item xs={12} sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap' }}>
+                            {pk.backup_eligible && (
+                              <Box sx={{ 
+                                px: 1.2, 
+                                py: 0.4, 
+                                borderRadius: '6px', 
+                                backgroundColor: 'rgba(0, 230, 118, 0.1)', 
+                                border: '1px solid rgba(0, 230, 118, 0.2)',
+                                display: 'inline-flex',
+                                alignItems: 'center'
+                              }}>
+                                <Typography variant="caption" sx={{ color: '#00e676', fontWeight: 'bold' }}>Backup Eligible</Typography>
+                              </Box>
+                            )}
+                            {pk.backup_state && (
+                              <Box sx={{ 
+                                px: 1.2, 
+                                py: 0.4, 
+                                borderRadius: '6px', 
+                                backgroundColor: 'rgba(0, 176, 255, 0.1)', 
+                                border: '1px solid rgba(0, 176, 255, 0.2)',
+                                display: 'inline-flex',
+                                alignItems: 'center'
+                              }}>
+                                <Typography variant="caption" sx={{ color: '#00b0ff', fontWeight: 'bold' }}>Backed Up</Typography>
+                              </Box>
+                            )}
                             <Box sx={{ 
                               px: 1.2, 
                               py: 0.4, 
                               borderRadius: '6px', 
-                              backgroundColor: 'rgba(0, 230, 118, 0.1)', 
-                              border: '1px solid rgba(0, 230, 118, 0.2)',
+                              backgroundColor: 'rgba(255, 255, 255, 0.05)', 
+                              border: '1px solid rgba(255, 255, 255, 0.08)',
                               display: 'inline-flex',
                               alignItems: 'center'
                             }}>
-                              <Typography variant="caption" sx={{ color: '#00e676', fontWeight: 'bold' }}>Backup Eligible</Typography>
+                              <Typography variant="caption" sx={{ opacity: 0.7 }} color="textSecondary">{pk.browser} on {pk.os_name}</Typography>
                             </Box>
-                          )}
-                          {pk.backup_state && (
-                            <Box sx={{ 
-                              px: 1.2, 
-                              py: 0.4, 
-                              borderRadius: '6px', 
-                              backgroundColor: 'rgba(0, 176, 255, 0.1)', 
-                              border: '1px solid rgba(0, 176, 255, 0.2)',
-                              display: 'inline-flex',
-                              alignItems: 'center'
-                            }}>
-                              <Typography variant="caption" sx={{ color: '#00b0ff', fontWeight: 'bold' }}>Backed Up</Typography>
-                            </Box>
-                          )}
-                          <Box sx={{ 
-                            px: 1.2, 
-                            py: 0.4, 
-                            borderRadius: '6px', 
-                            backgroundColor: 'rgba(255, 255, 255, 0.05)', 
-                            border: '1px solid rgba(255, 255, 255, 0.08)',
-                            display: 'inline-flex',
-                            alignItems: 'center'
-                          }}>
-                            <Typography variant="caption" sx={{ opacity: 0.7 }} color="textSecondary">{pk.browser} on {pk.os_name}</Typography>
-                          </Box>
+                          </Grid>
                         </Grid>
-                      </Grid>
-                    </Paper>
-                  </Grid>
-                )
-              })}
-            </Grid>
-          )}
+                      </Paper>
+                    </Grid>
+                  )
+                })}
+              </Grid>
+            )}
+          </Box>
         </Box>
         
         <Divider sx={{ my: 3, opacity: 0.2 }} />
         
-        {/* SSO Linking Panel */}
-        <Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 2 }}>
             <LinkIcon color="primary" />
             <Typography variant="subtitle1" sx={{ fontWeight: '600' }}>Linked Identities (SSO)</Typography>
           </Box>
           
-          <Grid container spacing={2} justifyContent="center">
+          <Box sx={{ display: 'flex', flexWrap: 'nowrap', gap: 2, justifyContent: 'center', alignItems: 'stretch', width: '100%' }}>
             {['google', 'github', 'discord'].map(provider => {
               const link = ssoLinks.find(l => l.provider === provider)
               const isLinked = !!link
               
               return (
-                <Grid item xs={12} md={4} key={provider}>
+                <Box key={provider} sx={{ flex: 1, maxWidth: 350, minWidth: 0 }}>
                   <Paper elevation={1} sx={{ 
                     p: 2, 
                     borderRadius: 2,
@@ -1506,27 +1353,27 @@ export default function Settings() {
                       </Button>
                     )}
                   </Paper>
-                </Grid>
+                </Box>
               )
             })}
-          </Grid>
+          </Box>
         </Box>
 
         <Divider sx={{ my: 3, opacity: 0.2 }} />
 
         {/* Global Feature Controls */}
-        <Box sx={{ mb: 4 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+        <Box sx={{ mb: 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 2 }}>
             <TuneIcon color="secondary" />
             <Typography variant="subtitle1" sx={{ fontWeight: '600' }}>Global Feature Controls</Typography>
           </Box>
-          <Typography variant="body2" sx={{ mb: 2, opacity: 0.7 }} color="textSecondary">
+          <Typography variant="body2" sx={{ mb: 2, opacity: 0.7, textAlign: 'center' }} color="textSecondary">
             Enable or disable primary features system-wide. Disabling a feature will reject API requests and block access for all users.
           </Typography>
 
-          <Grid container spacing={2} sx={{ mb: 2 }}>
-            <Grid item xs={12} md={4}>
-              <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
+          <Box sx={{ display: 'flex', flexWrap: 'nowrap', gap: 2, justifyContent: 'center', alignItems: 'stretch', width: '100%', mb: 2 }}>
+            <Box sx={{ flex: 1, maxWidth: 350, minWidth: 0 }}>
+              <Paper elevation={1} sx={{ p: 2, borderRadius: 2, height: '100%' }}>
                 <FormControlLabel
                   control={<Switch checked={settings.streaming_enabled === 'true'} onChange={e => handleToggleSetting('streaming_enabled', e.target.checked)} color="primary" />}
                   label={<Typography variant="body2" sx={{ fontWeight: 600 }}>Streaming Features</Typography>}
@@ -1535,9 +1382,9 @@ export default function Settings() {
                   Video streaming, HLS and playback capabilities (Default: ON)
                 </Typography>
               </Paper>
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
+            </Box>
+            <Box sx={{ flex: 1, maxWidth: 350, minWidth: 0 }}>
+              <Paper elevation={1} sx={{ p: 2, borderRadius: 2, height: '100%' }}>
                 <FormControlLabel
                   control={<Switch checked={settings.scraping_enabled === 'true'} onChange={e => handleToggleSetting('scraping_enabled', e.target.checked)} color="secondary" />}
                   label={<Typography variant="body2" sx={{ fontWeight: 600 }}>Scraping Features</Typography>}
@@ -1546,9 +1393,9 @@ export default function Settings() {
                   Dynamic browser metadata scraping & Map Mode (Default: OFF)
                 </Typography>
               </Paper>
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
+            </Box>
+            <Box sx={{ flex: 1, maxWidth: 350, minWidth: 0 }}>
+              <Paper elevation={1} sx={{ p: 2, borderRadius: 2, height: '100%' }}>
                 <FormControlLabel
                   control={<Switch checked={settings.ripping_enabled === 'true'} onChange={e => handleToggleSetting('ripping_enabled', e.target.checked)} color="error" />}
                   label={<Typography variant="body2" sx={{ fontWeight: 600 }}>Ripping Features</Typography>}
@@ -1557,19 +1404,19 @@ export default function Settings() {
                   Mass ripping and queue download engines (Default: OFF)
                 </Typography>
               </Paper>
-            </Grid>
-          </Grid>
+            </Box>
+          </Box>
         </Box>
 
         <Divider sx={{ my: 3, opacity: 0.2 }} />
 
         {/* Authentication Policies */}
-        <Box sx={{ mb: 4 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+        <Box sx={{ mb: 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 2 }}>
             <TuneIcon color="info" />
             <Typography variant="subtitle1" sx={{ fontWeight: '600' }}>Global Authentication Policies</Typography>
           </Box>
-          <Typography variant="body2" sx={{ mb: 2, opacity: 0.7 }} color="textSecondary">
+          <Typography variant="body2" sx={{ mb: 2, opacity: 0.7, textAlign: 'center' }} color="textSecondary">
             Control which sign-in methods are available on the login screen. Disabling an option will hide it from users and block API requests.
           </Typography>
 
@@ -1671,12 +1518,12 @@ export default function Settings() {
         <Divider sx={{ my: 3, opacity: 0.2 }} />
 
         {/* Automatic Authentication Bypass (Autologin) */}
-        <Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+        <Box sx={{ p: 3, borderRadius: '12px', mb: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 2 }}>
             <LanIcon color="warning" />
             <Typography variant="subtitle1" sx={{ fontWeight: '600' }}>Automatic Authentication Bypass</Typography>
           </Box>
-          <Typography variant="body2" sx={{ mb: 2, opacity: 0.7 }} color="textSecondary">
+          <Typography variant="body2" sx={{ mb: 2, opacity: 0.7, textAlign: 'center' }} color="textSecondary">
             Allow users to skip the login screen entirely when connecting from a trusted network or through a trusted reverse proxy.
           </Typography>
 
@@ -1684,7 +1531,7 @@ export default function Settings() {
             <Box sx={{
               p: 2, mb: 3, borderRadius: '12px',
               background: 'linear-gradient(135deg, rgba(255, 152, 0, 0.12) 0%, rgba(244, 67, 54, 0.08) 100%)',
-              border: '1px solid rgba(255, 152, 0, 0.3)',
+              border: '1px solid rgba(255, 152, 0, 0.2)',
               display: 'flex', alignItems: 'flex-start', gap: 1.5
             }}>
               <WarningAmberIcon sx={{ color: '#ff9800', mt: 0.2 }} />
@@ -1697,9 +1544,9 @@ export default function Settings() {
             </Box>
           )}
 
-          <Grid container spacing={2} sx={{ justifyContent: 'center', alignItems: 'stretch' }}>
+          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', alignItems: 'stretch', width: '100%' }}>
             {/* Trusted Subnet Bypass */}
-            <Grid item xs={12} md={6}>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
               <Paper elevation={1} sx={{ p: 2, borderRadius: 2, height: '100%' }}>
                 <FormControlLabel
                   control={<Switch checked={settings.auth_bypass_enabled === 'true'} onChange={e => handleToggleSetting('auth_bypass_enabled', e.target.checked)} color="warning" />}
@@ -1734,10 +1581,10 @@ export default function Settings() {
                   </Box>
                 )}
               </Paper>
-            </Grid>
+            </Box>
 
             {/* Reverse Proxy Header Trust */}
-            <Grid item xs={12} md={6}>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
               <Paper elevation={1} sx={{ p: 2, borderRadius: 2, height: '100%' }}>
                 <FormControlLabel
                   control={<Switch checked={settings.auth_bypass_proxy_header_enabled === 'true'} onChange={e => handleToggleSetting('auth_bypass_proxy_header_enabled', e.target.checked)} color="warning" />}
@@ -1765,145 +1612,11 @@ export default function Settings() {
                   </Box>
                 )}
               </Paper>
-            </Grid>
-          </Grid>
+            </Box>
+          </Box>
         </Box>
       </Paper>
 
-      <Box sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>User Management</Typography>
-        <Typography variant="body2" sx={{ mb: 2 }} color="textSecondary">
-          Create user accounts to grant access to the UI without sharing your Master Key.
-        </Typography>
-        <Divider sx={{ mb: 2 }} />
-        <Grid container spacing={4}>
-          <Grid item xs={12} md={6}>
-            <Stack spacing={2}>
-              <TextField fullWidth size="small" label="Username" value={newUser.username} onChange={e => setNewUser({...newUser, username: e.target.value})} />
-              <TextField fullWidth size="small" type="password" label="Password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} />
-              <FormControl fullWidth size="small">
-                <InputLabel>Role</InputLabel>
-                <Select value={newUser.role} label="Role" onChange={e => setNewUser({...newUser, role: e.target.value})}>
-                  <MenuItem value="admin">Admin</MenuItem>
-                  <MenuItem value="user">User</MenuItem>
-                </Select>
-              </FormControl>
-            </Stack>
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <PasswordChecklist password={newUser.password} />
-          </Grid>
-          <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'center' }}>
-            <Button fullWidth variant="contained" onClick={handleCreateUser} disabled={!newUser.username || !newUser.password}>Create User</Button>
-          </Grid>
-        </Grid>
-      </Box>
-
-      {/* Users List & Advanced Management Dashboard */}
-      {usersList.length > 0 && (
-        <Paper sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h6" gutterBottom>User Directory & Management Dashboard</Typography>
-          <Typography variant="body2" sx={{ mb: 2 }} color="textSecondary">
-            Manage system roles, suspend accounts, reset credentials, revoke passkeys, check IPs, or consolidate history using merges.
-          </Typography>
-          <Divider sx={{ mb: 2 }} />
-          <Box sx={{ overflowX: 'auto', width: '100%' }}>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell align="center" sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Username</TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>System Role</TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Account Status</TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Created On</TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Last Signed In</TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {usersList.map((u) => {
-                  const perms = u.permissions || { can_stream: true, can_scrape: false, can_rip: false, url_parsing: 'edit' };
-                  return (
-                    <TableRow key={u.id} hover>
-                      <TableCell align="center" sx={{ fontWeight: 500, whiteSpace: 'nowrap' }}>{u.username}</TableCell>
-                      <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
-                        <Chip
-                          size="small"
-                          label={u.role}
-                          color={u.role === 'admin' ? 'secondary' : u.role === 'user' ? 'primary' : 'default'}
-                          sx={{ textTransform: 'uppercase', fontSize: '0.7rem', fontWeight: 'bold' }}
-                        />
-                      </TableCell>
-                      <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
-                        <Switch
-                          checked={u.is_active}
-                          disabled={u.role === 'admin'}
-                          onChange={(e) => handleAdminSavePermissions(u.username, u.role, e.target.checked, perms)}
-                          color="secondary"
-                        />
-                      </TableCell>
-                      <TableCell align="center" sx={{ fontSize: '0.85rem', opacity: 0.8, whiteSpace: 'nowrap' }}>
-                        {u.created_at ? new Date(u.created_at).toLocaleDateString() : 'N/A'}
-                      </TableCell>
-                      <TableCell align="center" sx={{ fontSize: '0.85rem', opacity: 0.8, whiteSpace: 'nowrap' }}>
-                        {u.last_login_at ? new Date(u.last_login_at).toLocaleString() : 'Never'}
-                      </TableCell>
-                      <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          onClick={() => handleOpenManageUser(u.id)}
-                          sx={{ borderRadius: '6px', fontSize: '0.75rem', py: 0.5 }}
-                        >
-                          Manage Profile
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </Box>
-        </Paper>
-      )}
-
-      {/* Admin Action Audit Logs */}
-      {adminLogs.length > 0 && (
-        <Paper sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h6" gutterBottom>Admin Action Audit Logs</Typography>
-          <Typography variant="body2" sx={{ mb: 2 }} color="textSecondary">
-            A chronological security audit log of all administrative actions, policy adjustments, and user permission updates.
-          </Typography>
-          <Divider sx={{ mb: 2 }} />
-          <Box sx={{ overflowX: 'auto', maxHeight: '400px', overflowY: 'auto' }}>
-            <Table size="small" stickyHeader>
-              <TableHead>
-                <TableRow>
-                  <TableCell align="center" sx={{ fontWeight: 'bold', background: '#11121a', whiteSpace: 'nowrap' }}>Timestamp</TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 'bold', background: '#11121a', whiteSpace: 'nowrap' }}>Administrator</TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 'bold', background: '#11121a', whiteSpace: 'nowrap' }}>Action</TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 'bold', background: '#11121a', whiteSpace: 'nowrap' }}>Details</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {adminLogs.map((log) => (
-                  <TableRow key={log.id} hover>
-                    <TableCell align="center" sx={{ opacity: 0.8, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
-                      {new Date(log.timestamp).toLocaleString()}
-                    </TableCell>
-                    <TableCell align="center" sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{log.admin_username}</TableCell>
-                    <TableCell align="center" sx={{ textTransform: 'uppercase', fontSize: '0.8rem', fontWeight: 'bold', color: 'info.main', whiteSpace: 'nowrap' }}>
-                      {log.action}
-                    </TableCell>
-                    <TableCell align="center" sx={{ fontSize: '0.85rem', maxWidth: '300px', wordBreak: 'break-all' }}>
-                      {JSON.stringify(log.details)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </Box>
-        </Paper>
-      )}
 
       {/* Mock SSO Simulated OAuth Dialog */}
       <Dialog 
@@ -1988,531 +1701,6 @@ export default function Settings() {
         <Alert severity={snackbar.severity} sx={{ width: '100%' }}>{snackbar.message}</Alert>
       </Snackbar>
 
-      {/* Advanced User Management Details Dialog */}
-      <Dialog 
-        open={manageUserOpen} 
-        onClose={() => setManageUserOpen(false)}
-        maxWidth="md"
-        fullWidth
-        PaperProps={{
-          elevation: 6,
-          sx: {
-            borderRadius: 3,
-            minHeight: '580px'
-          }
-        }}
-      >
-        <DialogTitle sx={{ borderBottom: '1px solid rgba(255,255,255,0.08)', pb: 2 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6" sx={{ fontWeight: 'bold', fontFamily: 'Outfit, sans-serif' }}>
-              User Security & Profile Management
-            </Typography>
-            <IconButton onClick={() => setManageUserOpen(false)} sx={{ color: 'text.secondary' }}>
-              <CloseIcon />
-            </IconButton>
-          </Box>
-        </DialogTitle>
-
-        <DialogContent sx={{ p: 0, display: 'flex', flexDirection: 'column' }}>
-          {manageUserLoading || !selectedUserForManage ? (
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 8, gap: 2 }}>
-              <SyncIcon sx={{ fontSize: '3rem', animation: 'spin 2s linear infinite', '@keyframes spin': { '0%': { transform: 'rotate(0deg)' }, '100%': { transform: 'rotate(360deg)' } } }} />
-              <Typography variant="body1">Retrieving user profile from database...</Typography>
-            </Box>
-          ) : (
-            <Box sx={{ display: 'flex', height: '100%', flexGrow: 1 }}>
-              {/* Tab Navigation Menu */}
-              <Box sx={{ borderRight: '1px solid rgba(255,255,255,0.08)', width: '220px', minWidth: '220px' }}>
-                <Tabs
-                  orientation="vertical"
-                  value={manageUserTab}
-                  onChange={(e, nv) => setManageUserTab(nv)}
-                  sx={{
-                    '& .MuiTab-root': {
-                      alignItems: 'flex-start',
-                      textAlign: 'left',
-                      textTransform: 'none',
-                      fontSize: '0.85rem',
-                      fontFamily: 'Outfit, sans-serif',
-                      py: 1.5,
-                      px: 2,
-                      color: 'text.secondary',
-                      minHeight: 'auto',
-                      '&.Mui-selected': {
-                        color: 'primary.main',
-                        backgroundColor: 'rgba(255,255,255,0.03)'
-                      }
-                    },
-                    '& .MuiTabs-indicator': {
-                      left: 0,
-                      right: 'auto',
-                      width: '4px',
-                      borderRadius: '0 4px 4px 0'
-                    }
-                  }}
-                >
-                  <Tab icon={<SecurityIcon sx={{ fontSize: '1.2rem', mr: 1 }} />} iconPosition="start" label="Profile & Security" />
-                  <Tab icon={<TuneIcon sx={{ fontSize: '1.2rem', mr: 1 }} />} iconPosition="start" label="Permissions & Roles" />
-                  <Tab icon={<LanIcon sx={{ fontSize: '1.2rem', mr: 1 }} />} iconPosition="start" label="Activity Logs" />
-                  <Tab icon={<WarningAmberIcon sx={{ fontSize: '1.2rem', mr: 1 }} />} iconPosition="start" label="Admin Actions" />
-                </Tabs>
-              </Box>
-
-              {/* Tab Content Panel */}
-              <Box sx={{ p: 3, flexGrow: 1, overflowY: 'auto', maxHeight: '550px' }}>
-                {/* TAB 0: Profile & Security */}
-                <TabPanel value={manageUserTab} index={0}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2, fontFamily: 'Outfit, sans-serif' }}>User Profile Overview</Typography>
-                  <Grid container spacing={2} sx={{ mb: 3 }}>
-                    <Grid item xs={6}>
-                      <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Username</Typography>
-                      <Typography variant="body1" sx={{ fontWeight: 600 }}>{selectedUserForManage.username}</Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Assigned System Role</Typography>
-                      <Chip
-                        size="small"
-                        label={selectedUserForManage.role}
-                        color={selectedUserForManage.role === 'admin' ? 'secondary' : 'primary'}
-                        sx={{ fontWeight: 'bold', textTransform: 'uppercase', mt: 0.5 }}
-                      />
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Account Created</Typography>
-                      <Typography variant="body2">{selectedUserForManage.created_at ? new Date(selectedUserForManage.created_at).toLocaleString() : 'N/A'}</Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Last Activity / Sign In</Typography>
-                      <Typography variant="body2">{selectedUserForManage.last_login_at ? new Date(selectedUserForManage.last_login_at).toLocaleString() : 'Never'}</Typography>
-                    </Grid>
-                    <Grid item xs={12}>
-                      <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 0.5 }}>Daily Rip Quota Usage</Typography>
-                      {(() => {
-                        const quota = selectedUserForManage.permissions?.quotas?.dailyRips || 0;
-                        const usage = selectedUserForManage.daily_rip_usage || 0;
-                        const percent = quota > 0 ? Math.min((usage / quota) * 100, 100) : 0;
-                        const isUnlimited = quota === 0;
-                        return (
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                            <Box sx={{ flexGrow: 1 }}>
-                              <LinearProgress 
-                                variant="determinate" 
-                                value={isUnlimited ? 100 : percent} 
-                                color={isUnlimited ? "primary" : percent >= 90 ? "error" : percent >= 75 ? "warning" : "primary"}
-                                sx={{ height: 6, borderRadius: 3, ...(isUnlimited && { opacity: 0.3 }) }}
-                              />
-                            </Box>
-                            <Typography variant="body2" sx={{ fontWeight: '500', minWidth: 80, textAlign: 'right' }}>
-                              {isUnlimited ? `${usage} / ∞` : `${usage} / ${quota}`}
-                            </Typography>
-                          </Box>
-                        );
-                      })()}
-                    </Grid>
-                  </Grid>
-
-                  <Divider sx={{ my: 2.5, borderColor: 'rgba(255,255,255,0.08)' }} />
-
-                  {/* Password Reset Actions */}
-                  <Box sx={{ mb: 3 }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>Account Password Status</Typography>
-                    <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 1.5 }}>
-                      Manage user authentication status. Admins can directly set or override a user's password string.
-                    </Typography>
-                    <Button 
-                      variant="outlined" 
-                      size="small" 
-                      startIcon={<VpnKeyIcon />} 
-                      onClick={() => setAdminResetPasswordOpen(true)}
-                    >
-                      Reset Password String
-                    </Button>
-                  </Box>
-
-                  <Divider sx={{ my: 2.5, borderColor: 'rgba(255,255,255,0.08)' }} />
-
-                  {/* WebAuthn Passkeys Section */}
-                  <Box sx={{ mb: 3 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Enrolled WebAuthn Passkeys ({selectedUserForManage.passkeys?.length || 0})</Typography>
-                      {selectedUserForManage.passkeys?.length > 0 && (
-                        <Button 
-                          variant="text" 
-                          color="error" 
-                          size="small" 
-                          onClick={handleAdminResetMfa}
-                          sx={{ textTransform: 'none', fontSize: '0.75rem' }}
-                        >
-                          Revoke All MFA Keys
-                        </Button>
-                      )}
-                    </Box>
-                    <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 2 }}>
-                      Enrolled biometric devices, passkeys, and security hardware keys.
-                    </Typography>
-                    
-                    {selectedUserForManage.passkeys?.length === 0 ? (
-                      <Paper elevation={0} sx={{ p: 2, textAlign: 'center', bgcolor: 'action.hover' }}>
-                        <Typography variant="body2" color="textSecondary">No biometric passkeys enrolled for this account.</Typography>
-                      </Paper>
-                    ) : (
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                        {selectedUserForManage.passkeys.map(pk => (
-                          <Paper elevation={1}
-                            key={pk.id} 
-                            sx={{ 
-                              p: 1.5, 
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between'
-                            }}
-                          >
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                              <FingerprintIcon sx={{ color: '#33aa33' }} />
-                              <Box>
-                                <Typography variant="body2" sx={{ fontWeight: 600 }}>{pk.name || 'Unnamed Key'}</Typography>
-                                <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>
-                                  {pk.browser || 'Browser'} on {pk.os_name || 'OS'} • {pk.location || 'Location unknown'} ({pk.ip_address || 'No IP'})
-                                </Typography>
-                                <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>
-                                  Last used: {pk.last_used_at ? new Date(pk.last_used_at).toLocaleString() : 'Never'}
-                                </Typography>
-                              </Box>
-                            </Box>
-                          </Paper>
-                        ))}
-                      </Box>
-                    )}
-                  </Box>
-
-                  <Divider sx={{ my: 2.5, borderColor: 'rgba(255,255,255,0.08)' }} />
-
-                  {/* SSO Connected Links Section */}
-                  <Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Connected SSO Links ({selectedUserForManage.sso_links?.length || 0})</Typography>
-                      {selectedUserForManage.sso_links?.length > 0 && (
-                        <Button 
-                          variant="text" 
-                          color="error" 
-                          size="small" 
-                          onClick={handleAdminResetSso}
-                          sx={{ textTransform: 'none', fontSize: '0.75rem' }}
-                        >
-                          Disconnect All SSO
-                        </Button>
-                      )}
-                    </Box>
-                    <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 2 }}>
-                      Linked OAuth 2.0 social identity provider links (Google, GitHub, Discord).
-                    </Typography>
-
-                    {selectedUserForManage.sso_links?.length === 0 ? (
-                      <Paper elevation={0} sx={{ p: 2, textAlign: 'center', bgcolor: 'action.hover' }}>
-                        <Typography variant="body2" color="textSecondary">No third-party SSO accounts connected.</Typography>
-                      </Paper>
-                    ) : (
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'center' }}>
-                        {selectedUserForManage.sso_links.map(sso => (
-                          <Paper elevation={1}
-                            key={sso.id} 
-                            sx={{ 
-                              p: 1.5, 
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between'
-                            }}
-                          >
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                              <LinkIcon sx={{ color: 'primary.main' }} />
-                              <Box>
-                                <Typography variant="body2" sx={{ fontWeight: 600, textTransform: 'capitalize' }}>
-                                  {sso.provider} Identity Link
-                                </Typography>
-                                <Typography variant="caption" color="textSecondary">
-                                  Linked Email: {sso.email} • Linked on {new Date(sso.linked_at).toLocaleDateString()}
-                                </Typography>
-                              </Box>
-                            </Box>
-                          </Paper>
-                        ))}
-                      </Box>
-                    )}
-                  </Box>
-                </TabPanel>
-
-                {/* TAB 1: Permissions & Roles */}
-                <TabPanel value={manageUserTab} index={1}>
-                  <PermissionsManager
-                    user={selectedUserForManage}
-                    onSave={(payload) => {
-                      const assignedRole = payload.targetType.startsWith('role_') ? payload.targetType.replace('role_', '') : editRole;
-                      const combinedPermissions = {
-                        ...payload.permissions,
-                        quotas: payload.quotas,
-                        restrictions: payload.restrictions
-                      };
-                      handleAdminSavePermissions(editUsername, assignedRole, editIsActive, combinedPermissions);
-                    }}
-                  />
-                </TabPanel>
-
-                {/* TAB 2: Activity Logs */}
-                <TabPanel value={manageUserTab} index={2}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600, fontFamily: 'Outfit, sans-serif' }}>User Security Log Audit</Typography>
-                    <FormControl size="small" sx={{ width: '150px' }}>
-                      <InputLabel>Action Filter</InputLabel>
-                      <Select 
-                        value={userActivityActionFilter} 
-                        label="Action Filter" 
-                        onChange={e => setUserActivityActionFilter(e.target.value)}
-                        sx={{ borderRadius: '8px' }}
-                      >
-                        <MenuItem value="all">All Actions</MenuItem>
-                        <MenuItem value="change_password">Password Reset</MenuItem>
-                        <MenuItem value="admin_update_user">Updated Profile</MenuItem>
-                        <MenuItem value="admin_reset_mfa">MFA Reset</MenuItem>
-                        <MenuItem value="admin_reset_sso">SSO Disconnect</MenuItem>
-                        <MenuItem value="user_merged">Account Merge</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Box>
-
-                  <TextField
-                    fullWidth
-                    size="small"
-                    placeholder="Search logs by keyword..."
-                    value={userActivitySearch}
-                    onChange={e => setUserActivitySearch(e.target.value)}
-                    sx={{ mb: 2, '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
-                  />
-
-                  {(() => {
-                    const filteredUserLogs = (selectedUserForManage.activity_logs || []).filter(log => {
-                      const matchSearch = userActivitySearch.trim() === '' || 
-                        log.action.toLowerCase().includes(userActivitySearch.toLowerCase()) ||
-                        JSON.stringify(log.details).toLowerCase().includes(userActivitySearch.toLowerCase());
-                      const matchAction = userActivityActionFilter === 'all' || log.action === userActivityActionFilter;
-                      return matchSearch && matchAction;
-                    });
-
-                    if (filteredUserLogs.length === 0) {
-                      return (
-                        <Paper elevation={0} sx={{ p: 4, textAlign: 'center', bgcolor: 'action.hover' }}>
-                          <Typography variant="body2" color="textSecondary">No matching activity logs found.</Typography>
-                        </Paper>
-                      );
-                    }
-
-                    return (
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, maxHeight: '350px', overflowY: 'auto', pr: 0.5 }}>
-                        {filteredUserLogs.map(log => (
-                          <Paper elevation={1}
-                            key={log.id} 
-                            sx={{ 
-                              p: 1.5
-                            }}
-                          >
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
-                              <Chip 
-                                size="small" 
-                                label={log.action} 
-                                color="info" 
-                                sx={{ fontWeight: 'bold', fontSize: '0.65rem', textTransform: 'uppercase' }} 
-                              />
-                              <Typography variant="caption" color="textSecondary">
-                                {new Date(log.timestamp).toLocaleString()}
-                              </Typography>
-                            </Box>
-                            <Typography variant="body2" sx={{ opacity: 0.95, wordBreak: 'break-word', mb: 0.5 }}>
-                              Action performed by: <strong>{log.admin_username || 'System'}</strong>
-                            </Typography>
-                            <Typography variant="caption" color="textSecondary" sx={{ fontFamily: 'monospace', display: 'block', wordBreak: 'break-all', backgroundColor: 'rgba(0,0,0,0.2)', p: 1, borderRadius: '4px' }}>
-                              {typeof log.details === 'object' && log.details !== null
-                                ? Object.entries(log.details).map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`).join(' • ')
-                                : String(log.details || '')}
-                            </Typography>
-                          </Paper>
-                        ))}
-                      </Box>
-                    );
-                  })()}
-                </TabPanel>
-
-                {/* TAB 3: Admin Actions */}
-                <TabPanel value={manageUserTab} index={3}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1, fontFamily: 'Outfit, sans-serif' }}>Administrative Override Actions</Typography>
-                  <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
-                    Execute permanent database alterations, suspension holds, and history consolidations.
-                  </Typography>
-
-                  {/* Suspension toggle */}
-                  <Paper elevation={1}
-                    sx={{ 
-                      p: 2, 
-                      mb: 3,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between'
-                    }}
-                  >
-                    <Box sx={{ pr: 2 }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Temporarily Deactivate / Suspend Account</Typography>
-                      <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>
-                        Suspended accounts are locked out instantly. Session JWTs are rejected immediately.
-                      </Typography>
-                    </Box>
-                    <FormControlLabel
-                      control={
-                        <Switch 
-                          checked={editIsActive} 
-                          disabled={selectedUserForManage.role === 'admin'}
-                          onChange={e => {
-                            setEditIsActive(e.target.checked)
-                            handleAdminSavePermissions(editUsername, editRole, e.target.checked, editPermissions)
-                          }} 
-                          color="secondary"
-                        />
-                      }
-                      label={editIsActive ? "Active" : "Suspended"}
-                    />
-                  </Paper>
-
-                  {/* Account Merge Portal */}
-                  <Paper elevation={1}
-                    sx={{ 
-                      p: 2.5, 
-                      mb: 3
-                    }}
-                  >
-                    <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>Account History Merge Portal</Typography>
-                    <Typography variant="body2" color="textSecondary" sx={{ mb: 2, fontSize: '0.85rem' }}>
-                      Consolidate viewing history, favorites, video stats, WebAuthn passkeys, and linked social SSO accounts from <strong>{selectedUserForManage.username}</strong> into a target user account. The source account will be safely deleted after the migration completes.
-                    </Typography>
-
-                    <Grid container spacing={2} alignItems="center">
-                      <Grid item xs={12} sm={8}>
-                        <FormControl fullWidth size="small" sx={{ minWidth: 200 }}>
-                          <InputLabel>Select Target Account</InputLabel>
-                          <Select 
-                            value={mergeTargetUserId} 
-                            label="Select Target Account" 
-                            onChange={e => setMergeTargetUserId(e.target.value)}
-                          >
-                            <MenuItem value=""><em>None selected</em></MenuItem>
-                            {usersList
-                              .filter(u => u.id !== selectedUserForManage.id)
-                              .map(u => (
-                                <MenuItem key={u.id} value={u.id}>{u.username} ({u.role})</MenuItem>
-                              ))
-                            }
-                          </Select>
-                        </FormControl>
-                      </Grid>
-                      <Grid item xs={12} sm={4}>
-                        <Button 
-                          fullWidth 
-                          variant="contained" 
-                          color="warning" 
-                          size="small" 
-                          startIcon={<SyncIcon />}
-                          disabled={!mergeTargetUserId}
-                          onClick={() => {
-                            if (window.confirm(`Are you absolutely sure you want to merge all data from ${selectedUserForManage.username} into the selected target account? This will delete ${selectedUserForManage.username} forever and is irreversible.`)) {
-                              handleAdminMergeUsers(mergeTargetUserId);
-                            }
-                          }}
-                          sx={{ borderRadius: '8px', py: 1 }}
-                        >
-                          Consolidate History
-                        </Button>
-                      </Grid>
-                    </Grid>
-                  </Paper>
-
-                  {/* Danger Zone: Delete Account */}
-                  <Paper elevation={1}
-                    sx={{ 
-                      p: 2.5, 
-                      border: '1px solid',
-                      borderColor: 'error.main',
-                      backgroundColor: 'rgba(211, 47, 47, 0.02)'
-                    }}
-                  >
-                    <Typography variant="subtitle2" sx={{ color: 'error.main', fontWeight: 600, mb: 1 }}>Danger Zone: Permanent Deletion</Typography>
-                    <Typography variant="body2" color="textSecondary" sx={{ mb: 2, fontSize: '0.85rem' }}>
-                      Completely remove this user account and all of its associated records from the system. This cannot be undone. Lockout protection guarantees you cannot delete the sole remaining administrator account.
-                    </Typography>
-
-                    <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                      <Button 
-                        variant="contained" 
-                        color="error" 
-                        startIcon={<DeleteIcon />}
-                        disabled={selectedUserForManage.role === 'admin' && usersList.filter(u => u.role === 'admin').length <= 1}
-                        onClick={() => {
-                          if (window.confirm(`Type 'DELETE' to confirm you want to permanently delete the user account for ${selectedUserForManage.username}. This will purge all associated settings, credentials, and playback data immediately.`)) {
-                            handleAdminDeleteUser();
-                          }
-                        }}
-                        sx={{ borderRadius: '8px' }}
-                      >
-                        Delete Account Forever
-                      </Button>
-                    </Box>
-                  </Paper>
-                </TabPanel>
-              </Box>
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ borderTop: '1px solid rgba(255,255,255,0.08)', px: 3, py: 2 }}>
-          <Button onClick={() => setManageUserOpen(false)} sx={{ textTransform: 'none' }}>
-            Close Settings Panel
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Reset Password Sub-Dialog */}
-      <Dialog 
-        open={adminResetPasswordOpen} 
-        onClose={() => setAdminResetPasswordOpen(false)}
-        PaperProps={{
-          elevation: 6,
-          sx: {
-            borderRadius: 3
-          }
-        }}
-      >
-        <DialogTitle sx={{ pb: 1 }}>Reset User Password</DialogTitle>
-        <DialogContent>
-          <Typography sx={{ mb: 2, fontSize: '0.9rem', opacity: 0.8 }}>
-            Set a new temporary or custom password for user <strong>{selectedUserForManage?.username}</strong>. The user will be required to input this password to authenticate next time.
-          </Typography>
-          <TextField
-            fullWidth
-            type="password"
-            label="New Password string"
-            value={adminResetPasswordNew}
-            onChange={e => setAdminResetPasswordNew(e.target.value)}
-            sx={{ mt: 1, '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
-          />
-          <PasswordChecklist password={adminResetPasswordNew} />
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button onClick={() => setAdminResetPasswordOpen(false)} sx={{ textTransform: 'none' }}>Cancel</Button>
-          <Button 
-            variant="contained" 
-            color="secondary" 
-            onClick={() => handleAdminResetPassword(adminResetPasswordNew)} 
-            disabled={adminResetPasswordNew.length < 8}
-            sx={{ borderRadius: '8px', textTransform: 'none', px: 3 }}
-          >
-            Reset password
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   )
 }
