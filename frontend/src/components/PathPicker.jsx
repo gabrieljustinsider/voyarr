@@ -222,6 +222,9 @@ export default function PathPicker({
                     </Tooltip>
                   </React.Fragment>
                 ),
+              },
+              htmlInput: {
+                ...params.inputProps
               }
             }}
           />

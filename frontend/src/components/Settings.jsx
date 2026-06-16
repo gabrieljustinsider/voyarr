@@ -922,7 +922,7 @@ export default function Settings() {
 
         <Grid container spacing={3}>
           {/* Left Column: All Input Fields Vertically Stacked */}
-          <Grid item xs={12} md={7}>
+          <Grid item xs={12} md={4}>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               <Box>
                 <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>Media Root Scan Paths</Typography>
@@ -974,7 +974,7 @@ export default function Settings() {
           </Grid>
 
           {/* Right Column: Added Paths Chips */}
-          <Grid item xs={12} md={5}>
+          <Grid item xs={12} md={8}>
             <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>Added Paths</Typography>
             {mediaPaths.length === 0 ? (
               <Typography variant="caption" color="textSecondary" display="block">No media root paths configured.</Typography>
