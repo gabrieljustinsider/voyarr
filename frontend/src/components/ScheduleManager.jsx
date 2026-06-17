@@ -153,7 +153,7 @@ export default function ScheduleManager() {
         )}
         <form onSubmit={handleSubmit}>
           <Grid container spacing={2}>
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12}>
               <TextField 
                 fullWidth size="small" name="name" label="Schedule Name" 
                 InputLabelProps={{ shrink: true }}
@@ -161,7 +161,7 @@ export default function ScheduleManager() {
                 disabled={!scrapingEnabled}
               />
             </Grid>
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12}>
               <Autocomplete
                 options={providers}
                 getOptionLabel={(option) => option.name}
@@ -172,24 +172,7 @@ export default function ScheduleManager() {
                 fullWidth
               />
             </Grid>
-            <Grid item xs={12} md={4}>
-              <TextField 
-                fullWidth size="small" name="cron_expression" label="Cron Expression" 
-                InputLabelProps={{ shrink: true }}
-                value={formData.cron_expression} onChange={handleChange} required 
-                helperText="e.g. 0 0 * * * (Daily at midnight)"
-                disabled={!scrapingEnabled}
-              />
-            </Grid>
-            <Grid item xs={12} md={8}>
-              <TextField 
-                fullWidth size="small" name="target_url" label="Target URL (Channel/Playlist/Index)" 
-                InputLabelProps={{ shrink: true }}
-                value={formData.target_url} onChange={handleChange} required 
-                disabled={!scrapingEnabled}
-              />
-            </Grid>
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12}>
               <Autocomplete
                 options={[
                   {value: 'metadata_and_download', label: 'Rip Metadata & Download'},
@@ -209,13 +192,32 @@ export default function ScheduleManager() {
               />
             </Grid>
             <Grid item xs={12}>
+              <TextField 
+                fullWidth size="small" name="cron_expression" label="Cron Expression" 
+                InputLabelProps={{ shrink: true }}
+                value={formData.cron_expression} onChange={handleChange} required 
+                helperText="e.g. 0 0 * * * (Daily at midnight)"
+                disabled={!scrapingEnabled}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField 
+                fullWidth size="small" name="target_url" label="Target URL (Channel/Playlist/Index)" 
+                InputLabelProps={{ shrink: true }}
+                value={formData.target_url} onChange={handleChange} required 
+                disabled={!scrapingEnabled}
+              />
+            </Grid>
+            <Grid item xs={12}>
               <FormControlLabel
                 control={<Switch checked={formData.is_active} onChange={handleChange} name="is_active" disabled={!scrapingEnabled} />}
                 label="Active"
               />
             </Grid>
-            <Grid item xs={12}>
-              <Button variant="contained" type="submit" disabled={!scrapingEnabled}>Create Schedule</Button>
+            <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+              <Button variant="contained" type="submit" disabled={!scrapingEnabled} sx={{ minWidth: 200, height: 40, fontWeight: 600 }}>
+                Create Schedule
+              </Button>
             </Grid>
           </Grid>
         </form>

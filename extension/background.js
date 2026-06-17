@@ -1,7 +1,21 @@
 chrome.runtime.onInstalled.addListener(() => {
     chrome.contextMenus.create({
+        id: "voyarr-parent",
+        title: "Voyarr",
+        contexts: ["all"]
+    });
+
+    chrome.contextMenus.create({
         id: "voyarr-map-mode",
+        parentId: "voyarr-parent",
         title: "Start Voyarr Map Mode",
+        contexts: ["all"]
+    });
+
+    chrome.contextMenus.create({
+        id: "voyarr-extract-stream",
+        parentId: "voyarr-parent",
+        title: "Extract Live Stream",
         contexts: ["all"]
     });
 });
@@ -9,6 +23,8 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.contextMenus.onClicked.addListener((info, tab) => {
     if (info.menuItemId === "voyarr-map-mode") {
         activateMapMode(tab);
+    } else if (info.menuItemId === "voyarr-extract-stream") {
+        extractLiveStream(tab);
     }
 });
 
@@ -79,3 +95,67 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true; // Keep message channel open for async fetch
     }
 });
+
+async function extractLiveStream(tab) {
+    if (!tab || !tab.url) return;
+    try {
+        const config = await chrome.storage.local.get(['voyarrApiUrl', 'voyarrSecret']);
+        if (!config.voyarrSecret || !config.voyarrApiUrl) {
+            showNotification("Voyarr Error", "Missing backend URL or API key in settings.");
+            return;
+        }
+
+        const baseUrl = config.voyarrApiUrl.replace(/\/$/, '');
+        showNotification("Extracting Stream", "Connecting to yt-dlp to extract the stream URL...");
+
+        const extractRes = await fetch(`${baseUrl}/download/extract-stream`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Voyarr-Api-Key': config.voyarrSecret
+            },
+            body: JSON.stringify({ url: tab.url })
+        });
+
+        if (!extractRes.ok) {
+            const errData = await extractRes.json().catch(() => ({}));
+            throw new Error(errData.detail || `Server returned status: ${extractRes.status}`);
+        }
+
+        const extractData = await extractRes.json();
+        const { stream_url, title } = extractData;
+
+        if (!stream_url) {
+            throw new Error("No stream URL returned.");
+        }
+
+        // Save it directly!
+        const saveRes = await fetch(`${baseUrl}/download/save-stream`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Voyarr-Api-Key': config.voyarrSecret
+            },
+            body: JSON.stringify({ title: title || tab.title || "Live Stream", url: stream_url })
+        });
+
+        if (!saveRes.ok) {
+            throw new Error(`Failed to save stream: ${saveRes.statusText}`);
+        }
+
+        showNotification("Stream Saved!", `Successfully extracted and saved: ${title || "Live Stream"}`);
+    } catch (err) {
+        console.error("Failed to extract stream:", err);
+        showNotification("Extraction Failed", err.message || err.toString());
+    }
+}
+
+function showNotification(title, message) {
+    chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'icon-128.png',
+        title: title,
+        message: message,
+        priority: 2
+    });
+}

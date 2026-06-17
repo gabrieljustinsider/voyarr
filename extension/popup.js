@@ -64,6 +64,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const lensToast = document.getElementById('lensToast');
   let currentScannedSubscription = null;
 
+  const extractStreamBtn = document.getElementById('extractStreamBtn');
+  const extractResultBox = document.getElementById('extractResultBox');
+  const extractedTitleText = document.getElementById('extractedTitleText');
+  const extractedUrlText = document.getElementById('extractedUrlText');
+  const copyStreamBtn = document.getElementById('copyStreamBtn');
+  const saveStreamBtn = document.getElementById('saveStreamBtn');
+  let currentExtractedStream = null;
+
   // Providers Tab Elements
   const providerListContainer = document.getElementById('providerListContainer');
   const newProviderName = document.getElementById('newProviderName');
@@ -1622,6 +1630,98 @@ document.addEventListener('DOMContentLoaded', () => {
     } finally {
       saveSubscriptionBtn.textContent = "Save to Voyarr";
       saveSubscriptionBtn.disabled = false;
+    }
+  });
+
+  extractStreamBtn.addEventListener('click', async () => {
+    extractStreamBtn.innerHTML = '<span class="spinner"></span> Extracting...';
+    extractStreamBtn.disabled = true;
+    extractResultBox.style.display = "none";
+    currentExtractedStream = null;
+
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab || !tab.url) throw new Error("No active tab with a valid URL.");
+
+      const serverUrl = activeServerSelect.value;
+      const activeServer = servers.find(s => s.id === serverUrl);
+      if (!activeServer || !activeServer.url) {
+        throw new Error("No active Voyarr server configured.");
+      }
+
+      const cleanUrl = activeServer.url.replace(/\/$/, '');
+      const res = await fetch(`${cleanUrl}/download/extract-stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Voyarr-Api-Key': activeServer.apiKey
+        },
+        body: JSON.stringify({ url: tab.url })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || `Server returned status: ${res.status}`);
+      }
+
+      const data = await res.json();
+      currentExtractedStream = data;
+
+      extractedTitleText.innerText = data.title || "Live Stream";
+      extractedUrlText.innerText = data.stream_url;
+      extractResultBox.style.display = "block";
+      showToast(lensToast, "Stream extracted successfully!", "success");
+    } catch (e) {
+      console.error(e);
+      showToast(lensToast, `Failed to extract stream: ${e.message}`, "error");
+    } finally {
+      extractStreamBtn.textContent = "Extract Live Stream";
+      extractStreamBtn.disabled = false;
+    }
+  });
+
+  copyStreamBtn.addEventListener('click', async () => {
+    if (!currentExtractedStream || !currentExtractedStream.stream_url) return;
+    try {
+      await navigator.clipboard.writeText(currentExtractedStream.stream_url);
+      showToast(lensToast, "Copied to clipboard!", "success");
+    } catch (e) {
+      showToast(lensToast, "Failed to copy to clipboard.", "error");
+    }
+  });
+
+  saveStreamBtn.addEventListener('click', async () => {
+    if (!currentExtractedStream || !currentExtractedStream.stream_url) return;
+    saveStreamBtn.innerHTML = '<span class="spinner"></span> Saving...';
+    saveStreamBtn.disabled = true;
+
+    try {
+      const serverUrl = activeServerSelect.value;
+      const activeServer = servers.find(s => s.id === serverUrl);
+      if (!activeServer || !activeServer.url) {
+        throw new Error("No active Voyarr server configured.");
+      }
+
+      const cleanUrl = activeServer.url.replace(/\/$/, '');
+      const res = await fetch(`${cleanUrl}/download/save-stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Voyarr-Api-Key': activeServer.apiKey
+        },
+        body: JSON.stringify({
+          title: currentExtractedStream.title || "Live Stream",
+          url: currentExtractedStream.stream_url
+        })
+      });
+
+      if (!res.ok) throw new Error("Save failed.");
+      showToast(lensToast, "Saved successfully!", "success");
+    } catch (e) {
+      showToast(lensToast, `Save failed: ${e.message}`, "error");
+    } finally {
+      saveStreamBtn.textContent = "Save to Voyarr";
+      saveStreamBtn.disabled = false;
     }
   });
 
