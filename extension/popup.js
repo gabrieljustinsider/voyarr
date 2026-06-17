@@ -121,6 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (providerSortSelect) {
     providerSortSelect.addEventListener('change', () => {
       renderProvidersList(currentProviders);
+      populateProviders(currentProviders);
     });
   }
 
@@ -1238,7 +1239,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const config = await chrome.storage.local.get(['voyarrApiUrl']);
     const serverBaseUrl = config.voyarrApiUrl ? config.voyarrApiUrl.replace(/\/$/, '') : "";
 
-    providers.forEach(p => {
+    // Sort providers matching the current sorting preference from the provider list
+    const sortVal = providerSortSelect ? providerSortSelect.value : "name-asc";
+    const sortedProviders = [...providers].sort((a, b) => {
+      const nameA = (a.name || "").toLowerCase();
+      const nameB = (b.name || "").toLowerCase();
+      if (sortVal === "name-desc") {
+        return nameB.localeCompare(nameA);
+      }
+      return nameA.localeCompare(nameB);
+    });
+
+    sortedProviders.forEach(p => {
       const opt = document.createElement('option');
       opt.value = p.id;
       opt.textContent = p.name;
@@ -1285,14 +1297,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Restore saved provider if any
-    let restoredProviderId = providers[0].id;
-    let restoredProviderName = providers[0].name;
+    let restoredProviderId = sortedProviders[0].id;
+    let restoredProviderName = sortedProviders[0].name;
     let restoredLogoUrl = "";
 
     try {
       const res = await chrome.storage.local.get(['savedProvider']);
       if (res.savedProvider) {
-        const found = providers.find(p => p.id == res.savedProvider);
+        const found = sortedProviders.find(p => p.id == res.savedProvider);
         if (found) {
           restoredProviderId = found.id;
           restoredProviderName = found.name;
