@@ -122,24 +122,24 @@ export default function DownloadQueue({ queue, onRefresh }) {
 
       <Paper sx={{ p: 2, mb: 3 }}>
         <Typography variant="h6" gutterBottom>Add Single Download</Typography>
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} md={3}>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Box sx={{ flexShrink: 0, minWidth: 200 }}>
             <FormControl fullWidth size="small">
               <InputLabel>Provider</InputLabel>
               <Select value={newDownload.provider_id} label="Provider" onChange={e => setNewDownload({...newDownload, provider_id: e.target.value})}>
                 {providers.map(p => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
               </Select>
             </FormControl>
-          </Grid>
-          <Grid item xs={12} md={7}>
+          </Box>
+          <Box sx={{ flexGrow: 1, minWidth: 200 }}>
             <TextField fullWidth size="small" label="Media URL" value={newDownload.url} onChange={e => setNewDownload({...newDownload, url: e.target.value})} />
-          </Grid>
-          <Grid item xs={12} md={2}>
-            <Button fullWidth variant="contained" onClick={() => handleAddDownload(false)} disabled={loading || !newDownload.provider_id || !newDownload.url}>
+          </Box>
+          <Box sx={{ flexShrink: 0 }}>
+            <Button variant="contained" onClick={() => handleAddDownload(false)} disabled={loading || !newDownload.provider_id || !newDownload.url} sx={{ height: 40, px: 3 }}>
               {loading ? <CircularProgress size={24} /> : 'Queue'}
             </Button>
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
       </Paper>
 
       <Paper sx={{ p: 2, mb: 3 }}>
@@ -147,16 +147,16 @@ export default function DownloadQueue({ queue, onRefresh }) {
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Extract direct .m3u8 or .mp4 stream URLs from supported sites (like Chaturbate) to copy or save.
         </Typography>
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} md={9}>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Box sx={{ flexGrow: 1, minWidth: 200 }}>
             <TextField fullWidth size="small" label="Page URL (e.g., https://chaturbate.com/username)" value={streamUrlInput} onChange={e => setStreamUrlInput(e.target.value)} />
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <Button fullWidth variant="outlined" onClick={handleExtractStream} disabled={extracting || !streamUrlInput}>
+          </Box>
+          <Box sx={{ flexShrink: 0 }}>
+            <Button variant="outlined" onClick={handleExtractStream} disabled={extracting || !streamUrlInput} sx={{ height: 40, px: 3 }}>
               {extracting ? <CircularProgress size={24} /> : 'Extract Stream URL'}
             </Button>
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
 
         {extractedStream && (
           <Box sx={{ mt: 2, p: 2, backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 1 }}>
@@ -172,8 +172,8 @@ export default function DownloadQueue({ queue, onRefresh }) {
         )}
       </Paper>
 
-      <Grid container spacing={2} sx={{ mb: 2 }}>
-        <Grid item xs={12} md={3}>
+      <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 2, flexWrap: 'wrap' }}>
+        <Box sx={{ flexShrink: 0, minWidth: 200 }}>
           <FormControl fullWidth size="small">
             <InputLabel>Filter by Status</InputLabel>
             <Select value={filters.status} label="Filter by Status" onChange={e => setFilters({...filters, status: e.target.value})}>
@@ -184,11 +184,11 @@ export default function DownloadQueue({ queue, onRefresh }) {
               <MenuItem value="failed">Failed</MenuItem>
             </Select>
           </FormControl>
-        </Grid>
-        <Grid item xs={12} md={9}>
+        </Box>
+        <Box sx={{ flexGrow: 1, minWidth: 200 }}>
           <TextField fullWidth size="small" label="Search URL..." value={filters.url_contains} onChange={e => setFilters({...filters, url_contains: e.target.value})} />
-        </Grid>
-      </Grid>
+        </Box>
+      </Box>
 
       {filteredQueue.length > 0 ? (
         <List>
