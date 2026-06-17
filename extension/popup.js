@@ -193,7 +193,14 @@ document.addEventListener('DOMContentLoaded', () => {
             voyarrSecret: activeServer.apiKey
           });
           try {
-            await testConnection(activeServer.url, activeServer.apiKey);
+            const connResult = await testConnection(activeServer.url, activeServer.apiKey);
+            if (connResult && connResult.adjustedUrl && connResult.adjustedUrl !== activeServer.url) {
+              activeServer.url = connResult.adjustedUrl;
+              await chrome.storage.local.set({
+                voyarrServers: servers,
+                voyarrApiUrl: connResult.adjustedUrl
+              });
+            }
           } catch (e) {
             console.error("Active server connection failed:", e);
           }
@@ -427,7 +434,14 @@ document.addEventListener('DOMContentLoaded', () => {
           voyarrApiUrl: activeServer.url,
           voyarrSecret: activeServer.apiKey
         });
-        await testConnection(activeServer.url, activeServer.apiKey);
+        const connResult = await testConnection(activeServer.url, activeServer.apiKey);
+        if (connResult && connResult.adjustedUrl && connResult.adjustedUrl !== activeServer.url) {
+          activeServer.url = connResult.adjustedUrl;
+          await chrome.storage.local.set({
+            voyarrServers: servers,
+            voyarrApiUrl: connResult.adjustedUrl
+          });
+        }
       }
     } else {
       await chrome.storage.local.remove(['voyarrApiUrl', 'voyarrSecret']);
@@ -455,7 +469,15 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       renderServerList();
       try {
-        await testConnection(activeServer.url, activeServer.apiKey);
+        const connResult = await testConnection(activeServer.url, activeServer.apiKey);
+        if (connResult && connResult.adjustedUrl && connResult.adjustedUrl !== activeServer.url) {
+          activeServer.url = connResult.adjustedUrl;
+          await chrome.storage.local.set({
+            voyarrServers: servers,
+            voyarrApiUrl: connResult.adjustedUrl
+          });
+          renderServerList();
+        }
       } catch (e) {
         console.error("Switched active server connection failed:", e);
       }
@@ -493,12 +515,12 @@ document.addEventListener('DOMContentLoaded', () => {
     addServerBtn.innerHTML = '<span class="spinner"></span> Testing...';
 
     try {
-      const { latencyMs, providers } = await testConnection(url, key);
+      const { latencyMs, providers, adjustedUrl } = await testConnection(url, key);
       
       const newServer = {
         id: 'server-' + Date.now(),
         name: name,
-        url: url,
+        url: adjustedUrl,
         apiKey: key,
         latency: latencyMs
       };
@@ -509,7 +531,7 @@ document.addEventListener('DOMContentLoaded', () => {
       await chrome.storage.local.set({
         voyarrServers: servers,
         activeServerId: activeServerId,
-        voyarrApiUrl: url,
+        voyarrApiUrl: adjustedUrl,
         voyarrSecret: key
       });
 
@@ -827,13 +849,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const result = await response.json();
         if (result.status === "success" && result.raw_key) {
-          // Add paired server to configurations
+          // Test connection first to get correct adjustedUrl (e.g. appending /api if needed)
+          let latency = 5;
+          let finalUrl = url.replace(/\/$/, '');
+          try {
+            const connResult = await testConnection(finalUrl, result.raw_key);
+            if (connResult && connResult.adjustedUrl) {
+              finalUrl = connResult.adjustedUrl;
+              latency = connResult.latencyMs;
+            }
+          } catch (connErr) {
+            console.error("Pairing connection test failed:", connErr);
+          }
+
           const newServer = {
             id: 'server-' + Date.now(),
             name: "Paired Voyarr Server",
-            url: url.replace(/\/$/, ''),
+            url: finalUrl,
             apiKey: result.raw_key,
-            latency: 5
+            latency: latency
           };
 
           servers.push(newServer);
@@ -866,9 +900,6 @@ document.addEventListener('DOMContentLoaded', () => {
           
           populateActiveServerSelect();
           renderServerList();
-          
-          // Test connection to fetch providers
-          await testConnection(newServer.url, newServer.apiKey);
         } else {
           throw new Error("Pairing failed: no key returned");
         }
@@ -984,7 +1015,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Test Connection helper (returns promise)
   async function testConnection(url, key) {
-    const cleanUrl = url.replace(/\/$/, '');
+    let cleanUrl = url.replace(/\/$/, '');
     updateStatus(false, "Testing...");
     
     // Request permission first (if not localhost)
@@ -994,6 +1025,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const startTime = performance.now();
+    let providers = null;
+    let success = false;
+    let errToThrow = null;
+
+    // Try primary URL
     try {
       const res = await fetch(`${cleanUrl}/providers`, {
         method: 'GET',
@@ -1002,34 +1038,73 @@ document.addEventListener('DOMContentLoaded', () => {
           'Accept': 'application/json'
         }
       });
-      if (!res.ok) throw new Error("Unauthorized or server error");
-      const providers = await res.json();
-      const latencyMs = Math.round(performance.now() - startTime);
-      updateStatus(true, `Connected (${latencyMs}ms)`);
-      populateProviders(providers);
-      
-      // Update latency in local object if matching
-      const s = servers.find(srv => srv.url === url);
-      if (s) {
-        s.latency = latencyMs;
-        await chrome.storage.local.set({ voyarrServers: servers });
+      if (res.ok) {
+        const contentType = res.headers.get("content-type") || "";
+        if (!contentType.includes("text/html")) {
+          providers = await res.json();
+          success = true;
+        } else {
+          throw new Error("Server returned HTML instead of API response.");
+        }
+      } else {
+        throw new Error(`Server returned status: ${res.status}`);
       }
-      
-      if (sslTroubleCard) {
-        sslTroubleCard.style.display = "none";
-      }
-      
-      return { providers, latencyMs };
     } catch (err) {
+      errToThrow = err;
+    }
+
+    // Try fallback to /api if primary failed and URL doesn't already have it
+    if (!success && !cleanUrl.endsWith('/api')) {
+      const fallbackUrl = `${cleanUrl}/api`;
+      try {
+        const permissionGrantedFallback = await requestHostPermission(fallbackUrl);
+        if (permissionGrantedFallback) {
+          const res = await fetch(`${fallbackUrl}/providers`, {
+            method: 'GET',
+            headers: {
+              'X-Voyarr-Api-Key': key,
+              'Accept': 'application/json'
+            }
+          });
+          if (res.ok) {
+            const contentType = res.headers.get("content-type") || "";
+            if (!contentType.includes("text/html")) {
+              providers = await res.json();
+              cleanUrl = fallbackUrl;
+              success = true;
+            }
+          }
+        }
+      } catch (fallbackErr) {
+        // Fallback failed
+      }
+    }
+
+    if (!success) {
       updateStatus(false, "Disconnected");
-      
-      // Diagnose SSL/CORS issues on HTTPS connections
       if (url.startsWith("https://") && sslTroubleCard) {
         sslTroubleCard.style.display = "flex";
       }
-      
-      throw err;
+      throw errToThrow || new Error("Could not connect to Voyarr API");
     }
+
+    const latencyMs = Math.round(performance.now() - startTime);
+    updateStatus(true, `Connected (${latencyMs}ms)`);
+    populateProviders(providers);
+    
+    // Update latency in local object if matching
+    const s = servers.find(srv => srv.url === url || srv.url === cleanUrl);
+    if (s) {
+      s.url = cleanUrl;
+      s.latency = latencyMs;
+      await chrome.storage.local.set({ voyarrServers: servers });
+    }
+    
+    if (sslTroubleCard) {
+      sslTroubleCard.style.display = "none";
+    }
+    
+    return { providers, latencyMs, adjustedUrl: cleanUrl };
   }
 
   // Populate Providers Dropdown
