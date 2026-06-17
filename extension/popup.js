@@ -1415,26 +1415,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Help Modal logic
-  const helpBtn = document.getElementById('helpBtn');
-  const helpModal = document.getElementById('helpModal');
-  const closeHelpBtn = document.getElementById('closeHelpBtn');
 
-  if (helpModal) {
-    helpModal.style.display = 'none';
-  }
-
-  if (helpBtn) {
-    helpBtn.addEventListener('click', () => {
-      helpModal.style.display = 'flex';
-    });
-  }
-
-  if (closeHelpBtn) {
-    closeHelpBtn.addEventListener('click', () => {
-      helpModal.style.display = 'none';
-    });
-  }
 
   // Expandable cards logic
   document.querySelectorAll('.expandable-card .card-header').forEach(header => {
