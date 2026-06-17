@@ -339,6 +339,7 @@
     <div class="tabs">
       <button class="tab-btn active" data-tab="map-tab">Remote Map</button>
       <button class="tab-btn" data-tab="lens-tab">Lens</button>
+      <button class="tab-btn" data-tab="providers-tab">Providers</button>
       <button class="tab-btn" data-tab="settings-tab">Settings</button>
     </div>
 
@@ -393,6 +394,47 @@
          <button id="saveSubscriptionBtn" class="btn" style="margin-top: 8px; width: 100%;">Save to Voyarr</button>
       </div>
       <div id="lensToast" class="toast-msg"></div>
+    </div>
+
+    <!-- Providers Tab -->
+    <div class="tab-content" id="providers-tab">
+      <div class="form-group" style="gap: 4px;">
+        <label>Configured Providers</label>
+        <div id="providerListContainer" style="display: flex; flex-direction: column; gap: 6px; max-height: 140px; overflow-y: auto; padding-right: 2px;">
+          <!-- Dynamically populated list of provider cards -->
+        </div>
+      </div>
+
+      <div style="border-top: 1px dashed var(--border-color); margin: 4px 0;"></div>
+
+      <!-- Add / Edit Provider Form -->
+      <div class="form-group" style="gap: 6px;">
+        <label style="font-weight: 600;" id="providerFormTitle">Create Scraper Provider</label>
+        <input type="text" id="newProviderName" placeholder="Provider Name (e.g. Chaturbate)" style="padding: 8px 10px; font-size: 12px;" />
+        <input type="text" id="newProviderUrl" placeholder="Base URL (e.g. https://chaturbate.com)" style="padding: 8px 10px; font-size: 12px;" />
+        <input type="text" id="newProviderPattern" placeholder="Naming Pattern" value="{title}_{performers}" style="padding: 8px 10px; font-size: 12px;" />
+        
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <input type="text" id="newProviderSeparator" placeholder="Separator" value="_" style="padding: 8px 10px; font-size: 12px; flex: 1;" />
+          <input type="text" id="newProviderSpaceRepl" placeholder="Space Replacement" value="_" style="padding: 8px 10px; font-size: 12px; flex: 1;" />
+        </div>
+        
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 11px;">
+          <input type="checkbox" id="providerTransparentBg" />
+          <label for="providerTransparentBg" style="margin: 0; cursor: pointer;">Transparent Logo Background</label>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 11px; margin-bottom: 4px;">
+          <input type="checkbox" id="providerFitToCard" />
+          <label for="providerFitToCard" style="margin: 0; cursor: pointer;">Fit Logo to Card Size</label>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 8px; align-items: stretch;">
+        <button id="saveProviderBtn" class="btn" style="flex: 2; padding: 9px; font-size: 12px;">Create Provider</button>
+        <button id="cancelProviderEditBtn" class="btn btn-secondary" style="flex: 1; padding: 9px; font-size: 12px; display: none;">Cancel</button>
+      </div>
+
+      <div id="providersToast" class="toast-msg"></div>
     </div>
 
     <!-- Settings Tab -->

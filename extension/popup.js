@@ -59,6 +59,23 @@ document.addEventListener('DOMContentLoaded', () => {
   const lensToast = document.getElementById('lensToast');
   let currentScannedSubscription = null;
 
+  // Providers Tab Elements
+  const providerListContainer = document.getElementById('providerListContainer');
+  const newProviderName = document.getElementById('newProviderName');
+  const newProviderUrl = document.getElementById('newProviderUrl');
+  const newProviderPattern = document.getElementById('newProviderPattern');
+  const newProviderSeparator = document.getElementById('newProviderSeparator');
+  const newProviderSpaceRepl = document.getElementById('newProviderSpaceRepl');
+  const providerTransparentBg = document.getElementById('providerTransparentBg');
+  const providerFitToCard = document.getElementById('providerFitToCard');
+  const saveProviderBtn = document.getElementById('saveProviderBtn');
+  const cancelProviderEditBtn = document.getElementById('cancelProviderEditBtn');
+  const providersToast = document.getElementById('providersToast');
+  const providerFormTitle = document.getElementById('providerFormTitle');
+  
+  let currentProviders = [];
+  let editingProviderId = null;
+
   const statusDot = document.getElementById('statusDot');
   const statusText = document.getElementById('statusText');
 
@@ -91,7 +108,12 @@ document.addEventListener('DOMContentLoaded', () => {
       tabContents.forEach(c => c.classList.remove('active'));
       btn.classList.add('active');
       const targetContent = document.getElementById(btn.dataset.tab);
-      if (targetContent) targetContent.classList.add('active');
+      if (targetContent) {
+        targetContent.classList.add('active');
+        if (btn.dataset.tab === 'providers-tab') {
+          fetchProvidersList();
+        }
+      }
     });
   });
 
@@ -1451,5 +1473,265 @@ document.addEventListener('DOMContentLoaded', () => {
       saveSubscriptionBtn.disabled = false;
     }
   });
+
+  // ==========================================
+  // PROVIDER CRUD MANAGEMENT FOR VOYARR LENS
+  // ==========================================
+
+  // Fetch Providers List from active server
+  async function fetchProvidersList() {
+    const config = await chrome.storage.local.get(['voyarrApiUrl', 'voyarrSecret']);
+    if (!config.voyarrApiUrl || !config.voyarrSecret) {
+      renderProvidersList([]);
+      return;
+    }
+    try {
+      const baseUrl = config.voyarrApiUrl.replace(/\/$/, '');
+      const res = await fetch(`${baseUrl}/providers`, {
+        headers: {
+          'X-Voyarr-Api-Key': config.voyarrSecret,
+          'Accept': 'application/json'
+        }
+      });
+      if (res.ok) {
+        const providers = await res.json();
+        currentProviders = providers;
+        renderProvidersList(providers);
+        populateProviders(providers);
+      } else {
+        renderProvidersList([]);
+      }
+    } catch (err) {
+      console.error("Failed to fetch providers:", err);
+      renderProvidersList([]);
+    }
+  }
+
+  // Render Providers List UI cards
+  function renderProvidersList(providersList) {
+    providerListContainer.innerHTML = "";
+    if (providersList.length === 0) {
+      providerListContainer.innerHTML = `<div style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 12px 0;">No providers configured on the server.</div>`;
+      return;
+    }
+
+    providersList.forEach(p => {
+      const card = document.createElement('div');
+      card.style.display = "flex";
+      card.style.alignItems = "center";
+      card.style.justifyContent = "space-between";
+      card.style.backgroundColor = "rgba(255, 255, 255, 0.02)";
+      card.style.padding = "6px 8px";
+      card.style.borderRadius = "6px";
+      card.style.border = "1px solid rgba(255, 255, 255, 0.05)";
+      card.style.fontSize = "11px";
+      card.style.gap = "8px";
+
+      const infoDiv = document.createElement('div');
+      infoDiv.style.flex = "1";
+      infoDiv.style.minWidth = "0";
+
+      const nameRow = document.createElement('div');
+      nameRow.style.fontWeight = "600";
+      nameRow.style.color = "var(--text-main)";
+      nameRow.style.overflow = "hidden";
+      nameRow.style.textOverflow = "ellipsis";
+      nameRow.style.whiteSpace = "nowrap";
+      nameRow.textContent = p.name;
+
+      const urlDiv = document.createElement('div');
+      urlDiv.style.color = "var(--text-muted)";
+      urlDiv.style.fontSize = "9px";
+      urlDiv.style.overflow = "hidden";
+      urlDiv.style.textOverflow = "ellipsis";
+      urlDiv.style.whiteSpace = "nowrap";
+      urlDiv.textContent = p.base_url;
+
+      infoDiv.appendChild(nameRow);
+      infoDiv.appendChild(urlDiv);
+
+      const actionGroup = document.createElement('div');
+      actionGroup.style.display = "flex";
+      actionGroup.style.gap = "4px";
+
+      // Edit Button
+      const editBtn = document.createElement('button');
+      editBtn.className = "btn btn-secondary";
+      editBtn.style.padding = "3px 6px";
+      editBtn.style.fontSize = "9px";
+      editBtn.style.borderRadius = "4px";
+      editBtn.style.boxShadow = "none";
+      editBtn.textContent = "Edit";
+      editBtn.addEventListener('click', () => {
+        startEditingProvider(p);
+      });
+
+      // Delete Button
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = "btn btn-secondary";
+      deleteBtn.style.padding = "3px 6px";
+      deleteBtn.style.fontSize = "9px";
+      deleteBtn.style.borderRadius = "4px";
+      deleteBtn.style.boxShadow = "none";
+      deleteBtn.style.borderColor = "rgba(239, 68, 68, 0.2)";
+      deleteBtn.style.color = "var(--error)";
+      deleteBtn.textContent = "Delete";
+      deleteBtn.addEventListener('click', () => {
+        showConfirmToast(`Are you sure you want to delete the provider "${p.name}"?`, async () => {
+          await deleteProviderOnServer(p.id);
+        });
+      });
+
+      actionGroup.appendChild(editBtn);
+      actionGroup.appendChild(deleteBtn);
+
+      card.appendChild(infoDiv);
+      card.appendChild(actionGroup);
+      providerListContainer.appendChild(card);
+    });
+  }
+
+  // Delete Provider on backend
+  async function deleteProviderOnServer(providerId) {
+    const config = await chrome.storage.local.get(['voyarrApiUrl', 'voyarrSecret']);
+    if (!config.voyarrApiUrl || !config.voyarrSecret) {
+      showToast(providersToast, "Not connected to server", false);
+      return;
+    }
+    try {
+      const baseUrl = config.voyarrApiUrl.replace(/\/$/, '');
+      const res = await fetch(`${baseUrl}/providers/${providerId}`, {
+        method: 'DELETE',
+        headers: {
+          'X-Voyarr-Api-Key': config.voyarrSecret
+        }
+      });
+      if (res.ok) {
+        showToast(providersToast, "Provider deleted successfully!", true);
+        if (editingProviderId === providerId) {
+          resetProviderForm();
+        }
+        await fetchProvidersList();
+      } else {
+        const errMsg = await res.text();
+        showToast(providersToast, `Delete failed: ${errMsg}`, false);
+      }
+    } catch (err) {
+      console.error(err);
+      showToast(providersToast, "Failed to delete provider", false);
+    }
+  }
+
+  // Populate form fields for editing
+  function startEditingProvider(provider) {
+    editingProviderId = provider.id;
+    providerFormTitle.textContent = "Edit Scraper Provider";
+    newProviderName.value = provider.name || "";
+    newProviderUrl.value = provider.base_url || "";
+    newProviderPattern.value = provider.naming_pattern || "{title}_{performers}";
+    newProviderSeparator.value = provider.separator || "_";
+    newProviderSpaceRepl.value = provider.space_replacement || "_";
+    providerTransparentBg.checked = !!provider.transparent_logo_bg;
+    providerFitToCard.checked = !!provider.fit_logo_to_card;
+
+    saveProviderBtn.textContent = "Save Changes";
+    cancelProviderEditBtn.style.display = "block";
+    newProviderName.focus();
+  }
+
+  // Reset form to defaults
+  function resetProviderForm() {
+    editingProviderId = null;
+    providerFormTitle.textContent = "Create Scraper Provider";
+    newProviderName.value = "";
+    newProviderUrl.value = "";
+    newProviderPattern.value = "{title}_{performers}";
+    newProviderSeparator.value = "_";
+    newProviderSpaceRepl.value = "_";
+    providerTransparentBg.checked = false;
+    providerFitToCard.checked = false;
+
+    saveProviderBtn.textContent = "Create Provider";
+    cancelProviderEditBtn.style.display = "none";
+  }
+
+  // Cancel edit handler
+  if (cancelProviderEditBtn) {
+    cancelProviderEditBtn.addEventListener('click', resetProviderForm);
+  }
+
+  // Save Provider handler (Create or Update)
+  if (saveProviderBtn) {
+    saveProviderBtn.addEventListener('click', async () => {
+      const name = newProviderName.value.trim();
+      const baseUrlStr = newProviderUrl.value.trim();
+      const pattern = newProviderPattern.value.trim();
+      const separator = newProviderSeparator.value.trim() || "_";
+      const spaceRepl = newProviderSpaceRepl.value.trim() || "_";
+      const transparentBg = providerTransparentBg.checked;
+      const fitToCard = providerFitToCard.checked;
+
+      if (!name || !baseUrlStr) {
+        showToast(providersToast, "Name and Base URL are required.", false);
+        return;
+      }
+
+      const config = await chrome.storage.local.get(['voyarrApiUrl', 'voyarrSecret']);
+      if (!config.voyarrApiUrl || !config.voyarrSecret) {
+        showToast(providersToast, "Not connected to server", false);
+        return;
+      }
+
+      saveProviderBtn.disabled = true;
+      saveProviderBtn.textContent = editingProviderId ? "Saving..." : "Creating...";
+
+      try {
+        const payload = {
+          name,
+          base_url: baseUrlStr,
+          naming_pattern: pattern,
+          separator,
+          space_replacement: spaceRepl,
+          transparent_logo_bg: transparentBg,
+          fit_logo_to_card: fitToCard,
+          automatic_limits: {},
+          logo_url: null,
+          favicon_url: null,
+          description: null
+        };
+
+        const serverBaseUrl = config.voyarrApiUrl.replace(/\/$/, '');
+        const url = editingProviderId 
+          ? `${serverBaseUrl}/providers/${editingProviderId}`
+          : `${serverBaseUrl}/providers`;
+        
+        const method = editingProviderId ? 'PUT' : 'POST';
+
+        const res = await fetch(url, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Voyarr-Api-Key': config.voyarrSecret
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          showToast(providersToast, editingProviderId ? "Provider updated successfully!" : "Provider created successfully!", true);
+          resetProviderForm();
+          await fetchProvidersList();
+        } else {
+          const detail = await res.json().then(d => d.detail || d.message).catch(() => "Server error");
+          showToast(providersToast, `Failed to save: ${detail}`, false);
+        }
+      } catch (err) {
+        console.error(err);
+        showToast(providersToast, "Connection error", false);
+      } finally {
+        saveProviderBtn.disabled = false;
+        saveProviderBtn.textContent = editingProviderId ? "Save Changes" : "Create Provider";
+      }
+    });
+  }
 
 });
