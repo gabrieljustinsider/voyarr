@@ -338,7 +338,7 @@ export default function Library() {
     }
 
     if (!key) {
-      key = window.appPrompt ? await window.appPrompt("Enter your StashDB API Key to submit this fingerprint:") : window.prompt("Enter your StashDB API Key to submit this fingerprint:");
+      key = await window.appPrompt("Enter your StashDB API Key to submit this fingerprint:");
       if (!key) {
         setSubmitFingerprintLoading(false)
         return;
@@ -439,7 +439,7 @@ export default function Library() {
   }
 
   const handleRenameCluster = async (oldName) => {
-    const newName = window.prompt(`Enter real performer name for ${oldName}:`)
+    const newName = await window.appPrompt(`Enter real performer name for ${oldName}:`)
     if (!newName) return
     try {
       const res = await apiFetch(`/library/${playingVideo.id}/facial-clusters/${oldName}/rename`, {
@@ -466,7 +466,7 @@ export default function Library() {
 
   const handleBulkAI = async () => {
     if (selectedEntries.size === 0) return
-    const confirm = window.appConfirm ? await window.appConfirm(`Queue ${selectedEntries.size} items for AI Auto-Tagging?`) : window.confirm(`Queue ${selectedEntries.size} items for AI Auto-Tagging?`)
+    const confirm = await window.appConfirm(`Queue ${selectedEntries.size} items for AI Auto-Tagging?`)
     if (!confirm) return
 
     try {

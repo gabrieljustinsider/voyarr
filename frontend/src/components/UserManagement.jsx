@@ -224,7 +224,8 @@ export default function UserManagement() {
   }
 
   const handleAdminResetMfa = async () => {
-    if (!window.confirm("Are you sure you want to revoke all WebAuthn passkeys for this user? They will be forced to log in using their password next time.")) return
+    const confirmed = await window.appConfirm("Are you sure you want to revoke all WebAuthn passkeys for this user? They will be forced to log in using their password next time.")
+    if (!confirmed) return
     try {
       const res = await apiFetch(`/auth/users/${selectedUserForManage.id}/reset-mfa`, { method: 'POST' })
       if (res.ok) {
@@ -241,7 +242,8 @@ export default function UserManagement() {
   }
 
   const handleAdminResetSso = async () => {
-    if (!window.confirm("Are you sure you want to disconnect all social SSO links? Direct logins using linked profiles will be rejected.")) return
+    const confirmed = await window.appConfirm("Are you sure you want to disconnect all social SSO links? Direct logins using linked profiles will be rejected.")
+    if (!confirmed) return
     try {
       const res = await apiFetch(`/auth/users/${selectedUserForManage.id}/reset-sso`, { method: 'POST' })
       if (res.ok) {
@@ -971,8 +973,8 @@ export default function UserManagement() {
                           size="small" 
                           startIcon={<SyncIcon />}
                           disabled={!mergeTargetUserId}
-                          onClick={() => {
-                            if (window.confirm(`Are you absolutely sure you want to merge all data from ${selectedUserForManage.username} into the selected target account? This will delete ${selectedUserForManage.username} forever and is irreversible.`)) {
+                          onClick={async () => {
+                            if (await window.appConfirm(`Are you absolutely sure you want to merge all data from ${selectedUserForManage.username} into the selected target account? This will delete ${selectedUserForManage.username} forever and is irreversible.`)) {
                               handleAdminMergeUsers(mergeTargetUserId);
                             }
                           }}
@@ -1004,8 +1006,8 @@ export default function UserManagement() {
                         color="error" 
                         startIcon={<DeleteIcon />}
                         disabled={selectedUserForManage.role === 'admin' && usersList.filter(u => u.role === 'admin').length <= 1}
-                        onClick={() => {
-                          if (window.confirm(`Type 'DELETE' to confirm you want to permanently delete the user account for ${selectedUserForManage.username}. This will purge all associated settings, credentials, and playback data immediately.`)) {
+                        onClick={async () => {
+                          if (await window.appConfirm(`Are you sure you want to permanently delete the user account for ${selectedUserForManage.username}? This will purge all associated settings, credentials, and playback data immediately.`)) {
                             handleAdminDeleteUser();
                           }
                         }}

@@ -90,6 +90,7 @@ export default function AccountSecurity({ setSnackbar }) {
   const [pairings, setPairings] = useState([])
   const [pairingsLoading, setPairingsLoading] = useState(false)
   const [deleteConfirmPairingId, setDeleteConfirmPairingId] = useState(null)
+  const [initialPairingIds, setInitialPairingIds] = useState([])
 
   // Avatar handling ref and state
   const fileInputRef = useRef(null)
@@ -120,6 +121,16 @@ export default function AccountSecurity({ setSnackbar }) {
       clearInterval(pollTimer)
     }
   }, [pairingCode, expiresIn])
+
+  useEffect(() => {
+    if (pairingCode && pairings.length > 0) {
+      const hasNewPairing = pairings.some(p => !initialPairingIds.includes(p.id))
+      if (hasNewPairing) {
+        setPairingCode('')
+        setSnackbar({ open: true, message: 'Pairing successful! Device linked.', severity: 'success' })
+      }
+    }
+  }, [pairings, pairingCode, initialPairingIds])
 
   useEffect(() => {
     fetchProfile()
@@ -240,6 +251,7 @@ export default function AccountSecurity({ setSnackbar }) {
         const data = await res.json()
         setPairingCode(data.pairing_code)
         setExpiresIn(data.expires_in || 300)
+        setInitialPairingIds(pairings.map(p => p.id))
         
         // Dispatch custom event to notify Lens extension loaded on the tab
         window.dispatchEvent(new CustomEvent('VOYARR_INITIATE_PAIRING', {
