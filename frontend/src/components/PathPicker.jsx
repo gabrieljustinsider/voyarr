@@ -228,33 +228,28 @@ export default function PathPicker({
             label={label}
             helperText={helperText}
             size="small"
-            slotProps={{
-              input: {
-                ...params.InputProps,
-                endAdornment: (
-                  <React.Fragment>
-                    {loading ? <CircularProgress color="inherit" size={20} /> : null}
-                    {params.InputProps?.endAdornment}
-                    <Tooltip title="Browse Filesystem">
-                      <IconButton
-                        onClick={handleOpenBrowser}
-                        size="small"
-                        sx={{
-                          color: 'var(--accent)',
-                          '&:hover': {
-                            color: '#fff',
-                          },
-                        }}
-                      >
-                        <FolderOpenIcon />
-                      </IconButton>
-                    </Tooltip>
-                  </React.Fragment>
-                ),
-              },
-              htmlInput: {
-                ...params.inputProps
-              }
+            InputProps={{
+              ...params.InputProps,
+              endAdornment: (
+                <React.Fragment>
+                  {loading ? <CircularProgress color="inherit" size={20} /> : null}
+                  {params.InputProps?.endAdornment}
+                  <Tooltip title="Browse Filesystem">
+                    <IconButton
+                      onClick={handleOpenBrowser}
+                      size="small"
+                      sx={{
+                        color: 'var(--accent)',
+                        '&:hover': {
+                          color: '#fff',
+                        },
+                      }}
+                    >
+                      <FolderOpenIcon />
+                    </IconButton>
+                  </Tooltip>
+                </React.Fragment>
+              ),
             }}
           />
         )}
