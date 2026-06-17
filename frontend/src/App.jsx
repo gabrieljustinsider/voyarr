@@ -1360,7 +1360,7 @@ function App() {
         </Paper>
       </Container>
 
-      <Dialog open={prefDialogOpen} onClose={() => setPrefDialogOpen(false)} maxWidth={prefTab === 1 ? "sm" : "xs"} fullWidth>
+      <Dialog open={prefDialogOpen} onClose={() => setPrefDialogOpen(false)} maxWidth={prefTab === 1 ? "md" : "xs"} fullWidth>
         <DialogTitle sx={{ fontWeight: 'bold' }}>User Settings</DialogTitle>
         <Box sx={{ px: 3 }}>
           <Tabs value={prefTab} onChange={(e, val) => setPrefTab(val)} sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>

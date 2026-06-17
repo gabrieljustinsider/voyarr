@@ -564,6 +564,7 @@ def get_user_details(
             "id": sso.id,
             "provider": sso.provider,
             "email": sso.email,
+            "avatar_url": getattr(sso, "avatar_url", None),
             "linked_at": sso.linked_at
         }
         for sso in sso_links
@@ -1025,7 +1026,7 @@ def get_current_user_profile(
     # Fetch SSO links
     sso_links = db.query(SsoLink).filter(SsoLink.user_id == current_user.id).all()
     sso_list = [
-        {"id": sso.id, "provider": sso.provider, "email": sso.email}
+        {"id": sso.id, "provider": sso.provider, "email": sso.email, "avatar_url": getattr(sso, "avatar_url", None)}
         for sso in sso_links
     ]
     
@@ -1109,7 +1110,8 @@ def initiate_pairing(
     PENDING_PAIRINGS[pairing_code] = {
         "key_hash": key_hash,
         "raw_key": raw_key,
-        "expires_at": time.time() + 300
+        "expires_at": time.time() + 300,
+        "user_id": current_user.id
     }
     
     return {"pairing_code": pairing_code, "expires_in": 300}
@@ -1144,7 +1146,9 @@ def confirm_pairing(
     
     new_key = ApiKey(
         name="Voyarr Lens Companion (Paired)",
-        key_hash=pairing_data["key_hash"]
+        key_hash=pairing_data["key_hash"],
+        user_id=pairing_data.get("user_id"),
+        is_pairing=True
     )
     db.add(new_key)
     db.commit()
@@ -1154,4 +1158,83 @@ def confirm_pairing(
         "status": "success",
         "raw_key": pairing_data["raw_key"]
     }
+
+
+class PairingRenameRequest(BaseModel):
+    name: str
+
+
+@router.get("/pairings")
+def list_pairings(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """List all registered browser extension pairings for the current user."""
+    from models import ApiKey
+    pairings = db.query(ApiKey).filter(
+        ApiKey.user_id == current_user.id,
+        ApiKey.is_pairing == True
+    ).order_by(ApiKey.created_at.desc()).all()
+    
+    return [
+        {
+            "id": p.id,
+            "name": p.name,
+            "created_at": p.created_at,
+            "last_used": p.last_used
+        }
+        for p in pairings
+    ]
+
+
+@router.patch("/pairings/{pairing_id}")
+def rename_pairing(
+    pairing_id: int,
+    req: PairingRenameRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Rename a specific pairing for the current user."""
+    from models import ApiKey
+    pairing = db.query(ApiKey).filter(
+        ApiKey.id == pairing_id,
+        ApiKey.user_id == current_user.id,
+        ApiKey.is_pairing == True
+    ).first()
+    
+    if not pairing:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pairing not found."
+        )
+        
+    pairing.name = req.name.strip()
+    db.commit()
+    db.refresh(pairing)
+    return {"id": pairing.id, "name": pairing.name}
+
+
+@router.delete("/pairings/{pairing_id}")
+def revoke_pairing(
+    pairing_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Revoke a specific pairing for the current user."""
+    from models import ApiKey
+    pairing = db.query(ApiKey).filter(
+        ApiKey.id == pairing_id,
+        ApiKey.user_id == current_user.id,
+        ApiKey.is_pairing == True
+    ).first()
+    
+    if not pairing:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pairing not found."
+        )
+        
+    db.delete(pairing)
+    db.commit()
+    return {"message": "Pairing revoked successfully."}
 

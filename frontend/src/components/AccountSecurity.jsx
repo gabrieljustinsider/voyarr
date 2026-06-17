@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { 
   Box, Typography, TextField, Button, Paper, Grid, Divider, CircularProgress, 
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, 
   Alert, Dialog, DialogTitle, DialogContent, DialogActions, Select, MenuItem,
-  FormControl, InputLabel, Avatar, Chip
+  FormControl, InputLabel, Avatar, Chip, Menu
 } from '@mui/material'
 import { Trash2, Link, Link2Off, Fingerprint, KeyRound, Plus, ShieldCheck, User, Globe } from 'lucide-react'
 import FingerprintIcon from '@mui/icons-material/Fingerprint'
@@ -12,7 +12,7 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import SecurityIcon from '@mui/icons-material/Security'
 import LinkIcon from '@mui/icons-material/Link'
 import LinkOffIcon from '@mui/icons-material/LinkOff'
-import { apiFetch } from '../api'
+import { apiFetch, API_BASE } from '../api'
 import PasswordChecklist from './PasswordChecklist'
 import InlineTextField from './InlineTextField'
 
@@ -45,6 +45,20 @@ export default function AccountSecurity({ setSnackbar }) {
   const [displayName, setDisplayName] = useState('')
   const [email, setEmail] = useState('')
   const [avatarUrl, setAvatarUrl] = useState('')
+
+  const uniformInputStyle = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: '10px',
+      backgroundColor: 'rgba(255, 255, 255, 0.02)',
+      transition: 'border-color 0.2s, background-color 0.2s',
+      '&:hover': {
+        backgroundColor: 'rgba(255, 255, 255, 0.04)',
+      },
+      '&.Mui-focused': {
+        backgroundColor: 'rgba(255, 255, 255, 0.04)',
+      }
+    }
+  }
   const [locale, setLocale] = useState('en')
   const [dateFormat, setDateFormat] = useState('YYYY-MM-DD')
   const [timeFormat, setTimeFormat] = useState('HH:mm:ss')
@@ -73,9 +87,19 @@ export default function AccountSecurity({ setSnackbar }) {
   // Voyarr Lens Pairing States
   const [pairingCode, setPairingCode] = useState('')
   const [expiresIn, setExpiresIn] = useState(300)
+  const [pairings, setPairings] = useState([])
+  const [pairingsLoading, setPairingsLoading] = useState(false)
+  const [deleteConfirmPairingId, setDeleteConfirmPairingId] = useState(null)
+
+  // Avatar handling ref and state
+  const fileInputRef = useRef(null)
+  const [avatarAnchorEl, setAvatarAnchorEl] = useState(null)
+  const [urlDialogOpen, setUrlDialogOpen] = useState(false)
+  const [tempUrl, setTempUrl] = useState('')
 
   useEffect(() => {
     let timer
+    let pollTimer
     if (pairingCode && expiresIn > 0) {
       timer = setInterval(() => {
         setExpiresIn(prev => {
@@ -86,14 +110,22 @@ export default function AccountSecurity({ setSnackbar }) {
           return prev - 1
         })
       }, 1000)
+
+      pollTimer = setInterval(() => {
+        fetchPairings()
+      }, 3000)
     }
-    return () => clearInterval(timer)
+    return () => {
+      clearInterval(timer)
+      clearInterval(pollTimer)
+    }
   }, [pairingCode, expiresIn])
 
   useEffect(() => {
     fetchProfile()
     fetchPasskeys()
     fetchSsoLinks()
+    fetchPairings()
   }, [])
 
   const fetchProfile = async () => {
@@ -114,6 +146,42 @@ export default function AccountSecurity({ setSnackbar }) {
     }
   }
 
+  const handleAvatarClick = (event) => {
+    setAvatarAnchorEl(event.currentTarget)
+  }
+
+  const handleAvatarClose = () => {
+    setAvatarAnchorEl(null)
+  }
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        setAvatarUrl(event.target.result)
+        setSnackbar({ open: true, message: 'Avatar updated! Click Save Profile & Preferences to apply.', severity: 'info' })
+      }
+      reader.readAsDataURL(file)
+    }
+    handleAvatarClose()
+  }
+
+  const handleUrlSubmit = (e) => {
+    e.preventDefault()
+    if (tempUrl.trim()) {
+      setAvatarUrl(tempUrl.trim())
+      setTempUrl('')
+      setUrlDialogOpen(false)
+      setSnackbar({ open: true, message: 'Avatar URL updated! Click Save Profile & Preferences to apply.', severity: 'info' })
+    }
+  }
+
+  const handleLinkSso = (provider) => {
+    const token = localStorage.getItem('voyarr_jwt')
+    window.location.href = `${API_BASE}/auth/oidc/login?provider=${provider}&token=${token || ''}`
+  }
+
   const handleUpdateProfile = async (e) => {
     e.preventDefault()
     setProfileLoading(true)
@@ -122,7 +190,6 @@ export default function AccountSecurity({ setSnackbar }) {
         method: 'PUT',
         body: JSON.stringify({
           display_name: displayName,
-          email: email,
           avatar_url: avatarUrl,
           locale: locale,
           date_format: dateFormat,
@@ -196,6 +263,56 @@ export default function AccountSecurity({ setSnackbar }) {
     } catch (err) {
       console.error(err)
       setSnackbar({ open: true, message: 'Error initiating pairing.', severity: 'error' })
+    }
+  }
+
+  const fetchPairings = async () => {
+    setPairingsLoading(true)
+    try {
+      const res = await apiFetch('/auth/pairings')
+      if (res.ok) {
+        setPairings(await res.json())
+      }
+    } catch (err) {
+      console.error('Error fetching pairings:', err)
+    } finally {
+      setPairingsLoading(false)
+    }
+  }
+
+  const handleRenamePairing = async (id, newName) => {
+    try {
+      const res = await apiFetch(`/auth/pairings/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ name: newName })
+      })
+      if (res.ok) {
+        setSnackbar({ open: true, message: 'Pairing renamed successfully!', severity: 'success' })
+        fetchPairings()
+      } else {
+        const err = await res.json()
+        setSnackbar({ open: true, message: `Failed to rename: ${err.detail}`, severity: 'error' })
+      }
+    } catch (err) {
+      console.error('Error renaming pairing:', err)
+      setSnackbar({ open: true, message: 'Network error renaming pairing.', severity: 'error' })
+    }
+  }
+
+  const handleRevokePairing = async (id) => {
+    try {
+      const res = await apiFetch(`/auth/pairings/${id}`, {
+        method: 'DELETE'
+      })
+      if (res.ok) {
+        setSnackbar({ open: true, message: 'Pairing revoked successfully!', severity: 'success' })
+        fetchPairings()
+      } else {
+        setSnackbar({ open: true, message: 'Failed to revoke pairing.', severity: 'error' })
+      }
+    } catch (err) {
+      console.error('Error revoking pairing:', err)
+      setSnackbar({ open: true, message: 'Network error revoking pairing.', severity: 'error' })
     }
   }
 
@@ -501,142 +618,179 @@ export default function AccountSecurity({ setSnackbar }) {
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, maxWidth: 1400, mx: 'auto', width: '100%' }}>
       {/* Overhauled User Profile & Regional Preferences Card */}
       <Paper sx={{ p: 4, border: '1px solid rgba(255, 255, 255, 0.05)', background: 'rgba(255, 255, 255, 0.01)', borderRadius: '12px' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, mb: 3, color: 'primary.main' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, mb: 4, color: 'primary.main' }}>
           <User size={24} />
           <Typography variant="h6" fontWeight="bold" color="text.primary">Profile &amp; Display Preferences</Typography>
         </Box>
         <form onSubmit={handleUpdateProfile}>
-          <Grid container spacing={4}>
-            {/* Left side: Avatar & Info */}
-            <Grid item xs={12} md={6}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 2 }} color="textSecondary">User Profile Info</Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mb: 3 }}>
-                <Avatar 
-                  src={avatarUrl} 
-                  sx={{ width: 80, height: 80, bgcolor: 'primary.main', fontSize: '2rem' }}
-                >
-                  {displayName ? displayName.charAt(0).toUpperCase() : '?'}
-                </Avatar>
-                <Box sx={{ flexGrow: 1 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Avatar Image URL"
-                    value={avatarUrl}
-                    onChange={e => setAvatarUrl(e.target.value)}
-                    placeholder="https://example.com/avatar.png"
-                    sx={{ mb: 1 }}
-                  />
-                  <Typography variant="caption" color="textSecondary">Provide a URL to your custom profile picture</Typography>
-                </Box>
-              </Box>
+          {/* Centered Avatar Placeholder */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 4, width: '100%' }}>
+            <Avatar 
+              src={avatarUrl} 
+              onClick={handleAvatarClick}
+              sx={{ 
+                width: 100, 
+                height: 100, 
+                bgcolor: 'primary.main', 
+                fontSize: '2.5rem',
+                cursor: 'pointer',
+                transition: 'transform 0.2s, box-shadow 0.2s',
+                '&:hover': {
+                  transform: 'scale(1.05)',
+                  boxShadow: '0 0 15px rgba(99, 102, 241, 0.4)'
+                }
+              }}
+            >
+              {displayName ? displayName.charAt(0).toUpperCase() : '?'}
+            </Avatar>
+            <Typography variant="caption" color="textSecondary" sx={{ mt: 1.5, cursor: 'pointer', opacity: 0.8, '&:hover': { opacity: 1 } }} onClick={handleAvatarClick}>
+              Click avatar to change profile image
+            </Typography>
+            
+            {/* Hidden File Input */}
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              accept="image/*" 
+              onChange={handleFileUpload} 
+              style={{ display: 'none' }} 
+            />
+          </Box>
 
-              <Grid container spacing={2}>
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Display Name"
-                    value={displayName}
-                    onChange={e => setDisplayName(e.target.value)}
-                    placeholder="e.g. John Doe"
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    type="email"
-                    label="Email Address"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    placeholder="e.g. john@example.com"
-                  />
-                </Grid>
-              </Grid>
+          <Menu
+            anchorEl={avatarAnchorEl}
+            open={Boolean(avatarAnchorEl)}
+            onClose={handleAvatarClose}
+            PaperProps={{
+              elevation: 4,
+              sx: {
+                borderRadius: '12px',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                minWidth: 200,
+                mt: 1
+              }
+            }}
+          >
+            <MenuItem onClick={() => { fileInputRef.current.click(); handleAvatarClose(); }}>
+              Upload from Device
+            </MenuItem>
+            <MenuItem onClick={() => { setUrlDialogOpen(true); handleAvatarClose(); }}>
+              Use Image URL
+            </MenuItem>
+            
+            {/* Linked SSO Services Avatars */}
+            {ssoLinks.map(link => (
+              <MenuItem 
+                key={link.id} 
+                onClick={() => { 
+                  if (link.avatar_url) {
+                    setAvatarUrl(link.avatar_url); 
+                    setSnackbar({ open: true, message: `Using avatar from ${link.provider.charAt(0).toUpperCase() + link.provider.slice(1)}. Click Save Profile & Preferences to apply.`, severity: 'info' });
+                  } else {
+                    setSnackbar({ open: true, message: `No avatar was found on your linked ${link.provider.charAt(0).toUpperCase() + link.provider.slice(1)} profile.`, severity: 'warning' });
+                  }
+                  handleAvatarClose(); 
+                }}
+              >
+                Use avatar from {link.provider.charAt(0).toUpperCase() + link.provider.slice(1)}
+              </MenuItem>
+            ))}
+          </Menu>
+
+          <Grid container spacing={3}>
+            {/* Display Name */}
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Display Name"
+                value={displayName}
+                onChange={e => setDisplayName(e.target.value)}
+                placeholder="e.g. John Doe"
+                sx={uniformInputStyle}
+              />
+            </Grid>
+            
+            {/* Language / Locale */}
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth size="small" sx={uniformInputStyle}>
+                <InputLabel id="user-locale-label">Language / Locale</InputLabel>
+                <Select
+                  labelId="user-locale-label"
+                  value={locale}
+                  label="Language / Locale"
+                  onChange={e => setLocale(e.target.value)}
+                >
+                  <MenuItem value="en">English (en)</MenuItem>
+                  <MenuItem value="es">Español (es)</MenuItem>
+                  <MenuItem value="fr">Français (fr)</MenuItem>
+                  <MenuItem value="de">Deutsch (de)</MenuItem>
+                  <MenuItem value="it">Italiano (it)</MenuItem>
+                </Select>
+              </FormControl>
             </Grid>
 
-            {/* Right side: Display & Regional settings */}
-            <Grid item xs={12} md={6}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 2 }} color="textSecondary">Display &amp; Regional Preferences</Typography>
-              <Grid container spacing={2.5}>
-                <Grid item xs={12}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel id="user-locale-label">Language / Locale</InputLabel>
-                    <Select
-                      labelId="user-locale-label"
-                      value={locale}
-                      label="Language / Locale"
-                      onChange={e => setLocale(e.target.value)}
-                    >
-                      <MenuItem value="en">English (en)</MenuItem>
-                      <MenuItem value="es">Español (es)</MenuItem>
-                      <MenuItem value="fr">Français (fr)</MenuItem>
-                      <MenuItem value="de">Deutsch (de)</MenuItem>
-                      <MenuItem value="it">Italiano (it)</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
+            {/* Date Format */}
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth size="small" sx={uniformInputStyle}>
+                <InputLabel id="user-date-label">Date Format</InputLabel>
+                <Select
+                  labelId="user-date-label"
+                  value={dateFormat}
+                  label="Date Format"
+                  onChange={e => setDateFormat(e.target.value)}
+                >
+                  <MenuItem value="YYYY-MM-DD">YYYY-MM-DD (e.g. 2026-06-14)</MenuItem>
+                  <MenuItem value="MM/DD/YYYY">MM/DD/YYYY (e.g. 06/14/2026)</MenuItem>
+                  <MenuItem value="DD/MM/YYYY">DD/MM/YYYY (e.g. 14/06/2026)</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
 
-                <Grid item xs={12} sm={6}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel id="user-date-label">Date Format</InputLabel>
-                    <Select
-                      labelId="user-date-label"
-                      value={dateFormat}
-                      label="Date Format"
-                      onChange={e => setDateFormat(e.target.value)}
-                    >
-                      <MenuItem value="YYYY-MM-DD">YYYY-MM-DD (e.g. 2026-06-14)</MenuItem>
-                      <MenuItem value="MM/DD/YYYY">MM/DD/YYYY (e.g. 06/14/2026)</MenuItem>
-                      <MenuItem value="DD/MM/YYYY">DD/MM/YYYY (e.g. 14/06/2026)</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
+            {/* Time Format */}
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth size="small" sx={uniformInputStyle}>
+                <InputLabel id="user-time-label">Time Format</InputLabel>
+                <Select
+                  labelId="user-time-label"
+                  value={timeFormat}
+                  label="Time Format"
+                  onChange={e => setTimeFormat(e.target.value)}
+                >
+                  <MenuItem value="HH:mm:ss">24-hour (HH:mm:ss)</MenuItem>
+                  <MenuItem value="hh:mm:ss A">12-hour (hh:mm:ss AM/PM)</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
 
-                <Grid item xs={12} sm={6}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel id="user-time-label">Time Format</InputLabel>
-                    <Select
-                      labelId="user-time-label"
-                      value={timeFormat}
-                      label="Time Format"
-                      onChange={e => setTimeFormat(e.target.value)}
-                    >
-                      <MenuItem value="HH:mm:ss">24-hour (HH:mm:ss)</MenuItem>
-                      <MenuItem value="hh:mm:ss A">12-hour (hh:mm:ss AM/PM)</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-
-                <Grid item xs={12}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel id="user-timezone-label">Timezone</InputLabel>
-                    <Select
-                      labelId="user-timezone-label"
-                      value={timezone}
-                      label="Timezone"
-                      onChange={e => setTimezone(e.target.value)}
-                    >
-                      <MenuItem value="UTC">Coordinated Universal Time (UTC)</MenuItem>
-                      <MenuItem value="America/New_York">Eastern Time (America/New_York)</MenuItem>
-                      <MenuItem value="America/Los_Angeles">Pacific Time (America/Los_Angeles)</MenuItem>
-                      <MenuItem value="Europe/London">Greenwich Mean Time (Europe/London)</MenuItem>
-                      <MenuItem value="Europe/Paris">Central European Time (Europe/Paris)</MenuItem>
-                      <MenuItem value="Asia/Tokyo">Japan Standard Time (Asia/Tokyo)</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-              </Grid>
+            {/* Timezone */}
+            <Grid item xs={12}>
+              <FormControl fullWidth size="small" sx={uniformInputStyle}>
+                <InputLabel id="user-timezone-label">Timezone</InputLabel>
+                <Select
+                  labelId="user-timezone-label"
+                  value={timezone}
+                  label="Timezone"
+                  onChange={e => setTimezone(e.target.value)}
+                >
+                  <MenuItem value="UTC">Coordinated Universal Time (UTC)</MenuItem>
+                  <MenuItem value="America/New_York">Eastern Time (America/New_York)</MenuItem>
+                  <MenuItem value="America/Los_Angeles">Pacific Time (America/Los_Angeles)</MenuItem>
+                  <MenuItem value="Europe/London">Greenwich Mean Time (Europe/London)</MenuItem>
+                  <MenuItem value="Europe/Paris">Central European Time (Europe/Paris)</MenuItem>
+                  <MenuItem value="Asia/Tokyo">Japan Standard Time (Asia/Tokyo)</MenuItem>
+                </Select>
+              </FormControl>
             </Grid>
 
             {/* Save Button */}
-            <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+            <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
               <Button 
                 type="submit" 
                 variant="contained" 
                 color="primary"
                 disabled={profileLoading}
+                sx={{ borderRadius: '10px', px: 4, py: 1, textTransform: 'none' }}
               >
                 {profileLoading ? <CircularProgress size={24} /> : 'Save Profile & Preferences'}
               </Button>
@@ -829,7 +983,7 @@ export default function AccountSecurity({ setSnackbar }) {
                         )}
 
                         <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexGrow: 1, overflow: 'hidden' }}>
                             <Box sx={{ 
                               p: 1, 
                               borderRadius: '8px', 
@@ -845,7 +999,7 @@ export default function AccountSecurity({ setSnackbar }) {
                               {brand.icon === 'windows' && <WindowsHelloSvg />}
                               {brand.icon !== 'apple' && brand.icon !== 'google' && brand.icon !== 'yubico' && brand.icon !== 'windows' && <FingerprintIcon />}
                             </Box>
-                            <Box>
+                            <Box sx={{ overflow: 'hidden', flexGrow: 1 }}>
                               <InlineTextField 
                                 value={pk.name} 
                                 onSave={(val) => {
@@ -854,16 +1008,56 @@ export default function AccountSecurity({ setSnackbar }) {
                                 }}
                                 label="Rename Passkey"
                                 autoEdit={newlyAddedPasskeyId === pk.id}
+                                fullWidth
                               />
-                              <Typography variant="caption" sx={{ opacity: 0.5, display: 'block', mt: 0.5 }} color="textSecondary">
-                                {brand.name} • {brand.provider}
-                              </Typography>
                             </Box>
                           </Box>
                           
                           <IconButton color="error" size="small" onClick={() => setDeleteConfirmId(pk.id)}>
                             <DeleteIcon fontSize="small" />
                           </IconButton>
+                        </Box>
+
+                        {/* Passkey Provider Profile Info */}
+                        <Box sx={{
+                          p: 1.5,
+                          mb: 2,
+                          borderRadius: '10px',
+                          backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                          border: '1px solid rgba(255, 255, 255, 0.05)',
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: 1.5
+                        }}>
+                          <Box sx={{ 
+                            p: 1, 
+                            borderRadius: '8px', 
+                            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'primary.main',
+                            mt: 0.5
+                          }}>
+                            {brand.icon === 'apple' && <AppleSvg />}
+                            {brand.icon === 'google' && <GoogleSvg />}
+                            {brand.icon === 'yubico' && <YubicoSvg />}
+                            {brand.icon === 'windows' && <WindowsHelloSvg />}
+                            {brand.icon !== 'apple' && brand.icon !== 'google' && brand.icon !== 'yubico' && brand.icon !== 'windows' && <FingerprintIcon />}
+                          </Box>
+                          <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: 'text.primary' }}>
+                              {brand.provider}
+                            </Typography>
+                            <Typography variant="body2" sx={{ opacity: 0.8, fontWeight: '500', fontSize: '0.85rem' }} color="textSecondary">
+                              {brand.name}
+                            </Typography>
+                            {brand.description && (
+                              <Typography variant="caption" sx={{ opacity: 0.6, display: 'block', mt: 0.5, fontStyle: 'italic', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                                {brand.description}
+                              </Typography>
+                            )}
+                          </Box>
                         </Box>
                         
                         <Divider sx={{ my: 1.5, opacity: 0.1 }} />
@@ -879,6 +1073,19 @@ export default function AccountSecurity({ setSnackbar }) {
                             <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }} color="textSecondary">Location</Typography>
                             <Typography variant="body2" sx={{ fontWeight: '500', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
                               {pk.location || 'Local Host (Development)'}
+                            </Typography>
+                          </Grid>
+                          
+                          <Grid item xs={6}>
+                            <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }} color="textSecondary">Relying Party / Domain</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: '500', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={pk.rp_id || 'voyarr.local'}>
+                              {pk.rp_id || 'voyarr.local'}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={6}>
+                            <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }} color="textSecondary">Sign Count</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: '500' }}>
+                              {pk.sign_count || 0}
                             </Typography>
                           </Grid>
                           
@@ -1022,7 +1229,7 @@ export default function AccountSecurity({ setSnackbar }) {
                         color="primary" 
                         size="small"
                         startIcon={<LinkIcon />}
-                        onClick={() => handleOpenMockSso(provider)}
+                        onClick={() => handleLinkSso(provider)}
                         sx={{ borderRadius: '8px', textTransform: 'none' }}
                       >
                         Link Provider
@@ -1050,6 +1257,7 @@ export default function AccountSecurity({ setSnackbar }) {
           <Box sx={{ 
             textAlign: 'center', 
             p: 3, 
+            mb: 3,
             border: '1px dashed #6366f1', 
             borderRadius: 2, 
             backgroundColor: 'rgba(99, 102, 241, 0.04)',
@@ -1065,12 +1273,137 @@ export default function AccountSecurity({ setSnackbar }) {
             <Button size="small" variant="outlined" color="inherit" onClick={() => setPairingCode('')}>Cancel</Button>
           </Box>
         ) : (
-          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
             <Button variant="contained" color="secondary" onClick={handleInitiatePairing}>
               Initiate Pairing
             </Button>
           </Box>
         )}
+
+        <Divider sx={{ my: 3, opacity: 0.15 }} />
+
+        <Box sx={{ width: '100%' }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: '600', mb: 2, textAlign: 'center', color: 'text.secondary' }}>
+            Active Companion Pairings
+          </Typography>
+          {pairingsLoading && pairings.length === 0 ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+              <CircularProgress size={24} />
+            </Box>
+          ) : pairings.length === 0 ? (
+            <Typography variant="body2" color="textSecondary" sx={{ textAlign: 'center', py: 2, opacity: 0.5 }}>
+              No active browser extension pairings registered.
+            </Typography>
+          ) : (
+            <Grid container spacing={2}>
+              {pairings.map(pairing => (
+                <Grid item xs={12} md={6} key={pairing.id}>
+                  <Paper elevation={1} sx={{
+                    p: 2,
+                    borderRadius: 2,
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    position: 'relative',
+                    transition: 'transform 0.2s, border-color 0.2s',
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                      borderColor: 'rgba(255, 255, 255, 0.12)'
+                    }
+                  }}>
+                    {deleteConfirmPairingId === pairing.id && (
+                      <Box sx={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        bgcolor: 'rgba(18, 18, 18, 0.95)',
+                        borderRadius: 2,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 1.5,
+                        zIndex: 10,
+                        p: 2,
+                        boxSizing: 'border-box',
+                        backdropFilter: 'blur(4px)'
+                      }}>
+                        <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'error.main', textAlign: 'center' }}>
+                          Revoke this pairing?
+                        </Typography>
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <Button 
+                            variant="contained" 
+                            color="error" 
+                            size="small" 
+                            onClick={() => {
+                              handleRevokePairing(pairing.id)
+                              setDeleteConfirmPairingId(null)
+                            }}
+                            sx={{ borderRadius: '6px', textTransform: 'none' }}
+                          >
+                            Revoke
+                          </Button>
+                          <Button 
+                            variant="outlined" 
+                            size="small" 
+                            onClick={() => setDeleteConfirmPairingId(null)}
+                            sx={{ borderRadius: '6px', textTransform: 'none', color: 'text.secondary', borderColor: 'rgba(255,255,255,0.2)' }}
+                          >
+                            Cancel
+                          </Button>
+                        </Box>
+                      </Box>
+                    )}
+
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexGrow: 1, overflow: 'hidden' }}>
+                        <Box sx={{
+                          p: 1,
+                          borderRadius: '8px',
+                          backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                          color: '#6366f1',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <LinkIcon size={18} />
+                        </Box>
+                        <Box sx={{ overflow: 'hidden', flexGrow: 1 }}>
+                          <InlineTextField
+                            value={pairing.name}
+                            onSave={(val) => handleRenamePairing(pairing.id, val)}
+                            label="Rename Pairing"
+                            fullWidth
+                          />
+                        </Box>
+                      </Box>
+                      <IconButton color="error" size="small" onClick={() => setDeleteConfirmPairingId(pairing.id)}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+
+                    <Grid container spacing={1.5}>
+                      <Grid item xs={6}>
+                        <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }} color="textSecondary">Created</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: '500' }}>
+                          {new Date(pairing.created_at).toLocaleDateString()}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }} color="textSecondary">Last Active</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: '500' }}>
+                          {pairing.last_used ? new Date(pairing.last_used).toLocaleDateString() : 'Never'}
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                  </Paper>
+                </Grid>
+              ))}
+            </Grid>
+          )}
+        </Box>
       </Paper>
 
       {/* Mock SSO Simulated OAuth Dialog */}
@@ -1150,6 +1483,38 @@ export default function AccountSecurity({ setSnackbar }) {
             Authorize Exit
           </Button>
         </DialogActions>
+      </Dialog>
+
+      {/* Dialog to input image URL */}
+      <Dialog 
+        open={urlDialogOpen} 
+        onClose={() => setUrlDialogOpen(false)}
+        PaperProps={{
+          sx: {
+            borderRadius: '16px',
+            border: '1px solid rgba(255, 255, 255, 0.08)'
+          }
+        }}
+      >
+        <DialogTitle>Use Image URL</DialogTitle>
+        <form onSubmit={handleUrlSubmit}>
+          <DialogContent>
+            <TextField
+              autoFocus
+              fullWidth
+              size="small"
+              label="Avatar Image URL"
+              value={tempUrl}
+              onChange={e => setTempUrl(e.target.value)}
+              placeholder="https://example.com/avatar.png"
+              sx={{ minWidth: 300, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+            />
+          </DialogContent>
+          <DialogActions sx={{ p: 2.5 }}>
+            <Button onClick={() => setUrlDialogOpen(false)} sx={{ textTransform: 'none' }}>Cancel</Button>
+            <Button type="submit" variant="contained" color="primary" sx={{ textTransform: 'none', borderRadius: '8px' }}>Apply</Button>
+          </DialogActions>
+        </form>
       </Dialog>
     </Box>
   )

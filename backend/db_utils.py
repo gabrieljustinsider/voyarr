@@ -169,6 +169,45 @@ def run_schema_migrations(engine: Any) -> None:
                     pass
                 logger.warning(f"Failed to add rp_id column to passkeys: {e}")
 
+        # 1d. Check if api_keys table has user_id and is_pairing columns, if not, add them
+        try:
+            conn.execute(text("SELECT user_id, is_pairing FROM api_keys LIMIT 1"))
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            try:
+                conn.execute(text("ALTER TABLE api_keys ADD COLUMN user_id VARCHAR(64) NULL"))
+                conn.execute(text("ALTER TABLE api_keys ADD COLUMN is_pairing BOOLEAN DEFAULT FALSE"))
+                conn.commit()
+                logger.info("Database migration successfully added 'user_id' and 'is_pairing' to 'api_keys'.")
+            except Exception as e:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                logger.warning(f"Failed to add user_id/is_pairing columns to api_keys: {e}")
+
+        # 1e. Check if sso_links table has avatar_url column, if not, add it
+        try:
+            conn.execute(text("SELECT avatar_url FROM sso_links LIMIT 1"))
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            try:
+                conn.execute(text("ALTER TABLE sso_links ADD COLUMN avatar_url VARCHAR(500) NULL"))
+                conn.commit()
+                logger.info("Database migration successfully added 'avatar_url' to 'sso_links'.")
+            except Exception as e:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                logger.warning(f"Failed to add avatar_url column to sso_links: {e}")
+
         # 2. Check if admin_logs table exists, if not, create it
         try:
             conn.execute(text("SELECT id FROM admin_logs LIMIT 1"))

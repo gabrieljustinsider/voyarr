@@ -549,6 +549,10 @@ class ApiKey(Base):
     key_hash = Column(String(255), unique=True, index=True)
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
     last_used = Column(TIMESTAMP, nullable=True)
+    user_id = Column(
+        String(64), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    is_pairing = Column(Boolean, default=False, index=True)
 
 
 class TranscodingQueue(Base):
@@ -850,6 +854,7 @@ class SsoLink(Base):
     provider = Column(String(50), nullable=False)  # 'google', 'github', 'discord'
     provider_user_id = Column(String(255), nullable=False)
     email = Column(String(255), nullable=True)
+    avatar_url = Column(String(512), nullable=True)
     linked_at = Column(TIMESTAMP, default=func.current_timestamp())
 
     user = relationship("User")

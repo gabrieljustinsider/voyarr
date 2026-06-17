@@ -153,7 +153,18 @@ def _require_oidc(db: Session, provider: str = "oidc"):
     return oauth
 
 
-def _process_oidc_user(db: Session, provider: str, sub: str, email: str, username_suggest: str, auth_header: Optional[str], access_token_cookie: Optional[str], frontend_url: str):
+def _process_oidc_user(
+    db: Session,
+    provider: str,
+    sub: str,
+    email: str,
+    username_suggest: str,
+    auth_header: Optional[str],
+    access_token_cookie: Optional[str],
+    frontend_url: str,
+    display_name: Optional[str] = None,
+    avatar_url: Optional[str] = None
+):
     """Synchronous worker offloaded to thread to process database linking without blocking the async event loop."""
     token = None
     if auth_header and auth_header.startswith("Bearer "):
@@ -176,6 +187,11 @@ def _process_oidc_user(db: Session, provider: str, sub: str, email: str, usernam
         if existing_link:
             if existing_link.user_id != current_user.id:
                 return f"{frontend_url}/#error=This {provider} account is already linked to another Voyarr user.", None
+            
+            # Update email and avatar_url if updated/provided
+            existing_link.email = email
+            existing_link.avatar_url = avatar_url
+            db.commit()
             return f"{frontend_url}/#message={provider.capitalize()} is already linked to your account.", None
 
         user_existing = db.query(SsoLink).filter(SsoLink.user_id == current_user.id, SsoLink.provider == provider).first()
@@ -187,6 +203,7 @@ def _process_oidc_user(db: Session, provider: str, sub: str, email: str, usernam
             provider=provider,
             provider_user_id=sub,
             email=email,
+            avatar_url=avatar_url
         )
         db.add(new_link)
         db.commit()
@@ -226,6 +243,7 @@ def _process_oidc_user(db: Session, provider: str, sub: str, email: str, usernam
                     provider=provider,
                     provider_user_id=sub,
                     email=email,
+                    avatar_url=avatar_url
                 )
                 db.add(new_link)
                 db.commit()

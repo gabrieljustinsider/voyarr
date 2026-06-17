@@ -51,7 +51,9 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
     showLogo: true,
     showBaseUrl: true,
     showDailyLimit: true,
-    showActiveSessions: true
+    showActiveSessions: true,
+    transparentLogoBg: false,
+    fitLogoToCard: false
   })
   const [settingsAnchorEl, setSettingsAnchorEl] = useState(null)
 
@@ -204,7 +206,7 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
     const savedPrefs = localStorage.getItem('voyarr_provider_card_prefs')
     if (savedPrefs) {
       try {
-        setCardPrefs(JSON.parse(savedPrefs))
+        setCardPrefs(prev => ({ ...prev, ...JSON.parse(savedPrefs) }))
       } catch (e) {
         console.error('Failed to parse card preferences', e)
       }
@@ -686,6 +688,18 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
               </ListItemIcon>
               <ListItemText primary="Show Active Sessions" />
             </MenuItem>
+            <MenuItem onClick={() => handleToggleCardPref('transparentLogoBg')}>
+              <ListItemIcon>
+                <Checkbox checked={cardPrefs.transparentLogoBg} size="small" disableRipple />
+              </ListItemIcon>
+              <ListItemText primary="Transparent Logo Background" />
+            </MenuItem>
+            <MenuItem onClick={() => handleToggleCardPref('fitLogoToCard')}>
+              <ListItemIcon>
+                <Checkbox checked={cardPrefs.fitLogoToCard} size="small" disableRipple />
+              </ListItemIcon>
+              <ListItemText primary="Fit Logo to Card Layout" />
+            </MenuItem>
           </Menu>
           <Button 
             variant="contained" 
@@ -724,14 +738,61 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
                 </IconButton>
                 <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexGrow: 1, textAlign: 'center', pt: 4 }}>
                   {cardPrefs.showLogo && (
-                    <Avatar
-                      src={provider.logo_url || provider.favicon_url || ''}
-                      alt={provider.name}
-                      imgProps={{ style: { objectFit: 'contain', padding: '4px' } }}
-                      sx={{ width: 80, height: 80, bgcolor: 'primary.main', fontSize: '2rem', fontWeight: 'bold', mb: 2 }}
-                    >
-                      {provider.name ? provider.name.charAt(0).toUpperCase() : '?'}
-                    </Avatar>
+                    cardPrefs.fitLogoToCard ? (
+                      <Box
+                        sx={{
+                          width: '100%',
+                          height: 100,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          bgcolor: cardPrefs.transparentLogoBg ? 'transparent' : 'primary.main',
+                          borderRadius: 2,
+                          mb: 2,
+                          overflow: 'hidden',
+                          p: 1,
+                          ...(cardPrefs.transparentLogoBg && {
+                            border: '1px solid rgba(255, 255, 255, 0.12)'
+                          })
+                        }}
+                      >
+                        {(provider.logo_url || provider.favicon_url) ? (
+                          <img
+                            src={provider.logo_url || provider.favicon_url}
+                            alt={provider.name}
+                            style={{
+                              maxWidth: '100%',
+                              maxHeight: '100%',
+                              objectFit: 'contain'
+                            }}
+                          />
+                        ) : (
+                          <Typography variant="h4" sx={{ fontWeight: 'bold', color: cardPrefs.transparentLogoBg ? 'text.primary' : 'primary.contrastText' }}>
+                            {provider.name ? provider.name.charAt(0).toUpperCase() : '?'}
+                          </Typography>
+                        )}
+                      </Box>
+                    ) : (
+                      <Avatar
+                        src={provider.logo_url || provider.favicon_url || ''}
+                        alt={provider.name}
+                        imgProps={{ style: { objectFit: 'contain', padding: '4px' } }}
+                        sx={{ 
+                          width: 80, 
+                          height: 80, 
+                          bgcolor: cardPrefs.transparentLogoBg ? 'transparent' : 'primary.main', 
+                          color: cardPrefs.transparentLogoBg ? 'text.primary' : 'primary.contrastText',
+                          fontSize: '2rem', 
+                          fontWeight: 'bold', 
+                          mb: 2,
+                          ...(cardPrefs.transparentLogoBg && {
+                            border: '1px solid rgba(255, 255, 255, 0.12)'
+                          })
+                        }}
+                      >
+                        {provider.name ? provider.name.charAt(0).toUpperCase() : '?'}
+                      </Avatar>
+                    )
                   )}
                   <Typography variant="h5" component="div" sx={{ fontWeight: 'bold', mb: 1 }}>
                     {provider.name}
