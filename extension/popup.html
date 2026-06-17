@@ -635,38 +635,34 @@
   </div>
 
     <!-- Help Tab -->
-    <div class="tab-content" id="help-tab">
-      <div class="form-group" style="margin-bottom: 4px;">
-        <label style="font-weight: 600; font-size: 15px;">Help & Guide</label>
-      </div>
-      
-      <div class="expandable-card" style="margin-bottom: 8px;">
-         <div class="card-header" style="font-size: 13px; font-weight: 600; cursor: pointer; padding: 8px 0; border-bottom: 1px solid var(--border-color); color: var(--text-main); display: flex; justify-content: space-between;">
-           <span>Set up instructions</span> <span class="indicator">▼</span>
-         </div>
-         <div class="card-body" style="display: none; padding: 8px 0; font-size: 12px; color: var(--text-muted);">
-           1. Go to the Settings tab.<br/>
-           2. Add your Voyarr server URL and click "Add & Test Server".<br/>
-           3. Click "Pair Now" on the pairing banner to link automatically.
-         </div>
-      </div>
-      
-      <div class="expandable-card" style="margin-bottom: 8px;">
-         <div class="card-header" style="font-size: 13px; font-weight: 600; cursor: pointer; padding: 8px 0; border-bottom: 1px solid var(--border-color); color: var(--text-main); display: flex; justify-content: space-between;">
-           <span>Providers & Sorting</span> <span class="indicator">▼</span>
-         </div>
-         <div class="card-body" style="display: none; padding: 8px 0; font-size: 12px; color: var(--text-muted);">
-           In the Providers tab, you can add, edit, or delete scraper providers. You can also specify logo URLs, preview branding elements, and sort them alphabetically.
-         </div>
-      </div>
+    <div class="tab-content" id="help-tab" style="align-items: center;">
+      <div style="width: 90%; display: flex; flex-direction: column; gap: 12px;">
+        <div class="form-group" style="margin-bottom: 4px; width: 100%;">
+          <label style="font-weight: 600; font-size: 15px;">Help & Guide</label>
+        </div>
+        
+        <div style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 6px; width: 100%; box-sizing: border-box;">
+           <div style="font-size: 13px; font-weight: 600; color: var(--text-main); border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 6px;">Set up instructions</div>
+           <div style="padding: 4px 0; font-size: 12px; color: var(--text-muted); line-height: 1.4;">
+             1. Go to the Settings tab.<br/>
+             2. Add your Voyarr server URL and click "Add & Test Server".<br/>
+             3. Click "Pair Now" on the pairing banner to link automatically.
+           </div>
+        </div>
+        
+        <div style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 6px; width: 100%; box-sizing: border-box;">
+           <div style="font-size: 13px; font-weight: 600; color: var(--text-main); border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 6px;">Providers & Sorting</div>
+           <div style="padding: 4px 0; font-size: 12px; color: var(--text-muted); line-height: 1.4;">
+             In the Providers tab, you can add, edit, or delete scraper providers. You can also specify logo URLs, preview branding elements, and sort them alphabetically.
+           </div>
+        </div>
 
-      <div class="expandable-card" style="margin-bottom: 8px;">
-         <div class="card-header" style="font-size: 13px; font-weight: 600; cursor: pointer; padding: 8px 0; border-bottom: 1px solid var(--border-color); color: var(--text-main); display: flex; justify-content: space-between;">
-           <span>How to use Lens</span> <span class="indicator">▼</span>
-         </div>
-         <div class="card-body" style="display: none; padding: 8px 0; font-size: 12px; color: var(--text-muted);">
-           Navigate to a supported site. Use the "Remote Map" tab to map selectors or the "Lens" tab to scan the page for subscription details.
-         </div>
+        <div style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 6px; width: 100%; box-sizing: border-box;">
+           <div style="font-size: 13px; font-weight: 600; color: var(--text-main); border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 6px;">How to use Lens</div>
+           <div style="padding: 4px 0; font-size: 12px; color: var(--text-muted); line-height: 1.4;">
+             Navigate to a supported site. Use the "Remote Map" tab to map selectors or the "Lens" tab to scan the page for subscription details.
+           </div>
+        </div>
       </div>
     </div>
 
