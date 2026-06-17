@@ -215,6 +215,8 @@ class ProviderBase(BaseModel):
     favicon_url: Optional[str] = None
     description: Optional[str] = None
     automatic_limits: Optional[Dict[str, Any]] = None
+    transparent_logo_bg: bool = False
+    fit_logo_to_card: bool = False
 
 
 class ProviderCreate(ProviderBase):

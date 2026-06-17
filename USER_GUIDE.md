@@ -240,7 +240,7 @@ Voyarr features premium profile customization, regional localization settings, a
 ### 1. User Profiles & Display Settings
 Every user can manage their personal identity, appearance, and regional preferences in Voyarr:
 - Go to **Settings > User Profile** (or click your username/avatar in the sidebar).
-- **Profile Info**: Customize your **Display Name**, configure your **Email Address** for recovery and notifications, and upload/paste a custom **Avatar URL** to personalize your interface.
+- **Profile Info**: Customize your **Display Name**. The profile avatar placeholder is centered on the page; clicking on the avatar opens a menu allowing you to change your avatar image by uploading a local file from your current device, pasting a direct image URL, or dynamically pulling your avatar from a linked SSO provider profile. Note that the direct text input for email address has been removed to keep profile information lean.
 - **SSO Connections**: Link your personal Google, GitHub, or Discord accounts to sign in with one click. 
   - *Lockout Protection*: Voyarr includes "Lockout Protection." If you try to unlink a social login, Voyarr checks if it is your last remaining way to sign in. If it is, Voyarr will block the action to make sure you never lock yourself out of your system!
 - **Regional Settings**: Configure your personal preference for **Language / Localization** (e.g. English, Español, Français, Deutsch), **Date & Time Format** (e.g. 12-hour AM/PM vs. 24-hour clock, and date formats like `MM/DD/YYYY` or `DD/MM/YYYY`), and your preferred **Time Zone**. Individual choices override the system defaults for personalized navigation.
@@ -250,6 +250,7 @@ Passkeys let you sign into Voyarr using your device's fingerprint scanner (Touch
 - Go to **Settings > Account Security > Manage Passkeys**.
 - Click **Register New Passkey**.
 - Your browser or operating system will pop up a window asking for your fingerprint, face scan, or PIN. Provide it, and enter a name for the key (e.g., "iPhone TouchID").
+- Once saved, your registered passkey card will display detailed provider metadata, including the key manufacturer's branding logo, device model details, browser/OS fingerprint, registration date, and Relying Party ID.
 - Done! The next time you visit the login screen, clicking in the username box will bring up a list of your passkeys. Tap your fingerprint, and you are logged in instantly—no password required!
 
 ### 3. System-Wide Settings & System Status

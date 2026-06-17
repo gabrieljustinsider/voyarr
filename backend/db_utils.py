@@ -208,6 +208,44 @@ def run_schema_migrations(engine: Any) -> None:
                     pass
                 logger.warning(f"Failed to add avatar_url column to sso_links: {e}")
 
+        # 1f. Check if providers table has transparent_logo_bg, if not, add it
+        try:
+            conn.execute(text("SELECT transparent_logo_bg FROM providers LIMIT 1"))
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            try:
+                conn.execute(text("ALTER TABLE providers ADD COLUMN transparent_logo_bg BOOLEAN DEFAULT FALSE"))
+                conn.commit()
+                logger.info("Database migration successfully added 'transparent_logo_bg' to 'providers'.")
+            except Exception as e:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                logger.warning(f"Failed to add transparent_logo_bg column to providers: {e}")
+
+        # 1g. Check if providers table has fit_logo_to_card, if not, add it
+        try:
+            conn.execute(text("SELECT fit_logo_to_card FROM providers LIMIT 1"))
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            try:
+                conn.execute(text("ALTER TABLE providers ADD COLUMN fit_logo_to_card BOOLEAN DEFAULT FALSE"))
+                conn.commit()
+                logger.info("Database migration successfully added 'fit_logo_to_card' to 'providers'.")
+            except Exception as e:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                logger.warning(f"Failed to add fit_logo_to_card column to providers: {e}")
+
         # 2. Check if admin_logs table exists, if not, create it
         try:
             conn.execute(text("SELECT id FROM admin_logs LIMIT 1"))

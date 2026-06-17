@@ -41,7 +41,9 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
     naming_pattern: '{title}_{performers}_{resolution}',
     separator: '_',
     space_replacement: '_',
-    automatic_limits: { daily_downloads: 50 }
+    automatic_limits: { daily_downloads: 50 },
+    transparent_logo_bg: false,
+    fit_logo_to_card: false
   })
   const [providerLimitEnabled, setProviderLimitEnabled] = useState(false)
   const [isScraping, setIsScraping] = useState(false)
@@ -51,9 +53,7 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
     showLogo: true,
     showBaseUrl: true,
     showDailyLimit: true,
-    showActiveSessions: true,
-    transparentLogoBg: false,
-    fitLogoToCard: false
+    showActiveSessions: true
   })
   const [settingsAnchorEl, setSettingsAnchorEl] = useState(null)
 
@@ -251,7 +251,9 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
       naming_pattern: provider.naming_pattern || '{title}_{performers}_{resolution}',
       separator: provider.separator || '_',
       space_replacement: provider.space_replacement || '_',
-      automatic_limits: provider.automatic_limits || { daily_downloads: 50 }
+      automatic_limits: provider.automatic_limits || { daily_downloads: 50 },
+      transparent_logo_bg: provider.transparent_logo_bg || false,
+      fit_logo_to_card: provider.fit_logo_to_card || false
     })
     setProviderLimitEnabled(!!provider.automatic_limits?.daily_downloads)
     setEditProviderMode(true)
@@ -381,7 +383,9 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
       naming_pattern: '{title}_{performers}_{resolution}',
       separator: '_',
       space_replacement: '_',
-      automatic_limits: { daily_downloads: 50 }
+      automatic_limits: { daily_downloads: 50 },
+      transparent_logo_bg: false,
+      fit_logo_to_card: false
     })
     setProviderLimitEnabled(false)
     setOpenProviderForm(true)
@@ -564,6 +568,28 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
         placeholder="https://example.com/favicon.ico"
         onChange={(e) => setProviderForm({ ...providerForm, favicon_url: e.target.value })}
       />
+      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', my: 1 }}>
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={providerForm.transparent_logo_bg}
+              onChange={(e) => setProviderForm({ ...providerForm, transparent_logo_bg: e.target.checked })}
+              color="primary"
+            />
+          }
+          label="Use Transparent Background for Logo"
+        />
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={providerForm.fit_logo_to_card}
+              onChange={(e) => setProviderForm({ ...providerForm, fit_logo_to_card: e.target.checked })}
+              color="primary"
+            />
+          }
+          label="Fit Logo to Card Layout (Rectangular)"
+        />
+      </Box>
       <TextField
         fullWidth
         label="Description"
@@ -688,18 +714,6 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
               </ListItemIcon>
               <ListItemText primary="Show Active Sessions" />
             </MenuItem>
-            <MenuItem onClick={() => handleToggleCardPref('transparentLogoBg')}>
-              <ListItemIcon>
-                <Checkbox checked={cardPrefs.transparentLogoBg} size="small" disableRipple />
-              </ListItemIcon>
-              <ListItemText primary="Transparent Logo Background" />
-            </MenuItem>
-            <MenuItem onClick={() => handleToggleCardPref('fitLogoToCard')}>
-              <ListItemIcon>
-                <Checkbox checked={cardPrefs.fitLogoToCard} size="small" disableRipple />
-              </ListItemIcon>
-              <ListItemText primary="Fit Logo to Card Layout" />
-            </MenuItem>
           </Menu>
           <Button 
             variant="contained" 
@@ -738,7 +752,7 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
                 </IconButton>
                 <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexGrow: 1, textAlign: 'center', pt: 4 }}>
                   {cardPrefs.showLogo && (
-                    cardPrefs.fitLogoToCard ? (
+                    provider.fit_logo_to_card ? (
                       <Box
                         sx={{
                           width: '100%',
@@ -746,12 +760,12 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          bgcolor: cardPrefs.transparentLogoBg ? 'transparent' : 'primary.main',
+                          bgcolor: provider.transparent_logo_bg ? 'transparent' : 'primary.main',
                           borderRadius: 2,
                           mb: 2,
                           overflow: 'hidden',
                           p: 1,
-                          ...(cardPrefs.transparentLogoBg && {
+                          ...(provider.transparent_logo_bg && {
                             border: '1px solid rgba(255, 255, 255, 0.12)'
                           })
                         }}
@@ -767,7 +781,7 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
                             }}
                           />
                         ) : (
-                          <Typography variant="h4" sx={{ fontWeight: 'bold', color: cardPrefs.transparentLogoBg ? 'text.primary' : 'primary.contrastText' }}>
+                          <Typography variant="h4" sx={{ fontWeight: 'bold', color: provider.transparent_logo_bg ? 'text.primary' : 'primary.contrastText' }}>
                             {provider.name ? provider.name.charAt(0).toUpperCase() : '?'}
                           </Typography>
                         )}
@@ -780,12 +794,12 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
                         sx={{ 
                           width: 80, 
                           height: 80, 
-                          bgcolor: cardPrefs.transparentLogoBg ? 'transparent' : 'primary.main', 
-                          color: cardPrefs.transparentLogoBg ? 'text.primary' : 'primary.contrastText',
+                          bgcolor: provider.transparent_logo_bg ? 'transparent' : 'primary.main', 
+                          color: provider.transparent_logo_bg ? 'text.primary' : 'primary.contrastText',
                           fontSize: '2rem', 
                           fontWeight: 'bold', 
                           mb: 2,
-                          ...(cardPrefs.transparentLogoBg && {
+                          ...(provider.transparent_logo_bg && {
                             border: '1px solid rgba(255, 255, 255, 0.12)'
                           })
                         }}

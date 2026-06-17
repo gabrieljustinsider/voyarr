@@ -76,6 +76,8 @@ class Provider(Base):
     supported_methods = Column(
         JSON().with_variant(JSONB, "postgresql"), default=list
     )  # e.g., ["yt-dlp", "cookies", "direct", "api"]
+    transparent_logo_bg = Column(Boolean, default=False)
+    fit_logo_to_card = Column(Boolean, default=False)
 class Biller(Base):
     __tablename__ = "billers"
 

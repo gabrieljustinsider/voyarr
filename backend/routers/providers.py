@@ -59,7 +59,9 @@ def create_provider(prov: ProviderCreate, db: Session = Depends(get_db)):
         automatic_limits=prov.automatic_limits,
         logo_url=prov.logo_url,
         favicon_url=prov.favicon_url,
-        description=prov.description
+        description=prov.description,
+        transparent_logo_bg=prov.transparent_logo_bg,
+        fit_logo_to_card=prov.fit_logo_to_card
     )
     db.add(db_prov)
     db.commit()
@@ -82,6 +84,8 @@ def update_provider(provider_id: int, prov: ProviderCreate, db: Session = Depend
     db_prov.logo_url = prov.logo_url
     db_prov.favicon_url = prov.favicon_url
     db_prov.description = prov.description
+    db_prov.transparent_logo_bg = prov.transparent_logo_bg
+    db_prov.fit_logo_to_card = prov.fit_logo_to_card
     
     db.commit()
     db.refresh(db_prov)

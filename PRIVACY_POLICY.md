@@ -1,6 +1,6 @@
 # Privacy Policy for Voyarr
 
-**Last Updated:** June 14, 2026
+**Last Updated:** June 17, 2026
 
 This Privacy Policy describes how your personal information is handled in the Voyarr software. As Voyarr is a self-hosted application, it's important to understand that we, the developers of Voyarr, do not collect or have access to your data. Your data remains on your own server.
 
@@ -17,7 +17,7 @@ The Voyarr software, running on your server, stores and processes the following 
 
 *   **Provider Credentials:** Usernames, passwords, and API keys for third-party websites you configure. This information is always encrypted at rest in your database using AES-256-GCM. It can only be decrypted at runtime using your `MASTER_KEY`, which is stored only in your server's memory and is never saved to disk by Voyarr.
 *   **Password Manager Tokens:** Connection tokens for 1Password and Bitwarden are similarly encrypted at rest via AES-256-GCM and stored in the secure Vault.
-*   **User Accounts:** If you utilize the Multi-User RBAC system, user profile details (such as usernames, display names, email addresses, custom avatar URLs, hashed passwords, and regional/display preferences) are stored locally in your database. If you authenticate or link via Single Sign-On (SSO) providers (Google, GitHub, or Discord), these profile details (such as your display name and avatar image URL) may be automatically synchronized from the provider's OAuth metadata into your local profile settings.
+*   **User Accounts:** If you utilize the Multi-User RBAC system, user profile details (such as usernames, display names, custom avatar URLs, hashed passwords, and regional/display preferences) are stored locally in your database. If you authenticate or link via Single Sign-On (SSO) providers (Google, GitHub, or Discord), these profile details (such as your display name and avatar image URL) may be automatically synchronized from the provider's OAuth metadata into your local profile settings.
 *   **Passkeys (WebAuthn metadata):** Cryptographic public keys and associated connection metadata (AAGUID, browser, OS, registered IP address, and domain/Relying Party ID) are stored in your database to secure, display, and verify passwordless login bindings.
 *   **Configuration Data:** Settings, download rules, schedules, provider configurations, and other operational data are stored in your database.
 *   **Media Metadata:** Information about media files, such as titles, performers, tags, and file hashes (ohash/phash), is stored in your database. This data is either generated from your local files, or securely collected from third-party sites at your explicit direction (via configured administrative scraping tools).

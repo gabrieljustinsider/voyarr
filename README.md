@@ -70,8 +70,11 @@ Toggle any method ON or OFF from the admin dashboard. Disabled methods are hidde
 1. Navigate to **Settings → Account Security → Global Authentication Policies**.
 2. Toggle **Single Sign-On (SSO)** to ON.
 3. Follow the interactive setup notice that appears, which includes direct links to the developer portals for Google, GitHub, and Discord.
-4. In each provider's developer portal, create an OAuth application and note the **Client ID** and **Client Secret**.
-5. Add these credentials to your host `.env` file:
+4. In each provider's developer portal, create an OAuth application and register the exact callback URL. Make sure to choose the correct query parameters:
+   - **Google Callback**: `http://<your-voyarr-host>:8000/auth/oidc/callback?provider=google`
+   - **GitHub Callback**: `http://<your-voyarr-host>:8000/auth/oidc/callback?provider=github`
+   - **Discord Callback**: `http://<your-voyarr-host>:8000/auth/oidc/callback?provider=discord`
+5. Note the **Client ID** and **Client Secret**, and add them to your host `.env` file:
    ```env
    GOOGLE_CLIENT_ID=your_google_client_id
    GOOGLE_CLIENT_SECRET=your_google_client_secret
@@ -80,13 +83,14 @@ Toggle any method ON or OFF from the admin dashboard. Disabled methods are hidde
    DISCORD_CLIENT_ID=your_discord_client_id
    DISCORD_CLIENT_SECRET=your_discord_client_secret
    ```
-6. Restart the backend container.
+6. If you are accessing your self-hosted instance using a custom domain behind a reverse proxy (e.g. Cloudflare tunnels or Synology NAS Reverse Proxy, like `https://voyarr.gabrieljustinsider.com`), make sure to configure `TRUST_FORWARDED_FOR=true` in your `.env` so that redirect URIs are securely translated to HTTPS callbacks, and backend rate-limiting handles forwarded IPs correctly.
+7. Restart the backend container.
 
 ### Setting Up OpenID Connect (OIDC)
 
 1. Toggle **OpenID Connect (OIDC)** to ON in the admin dashboard.
 2. In your identity provider (Keycloak, Authentik, Azure AD, Okta, etc.), register Voyarr as a new client application:
-   - **Redirect/Callback URI**: `http://<your-voyarr-host>:8000/auth/oidc/callback`
+   - **Redirect/Callback URI**: `http://<your-voyarr-host>:8000/auth/oidc/callback?provider=oidc`
    - **Scopes**: `openid email profile`
 3. Copy the **Client ID**, **Client Secret**, and **Discovery URL** into your `.env` file:
    ```env
