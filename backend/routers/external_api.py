@@ -58,7 +58,7 @@ class ScrapeRequest(BaseModel):
 
 class ScanRequest(BaseModel):
     directory: str
-    provider_id: int
+    provider_id: Optional[int] = None
 
 
 @router.post("/theporndb/query")

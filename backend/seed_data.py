@@ -97,7 +97,17 @@ def seed_default_data(engine):
                     space_replacement="_",
                     logo_url="https://logo.clearbit.com/evilangel.com",
                     automatic_limits={"daily_downloads": 0},
-                    supported_methods=["cookies", "direct"]
+                    supported_methods=["cookies", "direct", "api"]
+                ),
+                Provider(
+                    name="General",
+                    base_url="https://voyarr.local",
+                    naming_pattern="{title}",
+                    separator="_",
+                    space_replacement="_",
+                    logo_url="https://logo.clearbit.com/voyarr.local",
+                    automatic_limits={"daily_downloads": 0},
+                    supported_methods=["cookies", "direct", "api"]
                 )
             ]
 

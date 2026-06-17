@@ -10,10 +10,12 @@ router = APIRouter(
 )
 
 
+from typing import Optional
+
 class ScanRequest(BaseModel):
     directory: str
-    provider_id: int
-    pattern: str
+    provider_id: Optional[int] = None
+    pattern: Optional[str] = None
 
 
 @router.post("/scan")

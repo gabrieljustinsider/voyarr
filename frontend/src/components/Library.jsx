@@ -282,7 +282,7 @@ export default function Library() {
     setScanResult(null)
     try {
       const params = new URLSearchParams()
-      params.append('provider_id', scanProviderId)
+      if (scanProviderId) params.append('provider_id', scanProviderId)
       if (scanDirectory) params.append('directory', scanDirectory)
 
       const res = await apiFetch(`/library/scan?${params.toString()}`, {
@@ -661,11 +661,12 @@ export default function Library() {
         <DialogTitle>Scan Local Media Directory</DialogTitle>
         <DialogContent dividers>
           <Typography variant="body2" sx={{ mb: 3 }}>
-            Select a provider to apply its specific naming rules and map the newly discovered files into the database.
+            Select a provider to apply specific naming rules, or select "Auto-Detect / General" to scan automatically and register files under their existing filenames.
           </Typography>
           <FormControl fullWidth size="small" sx={{ mb: 3 }}>
             <InputLabel>Provider Ruleset</InputLabel>
             <Select value={scanProviderId} label="Provider Ruleset" onChange={e => setScanProviderId(e.target.value)}>
+              <MenuItem value="">Auto-Detect / Keep Filename (General)</MenuItem>
               {providers.map(p => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
             </Select>
           </FormControl>
@@ -683,7 +684,7 @@ export default function Library() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setScanDialogOpen(false)} disabled={scanLoading}>Close</Button>
-          <Button onClick={handleScanDirectory} variant="contained" disabled={scanLoading || !scanProviderId}>
+          <Button onClick={handleScanDirectory} variant="contained" disabled={scanLoading}>
             {scanLoading ? <CircularProgress size={24} /> : 'Start Scan'}
           </Button>
         </DialogActions>

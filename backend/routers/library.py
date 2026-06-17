@@ -24,7 +24,7 @@ router = APIRouter(prefix="/library", tags=["library"])
     "/scan", dependencies=[Depends(rate_limit(max_requests=3, window_seconds=60)), Depends(verify_api_key)]
 )
 def scan_library(
-    provider_id: int,
+    provider_id: Optional[int] = None,
     directory: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user = Depends(require_permission("library", "edit"))
@@ -53,12 +53,14 @@ def scan_library(
     else:
         target_dirs = media_roots
 
-    prefs = (
-        db.query(DownloadPreference)
-        .filter(DownloadPreference.provider_id == provider_id)
-        .first()
-    )
-    pattern = prefs.naming_pattern if prefs else "{title}_{performers}_{resolution}"
+    pattern = None
+    if provider_id is not None:
+        prefs = (
+            db.query(DownloadPreference)
+            .filter(DownloadPreference.provider_id == provider_id)
+            .first()
+        )
+        pattern = prefs.naming_pattern if prefs else "{title}_{performers}_{resolution}"
 
     matcher = ReverseRegexMatcher(db)
     import typing

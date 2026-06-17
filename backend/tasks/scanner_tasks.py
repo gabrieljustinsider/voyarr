@@ -10,29 +10,49 @@ from db_utils import get_db_session, get_or_create_studio_by_name
 
 
 @shared_task
-def scan_library_task(directory: Optional[str], provider_id: int) -> dict[str, Any]:
+def scan_library_task(directory: Optional[str], provider_id: Optional[int] = None) -> dict[str, Any]:
     """
     Scans target directories, reverse-engineers metadata from filenames
     using the Provider's naming pattern, calculates hashes, and saves to DB.
     """
     with get_db_session() as db:
         try:
-            provider = db.query(Provider).filter(Provider.id == provider_id).first()
-            if not provider or not provider.naming_pattern:  # type: ignore
-                return {"error": "Provider or naming pattern not found"}
+            general_provider = db.query(Provider).filter(Provider.name == "General").first()
+            if not general_provider:
+                general_provider = Provider(
+                    name="General",
+                    base_url="https://voyarr.local",
+                    naming_pattern="{title}",
+                    separator="_",
+                    space_replacement="_",
+                    logo_url="https://logo.clearbit.com/voyarr.local",
+                    automatic_limits={"daily_downloads": 0},
+                    supported_methods=["cookies", "direct", "api"]
+                )
+                try:
+                    db.add(general_provider)
+                    db.commit()
+                    db.refresh(general_provider)
+                except Exception:
+                    db.rollback()
 
-            cached_studio_id = get_or_create_studio_by_name(db, str(provider.name))
+            providers_with_regex = []
+            if provider_id is None:
+                all_providers = db.query(Provider).all()
+                for p in all_providers:
+                    if p.name == "General":
+                        continue
+                    pat = str(p.naming_pattern or "{title}_{performers}")
+                    pat = pat.replace("{title}", "(?P<title>.*?)").replace("{performers}", "(?P<performers>.*?)").replace("{resolution}", "(?P<resolution>.*?)")
+                    providers_with_regex.append((p, re.compile(pat, re.IGNORECASE)))
+            else:
+                provider = db.query(Provider).filter(Provider.id == provider_id).first()
+                if not provider:
+                    provider = general_provider
+                pat = str(provider.naming_pattern or "{title}")
+                pat = pat.replace("{title}", "(?P<title>.*?)").replace("{performers}", "(?P<performers>.*?)").replace("{resolution}", "(?P<resolution>.*?)")
+                providers_with_regex.append((provider, re.compile(pat, re.IGNORECASE)))
 
-            # Transform the Voyarr naming pattern (e.g., {title}_{performers}) into a Regex pattern
-            pattern = str(provider.naming_pattern)
-            pattern = pattern.replace("{title}", "(?P<title>.*?)")
-            pattern = pattern.replace("{performers}", "(?P<performers>.*?)")
-            pattern = pattern.replace("{resolution}", "(?P<resolution>.*?)")
-
-            cached_provider_id = int(cast(int, provider.id)) if provider.id else provider_id  # type: ignore
-            cached_separator = str(provider.separator) if provider.separator else "_"  # type: ignore
-
-            regex = re.compile(pattern)
             processed = 0
 
             media_roots = get_media_roots()
@@ -64,27 +84,37 @@ def scan_library_task(directory: Optional[str], provider_id: int) -> dict[str, A
                             continue
 
                         try:
-                            # Reverse-engineer metadata using the regex match
-                            match = regex.search(file)
-                            title = file
+                            # Determine provider and match
+                            matched_provider = None
+                            matched_data = {}
+                            adheres = False
+
+                            for p, reg in providers_with_regex:
+                                match = reg.search(file)
+                                if match:
+                                    matched_provider = p
+                                    matched_data = match.groupdict()
+                                    adheres = True
+                                    break
+
+                            if not adheres:
+                                if provider_id is not None:
+                                    matched_provider = providers_with_regex[0][0]
+                                    matched_data = {}
+                                else:
+                                    matched_provider = general_provider
+                                    matched_data = {"title": os.path.splitext(file)[0]}
+                                    adheres = True
+
+                            cached_separator = str(matched_provider.separator) if matched_provider.separator else "_"
+                            title = matched_data.get("title", os.path.splitext(file)[0]).replace(cached_separator, " ")
                             performers = []
-                            resolution = None
+                            if "performers" in matched_data and matched_data["performers"]:
+                                performers = [p.strip() for p in matched_data["performers"].split(cached_separator)]
+                            resolution = matched_data.get("resolution")
 
-                            if match:
-                                data = match.groupdict()
-                                title = data.get("title", file).replace(
-                                    cached_separator, " "
-                                )
-                                if "performers" in data and data["performers"]:
-                                    performers = [
-                                        p.strip()
-                                        for p in data["performers"].split(
-                                            cached_separator
-                                        )
-                                    ]
-                                resolution = data.get("resolution")
-
-                                # Embed metadata into the physical file using Mutagen
+                            # Embed metadata into the physical file using Mutagen
+                            if adheres and matched_provider.name != "General":
                                 try:
                                     MediaTagger.tag_file(
                                         file_path,
@@ -99,8 +129,10 @@ def scan_library_task(directory: Optional[str], provider_id: int) -> dict[str, A
                             ohash = HashService.generate_ohash(file_path)
                             phash = HashService.generate_phash(file_path)
 
+                            cached_studio_id = get_or_create_studio_by_name(db, str(matched_provider.name))
+
                             entry = LibraryEntry(
-                                provider_id=cached_provider_id,
+                                provider_id=matched_provider.id,
                                 studio_id=cached_studio_id,
                                 title=title,
                                 performers=performers,
