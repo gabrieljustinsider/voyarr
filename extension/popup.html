@@ -176,7 +176,7 @@
       border: none;
       color: var(--text-main);
       padding: 11px;
-      font-size: 14px;
+      font-size: 15px;
       font-weight: 600;
       border-radius: 8px;
       cursor: pointer;
@@ -377,16 +377,16 @@
       <div style="display: flex; align-items: center; gap: 8px;">
         <img src="icon-128.png" style="width: 36px; height: 36px; object-fit: contain;" alt="Voyarr Logo" />
         <div style="display: flex; flex-direction: column; gap: 2px;">
-          <div style="display: flex; align-items: center; gap: 6px;">
-            <h3 class="header-title" style="margin: 0; line-height: 1.1;">VOYARR LENS</h3>
-            <button id="helpBtn" style="background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 14px; padding: 0;" title="Help & Info">❔</button>
-          </div>
+          <h3 class="header-title" style="margin: 0; line-height: 1.1;">VOYARR LENS</h3>
           <span id="extVersion" style="font-size: 11px; font-weight: 600; color: #a78bfa; background: rgba(99, 102, 241, 0.12); border: 1px solid rgba(139, 92, 246, 0.25); padding: 1px 6px; border-radius: 9999px; letter-spacing: 0.3px; width: fit-content; line-height: 1.2;"></span>
         </div>
       </div>
-      <div class="status-badge">
-        <span class="status-dot" id="statusDot"></span>
-        <span id="statusText">Checking...</span>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div class="status-badge">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="statusText">Checking...</span>
+        </div>
+        <button id="helpBtn" style="background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 16px; padding: 4px; line-height: 1;" title="Help & Info">❔</button>
       </div>
     </div>
 
@@ -413,8 +413,8 @@
       </div>
       
       <div style="display: flex; gap: 6px; margin-top: 2px;">
-        <button id="addDetectedBtn" class="btn" style="flex: 2; padding: 5px; font-size: 10px; border-radius: 4px; height: auto; box-shadow: none;">Add & Connect</button>
-        <button id="dismissDetectedBtn" class="btn btn-secondary" style="flex: 1; padding: 5px; font-size: 10px; border-radius: 4px; height: auto;">Dismiss</button>
+        <button id="addDetectedBtn" class="btn" style="flex: 2; padding: 6px 8px; font-size: 12px; font-weight: 600; border-radius: 4px; height: auto; box-shadow: none;">Add & Connect</button>
+        <button id="dismissDetectedBtn" class="btn btn-secondary" style="flex: 1; padding: 6px 8px; font-size: 12px; font-weight: 600; border-radius: 4px; height: auto;">Dismiss</button>
       </div>
     </div>
 
@@ -428,8 +428,8 @@
         A pairing request was initiated. Click below to automatically pair.
       </div>
       <div style="display: flex; gap: 6px; margin-top: 2px;">
-        <button id="confirmPairBtn" class="btn" style="flex: 2; padding: 5px; font-size: 10px; border-radius: 4px; height: auto; box-shadow: none; background: #10b981; color: white;">Pair Now</button>
-        <button id="dismissPairBtn" class="btn btn-secondary" style="flex: 1; padding: 5px; font-size: 10px; border-radius: 4px; height: auto;">Dismiss</button>
+        <button id="confirmPairBtn" class="btn" style="flex: 2; padding: 6px 8px; font-size: 12px; font-weight: 600; border-radius: 4px; height: auto; box-shadow: none; background: #10b981; color: white;">Pair Now</button>
+        <button id="dismissPairBtn" class="btn btn-secondary" style="flex: 1; padding: 6px 8px; font-size: 12px; font-weight: 600; border-radius: 4px; height: auto;">Dismiss</button>
       </div>
     </div>
 
@@ -476,7 +476,7 @@
         <div class="info-box-title">Selected Selector</div>
         <div style="display: flex; gap: 8px; margin-top: 4px;">
           <input type="text" id="selectorVal" style="flex: 1; padding: 8px; box-sizing: border-box; background: var(--bg-primary); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 6px; font-family: monospace; font-size: 11px;" placeholder="None yet" />
-          <button id="testSelectorBtn" class="btn btn-secondary" style="padding: 8px 12px; font-size: 11px;">Test</button>
+          <button id="testSelectorBtn" class="btn btn-secondary" style="padding: 8px 12px; font-size: 13px; font-weight: 600;">Test</button>
         </div>
         <div id="matchCountBadge" style="margin-top: 8px; font-size: 11px; font-weight: bold; padding: 4px 8px; border-radius: 4px; display: none;"></div>
       </div>
@@ -576,8 +576,8 @@
       </div>
 
       <div style="display: flex; gap: 8px; align-items: stretch;">
-        <button id="saveProviderBtn" class="btn" style="flex: 2; padding: 9px; font-size: 12px;">Create Provider</button>
-        <button id="cancelProviderEditBtn" class="btn btn-secondary" style="flex: 1; padding: 9px; font-size: 12px; display: none;">Cancel</button>
+        <button id="saveProviderBtn" class="btn" style="flex: 2; padding: 9px; font-size: 14px;">Create Provider</button>
+        <button id="cancelProviderEditBtn" class="btn btn-secondary" style="flex: 1; padding: 9px; font-size: 14px; display: none;">Cancel</button>
       </div>
 
       <div id="providersToast" class="toast-msg"></div>
@@ -603,8 +603,8 @@
       </div>
 
       <div style="display: flex; gap: 8px; align-items: stretch;">
-        <button id="addServerBtn" class="btn" style="flex: 2; padding: 9px; font-size: 12px;">Add & Test Server</button>
-        <button id="scanNetworkBtn" class="btn btn-secondary" style="flex: 1.2; padding: 9px; font-size: 11px;">Scan Local</button>
+        <button id="addServerBtn" class="btn" style="flex: 2; padding: 9px; font-size: 14px;">Add & Test Server</button>
+        <button id="scanNetworkBtn" class="btn btn-secondary" style="flex: 1.2; padding: 9px; font-size: 13px;">Scan Local</button>
       </div>
 
       <!-- Scan Network Results Container -->
@@ -628,7 +628,7 @@
       </div>
 
       <div style="border-top: 1px dashed var(--border-color); margin: 12px 0 4px 0;"></div>
-      <button id="clearStorageBtn" class="btn btn-secondary" style="width: 100%; padding: 9px; font-size: 11px; color: var(--error); border-color: rgba(239, 68, 68, 0.2);">Clear Storage & Reset</button>
+      <button id="clearStorageBtn" class="btn btn-secondary" style="width: 100%; padding: 9px; font-size: 13px; color: var(--error); border-color: rgba(239, 68, 68, 0.2);">Clear Storage & Reset</button>
 
       <div id="settingsToast" class="toast-msg"></div>
     </div>
@@ -646,17 +646,17 @@
          </div>
          <div class="card-body" style="display: none; padding: 8px 0; font-size: 12px; color: var(--text-muted);">
            1. Go to the Settings tab.<br/>
-           2. Add your Voyarr server URL and API key.<br/>
-           3. Click "Add & Test Server".
+           2. Add your Voyarr server URL and click "Add & Test Server".<br/>
+           3. Click "Pair Now" on the pairing banner to link automatically.
          </div>
       </div>
       
       <div class="expandable-card" style="margin-bottom: 8px;">
          <div class="card-header" style="font-size: 13px; font-weight: 600; cursor: pointer; padding: 8px 0; border-bottom: 1px solid var(--border-color); color: var(--text-main); display: flex; justify-content: space-between;">
-           <span>How to get an API key</span> <span class="indicator">▼</span>
+           <span>Providers & Sorting</span> <span class="indicator">▼</span>
          </div>
          <div class="card-body" style="display: none; padding: 8px 0; font-size: 12px; color: var(--text-muted);">
-           In the Voyarr application, go to Settings > API Keys, and generate a new Master API key, or copy your existing one.
+           In the Providers tab, you can add, edit, or delete scraper providers. You can also specify logo URLs, preview branding elements, and sort them alphabetically.
          </div>
       </div>
 
