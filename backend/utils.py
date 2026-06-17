@@ -10,8 +10,24 @@ from typing import Any, List
 
 
 def get_version() -> str:
-    """Dynamically pull the version from the root package.json file."""
-    # Look for package.json in the current directory (Docker) or parent directory (local dev)
+    """Dynamically pull the version from the VERSION file, falling back to package.json."""
+    # Prioritize reading the VERSION file directly
+    version_paths = [
+        os.path.join(os.path.dirname(__file__), "VERSION"),
+        os.path.join(os.path.dirname(__file__), "..", "VERSION"),
+        os.path.join(os.path.dirname(__file__), "..", "..", "VERSION"),
+    ]
+    for path in version_paths:
+        if os.path.exists(path):
+            try:
+                with open(path, "r") as f:
+                    content = f.read().strip()
+                    if content:
+                        return content
+            except Exception:
+                pass
+
+    # Fallback to package.json if VERSION file is missing
     paths_to_check = [
         os.path.join(os.path.dirname(__file__), "package.json"),
         os.path.join(os.path.dirname(__file__), "..", "package.json"),
@@ -26,21 +42,6 @@ def get_version() -> str:
                         return str(version)
             except Exception as e:
                 print(f"Warning: Could not read {path}: {e}")
-    
-    # Fallback to reading VERSION file if package.json is missing
-    version_paths = [
-        os.path.join(os.path.dirname(__file__), "VERSION"),
-        os.path.join(os.path.dirname(__file__), "..", "VERSION"),
-    ]
-    for path in version_paths:
-        if os.path.exists(path):
-            try:
-                with open(path, "r") as f:
-                    content = f.read().strip()
-                    if content:
-                        return content
-            except Exception:
-                pass
 
     return "unknown"
 

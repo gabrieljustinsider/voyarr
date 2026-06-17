@@ -1261,9 +1261,30 @@ export default function AccountSecurity({ setSnackbar }) {
           <LinkIcon color="primary" />
           <Typography variant="subtitle1" fontWeight="bold" color="text.primary">Voyarr Lens Companion Pairing</Typography>
         </Box>
-        <Typography variant="body2" color="textSecondary" sx={{ mb: 3, textAlign: 'center' }}>
+        <Typography variant="body2" color="textSecondary" sx={{ mb: 2, textAlign: 'center' }}>
           Instantly pair the <strong>Voyarr Lens</strong> companion browser extension. Click below to generate a temporary pairing code.
         </Typography>
+
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 3 }}>
+          <Typography variant="caption" color="textSecondary" sx={{ mb: 1 }}>
+            Don't have the extension installed yet?
+          </Typography>
+          <a 
+            href="https://chromewebstore.google.com/detail/onhleknmoagbflmddadhkkkclodpppgn?utm_source=item-share-cb" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            style={{ display: 'inline-block', transition: 'transform 0.2s' }}
+            onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.04)'}
+            onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+          >
+            <Box 
+              component="img"
+              src="https://developer.chrome.com/static/docs/webstore/branding/image/iNEddTyWiMfLSwFD6qGq.png" 
+              alt="Available in the Chrome Web Store" 
+              sx={{ height: 44, display: 'block' }}
+            />
+          </a>
+        </Box>
 
         {pairingCode ? (
           <Box sx={{ 

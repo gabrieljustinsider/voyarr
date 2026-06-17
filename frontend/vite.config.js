@@ -19,7 +19,14 @@ const getHttpsConfig = () => {
   return false; // Fallback to standard HTTP if no certificates are found
 };
 
-const packageJson = JSON.parse(fs.readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8'));
+const getAppVersion = () => {
+  const versionPath = path.resolve(__dirname, '../VERSION');
+  if (fs.existsSync(versionPath)) {
+    return fs.readFileSync(versionPath, 'utf-8').trim();
+  }
+  const packageJson = JSON.parse(fs.readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8'));
+  return packageJson.version;
+};
 
 export default defineConfig(({ mode }) => {
   // Automatically load env variables (e.g., .env, .env.development, .env.production)
@@ -27,7 +34,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     define: {
-      '__APP_VERSION__': JSON.stringify(packageJson.version),
+      '__APP_VERSION__': JSON.stringify(getAppVersion()),
     },
     plugins: [
       react(),
