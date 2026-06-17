@@ -253,6 +253,76 @@
       transform: translateY(0);
     }
 
+    .custom-select-container {
+      position: relative;
+      width: 100%;
+    }
+    .custom-select-trigger {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 14px;
+      cursor: pointer;
+      color: var(--text-main);
+    }
+    .custom-select-trigger img {
+      width: 16px;
+      height: 16px;
+      object-fit: contain;
+      border-radius: 2px;
+    }
+    .custom-select-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      margin-top: 4px;
+      z-index: 1000;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      max-height: 200px;
+      display: flex;
+      flex-direction: column;
+    }
+    .custom-select-search {
+      border: none;
+      border-bottom: 1px solid var(--border-color);
+      background: transparent;
+      padding: 8px 10px;
+      color: var(--text-main);
+      font-size: 13px;
+      outline: none;
+      border-radius: 8px 8px 0 0;
+    }
+    .custom-select-options {
+      overflow-y: auto;
+      max-height: 150px;
+    }
+    .custom-select-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background-color 0.2s ease;
+    }
+    .custom-select-option:hover {
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+    .custom-select-option img {
+      width: 16px;
+      height: 16px;
+      object-fit: contain;
+      border-radius: 2px;
+    }
+
     .toast-msg {
       font-size: 12px;
       text-align: center;
@@ -370,10 +440,20 @@
     <!-- Map Tab -->
     <div class="tab-content active" id="map-tab">
       <div class="form-group">
-        <label for="providerSelect">Target Scraper Provider</label>
-        <select id="providerSelect">
-          <option value="">-- Load Providers in Settings --</option>
-        </select>
+        <label>Target Scraper Provider</label>
+        <input type="hidden" id="providerSelect" value="" />
+        <div class="custom-select-container" id="customProviderSelectContainer">
+          <div class="custom-select-trigger" id="customProviderTrigger">
+            <span id="customProviderSelectedText" style="display: flex; align-items: center; gap: 8px;">-- Select Provider --</span>
+            <span class="custom-select-arrow">▼</span>
+          </div>
+          <div class="custom-select-dropdown" id="customProviderDropdown" style="display: none;">
+            <input type="text" class="custom-select-search" id="customProviderSearch" placeholder="Search provider..." />
+            <div class="custom-select-options" id="customProviderOptions">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="form-group">
@@ -459,6 +539,17 @@
           </div>
         </div>
         
+        <div style="display: flex; gap: 8px; align-items: center; margin-top: 4px;">
+          <div id="providerLogoPreviewContainer" style="width: 44px; height: 44px; border: 1px solid var(--border-color); border-radius: 6px; display: flex; align-items: center; justify-content: center; background-color: rgba(255,255,255,0.02); overflow: hidden; flex-shrink: 0;">
+            <span id="providerLogoFallback" style="font-size: 18px; color: var(--text-muted);">🖼️</span>
+            <img id="providerLogoPreview" style="display: none; width: 100%; height: 100%; object-fit: contain;" alt="Logo Preview" />
+          </div>
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 2px;">
+            <label for="newProviderLogoUrl" style="margin: 0; font-size: 11px;">Logo Image URL</label>
+            <input type="text" id="newProviderLogoUrl" placeholder="https://site.com/logo.png" style="padding: 6px 8px; font-size: 12px; width: 100%; box-sizing: border-box;" />
+          </div>
+        </div>
+
         <div style="display: flex; gap: 6px; align-items: center;">
           <input type="text" id="newProviderSeparator" placeholder="Separator" value="_" style="padding: 8px 10px; font-size: 12px; flex: 1;" />
           <input type="text" id="newProviderSpaceRepl" placeholder="Space Replacement" value="_" style="padding: 8px 10px; font-size: 12px; flex: 1;" />
@@ -499,14 +590,6 @@
         <label style="font-weight: 600;">Add Target Server</label>
         <input type="text" id="newServerNameInput" placeholder="Name (e.g. Local Server, VPS)" style="padding: 8px 10px; font-size: 12px;" />
         <input type="text" id="newServerUrlInput" placeholder="Host, IP or URL (e.g. localhost, 192.168.1.10)" style="padding: 8px 10px; font-size: 12px;" />
-        
-        <div style="display: flex; align-items: center; gap: 8px; font-size: 12px;">
-          <input type="checkbox" id="usePortToggle" />
-          <label for="usePortToggle" style="margin: 0;">Use Port</label>
-          <input type="number" id="newServerPortInput" placeholder="Port" value="8000" style="padding: 6px 8px; font-size: 12px; width: 80px;" disabled />
-        </div>
-
-        <input type="password" id="newServerApiKeyInput" placeholder="Master API Key" style="padding: 8px 10px; font-size: 12px;" />
       </div>
 
       <div style="display: flex; gap: 8px; align-items: stretch;">

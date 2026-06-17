@@ -19,14 +19,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const serverListContainer = document.getElementById('serverListContainer');
   const newServerNameInput = document.getElementById('newServerNameInput');
   const newServerUrlInput = document.getElementById('newServerUrlInput');
-  const newServerApiKeyInput = document.getElementById('newServerApiKeyInput');
-  const usePortToggle = document.getElementById('usePortToggle');
-  const newServerPortInput = document.getElementById('newServerPortInput');
   const addServerBtn = document.getElementById('addServerBtn');
   const scanNetworkBtn = document.getElementById('scanNetworkBtn');
   const localScanResultsContainer = document.getElementById('localScanResultsContainer');
   const settingsToast = document.getElementById('settingsToast');
   const sslTroubleCard = document.getElementById('sslTroubleCard');
+
+  // Custom Select Elements
+  const customProviderSelectContainer = document.getElementById('customProviderSelectContainer');
+  const customProviderTrigger = document.getElementById('customProviderTrigger');
+  const customProviderSelectedText = document.getElementById('customProviderSelectedText');
+  const customProviderDropdown = document.getElementById('customProviderDropdown');
+  const customProviderSearch = document.getElementById('customProviderSearch');
+  const customProviderOptions = document.getElementById('customProviderOptions');
   
   const detectedServerBanner = document.getElementById('detectedServerBanner');
   const detectedUrlText = document.getElementById('detectedUrlText');
@@ -75,6 +80,26 @@ document.addEventListener('DOMContentLoaded', () => {
   const detectProviderBtn = document.getElementById('detectProviderBtn');
   const patternHelperBtn = document.getElementById('patternHelperBtn');
   const patternVariablesContainer = document.getElementById('patternVariablesContainer');
+  const newProviderLogoUrl = document.getElementById('newProviderLogoUrl');
+  const providerLogoPreview = document.getElementById('providerLogoPreview');
+  const providerLogoFallback = document.getElementById('providerLogoFallback');
+
+  function updateLogoPreview(url) {
+    if (url && url.trim()) {
+      providerLogoPreview.src = url.trim();
+      providerLogoPreview.style.display = "block";
+      providerLogoFallback.style.display = "none";
+    } else {
+      providerLogoPreview.style.display = "none";
+      providerLogoFallback.style.display = "block";
+    }
+  }
+
+  if (newProviderLogoUrl) {
+    newProviderLogoUrl.addEventListener('input', () => {
+      updateLogoPreview(newProviderLogoUrl.value);
+    });
+  }
   
   let currentProviders = [];
   let editingProviderId = null;
@@ -90,12 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let servers = [];
   let activeServerId = "";
 
-  // Setup port toggle logic
-  if (usePortToggle && newServerPortInput) {
-    usePortToggle.addEventListener('change', () => {
-      newServerPortInput.disabled = !usePortToggle.checked;
-    });
-  }
+
 
   const clearStorageBtn = document.getElementById('clearStorageBtn');
   if (clearStorageBtn) {
@@ -293,10 +313,10 @@ document.addEventListener('DOMContentLoaded', () => {
       card.style.alignItems = "center";
       card.style.justifyContent = "space-between";
       card.style.backgroundColor = "rgba(255, 255, 255, 0.02)";
-      card.style.padding = "6px 8px";
-      card.style.borderRadius = "6px";
-      card.style.border = "1px solid rgba(255, 255, 255, 0.05)";
-      card.style.fontSize = "11px";
+      card.style.padding = "10px 12px";
+      card.style.borderRadius = "8px";
+      card.style.border = "1px solid rgba(255, 255, 255, 0.08)";
+      card.style.fontSize = "15px";
       card.style.gap = "8px";
 
       const infoDiv = document.createElement('div');
@@ -322,7 +342,7 @@ document.addEventListener('DOMContentLoaded', () => {
       editBtn.style.border = "none";
       editBtn.style.padding = "0";
       editBtn.style.cursor = "pointer";
-      editBtn.style.fontSize = "9px";
+      editBtn.style.fontSize = "11px";
       editBtn.style.opacity = "0.7";
       editBtn.style.transition = "opacity 0.2s";
       editBtn.style.display = "inline-flex";
@@ -386,7 +406,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const urlDiv = document.createElement('div');
       urlDiv.style.color = "var(--text-muted)";
-      urlDiv.style.fontSize = "9px";
+      urlDiv.style.fontSize = "12px";
       urlDiv.style.overflow = "hidden";
       urlDiv.style.textOverflow = "ellipsis";
       urlDiv.style.whiteSpace = "nowrap";
@@ -420,8 +440,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const deleteBtn = document.createElement('button');
       deleteBtn.className = "btn btn-secondary";
-      deleteBtn.style.padding = "3px 6px";
-      deleteBtn.style.fontSize = "9px";
+      deleteBtn.style.padding = "4px 8px";
+      deleteBtn.style.fontSize = "12px";
       deleteBtn.style.borderRadius = "4px";
       deleteBtn.style.boxShadow = "none";
       deleteBtn.style.borderColor = "rgba(239, 68, 68, 0.2)";
@@ -516,9 +536,8 @@ document.addEventListener('DOMContentLoaded', () => {
   addServerBtn.addEventListener('click', async () => {
     const name = newServerNameInput.value.trim();
     let url = newServerUrlInput.value.trim().replace(/\/$/, '');
-    const key = newServerApiKeyInput.value.trim();
 
-    if (!name || !url || !key) {
+    if (!name || !url) {
       showToast(settingsToast, "Please fill in all fields", false);
       return;
     }
@@ -527,20 +546,12 @@ document.addEventListener('DOMContentLoaded', () => {
       url = 'http://' + url;
     }
 
-    if (usePortToggle && usePortToggle.checked && newServerPortInput && newServerPortInput.value) {
-      try {
-        const u = new URL(url);
-        u.port = newServerPortInput.value;
-        url = u.origin + u.pathname;
-      } catch (e) {
-        url = url + ':' + newServerPortInput.value;
-      }
-    }
-
     url = url.replace(/\/$/, ''); // Ensure no trailing slash exists
 
     addServerBtn.disabled = true;
     addServerBtn.innerHTML = '<span class="spinner"></span> Testing...';
+
+    const key = "";
 
     try {
       const { latencyMs, providers, adjustedUrl } = await testConnection(url, key);
@@ -567,7 +578,6 @@ document.addEventListener('DOMContentLoaded', () => {
       
       newServerNameInput.value = "";
       newServerUrlInput.value = "";
-      newServerApiKeyInput.value = "";
 
       populateActiveServerSelect();
       renderServerList();
@@ -713,7 +723,7 @@ document.addEventListener('DOMContentLoaded', () => {
           addBtn.addEventListener('click', () => {
             newServerNameInput.value = "Discovered Server";
             newServerUrlInput.value = srvUrl;
-            newServerApiKeyInput.focus();
+            newServerUrlInput.focus();
             localScanResultsContainer.style.display = "none";
             localScanResultsContainer.innerHTML = "";
           });
@@ -994,7 +1004,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       newServerNameInput.value = "Detected Server";
       newServerUrlInput.value = origin;
-      newServerApiKeyInput.focus();
+      newServerUrlInput.focus();
 
       detectedServerBanner.style.display = "none";
     };
@@ -1135,27 +1145,162 @@ document.addEventListener('DOMContentLoaded', () => {
     return { providers, latencyMs, adjustedUrl: cleanUrl };
   }
 
+  // Custom Provider Dropdown Toggling
+  if (customProviderTrigger && customProviderDropdown) {
+    customProviderTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isHidden = customProviderDropdown.style.display === "none";
+      customProviderDropdown.style.display = isHidden ? "flex" : "none";
+      if (isHidden && customProviderSearch) {
+        customProviderSearch.value = "";
+        filterProviderOptions("");
+        customProviderSearch.focus();
+      }
+    });
+  }
+
+  // Click outside to close dropdown
+  document.addEventListener('click', (e) => {
+    if (customProviderSelectContainer && !customProviderSelectContainer.contains(e.target)) {
+      if (customProviderDropdown) {
+        customProviderDropdown.style.display = "none";
+      }
+    }
+  });
+
+  // Filter options on search typing
+  if (customProviderSearch) {
+    customProviderSearch.addEventListener('input', (e) => {
+      filterProviderOptions(e.target.value.trim().toLowerCase());
+    });
+  }
+
+  function filterProviderOptions(query) {
+    const options = customProviderOptions.querySelectorAll('.custom-select-option');
+    options.forEach(opt => {
+      const name = opt.getAttribute('data-name').toLowerCase();
+      if (name.includes(query)) {
+        opt.style.display = "flex";
+      } else {
+        opt.style.display = "none";
+      }
+    });
+  }
+
+  function selectCustomProvider(id, name, imgUrl) {
+    providerSelect.value = id;
+    
+    customProviderSelectedText.innerHTML = "";
+    if (imgUrl) {
+      const img = document.createElement('img');
+      img.src = imgUrl;
+      img.style.width = "16px";
+      img.style.height = "16px";
+      img.style.objectFit = "contain";
+      img.style.borderRadius = "2px";
+      img.style.marginRight = "8px";
+      img.onerror = () => {
+        img.style.display = "none";
+        customProviderSelectedText.innerHTML = "🌐 " + name;
+      };
+      customProviderSelectedText.appendChild(img);
+    } else {
+      const fallback = document.createElement('span');
+      fallback.textContent = "🌐";
+      fallback.style.marginRight = "8px";
+      customProviderSelectedText.appendChild(fallback);
+    }
+    const txt = document.createElement('span');
+    txt.textContent = name;
+    customProviderSelectedText.appendChild(txt);
+
+    // Save choice
+    chrome.storage.local.set({ savedProvider: id }).catch(() => {});
+    
+    // Hide dropdown
+    customProviderDropdown.style.display = "none";
+  }
+
   // Populate Providers Dropdown
   async function populateProviders(providers) {
     if (!providers || providers.length === 0) return;
     
     providerSelect.innerHTML = "";
+    customProviderOptions.innerHTML = "";
+
+    const config = await chrome.storage.local.get(['voyarrApiUrl']);
+    const serverBaseUrl = config.voyarrApiUrl ? config.voyarrApiUrl.replace(/\/$/, '') : "";
+
     providers.forEach(p => {
       const opt = document.createElement('option');
       opt.value = p.id;
       opt.textContent = p.name;
       providerSelect.appendChild(opt);
+
+      // Create custom option
+      const customOpt = document.createElement('div');
+      customOpt.className = "custom-select-option";
+      customOpt.setAttribute('data-id', p.id);
+      customOpt.setAttribute('data-name', p.name);
+
+      let imgUrl = "";
+      if (p.logo_url) {
+        imgUrl = p.logo_url.startsWith('http') ? p.logo_url : `${serverBaseUrl}${p.logo_url}`;
+      } else if (p.favicon_url) {
+        imgUrl = p.favicon_url.startsWith('http') ? p.favicon_url : `${serverBaseUrl}${p.favicon_url}`;
+      }
+
+      if (imgUrl) {
+        const logoImg = document.createElement('img');
+        logoImg.src = imgUrl;
+        logoImg.onerror = () => {
+          logoImg.style.display = "none";
+          const fallback = document.createElement('span');
+          fallback.textContent = "🌐";
+          customOpt.insertBefore(fallback, customOpt.firstChild);
+        };
+        customOpt.appendChild(logoImg);
+      } else {
+        const fallback = document.createElement('span');
+        fallback.textContent = "🌐";
+        customOpt.appendChild(fallback);
+      }
+
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = p.name;
+      customOpt.appendChild(nameSpan);
+
+      customOpt.addEventListener('click', () => {
+        selectCustomProvider(p.id, p.name, imgUrl);
+      });
+
+      customProviderOptions.appendChild(customOpt);
     });
 
     // Restore saved provider if any
+    let restoredProviderId = providers[0].id;
+    let restoredProviderName = providers[0].name;
+    let restoredLogoUrl = "";
+
     try {
       const res = await chrome.storage.local.get(['savedProvider']);
       if (res.savedProvider) {
-        providerSelect.value = res.savedProvider;
+        const found = providers.find(p => p.id == res.savedProvider);
+        if (found) {
+          restoredProviderId = found.id;
+          restoredProviderName = found.name;
+          if (found.logo_url) {
+            restoredLogoUrl = found.logo_url.startsWith('http') ? found.logo_url : `${serverBaseUrl}${found.logo_url}`;
+          } else if (found.favicon_url) {
+            restoredLogoUrl = found.favicon_url.startsWith('http') ? found.favicon_url : `${serverBaseUrl}${found.favicon_url}`;
+          }
+        }
       }
     } catch (err) {
       console.error("Failed to load saved provider:", err);
     }
+
+    selectCustomProvider(restoredProviderId, restoredProviderName, restoredLogoUrl);
   }
 
   // Update Status Badge
@@ -1645,6 +1790,11 @@ document.addEventListener('DOMContentLoaded', () => {
     scrapedFaviconUrl = provider.favicon_url || null;
     scrapedDescription = provider.description || null;
 
+    if (newProviderLogoUrl) {
+      newProviderLogoUrl.value = provider.logo_url || "";
+      updateLogoPreview(provider.logo_url || "");
+    }
+
     saveProviderBtn.textContent = "Save Changes";
     cancelProviderEditBtn.style.display = "block";
     newProviderName.focus();
@@ -1666,6 +1816,11 @@ document.addEventListener('DOMContentLoaded', () => {
     scrapedLogoUrl = null;
     scrapedFaviconUrl = null;
     scrapedDescription = null;
+
+    if (newProviderLogoUrl) {
+      newProviderLogoUrl.value = "";
+      updateLogoPreview("");
+    }
 
     saveProviderBtn.textContent = "Create Provider";
     cancelProviderEditBtn.style.display = "none";
@@ -1723,6 +1878,11 @@ document.addEventListener('DOMContentLoaded', () => {
           scrapedLogoUrl = details.logo_url || null;
           scrapedFaviconUrl = details.favicon_url || null;
           scrapedDescription = details.description || null;
+          if (newProviderLogoUrl) {
+            const displayLogo = details.logo_url || details.favicon_url || "";
+            newProviderLogoUrl.value = displayLogo;
+            updateLogoPreview(displayLogo);
+          }
           showToast(providersToast, "Branding info detected and filled!", true);
         } else {
           // Fallback guess from domain name
@@ -1770,6 +1930,7 @@ document.addEventListener('DOMContentLoaded', () => {
       saveProviderBtn.textContent = editingProviderId ? "Saving..." : "Creating...";
 
       try {
+        const logoUrlVal = newProviderLogoUrl ? newProviderLogoUrl.value.trim() : scrapedLogoUrl;
         const payload = {
           name,
           base_url: baseUrlStr,
@@ -1779,7 +1940,7 @@ document.addEventListener('DOMContentLoaded', () => {
           transparent_logo_bg: transparentBg,
           fit_logo_to_card: fitToCard,
           automatic_limits: {},
-          logo_url: scrapedLogoUrl,
+          logo_url: logoUrlVal,
           favicon_url: scrapedFaviconUrl,
           description: scrapedDescription
         };
