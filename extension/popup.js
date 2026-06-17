@@ -83,6 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const newProviderLogoUrl = document.getElementById('newProviderLogoUrl');
   const providerLogoPreview = document.getElementById('providerLogoPreview');
   const providerLogoFallback = document.getElementById('providerLogoFallback');
+  const providerSortSelect = document.getElementById('providerSortSelect');
 
   function updateLogoPreview(url) {
     if (url && url.trim()) {
@@ -116,6 +117,12 @@ document.addEventListener('DOMContentLoaded', () => {
   let activeServerId = "";
 
 
+
+  if (providerSortSelect) {
+    providerSortSelect.addEventListener('change', () => {
+      renderProvidersList(currentProviders);
+    });
+  }
 
   const clearStorageBtn = document.getElementById('clearStorageBtn');
   if (clearStorageBtn) {
@@ -1666,7 +1673,18 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    providersList.forEach(p => {
+    // Sort providersList alphabetically based on current selection
+    const sortVal = providerSortSelect ? providerSortSelect.value : "name-asc";
+    const sorted = [...providersList].sort((a, b) => {
+      const nameA = (a.name || "").toLowerCase();
+      const nameB = (b.name || "").toLowerCase();
+      if (sortVal === "name-desc") {
+        return nameB.localeCompare(nameA);
+      }
+      return nameA.localeCompare(nameB);
+    });
+
+    sorted.forEach(p => {
       const card = document.createElement('div');
       card.style.display = "flex";
       card.style.alignItems = "center";

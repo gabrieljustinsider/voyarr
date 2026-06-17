@@ -503,7 +503,13 @@
     <!-- Providers Tab -->
     <div class="tab-content" id="providers-tab">
       <div class="form-group" style="gap: 4px;">
-        <label>Configured Providers</label>
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <label style="margin: 0;">Configured Providers</label>
+          <select id="providerSortSelect" style="padding: 2px 6px; font-size: 10px; height: 20px; border-radius: 4px; border: 1px solid var(--border-color); background-color: var(--bg-secondary); color: var(--text-main); font-family: inherit; outline: none; cursor: pointer;">
+            <option value="name-asc">Name (A-Z)</option>
+            <option value="name-desc">Name (Z-A)</option>
+          </select>
+        </div>
         <div id="providerListContainer" style="display: flex; flex-direction: column; gap: 6px; max-height: 140px; overflow-y: auto; padding-right: 2px;">
           <!-- Dynamically populated list of provider cards -->
         </div>
