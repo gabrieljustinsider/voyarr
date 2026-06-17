@@ -711,45 +711,49 @@ export default function Settings() {
         </Typography>
         <Divider sx={{ mb: 2 }} />
 
-        {/* Row 1: Add Media Root Path input next to Added Paths chips */}
+        {/* Row 1: Headers aligned side-by-side */}
+        <Grid container spacing={3} sx={{ mb: 1 }}>
+          <Grid item xs={12} sx={{ width: '45%', flexBasis: '45%', maxWidth: '45%' }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Media Root Scan Paths</Typography>
+          </Grid>
+          <Grid item xs={12} sx={{ width: '55%', flexBasis: '55%', maxWidth: '55%' }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Added Paths</Typography>
+          </Grid>
+        </Grid>
+
+        {/* Row 2: Add Media Root Path input next to Added Paths chips */}
         <Grid container spacing={3} sx={{ mb: 3 }}>
           {/* Left Column (45%): Add Media Root Path input */}
           <Grid item xs={12} sx={{ width: '45%', flexBasis: '45%', maxWidth: '45%' }}>
-            <Box>
-              <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>Media Root Scan Paths</Typography>
-              <PathPicker
-                value=""
-                onChange={(val) => {
-                  if (val) {
-                    handleAddMediaPath(val);
-                  }
-                }}
-                label="Add Media Root Path"
-                mode="folder"
-              />
-            </Box>
+            <PathPicker
+              value=""
+              onChange={(val) => {
+                if (val) {
+                  handleAddMediaPath(val);
+                }
+              }}
+              label="Add Media Root Path"
+              mode="folder"
+            />
           </Grid>
 
           {/* Right Column (55%): Added Paths Chips */}
-          <Grid item xs={12} sx={{ width: '55%', flexBasis: '55%', maxWidth: '55%' }}>
-            <Box sx={{ pt: 3.5 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>Added Paths</Typography>
-              {mediaPaths.length === 0 ? (
-                <Typography variant="caption" color="textSecondary" display="block">No media root paths configured.</Typography>
-              ) : (
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                  {mediaPaths.map((path) => (
-                    <Chip
-                      key={path}
-                      label={path}
-                      onDelete={() => handleRemoveMediaPath(path)}
-                      color="primary"
-                      variant="outlined"
-                    />
-                  ))}
-                </Box>
-              )}
-            </Box>
+          <Grid item xs={12} sx={{ width: '55%', flexBasis: '55%', maxWidth: '55%', display: 'flex', alignItems: 'flex-start', pt: '4px' }}>
+            {mediaPaths.length === 0 ? (
+              <Typography variant="caption" color="textSecondary" display="block" sx={{ pt: 1 }}>No media root paths configured.</Typography>
+            ) : (
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {mediaPaths.map((path) => (
+                  <Chip
+                    key={path}
+                    label={path}
+                    onDelete={() => handleRemoveMediaPath(path)}
+                    color="primary"
+                    variant="outlined"
+                  />
+                ))}
+              </Box>
+            )}
           </Grid>
         </Grid>
 
