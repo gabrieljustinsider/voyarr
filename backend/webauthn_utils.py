@@ -134,17 +134,18 @@ def generate_assertion_options(allowed_credentials: List[str], rp_id: str = "loc
 def verify_client_data_challenge(client_data_json_b64: str, expected_challenge: str) -> bool:
     """Decodes clientDataJSON and verifies that the challenge matches."""
     try:
-        # Pad base64 standardly
-        padded = client_data_json_b64 + "=" * (-len(client_data_json_b64) % 4)
+        # Normalize base64url characters to standard base64
+        normalized_json = client_data_json_b64.replace("-", "+").replace("_", "/")
+        padded = normalized_json + "=" * (-len(normalized_json) % 4)
         decoded_bytes = base64.b64decode(padded)
         client_data = json.loads(decoded_bytes.decode("utf-8"))
         
         client_challenge = client_data.get("challenge")
-        # Remove padding from challenges during comparison if needed
-        clean_expected = expected_challenge.replace("=", "")
-        clean_client = client_challenge.replace("=", "")
+        # Normalize both challenge strings to remove base64 vs base64url differences and padding
+        norm_expected = expected_challenge.replace("-", "+").replace("_", "/").replace("=", "")
+        norm_client = client_challenge.replace("-", "+").replace("_", "/").replace("=", "")
         
-        return clean_expected == clean_client
+        return norm_expected == norm_client
     except Exception:
         return False
 
