@@ -230,6 +230,11 @@ export default function PathPicker({
             size="small"
             InputProps={{
               ...params.InputProps,
+              startAdornment: (
+                <InputAdornment position="start" sx={{ pl: 0.5, mr: 0.5 }}>
+                  <FolderIcon sx={{ color: 'var(--accent)', opacity: 0.8 }} fontSize="small" />
+                </InputAdornment>
+              ),
               endAdornment: (
                 <React.Fragment>
                   {loading ? <CircularProgress color="inherit" size={20} /> : null}
