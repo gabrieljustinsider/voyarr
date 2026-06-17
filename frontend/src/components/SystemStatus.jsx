@@ -115,47 +115,76 @@ export default function SystemStatus() {
 
       {status && (
         <Grid container spacing={3}>
-          {/* Row 1: System Environment & Headless Scraper */}
-          <Grid item xs={12}>
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
-                <Card sx={{ height: '100%' }}>
-                  <CardContent>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6" sx={{ fontWeight: 'bold' }}>System Environment</Typography>
-                      {status.environment?.is_docker !== undefined && (
-                        <Chip 
-                          label={status.environment.is_docker ? "DOCKER CONTAINER" : "HOST SYSTEM"} 
-                          color={status.environment.is_docker ? "primary" : "default"} 
-                          size="small"
-                          sx={{ fontWeight: 'bold' }}
-                        />
-                      )}
-                    </Box>
-                    
+          {/* Row 1: System Environment (Left) & Stacked Workers/Scraper (Right) */}
+          <Grid item xs={12} md={6}>
+            <Card sx={{ height: '100%' }}>
+              <CardContent>
+                <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>System Environment</Typography>
+                
+                {/* Date & Time on its own row */}
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 'bold' }} color="textSecondary">System Date &amp; Time (Live)</Typography>
+                  <Typography variant="body1" sx={{ fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: '0.5px' }}>
+                    {liveTime ? (
+                      <span>
+                        {liveTime.date} &nbsp; {liveTime.time} &nbsp; <Chip label={liveTime.timezone} size="small" sx={{ fontSize: '11px', fontWeight: 'bold', height: '20px' }} />
+                      </span>
+                    ) : (
+                      'Syncing...'
+                    )}
+                  </Typography>
+                </Box>
+
+                {/* Two-column layout for other items */}
+                <Grid container spacing={2} sx={{ mb: 2 }}>
+                  <Grid item xs={6}>
                     <Typography variant="body2" sx={{ fontWeight: 'bold' }} color="textSecondary">Host OS</Typography>
                     <Typography variant="body1" sx={{ mb: 2 }}>{status.environment?.os || 'Linux Container'}</Typography>
                     
                     <Typography variant="body2" sx={{ fontWeight: 'bold' }} color="textSecondary">Python Runtime</Typography>
-                    <Typography variant="body2" sx={{ mb: 2, fontStyle: 'italic', wordBreak: 'break-all' }}>
+                    <Typography variant="body2" sx={{ fontStyle: 'italic', wordBreak: 'break-all' }}>
                       {status.environment?.python_version}
                     </Typography>
-
-                    <Typography variant="body2" sx={{ fontWeight: 'bold' }} color="textSecondary">System Date &amp; Time (Live)</Typography>
-                    <Typography variant="body1" sx={{ mb: 3, fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: '0.5px' }}>
-                      {liveTime ? (
-                        <span>
-                          {liveTime.date} &nbsp; {liveTime.time} &nbsp; <Chip label={liveTime.timezone} size="small" sx={{ fontSize: '11px', fontWeight: 'bold', height: '20px' }} />
-                        </span>
-                      ) : (
-                        'Syncing...'
-                      )}
+                  </Grid>
+                  
+                  <Grid item xs={6}>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }} color="textSecondary">Containerized Environment</Typography>
+                    <Typography variant="body1">
+                      {status.environment?.is_container || status.environment?.is_docker
+                        ? `Yes (${status.environment.container_type || 'Docker'})`
+                        : 'No (Host OS / Bare Metal)'}
                     </Typography>
+                  </Grid>
+                </Grid>
 
-                    <Divider sx={{ my: 2 }} />
+                <Divider sx={{ my: 2 }} />
 
-                    <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>Disk Usage</Typography>
+                <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>Disk Usage</Typography>
 
+                {status.environment?.disks && status.environment.disks.length > 0 ? (
+                  status.environment.disks.map((disk, idx) => (
+                    <Box key={idx} sx={{ mb: idx === status.environment.disks.length - 1 ? 0 : 3 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5, flexWrap: 'wrap' }}>
+                        <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                          {disk.mountpoint === '/' ? 'Root filesystem (/)' : disk.mountpoint} ({disk.device})
+                        </Typography>
+                        <Typography variant="body2" color="textSecondary">
+                          {disk.percent_used}%
+                        </Typography>
+                      </Box>
+                      <LinearProgress 
+                        variant="determinate" 
+                        value={disk.percent_used} 
+                        color={disk.percent_used > 85 ? 'error' : (idx % 2 === 0 ? 'primary' : 'secondary')}
+                        sx={{ height: 10, borderRadius: 5, mb: 1 }}
+                      />
+                      <Typography variant="caption" color="textSecondary">
+                        Used: {disk.used_gb} GB / Free: {disk.free_gb} GB (Total: {disk.total_gb} GB)
+                      </Typography>
+                    </Box>
+                  ))
+                ) : (
+                  <>
                     {status.environment?.media_storage_disk?.total_gb && (
                       <Box sx={{ mb: 3 }}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
@@ -195,61 +224,138 @@ export default function SystemStatus() {
                         </Typography>
                       </Box>
                     )}
-                  </CardContent>
-                </Card>
-              </Grid>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
 
-              <Grid item xs={12} md={6}>
-                <Card sx={{ height: '100%' }}>
-                  <CardContent>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Headless Browserless</Typography>
-                      <Chip 
-                        icon={getStatusIcon(status.browserless?.status)} 
-                        label={status.browserless?.status?.toUpperCase()} 
-                        color={getStatusChipColor(status.browserless?.status)}
-                        variant="outlined"
-                        size="small"
-                      />
+          <Grid item xs={12} md={6}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {/* Celery Workers Card */}
+              <Card>
+                <CardContent>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Celery Workers</Typography>
+                    <Chip 
+                      icon={getStatusIcon(status.celery?.status)} 
+                      label={status.celery?.status?.toUpperCase()} 
+                      color={getStatusChipColor(status.celery?.status)}
+                      variant="outlined"
+                      size="small"
+                    />
+                  </Box>
+                  <Typography variant="body2" color="textSecondary" gutterBottom>
+                    Asynchronous task daemon executing background metadata scans, transcodes, downloads, and scraping.
+                  </Typography>
+
+                  {status.celery?.details && (
+                    <Box sx={{ mt: 2 }}>
+                      {status.celery.details.active_workers?.length > 0 ? (
+                        <Box>
+                          <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>Active Worker Daemons:</Typography>
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                            {status.celery.details.active_workers.map(worker => (
+                              <Chip key={worker} label={worker} color="primary" size="small" variant="outlined" />
+                            ))}
+                          </Box>
+                          
+                          {/* Expandable worker details */}
+                          {Object.keys(status.celery.details.stats || {}).map(workerKey => {
+                            const workerStats = status.celery.details.stats[workerKey]
+                            return (
+                              <Accordion key={workerKey} variant="outlined" sx={{ mt: 1 }}>
+                                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                                  <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                                    Detailed Stats: {workerKey}
+                                  </Typography>
+                                </AccordionSummary>
+                                <AccordionDetails>
+                                  <TableContainer component={Paper} variant="outlined">
+                                    <Table size="small">
+                                      <TableBody>
+                                        <TableRow>
+                                          <TableCell sx={{ fontWeight: 'bold' }}>Concurrency</TableCell>
+                                          <TableCell>{workerStats.pool?.max_concurrency || 'N/A'}</TableCell>
+                                        </TableRow>
+                                        <TableRow>
+                                          <TableCell sx={{ fontWeight: 'bold' }}>Broker Transport</TableCell>
+                                          <TableCell>{workerStats.broker?.transport || 'redis'}</TableCell>
+                                        </TableRow>
+                                        <TableRow>
+                                          <TableCell sx={{ fontWeight: 'bold' }}>Processed Tasks Count</TableCell>
+                                          <TableCell>
+                                            {Object.values(workerStats.total || {}).reduce((a, b) => a + b, 0)}
+                                          </TableCell>
+                                        </TableRow>
+                                      </TableBody>
+                                    </Table>
+                                  </TableContainer>
+                                </AccordionDetails>
+                              </Accordion>
+                            )
+                          })}
+                        </Box>
+                      ) : (
+                        <Alert severity="warning" sx={{ mt: 1 }}>
+                          No active background task workers are connected to the broker. Background downloads and scans will remain queued.
+                        </Alert>
+                      )}
                     </Box>
-                    <Typography variant="body2" color="textSecondary" gutterBottom>
-                      Dockerized Chromium engine providing headless scraping capabilities.
-                    </Typography>
-                    {status.browserless?.details && (
-                      <TableContainer component={Paper} variant="outlined" sx={{ mt: 2 }}>
-                        <Table size="small">
-                          <TableBody>
-                            {status.browserless.details.type && (
-                              <TableRow>
-                                <TableCell sx={{ fontWeight: 'bold' }}>Service Type</TableCell>
-                                <TableCell>
-                                  <Chip 
-                                    label={status.browserless.details.type} 
-                                    color={status.browserless.details.type.includes("Cloud") ? "secondary" : "primary"} 
-                                    size="small"
-                                  />
-                                </TableCell>
-                              </TableRow>
-                            )}
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Headless Browserless Card */}
+              <Card>
+                <CardContent>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Headless Browserless</Typography>
+                    <Chip 
+                      icon={getStatusIcon(status.browserless?.status)} 
+                      label={status.browserless?.status?.toUpperCase()} 
+                      color={getStatusChipColor(status.browserless?.status)}
+                      variant="outlined"
+                      size="small"
+                    />
+                  </Box>
+                  <Typography variant="body2" color="textSecondary" gutterBottom>
+                    Dockerized Chromium engine providing headless scraping capabilities.
+                  </Typography>
+                  {status.browserless?.details && (
+                    <TableContainer component={Paper} variant="outlined" sx={{ mt: 2 }}>
+                      <Table size="small">
+                        <TableBody>
+                          {status.browserless.details.type && (
                             <TableRow>
-                              <TableCell sx={{ fontWeight: 'bold' }}>Target WebSocket Endpoint</TableCell>
-                              <TableCell sx={{ wordBreak: 'break-all' }}>{status.browserless.details.url}</TableCell>
+                              <TableCell sx={{ fontWeight: 'bold' }}>Service Type</TableCell>
+                              <TableCell>
+                                <Chip 
+                                  label={status.browserless.details.type} 
+                                  color={status.browserless.details.type.includes("Cloud") ? "secondary" : "primary"} 
+                                  size="small"
+                                />
+                              </TableCell>
                             </TableRow>
-                            {status.browserless.details.error && (
-                              <TableRow>
-                                <TableCell colSpan={2} sx={{ color: 'error.main', fontSize: '0.85rem' }}>
-                                  <strong>Error:</strong> {status.browserless.details.error}
-                                </TableCell>
-                              </TableRow>
-                            )}
-                          </TableBody>
-                        </Table>
-                      </TableContainer>
-                    )}
-                  </CardContent>
-                </Card>
-              </Grid>
-            </Grid>
+                          )}
+                          <TableRow>
+                            <TableCell sx={{ fontWeight: 'bold' }}>Target WebSocket Endpoint</TableCell>
+                            <TableCell sx={{ wordBreak: 'break-all' }}>{status.browserless.details.url}</TableCell>
+                          </TableRow>
+                          {status.browserless.details.error && (
+                            <TableRow>
+                              <TableCell colSpan={2} sx={{ color: 'error.main', fontSize: '0.85rem' }}>
+                                <strong>Error:</strong> {status.browserless.details.error}
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  )}
+                </CardContent>
+              </Card>
+            </Box>
           </Grid>
 
           {/* Row 2: Database & Redis */}
@@ -345,82 +451,6 @@ export default function SystemStatus() {
                 </Card>
               </Box>
             </Box>
-          </Grid>
-
-          {/* Row 3: Celery Background Workers */}
-          <Grid item xs={12}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                  <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Celery Workers</Typography>
-                  <Chip 
-                    icon={getStatusIcon(status.celery?.status)} 
-                    label={status.celery?.status?.toUpperCase()} 
-                    color={getStatusChipColor(status.celery?.status)}
-                    variant="outlined"
-                    size="small"
-                  />
-                </Box>
-                <Typography variant="body2" color="textSecondary" gutterBottom>
-                  Asynchronous task daemon executing background metadata scans, transcodes, downloads, and scraping.
-                </Typography>
-
-                {status.celery?.details && (
-                  <Box sx={{ mt: 2 }}>
-                    {status.celery.details.active_workers?.length > 0 ? (
-                      <Box>
-                        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>Active Worker Daemons:</Typography>
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-                          {status.celery.details.active_workers.map(worker => (
-                            <Chip key={worker} label={worker} color="primary" size="small" variant="outlined" />
-                          ))}
-                        </Box>
-                        
-                        {/* Expandable worker details */}
-                        {Object.keys(status.celery.details.stats || {}).map(workerKey => {
-                          const workerStats = status.celery.details.stats[workerKey]
-                          return (
-                            <Accordion key={workerKey} variant="outlined" sx={{ mt: 1 }}>
-                              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                                  Detailed Stats: {workerKey}
-                                </Typography>
-                              </AccordionSummary>
-                              <AccordionDetails>
-                                <TableContainer component={Paper} variant="outlined">
-                                  <Table size="small">
-                                    <TableBody>
-                                      <TableRow>
-                                        <TableCell sx={{ fontWeight: 'bold' }}>Concurrency</TableCell>
-                                        <TableCell>{workerStats.pool?.max_concurrency || 'N/A'}</TableCell>
-                                      </TableRow>
-                                      <TableRow>
-                                        <TableCell sx={{ fontWeight: 'bold' }}>Broker Transport</TableCell>
-                                        <TableCell>{workerStats.broker?.transport || 'redis'}</TableCell>
-                                      </TableRow>
-                                      <TableRow>
-                                        <TableCell sx={{ fontWeight: 'bold' }}>Processed Tasks Count</TableCell>
-                                        <TableCell>
-                                          {Object.values(workerStats.total || {}).reduce((a, b) => a + b, 0)}
-                                        </TableCell>
-                                      </TableRow>
-                                    </TableBody>
-                                  </Table>
-                                </TableContainer>
-                              </AccordionDetails>
-                            </Accordion>
-                          )
-                        })}
-                      </Box>
-                    ) : (
-                      <Alert severity="warning" sx={{ mt: 1 }}>
-                        No active background task workers are connected to the broker. Background downloads and scans will remain queued.
-                      </Alert>
-                    )}
-                  </Box>
-                )}
-              </CardContent>
-            </Card>
           </Grid>
         </Grid>
       )}

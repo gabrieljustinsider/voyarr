@@ -723,26 +723,30 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
                   <DeleteIcon fontSize="small" />
                 </IconButton>
                 <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexGrow: 1, textAlign: 'center', pt: 4 }}>
-                  <Avatar
-                    src={provider.logo_url || provider.favicon_url || ''}
-                    alt={provider.name}
-                    imgProps={{ style: { objectFit: 'contain', padding: '4px' } }}
-                    sx={{ width: 80, height: 80, bgcolor: 'primary.main', fontSize: '2rem', fontWeight: 'bold', mb: 2 }}
-                  >
-                    {provider.name ? provider.name.charAt(0).toUpperCase() : '?'}
-                  </Avatar>
+                  {cardPrefs.showLogo && (
+                    <Avatar
+                      src={provider.logo_url || provider.favicon_url || ''}
+                      alt={provider.name}
+                      imgProps={{ style: { objectFit: 'contain', padding: '4px' } }}
+                      sx={{ width: 80, height: 80, bgcolor: 'primary.main', fontSize: '2rem', fontWeight: 'bold', mb: 2 }}
+                    >
+                      {provider.name ? provider.name.charAt(0).toUpperCase() : '?'}
+                    </Avatar>
+                  )}
                   <Typography variant="h5" component="div" sx={{ fontWeight: 'bold', mb: 1 }}>
                     {provider.name}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    {provider.base_url}
-                  </Typography>
-                  {provider.automatic_limits && (
+                  {cardPrefs.showBaseUrl && (
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      {provider.base_url}
+                    </Typography>
+                  )}
+                  {cardPrefs.showDailyLimit && provider.automatic_limits && (
                     <Typography variant="body2" sx={{ mt: 1, fontWeight: 'bold' }}>
                       Daily Limit: {provider.automatic_limits.daily_downloads || 'Unlimited'}
                     </Typography>
                   )}
-                  {providerCookies.length > 0 && (
+                  {cardPrefs.showActiveSessions && providerCookies.length > 0 && (
                     <Box sx={{ mt: 3, width: '100%' }}>
                       <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold' }}>Active Session Quotas</Typography>
                       {providerCookies.map(cookie => {

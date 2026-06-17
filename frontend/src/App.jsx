@@ -451,6 +451,9 @@ function App() {
           }
         },
         MuiDialog: {
+          defaultProps: {
+            closeAfterTransition: false
+          },
           styleOverrides: {
             paper: ({ theme }) => {
               if (baseConfig.isTailwind) {
@@ -774,6 +777,28 @@ function App() {
     return () => abortController.abort()
   }, [isLoggedIn])
 
+  // Fetch notification history on mount/login
+  useEffect(() => {
+    if (!isLoggedIn) return
+
+    const fetchNotificationHistory = async () => {
+      try {
+        const data = await apiFetch('/notifications/history')
+        if (data && Array.isArray(data)) {
+          const mapped = data.map(n => ({
+            ...n,
+            timestamp: n.created_at ? new Date(n.created_at) : new Date()
+          }))
+          setNotifications(mapped)
+        }
+      } catch (error) {
+        console.error('Failed to fetch notification history:', error)
+      }
+    }
+
+    fetchNotificationHistory()
+  }, [isLoggedIn])
+
   const filteredProviders = useMemo(() => providers.filter(provider =>
     provider.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     provider.base_url.toLowerCase().includes(searchQuery.toLowerCase())
@@ -896,8 +921,6 @@ function App() {
     { label: "Logs", component: <LogsViewer />, visible: true },
     { label: "Scraper Tester", component: <ScraperTester />, visible: true },
     { label: "Request Manager", component: <RequestManager userRole={userRole} />, visible: true },
-
-    { label: "Help", component: <HelpArea userRole={userRole} />, visible: true },
   ], [uiConfig, filteredProviders, queue, fetchQueue, searchQuery, userRole])
 
   const visibleTabs = useMemo(() => allTabs.filter(t => t.visible), [allTabs])
@@ -932,7 +955,7 @@ function App() {
       id: "system",
       label: "System & Admin",
       icon: <Wrench size={20} />,
-      tabs: ["System Status", "External APIs", "Settings", "User Management", "P2P Sync", "Notification Settings", "Backup", "Logs", "Help"]
+      tabs: ["System Status", "External APIs", "Settings", "User Management", "P2P Sync", "Notification Settings", "Backup", "Logs"]
     }
   ], []);
 
@@ -1081,6 +1104,13 @@ function App() {
             anchorEl={notificationAnchorEl}
             onClose={() => {
               setNotificationAnchorEl(null)
+              const unreadIds = notifications.filter(n => !n.read).map(n => n.id)
+              if (unreadIds.length > 0) {
+                apiFetch('/notifications/read', {
+                  method: 'POST',
+                  body: JSON.stringify({ notification_ids: unreadIds })
+                }).catch(err => console.error("Failed to mark notifications as read:", err))
+              }
               setNotifications(prev => prev.map(n => ({ ...n, read: true })))
             }}
             anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}

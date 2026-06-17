@@ -58,6 +58,7 @@ export default function PathPicker({
   const [showNewFolderInput, setShowNewFolderInput] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
   const [folderError, setFolderError] = useState('')
+  const [validationError, setValidationError] = useState('')
 
   const handleCreateFolder = async () => {
     if (!newFolderName.trim()) return
@@ -83,6 +84,25 @@ export default function PathPicker({
 
   useEffect(() => {
     setInputValue(value)
+    if (value && value.startsWith('/')) {
+      apiFetch(`/settings/validate-path?path=${encodeURIComponent(value)}`)
+        .then(res => {
+          if (res.ok) return res.json()
+        })
+        .then(data => {
+          if (data && !data.valid && data.error) {
+            setValidationError(data.error)
+          } else {
+            setValidationError('')
+          }
+        })
+        .catch(err => {
+          console.error('Failed to validate path:', err)
+          setValidationError('')
+        })
+    } else {
+      setValidationError('')
+    }
   }, [value])
 
   // Cleanup the debounce timer on component unmount
@@ -97,7 +117,6 @@ export default function PathPicker({
   // Autocomplete fetch suggestions
   const handleInputChange = (event, newInputValue) => {
     setInputValue(newInputValue)
-    onChange(newInputValue)
 
     if (debounceRef.current) {
       clearTimeout(debounceRef.current)
@@ -226,8 +245,23 @@ export default function PathPicker({
           <TextField
             {...params}
             label={label}
-            helperText={helperText}
+            helperText={validationError ? (
+              <span style={{ color: '#ef4444', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                ⚠️ {validationError}
+              </span>
+            ) : helperText}
+            error={!!validationError}
             size="small"
+            onBlur={() => {
+              if (inputValue !== value) {
+                onChange(inputValue)
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                onChange(inputValue)
+              }
+            }}
             InputProps={{
               ...params.InputProps,
               startAdornment: (

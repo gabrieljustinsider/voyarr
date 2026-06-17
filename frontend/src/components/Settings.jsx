@@ -711,86 +711,80 @@ export default function Settings() {
         </Typography>
         <Divider sx={{ mb: 2 }} />
 
-        {/* Row 1: Headers aligned side-by-side */}
-        <Grid container spacing={3} sx={{ mb: 1 }}>
-          <Grid item xs={12} sx={{ width: '45%', flexBasis: '45%', maxWidth: '45%' }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Media Root Scan Paths</Typography>
-          </Grid>
-          <Grid item xs={12} sx={{ width: '55%', flexBasis: '55%', maxWidth: '55%' }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Added Paths</Typography>
-          </Grid>
-        </Grid>
+        <Box sx={{ display: 'flex', gap: 3, width: '100%' }}>
+          {/* Left Column (45%): All Input Fields Vertically Stacked */}
+          <Box sx={{ width: '45%', flexShrink: 0 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>Media Root Scan Paths</Typography>
+                <PathPicker
+                  value=""
+                  onChange={(val) => {
+                    if (val) {
+                      handleAddMediaPath(val);
+                    }
+                  }}
+                  label="Add Media Root Path"
+                  mode="folder"
+                />
+              </Box>
 
-        {/* Row 2: Add Media Root Path input next to Added Paths chips */}
-        <Grid container spacing={3} sx={{ mb: 3 }}>
-          {/* Left Column (45%): Add Media Root Path input */}
-          <Grid item xs={12} sx={{ width: '45%', flexBasis: '45%', maxWidth: '45%' }}>
-            <PathPicker
-              value=""
-              onChange={(val) => {
-                if (val) {
-                  handleAddMediaPath(val);
-                }
-              }}
-              label="Add Media Root Path"
-              mode="folder"
-            />
-          </Grid>
+              <PathPicker
+                value={settings.download_destination || ''}
+                onChange={(val) => {
+                  setSettings(prev => ({ ...prev, download_destination: val }));
+                  handleSave('download_destination', val);
+                }}
+                label="Download Destination Path"
+                helperText="Target directory for new downloads"
+                mode="folder"
+              />
+
+              <PathPicker
+                value={settings.library_folder || ''}
+                onChange={(val) => {
+                  setSettings(prev => ({ ...prev, library_folder: val }));
+                  handleSave('library_folder', val);
+                }}
+                label="Library Folder Path"
+                helperText="Root directory for sorted media library"
+                mode="folder"
+              />
+
+              <PathPicker
+                value={settings.scan_folder || ''}
+                onChange={(val) => {
+                  setSettings(prev => ({ ...prev, scan_folder: val }));
+                  handleSave('scan_folder', val);
+                }}
+                label="Scan Folder Path"
+                helperText="Directory to monitor for incoming files"
+                mode="folder"
+              />
+            </Box>
+          </Box>
 
           {/* Right Column (55%): Added Paths Chips */}
-          <Grid item xs={12} sx={{ width: '55%', flexBasis: '55%', maxWidth: '55%', display: 'flex', alignItems: 'flex-start', pt: '4px' }}>
-            {mediaPaths.length === 0 ? (
-              <Typography variant="caption" color="textSecondary" display="block" sx={{ pt: 1 }}>No media root paths configured.</Typography>
-            ) : (
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                {mediaPaths.map((path) => (
-                  <Chip
-                    key={path}
-                    label={path}
-                    onDelete={() => handleRemoveMediaPath(path)}
-                    color="primary"
-                    variant="outlined"
-                  />
-                ))}
-              </Box>
-            )}
-          </Grid>
-        </Grid>
-
-        {/* Row 2: Other file pickers stacked vertically (restricted to 45% of page width) */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, width: '45%', maxWidth: '45%' }}>
-          <PathPicker
-            value={settings.download_destination || ''}
-            onChange={(val) => {
-              setSettings(prev => ({ ...prev, download_destination: val }));
-              handleSave('download_destination', val);
-            }}
-            label="Download Destination Path"
-            helperText="Target directory for new downloads"
-            mode="folder"
-          />
-
-          <PathPicker
-            value={settings.library_folder || ''}
-            onChange={(val) => {
-              setSettings(prev => ({ ...prev, library_folder: val }));
-              handleSave('library_folder', val);
-            }}
-            label="Library Folder Path"
-            helperText="Root directory for sorted media library"
-            mode="folder"
-          />
-
-          <PathPicker
-            value={settings.scan_folder || ''}
-            onChange={(val) => {
-              setSettings(prev => ({ ...prev, scan_folder: val }));
-              handleSave('scan_folder', val);
-            }}
-            label="Scan Folder Path"
-            helperText="Directory to monitor for incoming files"
-            mode="folder"
-          />
+          <Box sx={{ width: '55%', flexGrow: 1 }}>
+            <Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>Added Paths</Typography>
+              {mediaPaths.length === 0 ? (
+                <Typography variant="caption" color="textSecondary" display="block">No media root paths configured.</Typography>
+              ) : (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {mediaPaths.map((path) => (
+                    <Chip
+                      key={path}
+                      label={path}
+                      onDelete={() => handleRemoveMediaPath(path)}
+                      color="primary"
+                      variant="outlined"
+                    />
+                  ))}
+                </Box>
+              )}
+            </Box>
+          </Box>
         </Box>
       </Paper>
 

@@ -73,3 +73,31 @@ def test_settings_autocomplete_endpoint(
     assert len(suggestions) == 2
     assert suggestions[0]["name"] == "movies"
     assert suggestions[1]["name"] == "music"
+
+
+def test_validate_path_endpoint():
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmpdir:
+        response = client.get(f"/settings/validate-path?path={tmpdir}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["valid"] is True
+        assert data["exists"] is True
+        assert data["readable"] is True
+        assert data["writable"] is True
+
+    # Test with non-existing path under valid parent
+    non_existing = os.path.join(tempfile.gettempdir(), "non_existing_perm_test_dir")
+    try:
+        response = client.get(f"/settings/validate-path?path={non_existing}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["exists"] is False
+        assert data["writable"] is True
+    finally:
+        if os.path.exists(non_existing):
+            import shutil
+            if os.path.isdir(non_existing):
+                shutil.rmtree(non_existing)
+            else:
+                os.remove(non_existing)

@@ -405,3 +405,84 @@ def autocomplete_path(q: str = Query("")):
         return {"suggestions": suggestions[:20]}
     except Exception:
         return {"suggestions": []}
+
+
+@router.get("/validate-path")
+def check_path_permissions(path: str = Query(...)):
+    if not path:
+        raise HTTPException(status_code=400, detail="Path cannot be empty.")
+    
+    try:
+        validated = validate_path(path)
+    except HTTPException as e:
+        return {
+            "valid": False,
+            "exists": False,
+            "readable": False,
+            "writable": False,
+            "error": f"Invalid path location: {e.detail}"
+        }
+        
+    sanitized = sanitize_tainted_path(validated)
+    
+    exists = os.path.exists(sanitized)
+    readable = False
+    writable = False
+    error_detail = None
+    
+    if exists:
+        # Check read access
+        try:
+            if os.path.isdir(sanitized):
+                os.listdir(sanitized)
+            else:
+                with open(sanitized, "rb") as f:
+                    f.read(10)
+            readable = True
+        except PermissionError:
+            error_detail = "Permission denied: No read access to this path."
+        except Exception as e:
+            error_detail = f"Read error: {str(e)}"
+            
+        # Check write access
+        try:
+            if os.path.isdir(sanitized):
+                # Try creating a temporary file and deleting it
+                test_file = os.path.join(sanitized, ".voyarr_perm_test")
+                with open(test_file, "w") as f:
+                    f.write("test")
+                os.remove(test_file)
+            else:
+                # File: try opening in append mode
+                with open(sanitized, "ab") as f:
+                    pass
+            writable = True
+        except PermissionError:
+            error_detail = error_detail or "Permission denied: No write access to this path."
+        except Exception as e:
+            error_detail = error_detail or f"Write error: {str(e)}"
+    else:
+        # Path does not exist. Check if we can create it (parent directory must be writable)
+        parent = os.path.dirname(sanitized)
+        if os.path.exists(parent):
+            try:
+                # Try creating a temporary file in parent and deleting it
+                test_file = os.path.join(parent, ".voyarr_perm_test")
+                with open(test_file, "w") as f:
+                    f.write("test")
+                os.remove(test_file)
+                writable = True
+            except PermissionError:
+                error_detail = "Permission denied: Cannot create directories in this path (parent directory is not writable)."
+            except Exception as e:
+                error_detail = f"Parent directory check failed: {str(e)}"
+        else:
+            error_detail = "Parent directory does not exist."
+            
+    return {
+        "valid": error_detail is None or (readable and writable),
+        "exists": exists,
+        "readable": readable,
+        "writable": writable,
+        "error": error_detail
+    }
