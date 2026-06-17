@@ -409,7 +409,10 @@
 
       <!-- Add / Edit Provider Form -->
       <div class="form-group" style="gap: 6px;">
-        <label style="font-weight: 600;" id="providerFormTitle">Create Scraper Provider</label>
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <label style="font-weight: 600;" id="providerFormTitle">Create Scraper Provider</label>
+          <button id="detectProviderBtn" style="background: none; border: none; cursor: pointer; color: #a855f7; font-size: 11px; font-weight: 600; padding: 0;" title="Auto-detect from current open tab">⚡ Auto-fill from Tab</button>
+        </div>
         <input type="text" id="newProviderName" placeholder="Provider Name (e.g. Chaturbate)" style="padding: 8px 10px; font-size: 12px;" />
         <input type="text" id="newProviderUrl" placeholder="Base URL (e.g. https://chaturbate.com)" style="padding: 8px 10px; font-size: 12px;" />
         <input type="text" id="newProviderPattern" placeholder="Naming Pattern" value="{title}_{performers}" style="padding: 8px 10px; font-size: 12px;" />

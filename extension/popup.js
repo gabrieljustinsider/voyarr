@@ -72,9 +72,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const cancelProviderEditBtn = document.getElementById('cancelProviderEditBtn');
   const providersToast = document.getElementById('providersToast');
   const providerFormTitle = document.getElementById('providerFormTitle');
+  const detectProviderBtn = document.getElementById('detectProviderBtn');
   
   let currentProviders = [];
   let editingProviderId = null;
+  let scrapedLogoUrl = null;
+  let scrapedFaviconUrl = null;
+  let scrapedDescription = null;
 
   const statusDot = document.getElementById('statusDot');
   const statusText = document.getElementById('statusText');
@@ -1633,6 +1637,11 @@ document.addEventListener('DOMContentLoaded', () => {
     newProviderSpaceRepl.value = provider.space_replacement || "_";
     providerTransparentBg.checked = !!provider.transparent_logo_bg;
     providerFitToCard.checked = !!provider.fit_logo_to_card;
+    
+    // Save scraped properties to preserve them
+    scrapedLogoUrl = provider.logo_url || null;
+    scrapedFaviconUrl = provider.favicon_url || null;
+    scrapedDescription = provider.description || null;
 
     saveProviderBtn.textContent = "Save Changes";
     cancelProviderEditBtn.style.display = "block";
@@ -1650,6 +1659,11 @@ document.addEventListener('DOMContentLoaded', () => {
     newProviderSpaceRepl.value = "_";
     providerTransparentBg.checked = false;
     providerFitToCard.checked = false;
+    
+    // Reset scraped properties
+    scrapedLogoUrl = null;
+    scrapedFaviconUrl = null;
+    scrapedDescription = null;
 
     saveProviderBtn.textContent = "Create Provider";
     cancelProviderEditBtn.style.display = "none";
@@ -1658,6 +1672,74 @@ document.addEventListener('DOMContentLoaded', () => {
   // Cancel edit handler
   if (cancelProviderEditBtn) {
     cancelProviderEditBtn.addEventListener('click', resetProviderForm);
+  }
+
+  // Detect & Auto-fill from active tab
+  if (detectProviderBtn) {
+    detectProviderBtn.addEventListener('click', async () => {
+      detectProviderBtn.disabled = true;
+      detectProviderBtn.textContent = "⚡ Detecting...";
+
+      try {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (!tabs || !tabs[0] || !tabs[0].url) {
+          showToast(providersToast, "No active tab detected.", false);
+          return;
+        }
+
+        const activeUrl = tabs[0].url;
+        if (!activeUrl.startsWith("http")) {
+          showToast(providersToast, "Active tab is not a website.", false);
+          return;
+        }
+
+        const config = await chrome.storage.local.get(['voyarrApiUrl', 'voyarrSecret']);
+        if (!config.voyarrApiUrl || !config.voyarrSecret) {
+          showToast(providersToast, "Not connected to server", false);
+          return;
+        }
+
+        const originUrl = new URL(activeUrl).origin;
+        newProviderUrl.value = originUrl;
+
+        // Try to scrape details from backend
+        const serverBaseUrl = config.voyarrApiUrl.replace(/\/$/, '');
+        const res = await fetch(`${serverBaseUrl}/providers/scrape-url`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Voyarr-Api-Key': config.voyarrSecret
+          },
+          body: JSON.stringify({ url: originUrl })
+        });
+
+        if (res.ok) {
+          const details = await res.json();
+          if (details.site_name) {
+            newProviderName.value = details.site_name;
+          }
+          scrapedLogoUrl = details.logo_url || null;
+          scrapedFaviconUrl = details.favicon_url || null;
+          scrapedDescription = details.description || null;
+          showToast(providersToast, "Branding info detected and filled!", true);
+        } else {
+          // Fallback guess from domain name
+          let domain = new URL(activeUrl).hostname;
+          if (domain.startsWith("www.")) {
+            domain = domain.substring(4);
+          }
+          const guessName = domain.split('.')[0];
+          newProviderName.value = guessName.charAt(0).toUpperCase() + guessName.slice(1);
+          showToast(providersToast, "Filled with basic domain details.", true);
+        }
+      } catch (err) {
+        console.error("Auto-detect failed:", err);
+        showToast(providersToast, "Failed to auto-detect page.", false);
+      } finally {
+        detectProviderBtn.disabled = false;
+        detectProviderBtn.textContent = "⚡ Auto-fill from Tab";
+      }
+    });
   }
 
   // Save Provider handler (Create or Update)
@@ -1695,9 +1777,9 @@ document.addEventListener('DOMContentLoaded', () => {
           transparent_logo_bg: transparentBg,
           fit_logo_to_card: fitToCard,
           automatic_limits: {},
-          logo_url: null,
-          favicon_url: null,
-          description: null
+          logo_url: scrapedLogoUrl,
+          favicon_url: scrapedFaviconUrl,
+          description: scrapedDescription
         };
 
         const serverBaseUrl = config.voyarrApiUrl.replace(/\/$/, '');
