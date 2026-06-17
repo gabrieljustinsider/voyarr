@@ -231,9 +231,12 @@ export default function PathPicker({
             InputProps={{
               ...params.InputProps,
               startAdornment: (
-                <InputAdornment position="start" sx={{ pl: 0.5, mr: 0.5 }}>
-                  <FolderIcon sx={{ color: 'var(--accent)', opacity: 0.8 }} fontSize="small" />
-                </InputAdornment>
+                <React.Fragment>
+                  <InputAdornment position="start" sx={{ pl: 0.5, mr: 0.5 }}>
+                    <FolderIcon sx={{ color: 'var(--accent)', opacity: 0.8 }} fontSize="small" />
+                  </InputAdornment>
+                  {params.InputProps?.startAdornment}
+                </React.Fragment>
               ),
               endAdornment: (
                 <React.Fragment>
