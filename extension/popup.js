@@ -73,6 +73,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const providersToast = document.getElementById('providersToast');
   const providerFormTitle = document.getElementById('providerFormTitle');
   const detectProviderBtn = document.getElementById('detectProviderBtn');
+  const patternHelperBtn = document.getElementById('patternHelperBtn');
+  const patternVariablesContainer = document.getElementById('patternVariablesContainer');
   
   let currentProviders = [];
   let editingProviderId = null;
@@ -1815,5 +1817,41 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  // Toggle Naming Pattern Helper Variables Container
+  if (patternHelperBtn && patternVariablesContainer) {
+    patternHelperBtn.addEventListener('click', () => {
+      const isHidden = patternVariablesContainer.style.display === "none";
+      patternVariablesContainer.style.display = isHidden ? "flex" : "none";
+      patternHelperBtn.textContent = isHidden ? "✕ Close Variables" : "🧩 Add Variables";
+    });
+  }
+
+  // Insert Variable at selection or end of input
+  const varBadges = document.querySelectorAll('.var-badge');
+  varBadges.forEach(badge => {
+    badge.addEventListener('click', (e) => {
+      e.preventDefault();
+      const variable = badge.getAttribute('data-var');
+      if (!newProviderPattern || !variable) return;
+
+      const input = newProviderPattern;
+      const startPos = input.selectionStart;
+      const endPos = input.selectionEnd;
+      const originalValue = input.value;
+
+      // Insert variable at cursor position or append to end
+      if (startPos !== null && endPos !== null) {
+        input.value = originalValue.substring(0, startPos) + variable + originalValue.substring(endPos);
+        // Put cursor right after the inserted text
+        const newCursorPos = startPos + variable.length;
+        input.setSelectionRange(newCursorPos, newCursorPos);
+      } else {
+        input.value += variable;
+      }
+      
+      input.focus();
+    });
+  });
 
 });

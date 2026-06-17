@@ -19,7 +19,7 @@
     }
 
     body {
-      width: 320px;
+      width: 380px;
       margin: 0;
       padding: 0;
       font-family: 'Outfit', sans-serif;
@@ -27,6 +27,7 @@
       color: var(--text-main);
       box-sizing: border-box;
       overflow-x: hidden;
+      font-size: 14px;
     }
 
     /* Container */
@@ -47,7 +48,7 @@
     }
 
     .header-title {
-      font-size: 18px;
+      font-size: 20px;
       font-weight: 700;
       margin: 0;
       background: var(--accent);
@@ -60,7 +61,7 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 500;
       background-color: rgba(255, 255, 255, 0.05);
       padding: 4px 8px;
@@ -102,7 +103,7 @@
       border: none;
       color: var(--text-muted);
       padding: 8px;
-      font-size: 13px;
+      font-size: 14px;
       font-weight: 500;
       cursor: pointer;
       border-radius: 6px;
@@ -141,7 +142,7 @@
     }
 
     label {
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 500;
       color: var(--text-muted);
       letter-spacing: 0.2px;
@@ -153,7 +154,7 @@
       border-radius: 8px;
       color: var(--text-main);
       padding: 10px 12px;
-      font-size: 13px;
+      font-size: 14px;
       outline: none;
       transition: border-color 0.2s ease, box-shadow 0.2s ease;
       font-family: inherit;
@@ -175,7 +176,7 @@
       border: none;
       color: var(--text-main);
       padding: 11px;
-      font-size: 13px;
+      font-size: 14px;
       font-weight: 600;
       border-radius: 8px;
       cursor: pointer;
@@ -214,7 +215,7 @@
       border-radius: 8px;
       padding: 12px;
       border: 1px solid rgba(255, 255, 255, 0.05);
-      font-size: 12px;
+      font-size: 13px;
       line-height: 1.5;
     }
 
@@ -229,8 +230,31 @@
       word-break: break-all;
     }
 
-    .toast-msg {
+    .var-badge {
+      background: rgba(168, 85, 247, 0.08);
+      border: 1px solid rgba(168, 85, 247, 0.25);
+      color: #d8b4fe;
+      border-radius: 4px;
+      padding: 4px 6px;
       font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+
+    .var-badge:hover {
+      background: rgba(168, 85, 247, 0.15);
+      border-color: rgba(168, 85, 247, 0.4);
+      transform: translateY(-0.5px);
+    }
+
+    .var-badge:active {
+      transform: translateY(0);
+    }
+
+    .toast-msg {
+      font-size: 12px;
       text-align: center;
       padding: 4px;
       border-radius: 4px;
@@ -415,7 +439,25 @@
         </div>
         <input type="text" id="newProviderName" placeholder="Provider Name (e.g. Chaturbate)" style="padding: 8px 10px; font-size: 12px;" />
         <input type="text" id="newProviderUrl" placeholder="Base URL (e.g. https://chaturbate.com)" style="padding: 8px 10px; font-size: 12px;" />
-        <input type="text" id="newProviderPattern" placeholder="Naming Pattern" value="{title}_{performers}" style="padding: 8px 10px; font-size: 12px;" />
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <label style="margin: 0; font-weight: 500;">Naming Pattern</label>
+            <button type="button" id="patternHelperBtn" style="background: none; border: none; cursor: pointer; color: #a855f7; font-size: 11px; font-weight: 600; padding: 0;">🧩 Add Variables</button>
+          </div>
+          <input type="text" id="newProviderPattern" placeholder="Naming Pattern" value="{title}_{performers}" style="padding: 8px 10px; font-size: 14px; width: 100%; box-sizing: border-box;" />
+          <div id="patternVariablesContainer" style="display: none; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); border-radius: 6px; padding: 8px; flex-wrap: wrap; gap: 6px; margin-top: 4px;">
+            <button type="button" class="var-badge" data-var="{title}">Title</button>
+            <button type="button" class="var-badge" data-var="{performers}">Performers</button>
+            <button type="button" class="var-badge" data-var="{tags}">Tags</button>
+            <button type="button" class="var-badge" data-var="{resolution}">Resolution</button>
+            <button type="button" class="var-badge" data-var="{studio}">Studio</button>
+            <button type="button" class="var-badge" data-var="{date}">Date (YYYY-MM-DD)</button>
+            <button type="button" class="var-badge" data-var="{year}">Year (YYYY)</button>
+            <button type="button" class="var-badge" data-var="{month}">Month (MM)</button>
+            <button type="button" class="var-badge" data-var="{day}">Day (DD)</button>
+            <button type="button" class="var-badge" data-var="{timestamp}">Timestamp (Epoch)</button>
+          </div>
+        </div>
         
         <div style="display: flex; gap: 6px; align-items: center;">
           <input type="text" id="newProviderSeparator" placeholder="Separator" value="_" style="padding: 8px 10px; font-size: 12px; flex: 1;" />
