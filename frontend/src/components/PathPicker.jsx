@@ -242,26 +242,34 @@ export default function PathPicker({
                 <React.Fragment>
                   {loading ? <CircularProgress color="inherit" size={20} /> : null}
                   {params.InputProps?.endAdornment}
-                  <Tooltip title="Browse Filesystem">
-                    <IconButton
-                      onClick={handleOpenBrowser}
-                      size="small"
-                      sx={{
-                        color: 'var(--accent)',
-                        '&:hover': {
-                          color: '#fff',
-                        },
-                      }}
-                    >
-                      <FolderOpenIcon />
-                    </IconButton>
-                  </Tooltip>
                 </React.Fragment>
-              ),
+              )
             }}
           />
         )}
       />
+
+      <Tooltip title="Browse Filesystem">
+        <IconButton
+          onClick={handleOpenBrowser}
+          sx={{
+            width: '40px',
+            height: '40px',
+            flexShrink: 0,
+            color: 'var(--accent)',
+            backgroundColor: 'rgba(255, 255, 255, 0.02)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: '4px',
+            '&:hover': {
+              color: '#fff',
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              borderColor: 'rgba(255, 255, 255, 0.2)',
+            },
+          }}
+        >
+          <FolderOpenIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
 
       {/* Premium Glassmorphic Directory Explorer Modal */}
       <Dialog

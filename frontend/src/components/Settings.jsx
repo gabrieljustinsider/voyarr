@@ -711,79 +711,83 @@ export default function Settings() {
         </Typography>
         <Divider sx={{ mb: 2 }} />
 
-        <Grid container spacing={3}>
-          {/* Left Column: All Input Fields Vertically Stacked */}
+        {/* Row 1: Add Media Root Path input next to Added Paths chips */}
+        <Grid container spacing={3} sx={{ mb: 3 }}>
+          {/* Left Column (45%): Add Media Root Path input */}
           <Grid item xs={12} sx={{ width: '45%', flexBasis: '45%', maxWidth: '45%' }}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>Media Root Scan Paths</Typography>
-                <PathPicker
-                  value=""
-                  onChange={(val) => {
-                    if (val) {
-                      handleAddMediaPath(val);
-                    }
-                  }}
-                  label="Add Media Root Path"
-                  mode="folder"
-                />
-              </Box>
-
+            <Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>Media Root Scan Paths</Typography>
               <PathPicker
-                value={settings.download_destination || ''}
+                value=""
                 onChange={(val) => {
-                  setSettings(prev => ({ ...prev, download_destination: val }));
-                  handleSave('download_destination', val);
+                  if (val) {
+                    handleAddMediaPath(val);
+                  }
                 }}
-                label="Download Destination Path"
-                helperText="Target directory for new downloads"
-                mode="folder"
-              />
-
-              <PathPicker
-                value={settings.library_folder || ''}
-                onChange={(val) => {
-                  setSettings(prev => ({ ...prev, library_folder: val }));
-                  handleSave('library_folder', val);
-                }}
-                label="Library Folder Path"
-                helperText="Root directory for sorted media library"
-                mode="folder"
-              />
-
-              <PathPicker
-                value={settings.scan_folder || ''}
-                onChange={(val) => {
-                  setSettings(prev => ({ ...prev, scan_folder: val }));
-                  handleSave('scan_folder', val);
-                }}
-                label="Scan Folder Path"
-                helperText="Directory to monitor for incoming files"
+                label="Add Media Root Path"
                 mode="folder"
               />
             </Box>
           </Grid>
 
-          {/* Right Column: Added Paths Chips */}
+          {/* Right Column (55%): Added Paths Chips */}
           <Grid item xs={12} sx={{ width: '55%', flexBasis: '55%', maxWidth: '55%' }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>Added Paths</Typography>
-            {mediaPaths.length === 0 ? (
-              <Typography variant="caption" color="textSecondary" display="block">No media root paths configured.</Typography>
-            ) : (
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                {mediaPaths.map((path) => (
-                  <Chip
-                    key={path}
-                    label={path}
-                    onDelete={() => handleRemoveMediaPath(path)}
-                    color="primary"
-                    variant="outlined"
-                  />
-                ))}
-              </Box>
-            )}
+            <Box sx={{ pt: 3.5 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>Added Paths</Typography>
+              {mediaPaths.length === 0 ? (
+                <Typography variant="caption" color="textSecondary" display="block">No media root paths configured.</Typography>
+              ) : (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {mediaPaths.map((path) => (
+                    <Chip
+                      key={path}
+                      label={path}
+                      onDelete={() => handleRemoveMediaPath(path)}
+                      color="primary"
+                      variant="outlined"
+                    />
+                  ))}
+                </Box>
+              )}
+            </Box>
           </Grid>
         </Grid>
+
+        {/* Row 2: Other file pickers stacked vertically (restricted to 45% of page width) */}
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, width: '45%', maxWidth: '45%' }}>
+          <PathPicker
+            value={settings.download_destination || ''}
+            onChange={(val) => {
+              setSettings(prev => ({ ...prev, download_destination: val }));
+              handleSave('download_destination', val);
+            }}
+            label="Download Destination Path"
+            helperText="Target directory for new downloads"
+            mode="folder"
+          />
+
+          <PathPicker
+            value={settings.library_folder || ''}
+            onChange={(val) => {
+              setSettings(prev => ({ ...prev, library_folder: val }));
+              handleSave('library_folder', val);
+            }}
+            label="Library Folder Path"
+            helperText="Root directory for sorted media library"
+            mode="folder"
+          />
+
+          <PathPicker
+            value={settings.scan_folder || ''}
+            onChange={(val) => {
+              setSettings(prev => ({ ...prev, scan_folder: val }));
+              handleSave('scan_folder', val);
+            }}
+            label="Scan Folder Path"
+            helperText="Directory to monitor for incoming files"
+            mode="folder"
+          />
+        </Box>
       </Paper>
 
       <Paper sx={{ p: 3, mb: 3 }}>
