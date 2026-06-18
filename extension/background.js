@@ -97,16 +97,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 async function extractLiveStream(tab) {
-    if (!tab || !tab.url) return;
+    if (!tab || !tab.url || !tab.id) return;
     try {
         const config = await chrome.storage.local.get(['voyarrApiUrl', 'voyarrSecret']);
         if (!config.voyarrSecret || !config.voyarrApiUrl) {
-            showNotification("Voyarr Error", "Missing backend URL or API key in settings.");
+            await showToastInTab(tab.id, "Error: Missing backend URL or API key in settings.", "error");
             return;
         }
 
         const baseUrl = config.voyarrApiUrl.replace(/\/$/, '');
-        showNotification("Extracting Stream", "Connecting to yt-dlp to extract the stream URL...");
+        await showToastInTab(tab.id, "Connecting to yt-dlp to extract the stream URL...", "info");
 
         const extractRes = await fetch(`${baseUrl}/download/extract-stream`, {
             method: 'POST',
@@ -143,19 +143,70 @@ async function extractLiveStream(tab) {
             throw new Error(`Failed to save stream: ${saveRes.statusText}`);
         }
 
-        showNotification("Stream Saved!", `Successfully extracted and saved: ${title || "Live Stream"}`);
+        await showToastInTab(tab.id, `Successfully extracted and saved: ${title || "Live Stream"}`, "success");
     } catch (err) {
         console.error("Failed to extract stream:", err);
-        showNotification("Extraction Failed", err.message || err.toString());
+        await showToastInTab(tab.id, `Extraction Failed: ${err.message || err.toString()}`, "error");
     }
 }
 
-function showNotification(title, message) {
-    chrome.notifications.create({
-        type: 'basic',
-        iconUrl: 'icon-128.png',
-        title: title,
-        message: message,
-        priority: 2
-    });
+async function showToastInTab(tabId, message, type = 'info') {
+    try {
+        await chrome.scripting.executeScript({
+            target: { tabId: tabId },
+            func: (msg, toastType) => {
+                const existing = document.getElementById('voyarr-injected-toast');
+                if (existing) existing.remove();
+
+                const toast = document.createElement('div');
+                toast.id = 'voyarr-injected-toast';
+                
+                let bg = '#312e81'; // dark blue
+                let border = '#4338ca';
+                if (toastType === 'success') {
+                    bg = '#064e3b'; // dark green
+                    border = '#047857';
+                } else if (toastType === 'error') {
+                    bg = '#7f1d1d'; // dark red
+                    border = '#b91c1c';
+                }
+
+                Object.assign(toast.style, {
+                    position: 'fixed',
+                    bottom: '20px',
+                    right: '20px',
+                    backgroundColor: bg,
+                    color: '#f9fafb',
+                    padding: '12px 18px',
+                    borderRadius: '8px',
+                    border: `1px solid ${border}`,
+                    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+                    fontSize: '13px',
+                    fontWeight: '500',
+                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                    zIndex: '9999999',
+                    opacity: '0',
+                    transform: 'translateY(20px)',
+                    transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+                });
+
+                toast.innerText = msg;
+                document.body.appendChild(toast);
+
+                toast.offsetHeight; // force layout reflow
+
+                toast.style.opacity = '1';
+                toast.style.transform = 'translateY(0)';
+
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateY(-20px)';
+                    setTimeout(() => toast.remove(), 300);
+                }, 4000);
+            },
+            args: [message, type]
+        });
+    } catch (e) {
+        console.error("Failed to inject toast:", e);
+    }
 }

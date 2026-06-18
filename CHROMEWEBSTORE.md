@@ -46,7 +46,6 @@ The Chrome Web Store review team requires explicit, plain-English justifications
 | **`scripting`** | `"scripting"` | Injects the map mode content script (`content.js`) onto the active webpage when visual selection is toggled. |
 | **`contextMenus`** | `"contextMenus"` | Registers the "Start Voyarr Map Mode" context menu option to trigger mapping directly from any right-click. |
 | **`tabs`** | `"tabs"` | Reads the active tab URL to resolve the site hostname, which is required to map selectors to the correct provider. |
-| **`notifications`** | `"notifications"` | Displays desktop status notifications to inform the user when a live stream extraction completes, fails, or saves successfully in the background. |
 
 ---
 
