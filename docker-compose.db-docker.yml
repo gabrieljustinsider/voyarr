@@ -1,0 +1,40 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: voyarr-db
+    command: postgres -c shared_buffers=256MB -c max_connections=200
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-voyarr}
+      POSTGRES_USER: ${POSTGRES_USER:-voyarr_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-voyarr_password}
+      TZ: ${TZ:-UTC}
+    volumes:
+      - voyarr-db-data:/var/lib/postgresql/data
+      - voyarr-backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-voyarr_user} -d $${POSTGRES_DB:-voyarr}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - voyarr_network
+
+  backend:
+    depends_on:
+      db:
+        condition: service_healthy
+
+  celery_worker:
+    depends_on:
+      db:
+        condition: service_healthy
+
+  celery_beat:
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  voyarr-db-data:
+    name: voyarr-db-data

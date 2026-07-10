@@ -1,25 +1,23 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-echo "🧹 Starting Voyarr Backup Log Rotation..."
+DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$DIR/deploy/lib/secrets.sh"
 
-# 1. Check if .env exists to extract BACKUP_ROOT
-if [ -f .env ]; then
-    BACKUP_ROOT=$(grep "^BACKUP_ROOT=" .env | cut -d '=' -f2- | tr -d ' "' | tr -d "'")
-fi
+load_env
 
-# Fallback to a default if not found or empty
-BACKUP_ROOT=${BACKUP_ROOT:-"/volume1/docker/voyarr/backups"}
+RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-30}"
 
-if [ ! -d "$BACKUP_ROOT" ]; then
-    echo "❌ Error: Backup directory '$BACKUP_ROOT' does not exist."
-    exit 1
-fi
+echo "Cleaning backup files older than $RETENTION_DAYS days from voyarr-backups volume..."
 
-RETENTION_DAYS=30
+docker run --rm \
+  -v voyarr-backups:/backups \
+  alpine:latest \
+  sh -c "
+    removed=\$(find /backups -type f \( -name '*.sql' -o -name '*.json' \) -mtime +$RETENTION_DAYS -delete -print)
+    count=\$(echo \"\$removed\" | wc -l)
+    echo \"Removed \$count old backup files.\"
+    [ -z \"\$removed\" ] && echo 'No files to clean.'
+  "
 
-echo "🔍 Looking for backups older than $RETENTION_DAYS days in $BACKUP_ROOT..."
-
-# Find and delete .sql and .json files older than RETENTION_DAYS
-find "$BACKUP_ROOT" -type f \( -name "*.sql" -o -name "*.json" \) -mtime +$RETENTION_DAYS -exec rm -v {} \;
-
-echo "✅ Backup cleanup complete!"
+echo "Backup cleanup complete!"

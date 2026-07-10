@@ -2,8 +2,6 @@ import pytest
 import os
 
 os.environ["DATABASE_URL"] = "sqlite:///file:testdb_temp?mode=memory&cache=shared"
-os.environ["MASTER_KEY"] = "test_master_key"
-os.environ["SECRET_KEY"] = "test_jwt_secret_key"
 from unittest.mock import patch, MagicMock
 
 # Mock out modules before import

@@ -1,31 +1,35 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-echo "🚀 Starting Voyarr Database Backup..."
+DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$DIR/deploy/lib/secrets.sh"
 
-# 1. Check if .env exists
-if [ ! -f .env ]; then
-    echo "❌ Error: .env file not found! Please copy .env.example to .env and configure it."
-    exit 1
+echo "Starting Voyarr Database Backup..."
+
+load_env
+
+DB_TARGET="${DATABASE_TARGET:-docker}"
+
+if [ "$DB_TARGET" != "docker" ]; then
+  echo "Database target is '$DB_TARGET' — local container backup is not applicable."
+  echo "Use your cloud provider's backup mechanism instead."
+  exit 0
 fi
 
-# 2. Perform live database backup
 if docker ps --format '{{.Names}}' | grep -q "^voyarr-db$"; then
-    TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-    BACKUP_FILE="/backups/manual_db_backup_${TIMESTAMP}.sql"
-    
-    DB_USER=$(grep "^POSTGRES_USER=" .env | cut -d '=' -f2- | tr -d ' "' | tr -d "'")
-    DB_USER=${DB_USER:-voyarr_user}
-    
-    DB_NAME=$(grep "^POSTGRES_DB=" .env | cut -d '=' -f2- | tr -d ' "' | tr -d "'")
-    DB_NAME=${DB_NAME:-voyarr}
-    
-    echo "💾 Backing up database to $BACKUP_FILE (inside the backups volume)..."
-    docker compose exec -T db bash -c "pg_dump -U \"$DB_USER\" -d \"$DB_NAME\" > \"$BACKUP_FILE\""
-    
-    if [ $? -eq 0 ]; then
-        echo "✅ Database backup successful!"
-    fi
+  TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+  BACKUP_FILE="/backups/manual_db_backup_${TIMESTAMP}.sql"
+
+  DB_USER="${POSTGRES_USER:-voyarr_user}"
+  DB_NAME="${POSTGRES_DB:-voyarr}"
+
+  echo "Backing up database to $BACKUP_FILE..."
+  docker compose exec -T db bash -c "pg_dump -U \"$DB_USER\" -d \"$DB_NAME\" > \"$BACKUP_FILE\""
+
+  if [ $? -eq 0 ]; then
+    echo "Database backup successful!"
+  fi
 else
-    echo "❌ Error: Database container (voyarr-db) is not currently running. Cannot perform backup."
-    exit 1
+  echo "ERROR: Database container is not running. Cannot perform backup."
+  exit 1
 fi

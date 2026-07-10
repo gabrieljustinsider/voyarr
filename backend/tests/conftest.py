@@ -2,6 +2,9 @@ import os
 import tempfile
 import sqlalchemy
 
+os.environ.setdefault("MASTER_KEY", "test_master_key")
+os.environ.setdefault("SECRET_KEY", "test_jwt_secret_key")
+
 # Redirect test database files to the system temporary directory to keep the root directory clean
 def redirect_db_url(url_str: str) -> str:
     if url_str.startswith("sqlite:///file:testdb_"):

@@ -105,19 +105,19 @@ def auto_sync_credentials() -> None:
 
             print(f"Running automated credential sync ({direction})...")
 
+            from services.credential_base import CredentialServiceBase
             from services.onepassword_service import OnePasswordService
-
-            try:
-                getattr(OnePasswordService, f"{direction}_credentials")(db)
-            except Exception as e:
-                print(f"Auto-sync 1Password skipped/failed: {e}")
-
             from services.bitwarden_service import BitwardenService
 
-            try:
-                getattr(BitwardenService, f"{direction}_credentials")(db)
-            except Exception as e:
-                print(f"Auto-sync Bitwarden skipped/failed: {e}")
+            _reg: dict[str, type[CredentialServiceBase]] = {}
+            OnePasswordService.register(_reg)
+            BitwardenService.register(_reg)
+
+            for name, svc in _reg.items():
+                try:
+                    getattr(svc, f"{direction}_credentials")(db)
+                except Exception as e:
+                    print(f"Auto-sync {name} skipped/failed: {e}")
 
         except Exception as e:
             print(f"Auto-sync error: {e}")

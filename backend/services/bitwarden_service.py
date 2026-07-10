@@ -2,9 +2,10 @@ import requests
 from sqlalchemy.orm import Session
 from models import Settings, Vault, Credential, Provider
 from security import decrypt_data, encrypt_data
+from services.credential_base import CredentialServiceBase
 
 
-class BitwardenService:
+class BitwardenService(CredentialServiceBase):
     @staticmethod
     def get_config(db: Session):
         host = db.query(Settings).filter_by(key="bw_connect_host").first()

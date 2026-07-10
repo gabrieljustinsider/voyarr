@@ -1,0 +1,159 @@
+name: voyarr
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: voyarr-redis
+    command: redis-server --save 60 1 --loglevel warning --tcp-backlog 128
+    environment:
+      - TZ=${TZ:-UTC}
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - voyarr_network
+
+  backend:
+    image: ghcr.io/gabrieljustinsider/voyarr-backend:latest
+    container_name: voyarr-backend
+    user: "${PUID:-1000}:${PGID:-1000}"
+    group_add:
+      - "${SUPPLEMENTARY_GID:-1000}"
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:5432/${POSTGRES_DB:-voyarr}}
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
+      - BROWSERLESS_URL=${BROWSERLESS_URL:-wss://chrome.browserless.io}
+      - BROWSERLESS_TOKEN=${BROWSERLESS_TOKEN:-}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
+      - CONTAINER_MEDIA_PATHS=${CONTAINER_MEDIA_PATHS:-/media/storage}
+      - DEFAULT_DOWNLOAD_PATH=${DEFAULT_DOWNLOAD_PATH:-/media/storage/downloads}
+      - MASTER_KEY=${MASTER_KEY}
+      - SECRET_KEY=${SECRET_KEY}
+      - HOST=${HOST:-0.0.0.0}
+      - PORT=8000
+      - ROOT_PATH=${ROOT_PATH:-}
+      - AUTO_PORT_FALLBACK=${AUTO_PORT_FALLBACK:-false}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000}
+      - COOKIE_SAMESITE=${COOKIE_SAMESITE:-lax}
+      - COOKIE_SECURE=${COOKIE_SECURE:-false}
+      - TZ=${TZ:-UTC}
+      - SSL_CERT_PATH=${SSL_CERT_PATH:-}
+      - SSL_KEY_PATH=${SSL_KEY_PATH:-}
+      - TRUST_FORWARDED_FOR=${TRUST_FORWARDED_FOR:-false}
+      - DEFAULT_USER_AGENT=${DEFAULT_USER_AGENT:-}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID:-}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET:-}
+      - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID:-}
+      - DISCORD_CLIENT_SECRET=${DISCORD_CLIENT_SECRET:-}
+      - OIDC_CLIENT_ID=${OIDC_CLIENT_ID:-}
+      - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET:-}
+      - OIDC_DISCOVERY_URL=${OIDC_DISCOVERY_URL:-}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN:-}
+      - DISCORD_PUBLIC_KEY=${DISCORD_PUBLIC_KEY:-}
+      - DISCORD_ADMIN_CHANNEL_ID=${DISCORD_ADMIN_CHANNEL_ID:-}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+    volumes:
+      - voyarr-config:/app/config
+      - voyarr-backups:/app/backups
+      - voyarr-certs:/app/certs:ro
+      - ${HOST_MEDIA_PATH_1:-./media}:/media/storage
+    healthcheck:
+      test: python -c "from urllib.request import urlopen; exit(0) if urlopen('http://localhost:8000/health').status == 200 else exit(1)"
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - voyarr_network
+
+  x-celery-worker: &celery-worker
+    image: ghcr.io/gabrieljustinsider/voyarr-backend:latest
+    user: "${PUID:-1000}:${PGID:-1000}"
+    group_add:
+      - "${SUPPLEMENTARY_GID:-1000}"
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:5432/${POSTGRES_DB:-voyarr}}
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
+      - BROWSERLESS_URL=${BROWSERLESS_URL:-wss://chrome.browserless.io}
+      - BROWSERLESS_TOKEN=${BROWSERLESS_TOKEN:-}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
+      - CONTAINER_MEDIA_PATHS=${CONTAINER_MEDIA_PATHS:-/media/storage}
+      - DEFAULT_DOWNLOAD_PATH=${DEFAULT_DOWNLOAD_PATH:-/media/storage/downloads}
+      - MASTER_KEY=${MASTER_KEY}
+      - SECRET_KEY=${SECRET_KEY}
+      - TZ=${TZ:-UTC}
+      - TRUST_FORWARDED_FOR=${TRUST_FORWARDED_FOR:-false}
+      - DEFAULT_USER_AGENT=${DEFAULT_USER_AGENT:-}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID:-}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET:-}
+      - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID:-}
+      - DISCORD_CLIENT_SECRET=${DISCORD_CLIENT_SECRET:-}
+      - OIDC_CLIENT_ID=${OIDC_CLIENT_ID:-}
+      - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET:-}
+      - OIDC_DISCOVERY_URL=${OIDC_DISCOVERY_URL:-}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN:-}
+      - DISCORD_PUBLIC_KEY=${DISCORD_PUBLIC_KEY:-}
+      - DISCORD_ADMIN_CHANNEL_ID=${DISCORD_ADMIN_CHANNEL_ID:-}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+    volumes:
+      - voyarr-config:/app/config
+      - voyarr-backups:/app/backups
+      - ${HOST_MEDIA_PATH_1:-./media}:/media/storage
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - voyarr_network
+
+  celery_worker:
+    <<: *celery-worker
+    container_name: voyarr-celery
+    shm_size: "2gb"
+    command: sh -c "mkdir -p /media/storage/logs && celery -A celery_app.celery_app worker -Q celery,downloads,transcodes,scraping,ai_inference --concurrency=${CELERY_CONCURRENCY:-4} --loglevel=${CELERY_LOG_LEVEL:-info} --logfile=/media/storage/logs/celery.log"
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A celery_app.celery_app inspect ping || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  celery_beat:
+    image: ghcr.io/gabrieljustinsider/voyarr-backend:latest
+    container_name: voyarr-celery-beat
+    user: "${PUID:-1000}:${PGID:-1000}"
+    group_add:
+      - "${SUPPLEMENTARY_GID:-1000}"
+    command: sh -c "celery -A celery_app.celery_app beat --loglevel=${CELERY_LOG_LEVEL:-info} --pidfile=/tmp/celerybeat.pid --schedule=/tmp/celerybeat-schedule"
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:5432/${POSTGRES_DB:-voyarr}}
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
+      - TZ=${TZ:-UTC}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+    volumes:
+      - voyarr-config:/app/config
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - voyarr_network
+
+networks:
+  voyarr_network:
+    name: voyarr_prod_network
+    driver: bridge
+
+volumes:
+  voyarr-config:
+    name: voyarr-config
+  voyarr-backups:
+    name: voyarr-backups
+  voyarr-certs:
+    name: voyarr-certs

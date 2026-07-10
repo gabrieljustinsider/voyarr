@@ -1,8 +1,6 @@
 import os
 
 os.environ["DATABASE_URL"] = "sqlite:///file:testdb_temp_pairing?mode=memory&cache=shared"
-os.environ["MASTER_KEY"] = "test_master_key"
-os.environ["SECRET_KEY"] = "test_jwt_secret_key"
 
 from fastapi.testclient import TestClient
 from main import app

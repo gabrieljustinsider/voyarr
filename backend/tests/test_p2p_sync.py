@@ -7,8 +7,6 @@ import json
 
 # Setup environment variables for tests
 os.environ["DATABASE_URL"] = "sqlite:///file:testdb_p2p_sync?mode=memory&cache=shared"
-os.environ["MASTER_KEY"] = "test_master_key"
-os.environ["SECRET_KEY"] = "test_jwt_secret_key"
 
 import database
 from sqlalchemy import create_engine

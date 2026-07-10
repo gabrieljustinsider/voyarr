@@ -1,0 +1,13 @@
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: voyarr-cloudflared
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - voyarr_network

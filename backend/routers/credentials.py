@@ -131,17 +131,17 @@ def delete_credential(provider_id: int, db: Session = Depends(get_db)):
 def sync_credential_manager(
     manager: str, direction: str, db: Session = Depends(get_db)
 ):
-    import typing
+    from services.credential_base import CredentialServiceBase
 
-    if manager == "1password":
-        from services.onepassword_service import OnePasswordService
+    _registry: dict[str, type[CredentialServiceBase]] = {}
+    from services.onepassword_service import OnePasswordService
+    from services.bitwarden_service import BitwardenService
 
-        service = typing.cast(typing.Any, OnePasswordService)
-    elif manager == "bitwarden":
-        from services.bitwarden_service import BitwardenService
+    OnePasswordService.register(_registry)
+    BitwardenService.register(_registry)
 
-        service = typing.cast(typing.Any, BitwardenService)
-    else:
+    service = _registry.get(manager)
+    if service is None:
         raise HTTPException(
             status_code=400,
             detail="Unsupported credential manager. Use '1password' or 'bitwarden'.",
