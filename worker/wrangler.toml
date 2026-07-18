@@ -4,5 +4,4 @@ compatibility_date = "2024-12-01"
 
 assets = { directory = "../frontend/dist", binding = "ASSETS" }
 
-[env.production]
 routes = [{ pattern = "voyarr.gabrieljustinsider.com/*", zone_id = "a7bbfed2974f3d8579f7d3aaceeb8598" }]

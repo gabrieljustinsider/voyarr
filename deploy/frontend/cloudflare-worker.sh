@@ -15,10 +15,10 @@ deploy_frontend() {
   cd "$PROJECT_DIR/worker"
   if command -v wrangler &>/dev/null; then
     echo "$backend_origin" | wrangler secret put BACKEND_ORIGIN 2>/dev/null || true
-    wrangler deploy --env production
+    wrangler deploy
   elif command -v npx &>/dev/null; then
     echo "$backend_origin" | npx wrangler secret put BACKEND_ORIGIN 2>/dev/null || true
-    npx wrangler deploy --env production
+    npx wrangler deploy
   else
     echo "ERROR: wrangler CLI not found. Install with: npm install -g wrangler" >&2
     exit 1
