@@ -58,6 +58,17 @@ A `SECRETS_PROVIDER` variable controls how environment variables are loaded:
 
 The secrets provider is used by all deploy scripts and shell utilities. The Python backend always uses `python-dotenv` to load `.env` regardless of the provider setting.
 
+### Rotating and Re-injecting Secrets
+
+When you rotate a secret (API token, database password, etc.) in 1Password, regenerate the resolved `.env` file for Portainer or other environments that lack the 1Password CLI:
+
+```bash
+# Generate a plaintext .env with all op:// references resolved
+op inject -i .env -o .env.portainer --force
+```
+
+Load this into Portainer's environment variables, or any other deployment target that reads plaintext `.env` files. Keep the original `.env` with `op://` refs committed — it contains no actual secrets.
+
 ## Quick Start
 
 ### Prerequisites
