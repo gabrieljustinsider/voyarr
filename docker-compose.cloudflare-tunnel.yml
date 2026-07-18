@@ -3,11 +3,11 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: voyarr-cloudflared
     restart: unless-stopped
-    command: tunnel --config /etc/cloudflared/config.yml run
+    command: tunnel --config /app/config/cloudflared.yml run
     environment:
       - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
     volumes:
-      - ./cloudflared/config.yml:/etc/cloudflared/config.yml:ro
+      - voyarr-config:/app/config:ro
     depends_on:
       backend:
         condition: service_healthy

@@ -1,4 +1,0 @@
-ingress:
-  - hostname: backend.gabrieljustinsider.com
-    service: http://backend:8000
-  - service: http_status:404
