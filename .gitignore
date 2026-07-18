@@ -5,6 +5,7 @@
 .env.portainer
 .env.resolved
 .env.*.resolved
+docker-compose.deploy.yml
 
 # Python
 __pycache__/
