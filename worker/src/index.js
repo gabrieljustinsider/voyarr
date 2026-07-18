@@ -1,65 +1,75 @@
+const ASSET_MANIFEST = {
+  "manifest.webmanifest": "manifest.webmanifest",
+  "registerSW.js": "registerSW.js",
+  "sw.js": "sw.js",
+  "workbox-9c191d2f.js": "workbox-9c191d2f.js",
+  "index.html": "index.html",
+};
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    const backendOrigin = env.BACKEND_ORIGIN;
+    const path = url.pathname;
 
-    if (!backendOrigin) {
-      return new Response("BACKEND_ORIGIN not configured", { status: 500 });
+    // API requests: proxy to backend
+    if (path.startsWith("/api/") || path.startsWith("/auth/") || path.startsWith("/admin/")) {
+      const backendOrigin = env.BACKEND_ORIGIN;
+      if (!backendOrigin) {
+        return new Response("BACKEND_ORIGIN not configured", { status: 500 });
+      }
+
+      const backendUrl = `${backendOrigin}${path}${url.search}`;
+      const headers = new Headers(request.headers);
+      headers.set("Host", new URL(backendOrigin).host);
+      headers.delete("CF-Connecting-IP");
+      headers.delete("CF-Ray");
+      headers.delete("CF-Worker");
+
+      let body = null;
+      if (request.method !== "GET" && request.method !== "HEAD") {
+        body = request.body;
+      }
+
+      const response = await fetch(backendUrl, {
+        method: request.method,
+        headers,
+        body,
+      });
+
+      const proxyHeaders = new Headers(response.headers);
+      proxyHeaders.set("Access-Control-Allow-Origin", "*");
+      proxyHeaders.set(
+        "Access-Control-Allow-Methods",
+        "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+      );
+      proxyHeaders.set(
+        "Access-Control-Allow-Headers",
+        "Content-Type, Authorization, X-Voyarr-Api-Key, X-Api-Key"
+      );
+      proxyHeaders.set("Access-Control-Allow-Credentials", "true");
+
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: proxyHeaders,
+      });
     }
 
-    if (request.method === "OPTIONS") {
-      return handleOptions(request);
+    // Static assets: serve from Workers Assets
+    const asset = await env.ASSETS.fetch(request);
+    if (asset.status !== 404) {
+      return asset;
     }
 
-    const backendUrl = `${backendOrigin}${url.pathname}${url.search}`;
-
-    const headers = new Headers(request.headers);
-    headers.set("Host", new URL(backendOrigin).host);
-    headers.delete("CF-Connecting-IP");
-    headers.delete("CF-Ray");
-    headers.delete("CF-Worker");
-
-    let body = null;
-    if (request.method !== "GET" && request.method !== "HEAD") {
-      body = request.body;
-    }
-
-    const response = await fetch(backendUrl, {
-      method: request.method,
-      headers,
-      body,
-    });
-
-    const proxyHeaders = new Headers(response.headers);
-    proxyHeaders.set("Access-Control-Allow-Origin", "*");
-    proxyHeaders.set(
-      "Access-Control-Allow-Methods",
-      "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+    // SPA fallback: serve index.html for client-side routes
+    const index = await env.ASSETS.fetch(
+      new Request(new URL("/index.html", request.url), request)
     );
-    proxyHeaders.set(
-      "Access-Control-Allow-Headers",
-      "Content-Type, Authorization, X-Voyarr-Api-Key, X-Api-Key"
-    );
-    proxyHeaders.set("Access-Control-Allow-Credentials", "true");
-
-    const proxyResponse = new Response(response.body, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: proxyHeaders,
+    return new Response(index.body, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/html",
+      },
     });
-
-    return proxyResponse;
   },
 };
-
-function handleOptions(request) {
-  const headers = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
-    "Access-Control-Allow-Headers":
-      "Content-Type, Authorization, X-Voyarr-Api-Key, X-Api-Key",
-    "Access-Control-Allow-Credentials": "true",
-    "Access-Control-Max-Age": "86400",
-  };
-  return new Response(null, { status: 204, headers });
-}
