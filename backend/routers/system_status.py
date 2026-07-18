@@ -213,5 +213,12 @@ async def get_system_status(db: Session = Depends(get_db)):
         "redis": {"status": redis_status, "details": redis_details},
         "celery": {"status": celery_status, "details": celery_details},
         "browserless": {"status": browserless_status, "details": browserless_details},
-        "environment": env_details
+        "environment": env_details,
+        "config": {
+            "frontend": {"target": os.getenv("FRONTEND_TARGET", "docker")},
+            "backend_api": {"target": os.getenv("BACKEND_API_TARGET", "docker")},
+            "workers": {"target": os.getenv("WORKERS_TARGET", "docker")},
+            "database": {"target": os.getenv("DATABASE_TARGET", "docker")},
+            "scraper": {"target": os.getenv("SCRAPER_BROWSER_TARGET", "browserless-io")},
+        }
     }

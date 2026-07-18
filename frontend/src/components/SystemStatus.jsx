@@ -13,13 +13,20 @@ import CircleIcon from '@mui/icons-material/Circle'
 import { apiFetch } from '../api'
 
 const LAYERS = [
-  { key: 'frontend', label: 'Frontend', target: 'Cloudflare Pages' },
-  { key: 'backend-api', label: 'Backend API', target: 'Docker' },
-  { key: 'workers', label: 'Workers', target: 'Docker' },
-  { key: 'database', label: 'Database', target: 'Neon' },
-  { key: 'redis', label: 'Redis', target: 'Docker' },
-  { key: 'scraper', label: 'Scraper', target: 'browserless.io' },
+  { key: 'frontend', label: 'Frontend' },
+  { key: 'backend_api', label: 'Backend API' },
+  { key: 'workers', label: 'Workers' },
+  { key: 'database', label: 'Database' },
+  { key: 'redis', label: 'Redis' },
+  { key: 'scraper', label: 'Scraper' },
 ]
+
+const SERVICE_NAMES = {
+  'cloudflare-pages': 'Cloudflare Pages',
+  'docker': 'Docker',
+  'neon': 'Neon',
+  'browserless-io': 'browserless.io',
+}
 
 export default function SystemStatus() {
   const [status, setStatus] = useState(null)
@@ -83,21 +90,30 @@ export default function SystemStatus() {
   }, [status])
 
   const getLayerStatus = (key) => {
+    const config = status?.config?.[key]
+    const target = config?.target || 'docker'
+    const service = SERVICE_NAMES[target] || target
+
     switch (key) {
       case 'frontend':
-        return { status: 'healthy', detail: 'Serving (Cloudflare Pages)' }
-      case 'backend-api':
-        return { status: status ? 'healthy' : 'unknown', detail: 'Online' }
+        return { status: status ? 'healthy' : 'unknown', detail: service }
+      case 'backend_api':
+        return { status: status ? 'healthy' : 'unknown', detail: service }
       case 'workers':
-        return { status: status?.celery?.status || 'unknown', detail: status?.celery?.details?.active_workers?.length ? `${status.celery.details.active_workers.length} worker(s)` : null }
+        return {
+          status: status?.celery?.status || 'unknown',
+          detail: status?.celery?.details?.active_workers?.length
+            ? `${status.celery.details.active_workers.length} worker(s) (${service})`
+            : service
+        }
       case 'database':
-        return { status: status?.database?.status || 'unknown', detail: status?.database?.details?.error || null }
+        return { status: status?.database?.status || 'unknown', detail: service }
       case 'redis':
-        return { status: status?.redis?.status || 'unknown', detail: null }
+        return { status: status?.redis?.status || 'unknown', detail: service }
       case 'scraper':
-        return { status: status?.browserless?.status || 'unknown', detail: status?.browserless?.details?.type || null }
+        return { status: status?.browserless?.status || 'unknown', detail: service }
       default:
-        return { status: 'unknown', detail: null }
+        return { status: 'unknown', detail: service }
     }
   }
 
