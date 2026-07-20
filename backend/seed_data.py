@@ -1,13 +1,44 @@
 import logging
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from models import Provider, SubscriptionTier
+from models import Provider, SubscriptionTier, Biller
 
 logger = logging.getLogger(__name__)
+
+def seed_default_billers(session: Session):
+    """Seed the database with default billers if empty."""
+    try:
+        existing_count = session.query(Biller).count()
+        if existing_count > 0:
+            logger.info("Database already seeded with billers. Skipping.")
+            return
+        
+        logger.info("Seeding default billers...")
+        default_billers = [
+            Biller(name="CCBill", url="https://ccbill.com", support_email="consumersupport@ccbill.com", support_phone="1-888-596-9279", description="CCBill payment gateway."),
+            Biller(name="Epoch", url="https://epoch.com", support_email="billing@epoch.com", support_phone="1-800-893-8871", description="Epoch payment services."),
+            Biller(name="Vendo", url="https://vendoservices.com", support_email="support@vendoservices.com", support_phone="1-877-327-8341", description="Vendo billing."),
+            Biller(name="Verotel", url="https://verotel.com", support_email="support@verotel.com", support_phone="1-877-873-0550", description="Verotel billing gateway."),
+            Biller(name="Segpay", url="https://segpay.com", support_email="help@segpay.com", support_phone="1-866-567-1500", description="Segpay payment solutions."),
+            Biller(name="Centrobill", url="https://centrobill.com", support_email="support@centrobill.com", support_phone="1-844-469-8088", description="Centrobill safe payments."),
+            Biller(name="Probiller", url="https://probiller.com", support_email="support@probiller.com", support_phone="1-855-232-9555", description="Probiller subscription billing services."),
+            Biller(name="Rocketgate", url="https://rocketgate.com", support_email="support@rocketgate.com", support_phone="1-702-997-2347", description="Rocketgate high-risk payment gateway."),
+            Biller(name="Netbilling", url="https://netbilling.com", support_email="support@netbilling.com", support_phone="1-888-357-8166", description="Netbilling payment processing solutions."),
+            Biller(name="Paxum", url="https://paxum.com", support_email="support@paxum.com", support_phone="1-866-380-2986", description="Paxum e-wallet and provider payout services."),
+            Biller(name="Cosmopayment", url="https://cosmopayment.com", support_email="support@cosmopayment.com", support_phone="+1-954-890-2821", description="Cosmopayment global payment services."),
+            Biller(name="MojoHost", url="https://mojohost.com", support_email="billing@mojohost.com", support_phone="1-877-665-6467", description="MojoHost hosting and infrastructure billing.")
+        ]
+        session.add_all(default_billers)
+        session.commit()
+        logger.info("Database successfully seeded with default billers.")
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to seed default billers: {e}")
 
 def seed_default_data(engine):
     """Seed the database with default providers and subscription tiers if empty."""
     with Session(engine) as session:
+        seed_default_billers(session)
         try:
             # Check if providers already exist
             existing_providers_count = session.query(Provider).count()

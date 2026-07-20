@@ -90,13 +90,40 @@ def list_passkeys(current_user: User = Depends(get_current_user), db: Session = 
         })
     return result
 
-def get_rp_id(request: Request) -> str:
+def get_rp_id(request: Request, db: Optional[Session] = None) -> str:
     """
-    Extracts the relying party ID dynamically from the inbound HTTP request.
+    Extracts the relying party ID from database settings, or dynamically from the inbound HTTP request.
     If the host is an IP address, localhost, or empty, we fall back to "localhost"
     as WebAuthn RP IDs must be valid domain names excluding ports.
     """
-    hostname = request.url.hostname
+    if db:
+        try:
+            setting = db.query(Settings).filter(Settings.key == "passkeys_rp_id").first()
+            if setting and setting.value and setting.value.strip():
+                return setting.value.strip()
+        except Exception:
+            pass
+
+    def extract_hostname(value: str | None) -> str | None:
+        if not value:
+            return None
+        if "://" in value:
+            from urllib.parse import urlparse
+            try:
+                return urlparse(value).hostname
+            except Exception:
+                pass
+        return value.split(":")[0].strip()
+
+    # Priority order of headers to resolve the frontend domain
+    hostname = (
+        extract_hostname(request.headers.get("x-forwarded-host")) or
+        extract_hostname(request.headers.get("origin")) or
+        extract_hostname(request.headers.get("referer")) or
+        extract_hostname(request.headers.get("host")) or
+        request.url.hostname
+    )
+
     if not hostname:
         return "localhost"
     
@@ -109,11 +136,32 @@ def get_rp_id(request: Request) -> str:
         
     return hostname
 
+def _get_setting(db: Session, key: str, default: str) -> str:
+    s = db.query(Settings).filter(Settings.key == key).first()
+    return s.value if s and s.value is not None else default
+
 @router.post("/register/options")
 def register_options(request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     _check_passkeys_enabled(db)
-    rp_id = get_rp_id(request)
-    options = generate_registration_options(current_user.id, current_user.username, rp_id=rp_id)
+    rp_id = get_rp_id(request, db)
+    
+    timeout_sec = 60
+    try:
+        timeout_sec = int(_get_setting(db, "passkeys_timeout", "60"))
+    except ValueError:
+        pass
+
+    options = generate_registration_options(
+        user_id=current_user.id, 
+        username=current_user.username, 
+        rp_id=rp_id,
+        rp_name=_get_setting(db, "passkeys_rp_name", "Voyarr Media Server"),
+        authenticator_attachment=_get_setting(db, "passkeys_authenticator_attachment", "any"),
+        resident_key=_get_setting(db, "passkeys_resident_key", "required"),
+        user_verification=_get_setting(db, "passkeys_user_verification", "preferred"),
+        timeout=timeout_sec * 1000,
+        attestation=_get_setting(db, "passkeys_attestation", "none")
+    )
     REGISTRATION_CHALLENGES[current_user.username] = options["challenge"]
     return options
 
@@ -139,7 +187,7 @@ def register_verify(
     
     client_ip = request.client.host if request.client else "127.0.0.1"
     location = resolve_ip_location(client_ip)
-    rp_id = get_rp_id(request)
+    rp_id = get_rp_id(request, db)
     
     passkey = Passkey(
         user_id=current_user.id,
@@ -177,8 +225,20 @@ def login_options(req: LoginOptionsRequest, request: Request, db: Session = Depe
             passkeys = db.query(Passkey).filter(Passkey.user_id == user.id).all()
             allowed_credentials = [pk.credential_id for pk in passkeys]
             
-    rp_id = get_rp_id(request)
-    options = generate_assertion_options(allowed_credentials, rp_id=rp_id)
+    rp_id = get_rp_id(request, db)
+    
+    timeout_sec = 60
+    try:
+        timeout_sec = int(_get_setting(db, "passkeys_timeout", "60"))
+    except ValueError:
+        pass
+
+    options = generate_assertion_options(
+        allowed_credentials, 
+        rp_id=rp_id,
+        user_verification=_get_setting(db, "passkeys_user_verification", "preferred"),
+        timeout=timeout_sec * 1000
+    )
     LOGIN_CHALLENGES[options["challenge"]] = datetime.now(timezone.utc)
     return options
 
@@ -296,3 +356,31 @@ def delete_passkey(
     db.delete(passkey)
     db.commit()
     return {"status": "success", "message": "Passkey deleted successfully!"}
+
+class PasskeyTestOptionsRequest(BaseModel):
+    rp_name: str = "Voyarr Media Server"
+    rp_id: Optional[str] = ""
+    authenticator_attachment: str = "any"
+    resident_key: str = "required"
+    user_verification: str = "preferred"
+    timeout: int = 60
+    attestation: str = "none"
+
+@router.post("/test-options")
+def test_options(req: PasskeyTestOptionsRequest, request: Request, current_user: User = Depends(get_current_user)):
+    rp_id = req.rp_id.strip() if req.rp_id and req.rp_id.strip() else None
+    if not rp_id:
+        rp_id = get_rp_id(request, None)
+        
+    options = generate_registration_options(
+        user_id=current_user.id,
+        username=current_user.username,
+        rp_id=rp_id,
+        rp_name=req.rp_name,
+        authenticator_attachment=req.authenticator_attachment,
+        resident_key=req.resident_key,
+        user_verification=req.user_verification,
+        timeout=req.timeout * 1000,
+        attestation=req.attestation
+    )
+    return options

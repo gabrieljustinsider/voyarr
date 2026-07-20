@@ -154,6 +154,13 @@ export default function Settings() {
     global_proxy_url: '',
     global_user_agent: '',
     passkeys_enabled: 'true',
+    passkeys_rp_name: 'Voyarr Media Server',
+    passkeys_rp_id: '',
+    passkeys_authenticator_attachment: 'any',
+    passkeys_resident_key: 'required',
+    passkeys_user_verification: 'preferred',
+    passkeys_timeout: '60',
+    passkeys_attestation: 'none',
     sso_enabled: 'false',
     oidc_enabled: 'false',
     auth_bypass_enabled: 'false',
@@ -1117,17 +1124,126 @@ export default function Settings() {
             </Grid>
           </Grid>
 
-          {/* Passkeys Notice */}
+          {/* Passkeys Configuration Section */}
           {settings.passkeys_enabled === 'true' && (
             <Box sx={{
-              p: 2, mb: 2, borderRadius: '12px',
-              background: 'linear-gradient(135deg, rgba(0, 230, 118, 0.06) 0%, rgba(0, 176, 255, 0.04) 100%)',
-              border: '1px solid rgba(0, 230, 118, 0.15)'
+              p: 3, mb: 3, borderRadius: '12px', width: '100%', maxWidth: '600px',
+              background: 'rgba(255, 255, 255, 0.02)',
+              border: '1px solid rgba(255, 255, 255, 0.08)'
             }}>
-              <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#00e676', display: 'block', mb: 0.5 }}>ℹ️ Passkey Requirements</Typography>
-              <Typography variant="caption" sx={{ opacity: 0.8, lineHeight: 1.6 }} color="textSecondary">
-                WebAuthn requires <strong>HTTPS</strong> or <strong>localhost</strong>. The Relying Party (RP) ID is automatically derived from the browser's hostname. Password managers like 1Password, Bitwarden, iCloud Keychain, and Google Password Manager will automatically be triggered during passkey creation and authentication.
+              <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#00e676', mb: 2 }}>
+                🔑 Passkey & WebAuthn Customization
               </Typography>
+              
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                <TextField
+                  fullWidth
+                  label="Display Name"
+                  name="passkeys_rp_name"
+                  value={settings.passkeys_rp_name || ''}
+                  onChange={handleChange}
+                  onBlur={e => handleSave(e.target.name, e.target.value)}
+                  helperText="The name shown on your device prompt when logging in."
+                />
+
+                <TextField
+                  fullWidth
+                  label="Website Address Override"
+                  name="passkeys_rp_id"
+                  value={settings.passkeys_rp_id || ''}
+                  onChange={handleChange}
+                  onBlur={e => handleSave(e.target.name, e.target.value)}
+                  placeholder="e.g. example.com"
+                  helperText="Leave blank to automatically detect your domain. Override only if using advanced routing."
+                />
+
+                <FormControl fullWidth>
+                  <InputLabel id="settings-attachment-label">Allowed Sign-In Devices</InputLabel>
+                  <Select
+                    labelId="settings-attachment-label"
+                    label="Allowed Sign-In Devices"
+                    name="passkeys_authenticator_attachment"
+                    value={settings.passkeys_authenticator_attachment || 'any'}
+                    onChange={e => {
+                      setSettings(prev => ({ ...prev, passkeys_authenticator_attachment: e.target.value }));
+                      handleSave('passkeys_authenticator_attachment', e.target.value);
+                    }}
+                  >
+                    <MenuItem value="any">Any Device (Recommended)</MenuItem>
+                    <MenuItem value="platform">This Device Only (built-in fingerprint/face unlock)</MenuItem>
+                    <MenuItem value="cross-platform">Portable Keys Only (USB security keys)</MenuItem>
+                  </Select>
+                  <FormHelperText>Restrict passkey storage to specific device types.</FormHelperText>
+                </FormControl>
+
+                <FormControl fullWidth>
+                  <InputLabel id="settings-resident-key-label">Username-Free Sign-In</InputLabel>
+                  <Select
+                    labelId="settings-resident-key-label"
+                    label="Username-Free Sign-In"
+                    name="passkeys_resident_key"
+                    value={settings.passkeys_resident_key || 'required'}
+                    onChange={e => {
+                      setSettings(prev => ({ ...prev, passkeys_resident_key: e.target.value }));
+                      handleSave('passkeys_resident_key', e.target.value);
+                    }}
+                  >
+                    <MenuItem value="required">Enabled (Recommended)</MenuItem>
+                    <MenuItem value="preferred">Preferred</MenuItem>
+                    <MenuItem value="discouraged">Disabled (Must type username first)</MenuItem>
+                  </Select>
+                  <FormHelperText>Permits logging in by scanning fingerprint/face without typing your username first.</FormHelperText>
+                </FormControl>
+
+                <FormControl fullWidth>
+                  <InputLabel id="settings-verification-label">Require Fingerprint/Face Verification</InputLabel>
+                  <Select
+                    labelId="settings-verification-label"
+                    label="Require Fingerprint/Face Verification"
+                    name="passkeys_user_verification"
+                    value={settings.passkeys_user_verification || 'preferred'}
+                    onChange={e => {
+                      setSettings(prev => ({ ...prev, passkeys_user_verification: e.target.value }));
+                      handleSave('passkeys_user_verification', e.target.value);
+                    }}
+                  >
+                    <MenuItem value="preferred">Preferred (Recommended)</MenuItem>
+                    <MenuItem value="required">Strictly Required</MenuItem>
+                    <MenuItem value="discouraged">Not Required</MenuItem>
+                  </Select>
+                  <FormHelperText>Forces validation of biometrics (fingerprint/face) or PIN code before completing login.</FormHelperText>
+                </FormControl>
+
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Setup Time Limit (seconds)"
+                  name="passkeys_timeout"
+                  value={settings.passkeys_timeout || '60'}
+                  onChange={handleChange}
+                  onBlur={e => handleSave(e.target.name, e.target.value)}
+                  helperText="Maximum allowed time to complete the scanner verification before it cancels."
+                />
+
+                <FormControl fullWidth>
+                  <InputLabel id="settings-attestation-label">Security Device Verification</InputLabel>
+                  <Select
+                    labelId="settings-attestation-label"
+                    label="Security Device Verification"
+                    name="passkeys_attestation"
+                    value={settings.passkeys_attestation || 'none'}
+                    onChange={e => {
+                      setSettings(prev => ({ ...prev, passkeys_attestation: e.target.value }));
+                      handleSave('passkeys_attestation', e.target.value);
+                    }}
+                  >
+                    <MenuItem value="none">Do Not Collect (Recommended)</MenuItem>
+                    <MenuItem value="indirect">Collect Indirectly</MenuItem>
+                    <MenuItem value="direct">Collect Directly</MenuItem>
+                  </Select>
+                  <FormHelperText>Verifies the authenticity of the physical hardware key against manufacturer databases.</FormHelperText>
+                </FormControl>
+              </Box>
             </Box>
           )}
 

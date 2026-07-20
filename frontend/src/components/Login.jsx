@@ -16,7 +16,12 @@ import {
   InputAdornment, 
   IconButton,
   Grid,
-  Chip
+  Chip,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  FormHelperText
 } from '@mui/material'
 import FingerprintIcon from '@mui/icons-material/Fingerprint'
 import LockIcon from '@mui/icons-material/Lock'
@@ -54,6 +59,19 @@ export default function Login() {
   const [hasUsers, setHasUsers] = useState(true)
   const [setupLoading, setSetupLoading] = useState(false)
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [setupStep, setSetupStep] = useState('credentials') // 'credentials', 'passkey_prompt', 'passkey_setup', 'passkey_register'
+  const [passkeyConfig, setPasskeyConfig] = useState({
+    passkeys_rp_name: 'Voyarr Media Server',
+    passkeys_rp_id: '',
+    passkeys_authenticator_attachment: 'any',
+    passkeys_resident_key: 'required',
+    passkeys_user_verification: 'preferred',
+    passkeys_timeout: 60,
+    passkeys_attestation: 'none',
+  })
+  const [testSuccess, setTestSuccess] = useState(false)
+  const [testError, setTestError] = useState('')
+  const [testLoading, setTestLoading] = useState(false)
 
   // Custom states for passkey and SSO
   const [passkeyLoading, setPasskeyLoading] = useState(false)
@@ -205,6 +223,211 @@ export default function Login() {
     fetchAuthConfig()
   }, [API_BASE])
 
+  const scanAaguid = (attestationObjectBuffer) => {
+    const bytes = new Uint8Array(attestationObjectBuffer)
+    const pattern = [0x68, 0x61, 0x75, 0x74, 0x68, 0x44, 0x61, 0x74, 0x61] // "authData"
+    let authDataOffset = -1
+    for (let i = 0; i <= bytes.length - pattern.length; i++) {
+      let match = true
+      for (let j = 0; j < pattern.length; j++) {
+        if (bytes[i + j] !== pattern[j]) {
+          match = false
+          break;
+        }
+      }
+      if (match) {
+        const nextByte = bytes[i + pattern.length]
+        if (nextByte === 0x58) {
+          authDataOffset = i + pattern.length + 2
+        } else if (nextByte === 0x59) {
+          authDataOffset = i + pattern.length + 3
+        } else if (nextByte >= 0x40 && nextByte <= 0x57) {
+          authDataOffset = i + pattern.length + 1
+        }
+        break;
+      }
+    }
+    if (authDataOffset !== -1 && authDataOffset + 53 <= bytes.length) {
+      const flags = bytes[authDataOffset + 32]
+      if (flags & 0x40) {
+        const aaguidBytes = bytes.slice(authDataOffset + 37, authDataOffset + 37 + 16)
+        const hex = Array.from(aaguidBytes, b => b.toString(16).padStart(2, '0')).join('')
+        return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+      }
+    }
+    return null
+  }
+
+  const getClientInfo = () => {
+    const ua = navigator.userAgent
+    let browser = "Unknown Browser"
+    let os_name = "Unknown OS"
+    
+    if (ua.includes("Firefox")) browser = "Firefox"
+    else if (ua.includes("SamsungBrowser")) browser = "Samsung Browser"
+    else if (ua.includes("Opera") || ua.includes("OPR")) browser = "Opera"
+    else if (ua.includes("Trident")) browser = "Internet Explorer"
+    else if (ua.includes("Edge") || ua.includes("Edg")) browser = "Microsoft Edge"
+    else if (ua.includes("Chrome")) browser = "Google Chrome"
+    else if (ua.includes("Safari")) browser = "Apple Safari"
+    
+    if (ua.includes("Windows")) os_name = "Windows"
+    else if (ua.includes("Macintosh") || ua.includes("Mac OS")) os_name = "macOS"
+    else if (ua.includes("Android")) os_name = "Android"
+    else if (ua.includes("iPhone") || ua.includes("iPad")) os_name = "iOS"
+    else if (ua.includes("Linux")) os_name = "Linux"
+    
+    return { browser, os_name }
+  }
+
+  const updateSettingApi = async (key, value) => {
+    const jwt = localStorage.getItem('voyarr_jwt')
+    return fetch(`${API_BASE}/settings`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${jwt}`
+      },
+      body: JSON.stringify({ key, value })
+    })
+  }
+
+  const handleDisablePasskeysAndFinish = async () => {
+    setSetupLoading(true)
+    setError('')
+    try {
+      await updateSettingApi('passkeys_enabled', 'false')
+      setSnackbar({ open: true, message: 'Settings saved! Redirecting...', severity: 'success' })
+      setTimeout(() => { window.location.reload() }, 800)
+    } catch (err) {
+      console.error(err)
+      setError('Failed to disable passkeys setting, but account was created.')
+      setTimeout(() => { window.location.reload() }, 1500)
+    } finally {
+      setSetupLoading(false)
+    }
+  }
+
+  const handleTestPasskeySettings = async () => {
+    setTestLoading(true)
+    setTestError('')
+    setTestSuccess(false)
+    try {
+      const jwt = localStorage.getItem('voyarr_jwt')
+      const res = await fetch(`${API_BASE}/auth/passkeys/test-options`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${jwt}`
+        },
+        body: JSON.stringify(passkeyConfig)
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.detail || 'Failed to generate test options.')
+      }
+      const options = await res.json()
+      
+      options.challenge = base64ToBuffer(options.challenge)
+      options.user.id = new TextEncoder().encode(options.user.id)
+      
+      const credential = await navigator.credentials.create({ publicKey: options })
+      if (!credential) {
+        throw new Error('Test creation cancelled or failed.')
+      }
+      setTestSuccess(true)
+      setSnackbar({ open: true, message: 'Verification successful! Domain and configurations match.', severity: 'success' })
+    } catch (err) {
+      console.error('Test error:', err)
+      setTestError(err.message || 'Verification failed. Please check your domain.')
+    } finally {
+      setTestLoading(false)
+    }
+  }
+
+  const handleSaveAndRegisterPasskey = async () => {
+    setSetupLoading(true)
+    setError('')
+    try {
+      // 1. Save all passkey configuration settings to backend
+      const settingsToSave = {
+        passkeys_enabled: 'true',
+        ...passkeyConfig,
+        passkeys_timeout: String(passkeyConfig.passkeys_timeout)
+      }
+      for (const [k, v] of Object.entries(settingsToSave)) {
+        await updateSettingApi(k, v)
+      }
+
+      // 2. Perform official passkey registration
+      const jwt = localStorage.getItem('voyarr_jwt')
+      const optionsRes = await fetch(`${API_BASE}/auth/passkeys/register/options`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${jwt}` }
+      })
+      if (!optionsRes.ok) {
+        const err = await optionsRes.json()
+        throw new Error(err.detail || 'Failed to retrieve register options')
+      }
+      const options = await optionsRes.json()
+      
+      options.challenge = base64ToBuffer(options.challenge)
+      options.user.id = new TextEncoder().encode(options.user.id)
+      
+      const credential = await navigator.credentials.create({ publicKey: options })
+      if (!credential) {
+        throw new Error('Passkey registration cancelled.')
+      }
+      
+      const attestationObject = credential.response.attestationObject
+      const clientDataJSON = credential.response.clientDataJSON
+      
+      let publicKeyB64 = ''
+      if (typeof credential.response.getPublicKey === 'function') {
+        publicKeyB64 = bufferToBase64(credential.response.getPublicKey())
+      }
+      
+      const aaguid = scanAaguid(attestationObject)
+      const clientInfo = getClientInfo()
+      const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      const autoName = `Owner Key (${clientInfo.os_name} - ${timestamp})`
+      
+      const verifyPayload = {
+        credential_id: credential.id,
+        public_key: publicKeyB64,
+        client_data_json: bufferToBase64(clientDataJSON),
+        aaguid: aaguid || '',
+        name: autoName,
+        browser: clientInfo.browser,
+        os_name: clientInfo.os_name,
+        backup_eligible: true,
+        backup_state: true
+      }
+      
+      const verifyRes = await fetch(`${API_BASE}/auth/passkeys/register/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${jwt}`
+        },
+        body: JSON.stringify(verifyPayload)
+      })
+      
+      if (!verifyRes.ok) {
+        const err = await verifyRes.json()
+        throw new Error(err.detail || 'Failed to verify passkey registration')
+      }
+      
+      setSnackbar({ open: true, message: 'Passkey registered successfully! Redirecting...', severity: 'success' })
+      setTimeout(() => { window.location.reload() }, 800)
+    } catch (err) {
+      console.error(err)
+      setError(err.message || 'Failed to complete passkey setup.')
+    } finally {
+      setSetupLoading(false)
+    }
+  }
+
   // Handle first-user admin registration
   const handleSetup = async (e) => {
     if (e) e.preventDefault()
@@ -241,8 +464,8 @@ export default function Login() {
         if (loginRes.ok) {
           const loginData = await loginRes.json()
           localStorage.setItem('voyarr_jwt', loginData.access_token)
-          setSnackbar({ open: true, message: 'Admin account created! Signing you in...', severity: 'success' })
-          setTimeout(() => { window.location.reload() }, 800)
+          setSnackbar({ open: true, message: 'Admin account created! Setting up login options...', severity: 'success' })
+          setSetupStep('passkey_prompt')
         }
       } else {
         const errData = await res.json()
@@ -475,86 +698,261 @@ export default function Login() {
 
         {/* ── First-User Admin Setup Flow ── */}
         {!hasUsers ? (
-          <form onSubmit={handleSetup}>
-            <Typography variant="body2" align="center" sx={{ mb: 2, opacity: 0.7, color: 'text.secondary' }}>
-              Welcome! Create your administrator account to get started.
-            </Typography>
-            <TextField
-              fullWidth
-              label="Admin Username"
-              margin="normal"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              placeholder="e.g. administrator"
-              required
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <PersonIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
-                  </InputAdornment>
-                ),
-                sx: { borderRadius: '10px' }
-              }}
-            />
-            <TextField
-              fullWidth
-              type="password"
-              label="Password"
-              margin="normal"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="Min. 8 characters"
-              required
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <LockIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
-                  </InputAdornment>
-                ),
-                sx: { borderRadius: '10px' }
-              }}
-            />
-            <PasswordChecklist password={password} />
-            <TextField
-              fullWidth
-              type="password"
-              label="Confirm Password"
-              margin="normal"
-              value={confirmPassword}
-              onChange={e => setConfirmPassword(e.target.value)}
-              placeholder="Re-enter password"
-              required
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <LockIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
-                  </InputAdornment>
-                ),
-                sx: { borderRadius: '10px' }
-              }}
-            />
-            <Button
-              fullWidth
-              type="submit"
-              variant="contained"
-              disabled={setupLoading}
-              sx={{
-                mt: 3,
-                mb: 1,
-                py: 1.2,
-                borderRadius: '10px',
-                textTransform: 'none',
-                fontWeight: '600',
-                background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
-                boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)',
-                '&:hover': {
-                  background: 'linear-gradient(135deg, #4f46e5 0%, #9333ea 100%)',
-                }
-              }}
-            >
-              {setupLoading ? <CircularProgress size={22} color="inherit" /> : 'Create Admin Account'}
-            </Button>
-          </form>
+          setupStep === 'credentials' ? (
+            <form onSubmit={handleSetup}>
+              <Typography variant="body2" align="center" sx={{ mb: 2, opacity: 0.7, color: 'text.secondary' }}>
+                Welcome! Create your administrator account to get started.
+              </Typography>
+              <TextField
+                fullWidth
+                label="Admin Username"
+                margin="normal"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                placeholder="e.g. administrator"
+                required
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <PersonIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
+                    </InputAdornment>
+                  ),
+                  sx: { borderRadius: '10px' }
+                }}
+              />
+              <TextField
+                fullWidth
+                type="password"
+                label="Password"
+                margin="normal"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="Min. 8 characters"
+                required
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <LockIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
+                    </InputAdornment>
+                  ),
+                  sx: { borderRadius: '10px' }
+                }}
+              />
+              <PasswordChecklist password={password} />
+              <TextField
+                fullWidth
+                type="password"
+                label="Confirm Password"
+                margin="normal"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                placeholder="Re-enter password"
+                required
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <LockIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
+                    </InputAdornment>
+                  ),
+                  sx: { borderRadius: '10px' }
+                }}
+              />
+              <Button
+                fullWidth
+                type="submit"
+                variant="contained"
+                disabled={setupLoading}
+                sx={{
+                  mt: 3,
+                  mb: 1,
+                  py: 1.2,
+                  borderRadius: '10px',
+                  textTransform: 'none',
+                  fontWeight: '600',
+                  background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
+                  boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #4f46e5 0%, #9333ea 100%)',
+                  }
+                }}
+              >
+                {setupLoading ? <CircularProgress size={22} color="inherit" /> : 'Create Admin Account'}
+              </Button>
+            </form>
+          ) : setupStep === 'passkey_prompt' ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 2 }}>
+              <FingerprintIcon sx={{ fontSize: 64, color: '#6366f1', mb: 2 }} />
+              <Typography variant="h6" align="center" gutterBottom sx={{ fontWeight: 'bold' }}>
+                Secure Your Account with Passkeys
+              </Typography>
+              <Typography variant="body2" align="center" sx={{ mb: 4, color: 'text.secondary', px: 2, lineHeight: 1.6 }}>
+                Would you like to secure your account with Passkeys? Passkeys allow you to sign in passwordlessly using fingerprint unlock, face unlock, your device passcode, or external security keys.
+              </Typography>
+              <Button
+                fullWidth
+                variant="contained"
+                onClick={() => setSetupStep('passkey_setup')}
+                sx={{
+                  mb: 2, py: 1.2, borderRadius: '10px', textTransform: 'none', fontWeight: '600',
+                  background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
+                  boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)',
+                  '&:hover': { background: 'linear-gradient(135deg, #4f46e5 0%, #9333ea 100%)' }
+                }}
+              >
+                Yes, Secure Account
+              </Button>
+              <Button
+                fullWidth
+                variant="outlined"
+                disabled={setupLoading}
+                onClick={handleDisablePasskeysAndFinish}
+                sx={{
+                  py: 1.2, borderRadius: '10px', textTransform: 'none', fontWeight: '600',
+                  borderColor: 'rgba(255, 255, 255, 0.15)', color: 'text.primary',
+                  '&:hover': { borderColor: 'rgba(255, 255, 255, 0.3)', background: 'rgba(255, 255, 255, 0.05)' }
+                }}
+              >
+                {setupLoading ? <CircularProgress size={22} color="inherit" /> : 'No, Skip for Now'}
+              </Button>
+            </Box>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, py: 1 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: '#6366f1' }}>
+                🔑 Configure Passkeys
+              </Typography>
+              
+              {testError && (
+                <Alert severity="error" sx={{ borderRadius: '10px', fontSize: '0.85rem' }}>
+                  {testError}
+                </Alert>
+              )}
+
+              <TextField
+                fullWidth
+                label="Display Name"
+                value={passkeyConfig.passkeys_rp_name}
+                onChange={e => setPasskeyConfig({...passkeyConfig, passkeys_rp_name: e.target.value})}
+                helperText="The name shown on your device prompt when logging in."
+                InputProps={{ sx: { borderRadius: '10px' } }}
+              />
+
+              <TextField
+                fullWidth
+                label="Website Address Override"
+                value={passkeyConfig.passkeys_rp_id}
+                onChange={e => setPasskeyConfig({...passkeyConfig, passkeys_rp_id: e.target.value})}
+                placeholder="e.g. example.com"
+                helperText="Leave blank to automatically detect your domain. Override only if using advanced routing."
+                InputProps={{ sx: { borderRadius: '10px' } }}
+              />
+
+              <FormControl fullWidth>
+                <InputLabel id="attachment-label">Allowed Sign-In Devices</InputLabel>
+                <Select
+                  labelId="attachment-label"
+                  label="Allowed Sign-In Devices"
+                  value={passkeyConfig.passkeys_authenticator_attachment}
+                  onChange={e => setPasskeyConfig({...passkeyConfig, passkeys_authenticator_attachment: e.target.value})}
+                  sx={{ borderRadius: '10px' }}
+                >
+                  <MenuItem value="any">Any Device (Recommended)</MenuItem>
+                  <MenuItem value="platform">This Device Only (built-in fingerprint/face unlock)</MenuItem>
+                  <MenuItem value="cross-platform">Portable Keys Only (USB security keys)</MenuItem>
+                </Select>
+                <FormHelperText>Restrict passkey storage to specific device types.</FormHelperText>
+              </FormControl>
+
+              <FormControl fullWidth>
+                <InputLabel id="resident-key-label">Username-Free Sign-In</InputLabel>
+                <Select
+                  labelId="resident-key-label"
+                  label="Username-Free Sign-In"
+                  value={passkeyConfig.passkeys_resident_key}
+                  onChange={e => setPasskeyConfig({...passkeyConfig, passkeys_resident_key: e.target.value})}
+                  sx={{ borderRadius: '10px' }}
+                >
+                  <MenuItem value="required">Enabled (Recommended)</MenuItem>
+                  <MenuItem value="preferred">Preferred</MenuItem>
+                  <MenuItem value="discouraged">Disabled (Must type username first)</MenuItem>
+                </Select>
+                <FormHelperText>Permits logging in by scanning fingerprint/face without typing your username first.</FormHelperText>
+              </FormControl>
+
+              <FormControl fullWidth>
+                <InputLabel id="verification-label">Require Fingerprint/Face Verification</InputLabel>
+                <Select
+                  labelId="verification-label"
+                  label="Require Fingerprint/Face Verification"
+                  value={passkeyConfig.passkeys_user_verification}
+                  onChange={e => setPasskeyConfig({...passkeyConfig, passkeys_user_verification: e.target.value})}
+                  sx={{ borderRadius: '10px' }}
+                >
+                  <MenuItem value="preferred">Preferred (Recommended)</MenuItem>
+                  <MenuItem value="required">Strictly Required</MenuItem>
+                  <MenuItem value="discouraged">Not Required</MenuItem>
+                </Select>
+                <FormHelperText>Forces validation of biometrics (fingerprint/face) or PIN code before completing login.</FormHelperText>
+              </FormControl>
+
+              <TextField
+                fullWidth
+                type="number"
+                label="Setup Time Limit (seconds)"
+                value={passkeyConfig.passkeys_timeout}
+                onChange={e => setPasskeyConfig({...passkeyConfig, passkeys_timeout: Number(e.target.value)})}
+                helperText="Maximum allowed time to complete the scanner verification before it cancels."
+                InputProps={{ sx: { borderRadius: '10px' } }}
+              />
+
+              <FormControl fullWidth>
+                <InputLabel id="attestation-label">Security Device Verification</InputLabel>
+                <Select
+                  labelId="attestation-label"
+                  label="Security Device Verification"
+                  value={passkeyConfig.passkeys_attestation}
+                  onChange={e => setPasskeyConfig({...passkeyConfig, passkeys_attestation: e.target.value})}
+                  sx={{ borderRadius: '10px' }}
+                >
+                  <MenuItem value="none">Do Not Collect (Recommended)</MenuItem>
+                  <MenuItem value="indirect">Collect Indirectly</MenuItem>
+                  <MenuItem value="direct">Collect Directly</MenuItem>
+                </Select>
+                <FormHelperText>Verifies the authenticity of the physical hardware key against manufacturer databases.</FormHelperText>
+              </FormControl>
+
+              <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  onClick={handleTestPasskeySettings}
+                  disabled={testLoading}
+                  sx={{
+                    py: 1.2, borderRadius: '10px', textTransform: 'none', fontWeight: '600',
+                    borderColor: '#6366f1', color: '#6366f1',
+                    '&:hover': { borderColor: '#4f46e5', background: 'rgba(99, 102, 241, 0.08)' }
+                  }}
+                >
+                  {testLoading ? <CircularProgress size={22} color="inherit" /> : 'Test Settings'}
+                </Button>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  onClick={handleSaveAndRegisterPasskey}
+                  disabled={!testSuccess || setupLoading}
+                  sx={{
+                    py: 1.2, borderRadius: '10px', textTransform: 'none', fontWeight: '600',
+                    background: testSuccess ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'rgba(255, 255, 255, 0.1)',
+                    boxShadow: testSuccess ? '0 4px 14px rgba(16, 185, 129, 0.4)' : 'none',
+                    '&:hover': {
+                      background: testSuccess ? 'linear-gradient(135deg, #059669 0%, #047857 100%)' : 'rgba(255, 255, 255, 0.1)'
+                    }
+                  }}
+                >
+                  {setupLoading ? <CircularProgress size={22} color="inherit" /> : 'Register Owner Passkey'}
+                </Button>
+              </Box>
+            </Box>
+          )
         ) : (
         /* ── Standard Sign-In Form ── */
         <>

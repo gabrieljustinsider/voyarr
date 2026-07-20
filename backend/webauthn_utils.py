@@ -86,14 +86,31 @@ def resolve_ip_location(ip_address: str) -> str:
     return MOCK_LOCATIONS[idx]
 
 
-def generate_registration_options(user_id: str, username: str, rp_id: str = "localhost") -> Dict[str, Any]:
+def generate_registration_options(
+    user_id: str, 
+    username: str, 
+    rp_id: str = "localhost",
+    rp_name: str = "Voyarr Media Server",
+    authenticator_attachment: str = "any",
+    resident_key: str = "required",
+    user_verification: str = "preferred",
+    timeout: int = 60000,
+    attestation: str = "none"
+) -> Dict[str, Any]:
     """Generates options for navigator.credentials.create in frontend."""
     challenge = base64.b64encode(secrets.token_bytes(32)).decode("utf-8").replace("=", "")
     
+    selection = {
+        "residentKey": resident_key,
+        "userVerification": user_verification,
+    }
+    if authenticator_attachment != "any":
+        selection["authenticatorAttachment"] = authenticator_attachment
+
     return {
         "challenge": challenge,
         "rp": {
-            "name": "Voyarr Media Server",
+            "name": rp_name,
             "id": rp_id,
         },
         "user": {
@@ -105,28 +122,29 @@ def generate_registration_options(user_id: str, username: str, rp_id: str = "loc
             {"type": "public-key", "alg": -7},    # ES256
             {"type": "public-key", "alg": -257},  # RS256
         ],
-        "timeout": 60000,
-        "authenticatorSelection": {
-            "authenticatorAttachment": "cross-platform",
-            "residentKey": "required",
-            "userVerification": "preferred",
-        },
-        "attestation": "none",
+        "timeout": timeout,
+        "authenticatorSelection": selection,
+        "attestation": attestation,
     }
 
 
-def generate_assertion_options(allowed_credentials: List[str], rp_id: str = "localhost") -> Dict[str, Any]:
+def generate_assertion_options(
+    allowed_credentials: List[str], 
+    rp_id: str = "localhost",
+    user_verification: str = "preferred",
+    timeout: int = 60000
+) -> Dict[str, Any]:
     """Generates options for navigator.credentials.get in frontend."""
     challenge = base64.b64encode(secrets.token_bytes(32)).decode("utf-8").replace("=", "")
     
     return {
         "challenge": challenge,
-        "timeout": 60000,
+        "timeout": timeout,
         "rpId": rp_id,
         "allowCredentials": [
             {"type": "public-key", "id": cred_id} for cred_id in allowed_credentials
         ],
-        "userVerification": "preferred",
+        "userVerification": user_verification,
     }
 
 

@@ -413,6 +413,11 @@ def execute_restore_logic(
                     print(f"Could not reset sequence for table '{table_name}': {e}")
 
             db.commit()
+            try:
+                from seed_data import seed_default_data
+                seed_default_data(db.get_bind())
+            except Exception as seed_err:
+                print(f"Error seeding default data after full restore: {seed_err}")
             return {"message": "Full database restored successfully"}
 
         elif btype == "custom":
@@ -444,6 +449,11 @@ def execute_restore_logic(
                 except Exception as e:
                     print(f"Could not reset sequence for table '{table_name}': {e}")
             db.commit()
+            try:
+                from seed_data import seed_default_data
+                seed_default_data(db.get_bind())
+            except Exception as seed_err:
+                print(f"Error seeding default data after custom restore: {seed_err}")
             return {
                 "message": f"Custom tables ({', '.join(tables_in_backup)}) restored successfully"
             }
