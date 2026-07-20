@@ -1,0 +1,102 @@
+name: Build and Deploy Frontend
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'frontend/**'
+      - 'worker/**'
+      - 'package.json'
+      - '.github/workflows/deploy-frontend.yml'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  FRONTEND_IMAGE_NAME: gabrieljustinsider/voyarr-frontend
+
+jobs:
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Load secrets from 1Password
+        id: op-secrets
+        uses: 1password/load-secrets-action@v2
+        with:
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          CLOUDFLARE_API_TOKEN: "op://6wgu5yz5yphvacdimgc64ej65i/Voyarr Environment Variables/CLOUDFLARE_API_TOKEN"
+          CLOUDFLARE_ACCOUNT_ID: "op://6wgu5yz5yphvacdimgc64ej65i/Voyarr Environment Variables/CLOUDFLARE_ACCOUNT_ID"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install root dependencies
+        run: npm install
+
+      - name: Install frontend dependencies
+        run: npm install --prefix frontend
+
+      - name: Build frontend static assets
+        run: |
+          FRONTEND_BACKEND_URL=$(grep '^FRONTEND_BACKEND_URL=' .env | cut -d= -f2 | tr -d '[:space:]"')
+          if [ -z "$FRONTEND_BACKEND_URL" ]; then
+            echo "ERROR: FRONTEND_BACKEND_URL not found in .env"
+            exit 1
+          fi
+          echo "Building frontend VITE with Backend URL: $FRONTEND_BACKEND_URL"
+          cd frontend
+          VITE_API_BASE_URL="$FRONTEND_BACKEND_URL" npx vite build --mode production
+
+      - name: Deploy Cloudflare Worker
+        run: |
+          FRONTEND_BACKEND_URL=$(grep '^FRONTEND_BACKEND_URL=' .env | cut -d= -f2 | tr -d '[:space:]"')
+          echo "Deploying to Cloudflare Worker routing to: $FRONTEND_BACKEND_URL"
+          cd worker
+          # Set BACKEND_ORIGIN secret inside Wrangler
+          echo "$FRONTEND_BACKEND_URL" | npx wrangler secret put BACKEND_ORIGIN || true
+          # Deploy Worker
+          npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Extract Version
+        id: vars
+        run: |
+          VERSION=$(jq -r .version package.json | tr -d '[:space:]')
+          if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
+            VERSION="1.18.0"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build and push Frontend Docker image
+        uses: docker/build-push-action@v7
+        with:
+          context: ./frontend
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:${{ steps.vars.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

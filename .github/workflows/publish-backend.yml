@@ -1,25 +1,20 @@
-name: Build and Publish to GHCR
+name: Build and Publish Backend
 
 on:
   push:
     branches: [ "main" ]
     paths:
       - 'backend/**'
-      - 'frontend/**'
-      - 'extension/**'
-      - 'VERSION'
       - 'package.json'
-      - '.github/workflows/publish-ghcr.yml'
-  # Allows you to manually trigger the workflow from the Actions tab
+      - '.github/workflows/publish-backend.yml'
   workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
   BACKEND_IMAGE_NAME: gabrieljustinsider/voyarr-backend
-  FRONTEND_IMAGE_NAME: gabrieljustinsider/voyarr-frontend
 
 jobs:
-  build-and-push:
+  build-and-push-backend:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -29,7 +24,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
-          fetch-depth: 0 # Required to generate full git log/changelog notes
+          fetch-depth: 0
 
       - name: Extract Version
         id: vars
@@ -58,15 +53,8 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}:latest
             ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}:${{ steps.vars.outputs.version }}
-
-      - name: Build and push Frontend image
-        uses: docker/build-push-action@v7
-        with:
-          context: ./frontend
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:latest
-            ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:${{ steps.vars.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Create or Update GitHub Release
         env:
@@ -78,10 +66,9 @@ jobs:
           fi
           echo "Current Version: v$VERSION"
           
-          # Check if the release already exists
           if gh release view "v$VERSION" >/dev/null 2>&1; then
             echo "Release v$VERSION already exists. Updating details..."
-            gh release edit "v$VERSION" --notes "Automated update of built artifacts and container images."
+            gh release edit "v$VERSION" --notes "Automated update of built backend artifacts and container images."
           else
             echo "Creating a new GitHub release v$VERSION..."
             gh release create "v$VERSION" --title "v$VERSION" --generate-notes
