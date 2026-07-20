@@ -826,6 +826,10 @@ export default function Login() {
               <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: '#6366f1' }}>
                 🔑 Configure Passkeys
               </Typography>
+
+              <Typography variant="body2" color="textSecondary" sx={{ mb: 1, fontSize: '0.85rem', lineHeight: 1.5 }}>
+                💡 The default settings are optimized for most server environments. You can leave them exactly as they are unless you want to make custom changes.
+              </Typography>
               
               {testError && (
                 <Alert severity="error" sx={{ borderRadius: '10px', fontSize: '0.85rem' }}>
