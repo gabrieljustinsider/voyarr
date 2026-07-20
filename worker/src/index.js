@@ -12,7 +12,7 @@ export default {
     const path = url.pathname;
 
     // API requests: proxy to backend
-    if (path.startsWith("/api/") || path.startsWith("/auth/") || path.startsWith("/admin/")) {
+    if (path.startsWith("/api/") || path.startsWith("/auth/") || path.startsWith("/admin/") || path.startsWith("/.well-known/")) {
       const backendOrigin = env.BACKEND_ORIGIN;
       if (!backendOrigin) {
         return new Response("BACKEND_ORIGIN not configured", { status: 500 });
