@@ -703,7 +703,6 @@ function App() {
             if (!abortController.signal.aborted) startSSE()
           }, 5000)
         }
-        if (e.name !== 'AbortError') setTimeout(startSSE, 5000)
       }
     }
     startSSE()
