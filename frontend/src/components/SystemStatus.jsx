@@ -228,6 +228,9 @@ export default function SystemStatus() {
                     </Grid>
                     
                     <Grid item xs={6}>
+                      <Typography variant="body2" sx={{ fontWeight: 'bold' }} color="textSecondary">App Version (Backend)</Typography>
+                      <Typography variant="body1" sx={{ mb: 2 }}>{status.environment?.app_version ? `v${status.environment.app_version}` : `v${__APP_VERSION__}`}</Typography>
+
                       <Typography variant="body2" sx={{ fontWeight: 'bold' }} color="textSecondary">Containerized Environment</Typography>
                       <Typography variant="body1">
                         {status.environment?.is_container || status.environment?.is_docker

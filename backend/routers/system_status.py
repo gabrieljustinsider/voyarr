@@ -118,10 +118,12 @@ async def get_system_status(db: Session = Depends(get_db)):
     if is_container and not container_type:
         container_type = "Generic Container"
 
+    from utils import get_version
     env_details = {
         "os": platform.system(),
         "release": platform.release(),
         "python_version": sys.version.split()[0],
+        "app_version": get_version(),
         "docker_runtime": os.path.exists("/.dockerenv"),
         "is_docker": os.path.exists("/.dockerenv"),
         "is_container": is_container,
