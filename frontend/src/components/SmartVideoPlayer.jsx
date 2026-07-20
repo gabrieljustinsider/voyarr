@@ -24,7 +24,7 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import { Box, CircularProgress, Alert, Typography, Button, ButtonGroup } from '@mui/material'
-import VrIcon from '@mui/icons-material/Vrpanel'
+import VrIcon from '@mui/icons-material/Visibility'
 
 const HLS_CDN   = 'https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js'
 const DASH_CDN  = 'https://cdn.dashjs.org/latest/dash.all.min.js'
