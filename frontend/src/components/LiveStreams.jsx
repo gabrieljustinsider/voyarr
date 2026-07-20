@@ -16,6 +16,7 @@ import StreamIcon from '@mui/icons-material/Stream'
 import CloseIcon from '@mui/icons-material/Close'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import { apiFetch } from '../api'
+import SmartVideoPlayer from './SmartVideoPlayer'
 import UrlParseConfirmationModal from './UrlParseConfirmationModal'
 
 export default function LiveStreams() {
@@ -42,6 +43,7 @@ export default function LiveStreams() {
   const [playingStream, setPlayingStream] = useState(null)
   const [playerLoading, setPlayerLoading] = useState(false)
   const [playerError, setPlayerError] = useState(null)
+  const [activeStreamUrl, setActiveStreamUrl] = useState(null)
   const videoRef = useRef(null)
   const hlsRef = useRef(null)
 
@@ -107,16 +109,10 @@ export default function LiveStreams() {
     return () => clearInterval(timer)
   }, [fetchStreams, checkAdmin])
 
-  // Cleanup HLS and Video safely on component unmount
+  // Cleanup on unmount
   useEffect(() => {
-    const currentVideo = videoRef.current
     return () => {
-      if (hlsRef.current) {
-        hlsRef.current.destroy()
-      }
-      if (currentVideo) {
-        currentVideo.pause()
-      }
+      if (videoRef.current) videoRef.current.pause()
     }
   }, [])
 
@@ -331,67 +327,25 @@ export default function LiveStreams() {
     }
   }
 
-  // Load HLS Stream and Setup hls.js
   const handlePlayStream = async (stream) => {
     setPlayingStream(stream)
     setPlayerOpen(true)
     setPlayerLoading(true)
     setPlayerError(null)
+    setActiveStreamUrl(null)
 
     try {
       const res = await apiFetch(`/live-streams/${stream.id}/stream`)
       if (res.ok) {
         const data = await res.json()
-        const playUrl = data.stream_url
-
-        // Load hls.js from CDN dynamically if needed
-        if (!window.Hls) {
-          await new Promise((resolve, reject) => {
-            const script = document.createElement('script')
-            script.src = 'https://cdn.jsdelivr.net/npm/hls.js@1'
-            script.onload = resolve
-            script.onerror = reject
-            document.head.appendChild(script)
-          })
-        }
-
-        setTimeout(() => {
-          const video = videoRef.current
-          if (!video || !video.isConnected) return
-
-          if (video.canPlayType('application/vnd.apple.mpegurl')) {
-            // Safari native support
-            video.src = playUrl
-            setPlayerLoading(false)
-          } else if (window.Hls && window.Hls.isSupported()) {
-            const hls = new window.Hls({
-              enableWorker: true,
-              lowLatencyMode: true
-            })
-            hlsRef.current = hls
-            hls.loadSource(playUrl)
-            hls.attachMedia(video)
-            hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
-              video.play().catch(console.error)
-              setPlayerLoading(false)
-            })
-            hls.on(window.Hls.Events.ERROR, (event, data) => {
-              if (data.fatal) {
-                console.error('Fatal HLS error:', data)
-              }
-            })
-          } else {
-            setPlayerError('Your browser does not support HLS streaming.')
-            setPlayerLoading(false)
-          }
-        }, 300)
+        setActiveStreamUrl(data.stream_url)
       } else {
         setPlayerError('Failed to resolve stream link.')
-        setPlayerLoading(false)
       }
     } catch (e) {
       console.error(e)
       setPlayerError(e.message)
+    } finally {
       setPlayerLoading(false)
     }
   }
@@ -401,16 +355,7 @@ export default function LiveStreams() {
     setPlayingStream(null)
     setPlayerError(null)
     setPlayerLoading(false)
-
-    if (hlsRef.current) {
-      hlsRef.current.destroy()
-      hlsRef.current = null
-    }
-    if (videoRef.current) {
-      videoRef.current.pause()
-      videoRef.current.removeAttribute('src')
-      videoRef.current.load()
-    }
+    setActiveStreamUrl(null)
   }
 
   const formatSize = (bytes) => {
@@ -697,9 +642,9 @@ export default function LiveStreams() {
         </DialogTitle>
         <DialogContent dividers sx={{ p: 0, backgroundColor: 'black', position: 'relative' }}>
           {playerLoading && (
-            <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 10 }}>
+            <Box sx={{ p: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
               <CircularProgress color="primary" />
-              <Typography variant="caption" color="textSecondary" sx={{ mt: 1 }}>Resolving HLS stream url...</Typography>
+              <Typography variant="caption" color="textSecondary" sx={{ mt: 1 }}>Resolving stream URL…</Typography>
             </Box>
           )}
           {playerError && (
@@ -707,13 +652,15 @@ export default function LiveStreams() {
               <Alert severity="error">{playerError}</Alert>
             </Box>
           )}
-          <Box sx={{ width: '100%', height: '60vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-            <video 
-              ref={videoRef}
-              controls 
-              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+          {!playerLoading && !playerError && activeStreamUrl && (
+            <SmartVideoPlayer
+              key={activeStreamUrl}
+              src={activeStreamUrl}
+              autoPlay
+              controls
+              style={{ height: '60vh' }}
             />
-          </Box>
+          )}
         </DialogContent>
       </Dialog>
 

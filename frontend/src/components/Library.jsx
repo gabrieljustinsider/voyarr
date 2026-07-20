@@ -8,6 +8,7 @@ import {
 import { X, PlayCircle, Settings, List, CloudUpload, Heart, Cast, Sparkles, Edit2 } from 'lucide-react'
 import ChapterManager from './ChapterManager'
 import SecondScreenRemote from './SecondScreenRemote'
+import SmartVideoPlayer from './SmartVideoPlayer'
 import { apiFetch } from '../api'
 
 export default function Library() {
@@ -719,17 +720,14 @@ export default function Library() {
               <>
                 <Box sx={{ flexGrow: 1, backgroundColor: 'black', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                   {streamingEnabled ? (
-                    <video 
+                    <SmartVideoPlayer
                       key={playingVideo.id}
-                      controls 
-                      autoPlay 
-                      onPlay={() => handleVideoPlay(playingVideo.id)}
-                      style={{ width: '100%', maxHeight: '75vh', outline: 'none' }}
                       src={`${API_BASE}/library/${playingVideo.id}/stream?${getAuthQuery()}`}
+                      onPlay={() => handleVideoPlay(playingVideo.id)}
+                      autoPlay
+                      controls
                       controlsList="nodownload"
-                    >
-                      Your browser does not support the video tag.
-                    </video>
+                    />
                   ) : (
                     <Box sx={{ p: 4, textAlign: 'center', width: '80%' }}>
                       <Alert severity="warning" style={{ color: '#ff9800', background: 'rgba(255, 152, 0, 0.08)', border: '1px solid rgba(255, 152, 0, 0.2)' }}>

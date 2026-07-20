@@ -158,8 +158,44 @@ def stream_video(
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found on disk")
 
+    # Map common video/audio extensions to correct MIME types
+    MIME_MAP = {
+        ".mp4": "video/mp4",
+        ".m4v": "video/mp4",
+        ".mov": "video/quicktime",
+        ".mkv": "video/x-matroska",
+        ".webm": "video/webm",
+        ".ogv": "video/ogg",
+        ".avi": "video/x-msvideo",
+        ".wmv": "video/x-ms-wmv",
+        ".flv": "video/x-flv",
+        ".ts": "video/mp2t",
+        ".m2ts": "video/mp2t",
+        ".mts": "video/mp2t",
+        ".mpeg": "video/mpeg",
+        ".mpg": "video/mpeg",
+        ".3gp": "video/3gpp",
+        ".3g2": "video/3gpp2",
+        ".m4a": "audio/mp4",
+        ".aac": "audio/aac",
+        ".mp3": "audio/mpeg",
+        ".ogg": "audio/ogg",
+        ".oga": "audio/ogg",
+        ".opus": "audio/opus",
+        ".wav": "audio/wav",
+        ".flac": "audio/flac",
+        ".weba": "audio/webm",
+    }
+    ext = os.path.splitext(file_path)[1].lower()
+    media_type = MIME_MAP.get(ext, "application/octet-stream")
+
     return FileResponse(
-        file_path, media_type="video/mp4", headers={"Accept-Ranges": "bytes"}
+        file_path,
+        media_type=media_type,
+        headers={
+            "Accept-Ranges": "bytes",
+            "Content-Disposition": "inline",
+        }
     )
 
 
