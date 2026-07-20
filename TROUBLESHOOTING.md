@@ -179,3 +179,60 @@ If you encounter an issue not listed here:
    ```
 
 5. For persistent issues, check the GitHub Issues page or open a new issue with relevant logs.
+
+## 11. Video won't play / codec error
+
+**Error examples (browser console):**
+```
+MEDIA_ERR_SRC_NOT_SUPPORTED
+MEDIA_ERR_DECODE
+```
+
+**Background:** As of the latest release, the `/api/library/{id}/stream` endpoint correctly detects the MIME type from the file extension. Previously it hardcoded `video/mp4` for all files, which caused browsers to reject non-MP4 formats immediately.
+
+**Browser codec support matrix:**
+
+| Format | Chrome | Firefox | Safari | Edge (Win) |
+|--------|--------|---------|--------|------------|
+| MP4 / H.264 | ✅ | ✅ | ✅ | ✅ |
+| MP4 / H.265 | ✅ (Win 11 + codec pack) | ❌ | ✅ | ✅ (Win 11) |
+| WebM / VP9 | ✅ | ✅ | ⚠️ Limited | ✅ |
+| MKV | ✅ | ✅ | ❌ | ⚠️ Needs Windows codec pack |
+| AVI | ⚠️ | ⚠️ | ❌ | ⚠️ Needs codec pack |
+| WMV / FLV | ❌ | ❌ | ❌ | ⚠️ Very limited |
+
+**How to diagnose:**
+1. Open your browser's Developer Tools (F12) and go to the **Console** tab.
+2. Play the video and look for the error code:
+   - `MEDIA_ERR_SRC_NOT_SUPPORTED` — the browser doesn't recognise the container/MIME type.
+   - `MEDIA_ERR_DECODE` — the container is recognised but the codec inside is not supported.
+3. The **Network** tab will show the stream request; confirm the `Content-Type` response header matches the actual file format.
+
+**Solutions:**
+- For `MEDIA_ERR_DECODE` or unsupported containers: use the **Transcode Queue** (Settings > Transcoding) to convert the file to **MP4 (H.264 / AAC)**, which plays in every modern browser without codec packs.
+- For MKV or WebM on Windows/Edge: install the [K-Lite Codec Pack](https://www.codecguide.com/) or switch to Chrome.
+- For WMV or FLV: transcoding is the only reliable solution.
+
+## 12. Live stream playback fails or shows "HLS not supported"
+
+**Symptoms:**
+- Stream spinner never resolves.
+- Banner reads "HLS not supported" or "DASH not supported".
+- Stream plays in VLC but not in Voyarr.
+
+**How SmartVideoPlayer loads streaming libraries:**
+
+hls.js (for `.m3u8` HLS streams) and dash.js (for `.mpd` DASH streams) are **lazy-loaded from CDN** at playback time. They are not bundled into the Voyarr frontend. This means:
+- Your **browser must have internet access** when initiating HLS or DASH playback for the first time in a session.
+- If the CDN is unreachable (e.g., strict network firewall, air-gapped server), the library will fail to load and you will see the "not supported" banner.
+- **Safari / iOS** use native HLS and do not need hls.js at all.
+
+**RTMP / RTSP streams cannot play in a browser:**
+
+Web browsers do not support the RTMP or RTSP protocols natively, and no JavaScript library can bridge this gap. If your live stream source uses RTMP or RTSP, you must re-stream it as HLS using a media server (e.g., nginx-rtmp, SRS, or MediaMTX) before Voyarr can play it.
+
+**Diagnosis checklist:**
+1. Confirm the stream URL ends in `.m3u8` (HLS) or `.mpd` (DASH). If it starts with `rtmp://` or `rtsp://`, see the note above.
+2. Open the stream URL directly in your browser or with `curl` to verify it resolves and returns valid playlist data.
+3. Check the browser console for network errors — a 403/404 on the `.m3u8` URL means the stream source is down or requires authentication.
+4. If on a restricted network, try loading the URL `https://cdn.jsdelivr.net/npm/hls.js@latest/dist/hls.min.js` directly in your browser to confirm CDN access.

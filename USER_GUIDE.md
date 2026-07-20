@@ -116,11 +116,61 @@ To restore from a backup file inside the volume:
 docker run --rm -v voyarr-backups:/backups -v voyarr-db-data:/var/lib/postgresql/data postgres:15-alpine sh -c "pg_restore -U voyarr_user -d voyarr /backups/your_backup_file.sql"
 ```
 
+## Video Playback
+
+Voyarr uses a shared **SmartVideoPlayer** component across the Library and Live Streams sections. It automatically detects the correct playback strategy based on the file or stream URL — no manual configuration needed.
+
+### Supported Formats & Protocols
+
+| Category | Formats / Protocols | Notes |
+|----------|---------------------|-------|
+| **Streaming (HLS)** | `.m3u8` | Uses hls.js (loaded from CDN) in Chrome/Firefox/Edge; native playback in Safari/iOS |
+| **Streaming (DASH)** | `.mpd` | Uses dash.js (loaded from CDN) |
+| **MP4 / MOV** | H.264, H.265, AV1 | Works in all modern browsers |
+| **WebM** | VP8, VP9, AV1 | Chrome and Firefox; limited in Safari |
+| **Ogg / OGV** | Theora | Chrome, Firefox |
+| **MKV** | Any codec | Varies by OS codec pack; best in Chrome or with Windows codec pack |
+| **AVI, WMV, FLV** | Various | Limited browser support; transcode to MP4 for best results |
+| **TS / M2TS / MTS** | MPEG Transport Stream | Generally supported; may require codec pack on Windows/Edge |
+| **MPEG, 3GP, 3G2** | Various | Basic support; MP4 preferred |
+| **Audio** | MP3, AAC, FLAC, WAV, OGG, OPUS, M4A, WebA | Full support across modern browsers |
+| **RTMP / RTSP** | — | ⚠️ Cannot play directly in a browser; must be re-streamed as HLS |
+
+### Adaptive Streaming Libraries
+
+hls.js and dash.js are **lazy-loaded from CDN only when needed**. This means:
+- No additional build-time dependency cost.
+- Your browser needs internet access when playing HLS or DASH streams for the first time on a session.
+- Safari and iOS use native HLS; hls.js is not loaded.
+
+### Browser Codec Compatibility Notes
+
+- **Chrome / Edge**: Broadest codec support including H.265 on Windows 11 with media extensions.
+- **Firefox**: Good VP9/WebM support; H.265 support varies by OS.
+- **Safari / iOS**: Native HLS support; limited WebM/VP9; no RTMP/RTSP.
+- **Windows + Edge**: MKV/AVI playback can depend on installed Windows codec packs (e.g., K-Lite).
+
+### Troubleshooting Playback Issues
+
+| Symptom | Likely Cause | Fix |
+|---------|-------------|-----|
+| Spinner stays, no video | Unsupported protocol or format | Check browser console for `MEDIA_ERR_SRC_NOT_SUPPORTED` |
+| Video plays but looks corrupted | Unsupported codec | Check for `MEDIA_ERR_DECODE`; transcode to MP4 H.264 |
+| "HLS not supported" banner | CDN blocked or offline | Ensure browser has internet access; try Safari for native HLS |
+| RTMP/RTSP shows error | Protocol not supported in browsers | Re-stream source as HLS using a media server |
+| Audio only, no video | Video codec unsupported | Transcode via the Transcode Queue |
+
+For persistent codec issues, use the **Transcode Queue** (Settings > Transcoding) to convert files to MP4 (H.264/AAC), which has the widest browser compatibility.
+
+---
+
 ## Security Settings
 
 ### Passkeys (WebAuthn)
 
 Voyarr supports passwordless authentication using WebAuthn passkeys. You can register biometric or hardware security keys from the Account Security page.
+
+**Setup wizard improvements:** When adding a new passkey, the setup wizard now automatically pre-fills the **Website Address** field with your current hostname (`window.location.hostname`), so you rarely need to change it. On desktop and tablet screens, the wizard expands to a wider two-column layout — Display Name and Website Address on the top row, with remaining fields arranged in a grid below — making the form easier to complete at a glance.
 
 ### SSO Providers
 
