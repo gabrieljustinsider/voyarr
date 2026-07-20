@@ -62,7 +62,7 @@ export default function Login() {
   const [setupStep, setSetupStep] = useState('credentials') // 'credentials', 'passkey_prompt', 'passkey_setup', 'passkey_register'
   const [passkeyConfig, setPasskeyConfig] = useState({
     passkeys_rp_name: 'Voyarr Media Server',
-    passkeys_rp_id: '',
+    passkeys_rp_id: typeof window !== 'undefined' ? window.location.hostname : '',
     passkeys_authenticator_attachment: 'any',
     passkeys_resident_key: 'required',
     passkeys_user_verification: 'preferred',
@@ -619,7 +619,8 @@ export default function Login() {
       <Paper sx={{ 
         p: 4, 
         width: '100%', 
-        maxWidth: 420,
+        maxWidth: setupStep === 'passkey_setup' ? 760 : 420,
+        transition: 'max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
         borderRadius: '20px',
         background: 'linear-gradient(135deg, rgba(28, 37, 65, 0.4) 0%, rgba(10, 11, 16, 0.6) 100%)',
         backdropFilter: 'blur(16px)',
@@ -837,98 +838,104 @@ export default function Login() {
                 </Alert>
               )}
 
-              <TextField
-                fullWidth
-                label="Display Name"
-                value={passkeyConfig.passkeys_rp_name}
-                onChange={e => setPasskeyConfig({...passkeyConfig, passkeys_rp_name: e.target.value})}
-                helperText="The name shown on your device prompt when logging in."
-                InputProps={{ sx: { borderRadius: '10px' } }}
-              />
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <TextField
+                    fullWidth
+                    label="Display Name"
+                    value={passkeyConfig.passkeys_rp_name}
+                    onChange={e => setPasskeyConfig({...passkeyConfig, passkeys_rp_name: e.target.value})}
+                    helperText="The name shown on your device prompt when logging in."
+                    InputProps={{ sx: { borderRadius: '10px' } }}
+                  />
 
-              <TextField
-                fullWidth
-                label="Website Address Override"
-                value={passkeyConfig.passkeys_rp_id}
-                onChange={e => setPasskeyConfig({...passkeyConfig, passkeys_rp_id: e.target.value})}
-                placeholder="e.g. example.com"
-                helperText="Leave blank to automatically detect your domain. Override only if using advanced routing."
-                InputProps={{ sx: { borderRadius: '10px' } }}
-              />
+                  <TextField
+                    fullWidth
+                    label="Website Address Override"
+                    value={passkeyConfig.passkeys_rp_id}
+                    onChange={e => setPasskeyConfig({...passkeyConfig, passkeys_rp_id: e.target.value})}
+                    placeholder="e.g. example.com"
+                    helperText="Domain that will be validated. Auto-populated with your current domain."
+                    InputProps={{ sx: { borderRadius: '10px' } }}
+                  />
 
-              <FormControl fullWidth>
-                <InputLabel id="attachment-label">Allowed Sign-In Devices</InputLabel>
-                <Select
-                  labelId="attachment-label"
-                  label="Allowed Sign-In Devices"
-                  value={passkeyConfig.passkeys_authenticator_attachment}
-                  onChange={e => setPasskeyConfig({...passkeyConfig, passkeys_authenticator_attachment: e.target.value})}
-                  sx={{ borderRadius: '10px' }}
-                >
-                  <MenuItem value="any">Any Device (Recommended)</MenuItem>
-                  <MenuItem value="platform">This Device Only (built-in fingerprint/face unlock)</MenuItem>
-                  <MenuItem value="cross-platform">Portable Keys Only (USB security keys)</MenuItem>
-                </Select>
-                <FormHelperText>Restrict passkey storage to specific device types.</FormHelperText>
-              </FormControl>
+                  <FormControl fullWidth>
+                    <InputLabel id="attachment-label">Allowed Sign-In Devices</InputLabel>
+                    <Select
+                      labelId="attachment-label"
+                      label="Allowed Sign-In Devices"
+                      value={passkeyConfig.passkeys_authenticator_attachment}
+                      onChange={e => setPasskeyConfig({...passkeyConfig, passkeys_authenticator_attachment: e.target.value})}
+                      sx={{ borderRadius: '10px' }}
+                    >
+                      <MenuItem value="any">Any Device (Recommended)</MenuItem>
+                      <MenuItem value="platform">This Device Only (built-in fingerprint/face unlock)</MenuItem>
+                      <MenuItem value="cross-platform">Portable Keys Only (USB security keys)</MenuItem>
+                    </Select>
+                    <FormHelperText>Restrict passkey storage to specific device types.</FormHelperText>
+                  </FormControl>
 
-              <FormControl fullWidth>
-                <InputLabel id="resident-key-label">Username-Free Sign-In</InputLabel>
-                <Select
-                  labelId="resident-key-label"
-                  label="Username-Free Sign-In"
-                  value={passkeyConfig.passkeys_resident_key}
-                  onChange={e => setPasskeyConfig({...passkeyConfig, passkeys_resident_key: e.target.value})}
-                  sx={{ borderRadius: '10px' }}
-                >
-                  <MenuItem value="required">Enabled (Recommended)</MenuItem>
-                  <MenuItem value="preferred">Preferred</MenuItem>
-                  <MenuItem value="discouraged">Disabled (Must type username first)</MenuItem>
-                </Select>
-                <FormHelperText>Permits logging in by scanning fingerprint/face without typing your username first.</FormHelperText>
-              </FormControl>
+                  <TextField
+                    fullWidth
+                    type="number"
+                    label="Setup Time Limit (seconds)"
+                    value={passkeyConfig.passkeys_timeout}
+                    onChange={e => setPasskeyConfig({...passkeyConfig, passkeys_timeout: Number(e.target.value)})}
+                    helperText="Maximum allowed time to complete scanner verification."
+                    InputProps={{ sx: { borderRadius: '10px' } }}
+                  />
+                </Grid>
 
-              <FormControl fullWidth>
-                <InputLabel id="verification-label">Require Fingerprint/Face Verification</InputLabel>
-                <Select
-                  labelId="verification-label"
-                  label="Require Fingerprint/Face Verification"
-                  value={passkeyConfig.passkeys_user_verification}
-                  onChange={e => setPasskeyConfig({...passkeyConfig, passkeys_user_verification: e.target.value})}
-                  sx={{ borderRadius: '10px' }}
-                >
-                  <MenuItem value="preferred">Preferred (Recommended)</MenuItem>
-                  <MenuItem value="required">Strictly Required</MenuItem>
-                  <MenuItem value="discouraged">Not Required</MenuItem>
-                </Select>
-                <FormHelperText>Forces validation of biometrics (fingerprint/face) or PIN code before completing login.</FormHelperText>
-              </FormControl>
+                <Grid item xs={12} md={6} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <FormControl fullWidth>
+                    <InputLabel id="resident-key-label">Username-Free Sign-In</InputLabel>
+                    <Select
+                      labelId="resident-key-label"
+                      label="Username-Free Sign-In"
+                      value={passkeyConfig.passkeys_resident_key}
+                      onChange={e => setPasskeyConfig({...passkeyConfig, passkeys_resident_key: e.target.value})}
+                      sx={{ borderRadius: '10px' }}
+                    >
+                      <MenuItem value="required">Enabled (Recommended)</MenuItem>
+                      <MenuItem value="preferred">Preferred</MenuItem>
+                      <MenuItem value="discouraged">Disabled (Must type username first)</MenuItem>
+                    </Select>
+                    <FormHelperText>Permits logging in by scanning biometrics without typing username.</FormHelperText>
+                  </FormControl>
 
-              <TextField
-                fullWidth
-                type="number"
-                label="Setup Time Limit (seconds)"
-                value={passkeyConfig.passkeys_timeout}
-                onChange={e => setPasskeyConfig({...passkeyConfig, passkeys_timeout: Number(e.target.value)})}
-                helperText="Maximum allowed time to complete the scanner verification before it cancels."
-                InputProps={{ sx: { borderRadius: '10px' } }}
-              />
+                  <FormControl fullWidth>
+                    <InputLabel id="verification-label">Require Fingerprint/Face Verification</InputLabel>
+                    <Select
+                      labelId="verification-label"
+                      label="Require Fingerprint/Face Verification"
+                      value={passkeyConfig.passkeys_user_verification}
+                      onChange={e => setPasskeyConfig({...passkeyConfig, passkeys_user_verification: e.target.value})}
+                      sx={{ borderRadius: '10px' }}
+                    >
+                      <MenuItem value="preferred">Preferred (Recommended)</MenuItem>
+                      <MenuItem value="required">Strictly Required</MenuItem>
+                      <MenuItem value="discouraged">Not Required</MenuItem>
+                    </Select>
+                    <FormHelperText>Forces validation of biometrics/PIN before login completion.</FormHelperText>
+                  </FormControl>
 
-              <FormControl fullWidth>
-                <InputLabel id="attestation-label">Security Device Verification</InputLabel>
-                <Select
-                  labelId="attestation-label"
-                  label="Security Device Verification"
-                  value={passkeyConfig.passkeys_attestation}
-                  onChange={e => setPasskeyConfig({...passkeyConfig, passkeys_attestation: e.target.value})}
-                  sx={{ borderRadius: '10px' }}
-                >
-                  <MenuItem value="none">Do Not Collect (Recommended)</MenuItem>
-                  <MenuItem value="indirect">Collect Indirectly</MenuItem>
-                  <MenuItem value="direct">Collect Directly</MenuItem>
-                </Select>
-                <FormHelperText>Verifies the authenticity of the physical hardware key against manufacturer databases.</FormHelperText>
-              </FormControl>
+                  <FormControl fullWidth>
+                    <InputLabel id="attestation-label">Security Device Verification</InputLabel>
+                    <Select
+                      labelId="attestation-label"
+                      label="Security Device Verification"
+                      value={passkeyConfig.passkeys_attestation}
+                      onChange={e => setPasskeyConfig({...passkeyConfig, passkeys_attestation: e.target.value})}
+                      sx={{ borderRadius: '10px' }}
+                    >
+                      <MenuItem value="none">Do Not Collect (Recommended)</MenuItem>
+                      <MenuItem value="indirect">Collect Indirectly</MenuItem>
+                      <MenuItem value="direct">Collect Directly</MenuItem>
+                    </Select>
+                    <FormHelperText>Verifies the physical hardware key authenticity against manufacturers.</FormHelperText>
+                  </FormControl>
+                </Grid>
+              </Grid>
 
               <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
                 <Button
