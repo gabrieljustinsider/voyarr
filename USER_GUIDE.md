@@ -168,9 +168,9 @@ For persistent codec issues, use the **Transcode Queue** (Settings > Transcoding
 
 ### Passkeys (WebAuthn)
 
-Voyarr supports passwordless authentication using WebAuthn passkeys. You can register biometric or hardware security keys from the Account Security page.
+Voyarr supports passwordless authentication using WebAuthn passkeys. You can register biometric or hardware security keys from the **Account Security** page.
 
-**Setup wizard improvements:** When adding a new passkey, the setup wizard now automatically pre-fills the **Website Address** field with your current hostname (`window.location.hostname`), so you rarely need to change it. On desktop and tablet screens, the wizard expands to a wider two-column layout — Display Name and Website Address on the top row, with remaining fields arranged in a grid below — making the form easier to complete at a glance.
+**First-time setup wizard:** When an admin enables passkeys for the first time, a configuration step appears on the login screen. The **Website Address Override** field is automatically pre-populated with your current domain — you can leave all default values as-is unless you have specific requirements. The wizard uses a responsive two-column layout on desktop and tablet screens.
 
 ### SSO Providers
 
@@ -183,6 +183,38 @@ Connect Voyarr to any OIDC-compliant identity provider (Keycloak, Authentik, Azu
 ### Trusted Subnet Bypass
 
 Skip the login screen for users connecting from trusted local networks. Configure CIDR ranges in the Account Security settings.
+
+## Video Playback
+
+Voyarr's built-in video player automatically detects the correct playback strategy from each media file's URL — no manual configuration required.
+
+### Supported Formats & Protocols
+
+| Format / Protocol | How it plays | Notes |
+|---|---|---|
+| HLS (`.m3u8`) | hls.js (or native on Safari/iOS) | Adaptive bitrate, low-latency mode |
+| MPEG-DASH (`.mpd`) | dash.js | Adaptive streaming |
+| MP4 / M4V / MOV | HTML5 native | Best cross-browser compatibility |
+| MKV / WebM / OGV | HTML5 native | Chrome/Edge on Windows recommended for MKV |
+| AVI / WMV / FLV | HTML5 native | Support depends on OS codec pack |
+| TS / M2TS / MTS | HTML5 native | MPEG-2 Transport Stream |
+| MPEG / MPG / 3GP | HTML5 native | Legacy format support |
+| Audio (MP3, AAC, M4A, WAV, FLAC, OGG, OPUS) | HTML5 native | Full audio-only playback |
+| RTMP / RTSP | ⚠️ Not supported in browsers | Re-stream as HLS for playback |
+
+### Streaming Libraries
+
+The player loads **hls.js** and **dash.js** from CDN automatically — only when needed — so there's no impact on page load for files that don't require them. Safari and iOS use native HLS without loading hls.js.
+
+### Maximizing Compatibility
+
+For guaranteed playback across all browsers and devices, use **Settings → Transcode Queue** to convert files to **MP4 with H.264 video and AAC audio**. This combination plays everywhere without additional OS codec packs.
+
+### Troubleshooting Playback Issues
+
+- **Codec error / video won't play**: Open the browser console (F12) and check the error code. `MEDIA_ERR_DECODE` means the codec is unsupported — transcode to MP4. `MEDIA_ERR_SRC_NOT_SUPPORTED` means the container isn't recognized — try Chrome or Edge.
+- **Live stream won't load**: Ensure your browser has internet access to load hls.js from `cdn.jsdelivr.net`. RTMP/RTSP streams must be re-streamed as HLS.
+- **H.265/HEVC content**: Firefox does not natively support H.265. Use the Transcode Queue to convert to H.264.
 
 ## User Roles
 

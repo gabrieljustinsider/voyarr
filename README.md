@@ -183,3 +183,34 @@ To add a new deployment target (e.g., `database/supabase.sh`), create a driver s
 - Backup and restore with automated scheduling
 - Chrome browser extension (Voyarr Lens) for CSS selector mapping
 - Studio modeling, chapter management, and facial recognition clustering
+- **Universal video/audio playback** via `SmartVideoPlayer` — auto-detects HLS, MPEG-DASH, and native HTML5 formats with lazy-loaded hls.js / dash.js
+
+## Video Playback
+
+Voyarr uses a `SmartVideoPlayer` component that automatically detects the correct playback strategy from the media URL. No configuration is required.
+
+### Supported Formats & Protocols
+
+| Format / Protocol | Strategy | Notes |
+|---|---|---|
+| `.m3u8` | HLS (hls.js / native Safari) | Adaptive bitrate, low-latency mode |
+| `.mpd` | MPEG-DASH (dash.js) | Adaptive streaming |
+| `.mp4`, `.m4v`, `.mov` | HTML5 native | Best browser compatibility |
+| `.mkv`, `.webm`, `.ogv` | HTML5 native | Chrome/Edge on Windows recommended for MKV |
+| `.avi`, `.wmv`, `.flv` | HTML5 native | Support varies by OS codec pack |
+| `.ts`, `.m2ts`, `.mts` | HTML5 native | MPEG-2 Transport Stream |
+| `.mpeg`, `.mpg`, `.3gp` | HTML5 native | Legacy format support |
+| Audio: `.mp3`, `.aac`, `.m4a`, `.wav`, `.flac`, `.ogg`, `.opus` | HTML5 native | Full audio playback |
+| `rtmp://`, `rtsp://` | Error with guidance | Cannot play in browser — re-stream as HLS |
+
+### How It Works
+
+- **Automatic detection**: The player reads the URL extension and routes to the correct engine
+- **On-demand loading**: `hls.js` and `dash.js` are fetched from CDN only when the source requires them — no build-time dependency bloat
+- **Safari / iOS**: HLS is played natively without loading hls.js
+- **Error surfacing**: Codec errors, network errors, and unsupported formats show clear, actionable messages
+
+### Maximizing Compatibility
+
+For the widest browser compatibility, use the **Transcode Queue** to convert any file to **MP4 with H.264 video and AAC audio**. MP4/H.264 plays in every modern browser on every platform without additional codecs.
+
