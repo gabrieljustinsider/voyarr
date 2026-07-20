@@ -222,6 +222,18 @@ app.include_router(logs.router)
 app.include_router(system_status.router)
 
 
+@app.get("/.well-known/webauthn")
+async def webauthn_origin_association():
+    cors_origins = [
+        origin.strip()
+        for origin in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+        if origin.strip()
+    ]
+    return {
+        "origins": cors_origins
+    }
+
+
 @app.get("/")
 async def root():
     return {"message": "Voyarr API"}
