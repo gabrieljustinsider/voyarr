@@ -210,6 +210,52 @@ async def get_system_status(db: Session = Depends(get_db)):
 
     env_details["disks"] = disks
 
+    # Version Sync Check
+    backend_ver = get_version()
+    # We query package.json if running in dev, otherwise fallback to version file
+    frontend_ver = None
+    try:
+        if os.path.exists("frontend/package.json"):
+            import json
+            with open("frontend/package.json", "r") as f:
+                frontend_ver = json.load(f).get("version")
+        elif os.path.exists("../frontend/package.json"):
+            import json
+            with open("../frontend/package.json", "r") as f:
+                frontend_ver = json.load(f).get("version")
+    except Exception:
+        pass
+    if not frontend_ver:
+        # Check VERSION file at root if packages not found directly
+        try:
+            if os.path.exists("../VERSION"):
+                with open("../VERSION", "r") as f:
+                    frontend_ver = f.read().strip()
+            elif os.path.exists("VERSION"):
+                with open("VERSION", "r") as f:
+                    frontend_ver = f.read().strip()
+        except Exception:
+            pass
+
+    # Ensure defaults fallback cleanly
+    frontend_ver = frontend_ver or backend_ver
+
+    # Check celery worker version sync
+    worker_ver = None
+    if celery_status == "healthy" and celery_details.get("active_workers"):
+        # Worker matches backend code by default if on same compose,
+        # but in multi-server setups it could be mismatched.
+        # Fallback to backend_ver if no explicit worker override version is sent.
+        worker_ver = backend_ver 
+
+    versions_synced = (backend_ver == frontend_ver)
+    version_warnings = []
+    if not versions_synced:
+        version_warnings.append(
+            f"Version mismatch detected: Frontend is at v{frontend_ver} but Backend is at v{backend_ver}. "
+            "Please rebuild your frontend or pull the latest container images to ensure system stability."
+        )
+
     return {
         "database": {"status": db_status, "details": db_details},
         "redis": {"status": redis_status, "details": redis_details},
@@ -222,5 +268,12 @@ async def get_system_status(db: Session = Depends(get_db)):
             "workers": {"target": os.getenv("WORKERS_TARGET", "docker")},
             "database": {"target": os.getenv("DATABASE_TARGET", "docker")},
             "scraper": {"target": os.getenv("SCRAPER_BROWSER_TARGET", "browserless-io")},
+        },
+        "version_check": {
+            "synced": versions_synced,
+            "frontend_version": frontend_ver,
+            "backend_version": backend_ver,
+            "worker_version": worker_ver,
+            "warnings": version_warnings
         }
     }

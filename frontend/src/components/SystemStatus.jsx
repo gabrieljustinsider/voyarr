@@ -159,6 +159,12 @@ export default function SystemStatus() {
 
       {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
+      {status?.version_check?.warnings?.map((warn, idx) => (
+        <Alert severity="warning" sx={{ mb: 3, fontWeight: 'bold' }} key={idx}>
+          ⚠️ {warn}
+        </Alert>
+      ))}
+
       {status && (
         <>
           <Card sx={{ mb: 3 }}>
