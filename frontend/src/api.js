@@ -39,7 +39,7 @@ export const apiFetch = async (endpoint, options = {}) => {
     credentials: 'include' 
   })
   
-  if (response.status === 401 || response.status === 403) {
+  if (response.status === 401) {
     localStorage.removeItem('voyarr_jwt');
     localStorage.removeItem('voyarr_api_key');
     window.location.reload();

@@ -673,7 +673,7 @@ function App() {
           headers: getAuthHeaders(),
           signal: abortController.signal
         })
-        if (res.status === 401 || res.status === 403) {
+        if (res.status === 401) {
           localStorage.removeItem('voyarr_jwt')
           localStorage.removeItem('voyarr_api_key')
           window.location.reload()
@@ -722,7 +722,7 @@ function App() {
           headers: getAuthHeaders(),
           signal: abortController.signal
         })
-        if (res.status === 401 || res.status === 403) {
+        if (res.status === 401) {
           localStorage.removeItem('voyarr_jwt')
           localStorage.removeItem('voyarr_api_key')
           window.location.reload()
