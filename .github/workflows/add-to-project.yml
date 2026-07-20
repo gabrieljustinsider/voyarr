@@ -28,4 +28,4 @@ jobs:
       - uses: actions/add-to-project@v2
         with:
           project-url: https://github.com/users/gabrieljustinsider/projects/1
-          github-token: ${{ steps.op-secrets.outputs.PROJECT_PAT }}
+          github-token: ${{ env.PROJECT_PAT }}

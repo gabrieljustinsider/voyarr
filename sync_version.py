@@ -55,6 +55,12 @@ def main():
             f.write("\n")
         print(f"Updated {ext_manifest_path}")
 
+    # 4.5. Update backend/VERSION
+    backend_version_path = os.path.join(root_dir, "backend", "VERSION")
+    with open(backend_version_path, "w") as f:
+        f.write(version + "\n")
+    print(f"Updated {backend_version_path}")
+
     # 5. Update backend/Dockerfile and frontend/Dockerfile version LABELs
     dockerfiles = [
         os.path.join(root_dir, "backend", "Dockerfile"),
