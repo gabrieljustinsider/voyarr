@@ -34,6 +34,7 @@ jobs:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
           CLOUDFLARE_API_TOKEN: "op://6wgu5yz5yphvacdimgc64ej65i/Voyarr Environment Variables/CLOUDFLARE_API_TOKEN"
           CLOUDFLARE_ACCOUNT_ID: "op://6wgu5yz5yphvacdimgc64ej65i/Voyarr Environment Variables/CLOUDFLARE_ACCOUNT_ID"
+          FRONTEND_BACKEND_URL: "op://6wgu5yz5yphvacdimgc64ej65i/Voyarr Environment Variables/FRONTEND_BACKEND_URL"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -49,22 +50,38 @@ jobs:
 
       - name: Build frontend static assets
         run: |
-          FRONTEND_BACKEND_URL=$(grep '^FRONTEND_BACKEND_URL=' .env | cut -d= -f2 | tr -d '[:space:]"')
-          if [ -z "$FRONTEND_BACKEND_URL" ]; then
-            echo "ERROR: FRONTEND_BACKEND_URL not found in .env"
+          # Resolve backend URL from environment (1Password) or fallback to .env for local runs
+          RESOLVED_BACKEND_URL="${FRONTEND_BACKEND_URL:-}"
+          if [ -z "$RESOLVED_BACKEND_URL" ] && [ -f .env ]; then
+            RESOLVED_BACKEND_URL=$(grep '^FRONTEND_BACKEND_URL=' .env | cut -d= -f2 | tr -d '[:space:]"')
+          fi
+          
+          if [ -z "$RESOLVED_BACKEND_URL" ]; then
+            echo "ERROR: FRONTEND_BACKEND_URL is not set in environment or .env file"
             exit 1
           fi
-          echo "Building frontend VITE with Backend URL: $FRONTEND_BACKEND_URL"
+          
+          echo "Building frontend VITE with Backend URL: $RESOLVED_BACKEND_URL"
           cd frontend
-          VITE_API_BASE_URL="$FRONTEND_BACKEND_URL" npx vite build --mode production
+          VITE_API_BASE_URL="$RESOLVED_BACKEND_URL" npx vite build --mode production
 
       - name: Deploy Cloudflare Worker
         run: |
-          FRONTEND_BACKEND_URL=$(grep '^FRONTEND_BACKEND_URL=' .env | cut -d= -f2 | tr -d '[:space:]"')
-          echo "Deploying to Cloudflare Worker routing to: $FRONTEND_BACKEND_URL"
+          # Resolve backend URL from environment (1Password) or fallback to .env for local runs
+          RESOLVED_BACKEND_URL="${FRONTEND_BACKEND_URL:-}"
+          if [ -z "$RESOLVED_BACKEND_URL" ] && [ -f .env ]; then
+            RESOLVED_BACKEND_URL=$(grep '^FRONTEND_BACKEND_URL=' .env | cut -d= -f2 | tr -d '[:space:]"')
+          fi
+          
+          if [ -z "$RESOLVED_BACKEND_URL" ]; then
+            echo "ERROR: FRONTEND_BACKEND_URL is not set in environment or .env file"
+            exit 1
+          fi
+          
+          echo "Deploying to Cloudflare Worker routing to: $RESOLVED_BACKEND_URL"
           cd worker
           # Set BACKEND_ORIGIN secret inside Wrangler
-          echo "$FRONTEND_BACKEND_URL" | npx wrangler secret put BACKEND_ORIGIN || true
+          echo "$RESOLVED_BACKEND_URL" | npx wrangler secret put BACKEND_ORIGIN || true
           # Deploy Worker
           npx wrangler deploy
         env:
