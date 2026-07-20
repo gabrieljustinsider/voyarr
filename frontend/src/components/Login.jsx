@@ -328,15 +328,21 @@ export default function Login() {
       }
       const options = await res.json()
       
-      options.challenge = base64ToBuffer(options.challenge)
-      options.user.id = new TextEncoder().encode(options.user.id)
+      // Perform Relying Party ID (RP ID) suffix validation client-side.
+      // This validates that the domain suffix requirements are satisfied (preventing browser SecurityError)
+      // without forcing the user to complete a dummy passkey registration on their device keychain.
+      const rpId = options.rp?.id;
+      const currentHost = window.location.hostname;
       
-      const credential = await navigator.credentials.create({ publicKey: options })
-      if (!credential) {
-        throw new Error('Test creation cancelled or failed.')
+      const isValidRp = rpId && (currentHost === rpId || currentHost.endsWith('.' + rpId));
+      if (!isValidRp) {
+        throw new Error(
+          `Security Validation Failed: Relying Party ID (${rpId || 'missing'}) is not equal to, nor a registrable domain suffix of, the current domain (${currentHost}).`
+        );
       }
+      
       setTestSuccess(true)
-      setSnackbar({ open: true, message: 'Verification successful! Domain and configurations match.', severity: 'success' })
+      setSnackbar({ open: true, message: 'Verification successful! Relying Party ID is valid for this domain.', severity: 'success' })
     } catch (err) {
       console.error('Test error:', err)
       setTestError(err.message || 'Verification failed. Please check your domain.')
