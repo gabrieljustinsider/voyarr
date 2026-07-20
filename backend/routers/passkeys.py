@@ -117,9 +117,9 @@ def get_rp_id(request: Request, db: Optional[Session] = None) -> str:
 
     # Priority order of headers to resolve the frontend domain
     hostname = (
-        extract_hostname(request.headers.get("x-forwarded-host")) or
         extract_hostname(request.headers.get("origin")) or
         extract_hostname(request.headers.get("referer")) or
+        extract_hostname(request.headers.get("x-forwarded-host")) or
         extract_hostname(request.headers.get("host")) or
         request.url.hostname
     )
