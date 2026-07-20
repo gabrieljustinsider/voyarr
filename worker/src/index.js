@@ -30,29 +30,56 @@ export default {
         body = request.body;
       }
 
-      const response = await fetch(backendUrl, {
-        method: request.method,
-        headers,
-        body,
-      });
+      try {
+        const response = await fetch(backendUrl, {
+          method: request.method,
+          headers,
+          body,
+        });
 
-      const proxyHeaders = new Headers(response.headers);
-      proxyHeaders.set("Access-Control-Allow-Origin", "*");
-      proxyHeaders.set(
-        "Access-Control-Allow-Methods",
-        "GET, POST, PUT, DELETE, PATCH, OPTIONS"
-      );
-      proxyHeaders.set(
-        "Access-Control-Allow-Headers",
-        "Content-Type, Authorization, X-Voyarr-Api-Key, X-Api-Key"
-      );
-      proxyHeaders.set("Access-Control-Allow-Credentials", "true");
+        // Log proxy event
+        console.log(JSON.stringify({
+          event: "proxy_success",
+          method: request.method,
+          path: path,
+          status: response.status,
+          cf_ray: request.headers.get("cf-ray")
+        }));
 
-      return new Response(response.body, {
-        status: response.status,
-        statusText: response.statusText,
-        headers: proxyHeaders,
-      });
+        const proxyHeaders = new Headers(response.headers);
+        proxyHeaders.set("Access-Control-Allow-Origin", "*");
+        proxyHeaders.set(
+          "Access-Control-Allow-Methods",
+          "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+        );
+        proxyHeaders.set(
+          "Access-Control-Allow-Headers",
+          "Content-Type, Authorization, X-Voyarr-Api-Key, X-Api-Key"
+        );
+        proxyHeaders.set("Access-Control-Allow-Credentials", "true");
+
+        return new Response(response.body, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: proxyHeaders,
+        });
+      } catch (error) {
+        console.error(JSON.stringify({
+          event: "proxy_error",
+          method: request.method,
+          path: path,
+          error: error.message || String(error),
+          stack: error.stack,
+          cf_ray: request.headers.get("cf-ray")
+        }));
+        return new Response("Failed to contact the backend server. Please try again.", {
+          status: 502,
+          headers: {
+            "Content-Type": "text/plain",
+            "Access-Control-Allow-Origin": "*"
+          }
+        });
+      }
     }
 
     // Static assets: serve from Workers Assets
