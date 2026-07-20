@@ -20,12 +20,25 @@ const getHttpsConfig = () => {
 };
 
 const getAppVersion = () => {
-  const versionPath = path.resolve(__dirname, '../VERSION');
-  if (fs.existsSync(versionPath)) {
-    return fs.readFileSync(versionPath, 'utf-8').trim();
+  const rootPkgPath = path.resolve(__dirname, '../package.json');
+  if (fs.existsSync(rootPkgPath)) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(rootPkgPath, 'utf-8'));
+      if (pkg.version) return pkg.version;
+    } catch (e) {
+      // fallback
+    }
   }
-  const packageJson = JSON.parse(fs.readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8'));
-  return packageJson.version;
+  const localPkgPath = path.resolve(__dirname, 'package.json');
+  if (fs.existsSync(localPkgPath)) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(localPkgPath, 'utf-8'));
+      if (pkg.version) return pkg.version;
+    } catch (e) {
+      // fallback
+    }
+  }
+  return '1.22.0';
 };
 
 export default defineConfig(({ mode }) => {

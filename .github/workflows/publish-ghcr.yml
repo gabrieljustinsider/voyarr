@@ -34,8 +34,8 @@ jobs:
       - name: Extract Version
         id: vars
         run: |
-          VERSION=$(cat VERSION | tr -d '[:space:]')
-          if [ -z "$VERSION" ]; then
+          VERSION=$(jq -r .version package.json | tr -d '[:space:]')
+          if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
             VERSION="1.18.0"
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
@@ -72,8 +72,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION=$(cat VERSION | tr -d '[:space:]')
-          if [ -z "$VERSION" ]; then
+          VERSION=$(jq -r .version package.json | tr -d '[:space:]')
+          if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
             VERSION="1.18.0"
           fi
           echo "Current Version: v$VERSION"

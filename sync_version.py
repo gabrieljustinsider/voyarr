@@ -5,33 +5,23 @@ import json
 import subprocess
 
 def main():
-    # 1. Read single source of truth
+    # 1. Read single source of truth from root package.json
     root_dir = os.path.dirname(os.path.abspath(__file__))
-    version_file_path = os.path.join(root_dir, "VERSION")
+    root_pkg_path = os.path.join(root_dir, "package.json")
     
-    if not os.path.exists(version_file_path):
-        print(f"Error: {version_file_path} not found.")
+    if not os.path.exists(root_pkg_path):
+        print(f"Error: {root_pkg_path} not found.")
         return
 
-    with open(version_file_path, "r") as f:
-        version = f.read().strip()
+    with open(root_pkg_path, "r") as f:
+        pkg = json.load(f)
+    version = pkg.get("version")
         
     if not version:
-        print("Error: VERSION file is empty.")
+        print("Error: package.json does not have a version field.")
         return
 
-    print(f"Syncing all version references to source of truth: {version}")
-
-    # 2. Update root package.json
-    root_pkg_path = os.path.join(root_dir, "package.json")
-    if os.path.exists(root_pkg_path):
-        with open(root_pkg_path, "r") as f:
-            pkg = json.load(f)
-        pkg["version"] = version
-        with open(root_pkg_path, "w") as f:
-            json.dump(pkg, f, indent=2)
-            f.write("\n")
-        print(f"Updated {root_pkg_path}")
+    print(f"Syncing all version references to source of truth (package.json): {version}")
 
     # 3. Update frontend/package.json
     frontend_pkg_path = os.path.join(root_dir, "frontend", "package.json")
