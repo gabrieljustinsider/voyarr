@@ -151,6 +151,26 @@ export default function HelpArea({ userRole }) {
         </AccordionDetails>
       </Accordion>
 
+      <Accordion sx={ACCORDION_SX}>
+        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+          <Typography fontWeight="bold">Does Voyarr support VR headsets / WebXR immersive playback?</Typography>
+        </AccordionSummary>
+        <AccordionDetails>
+          <Typography paragraph>
+            Yes! The player has built-in **WebXR** rendering capabilities using Three.js (dynamic CDN lazy-loading):
+          </Typography>
+          <Box component="ul" sx={{ pl: 2, mt: 0 }}>
+            <li><Typography variant="body2"><strong>Supported Headsets</strong> — Meta Quest (via Quest Browser), Apple Vision Pro (via Safari WebXR settings), HTC Vive, and all headsets supporting standard WebXR immersive VR sessions.</Typography></li>
+            <li><Typography variant="body2"><strong>Projection Formats</strong> — Choose between **Flat Screen** (cinema theater mode), **180° Dome** (hemispherical projection), or **360° Sphere** (full spherical environment).</Typography></li>
+            <li><Typography variant="body2"><strong>Stereoscopic Video</strong> — Supports stereoscopic Side-by-Side (SBS) videos. Enable **Stereo SBS** mode to map independent left/right perspectives to each eye.</Typography></li>
+            <li><Typography variant="body2"><strong>Exiting VR Mode</strong> — Click the select/trigger button on either controller to exit immersive mode and return to the flat browser dashboard, or use your headset's system home button.</Typography></li>
+          </Box>
+          <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+            If you do not see the "Enter Immersive VR" button, ensure you are accessing the dashboard over HTTPS or localhost, as WebXR is blocked by browsers on non-secure HTTP origins.
+          </Typography>
+        </AccordionDetails>
+      </Accordion>
+
       {/* ── Troubleshooting Tips ───────────────────────────────────────── */}
       
       <Paper sx={{ p: 3, mt: 4, borderRadius: '16px', borderLeft: '4px solid #1976d2', background: 'rgba(25, 118, 210, 0.1)' }}>

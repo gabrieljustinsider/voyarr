@@ -310,6 +310,13 @@ export default function SmartVideoPlayer({
           setInXrMode(false)
         })
 
+        // Controller / trigger input safeguard: click trigger to exit immersive view
+        session.addEventListener('select', () => {
+          if (xrSessionRef.current) {
+            xrSessionRef.current.end().catch(() => {})
+          }
+        })
+
         // Hook Three.js renderer into WebXR session cycle
         await renderer.xr.setSession(session)
 

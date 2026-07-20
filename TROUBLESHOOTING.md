@@ -236,3 +236,20 @@ Web browsers do not support the RTMP or RTSP protocols natively, and no JavaScri
 2. Open the stream URL directly in your browser or with `curl` to verify it resolves and returns valid playlist data.
 3. Check the browser console for network errors — a 403/404 on the `.m3u8` URL means the stream source is down or requires authentication.
 4. If on a restricted network, try loading the URL `https://cdn.jsdelivr.net/npm/hls.js@latest/dist/hls.min.js` directly in your browser to confirm CDN access.
+
+## 13. "Enter Immersive VR" button is missing or VR mode fails to launch
+
+**Symptoms:**
+- You are viewing the player inside a VR headset browser (e.g. Meta Quest Browser), but the "Enter Immersive VR" button does not appear.
+- Clicking the button displays a "Failed to enter XR Mode: SecurityError" message.
+
+**Causes:**
+1. **Insecure Context (HTTP)**: Modern browsers restrict the WebXR Device API strictly to **Secure Contexts**. If you access the Voyarr dashboard using an unencrypted `http://` domain (e.g. `http://192.168.1.100`), the browser disables all VR capabilities.
+2. **Blocked CDN Resources**: The player dynamically lazy-loads Three.js from `cdnjs.cloudflare.com`. If your headset's network connection blocks Cloudflare CDNs, the immersive renderer cannot initialize.
+
+**Solutions:**
+- **Access over HTTPS**: Enable SSL/TLS on your server or reverse proxy so you access Voyarr over `https://yourdomain.com`. 
+- **Use localhost fallback**: The browser treats `http://localhost` or `http://127.0.0.1` as secure. If debugging locally, ensure you use one of these.
+- **Check Headset Connection**: Ensure your VR headset has internet access and can reach `https://cdnjs.cloudflare.com/` to fetch Three.js.
+- **Safeguard Exit**: If your headset becomes stuck or the display gets tracking errors during WebXR playback, click the select trigger button on either VR controller to trigger the safeguard exit and return to the flat desktop layout.
+

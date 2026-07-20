@@ -206,6 +206,15 @@ Voyarr's built-in video player automatically detects the correct playback strate
 
 The player loads **hls.js** and **dash.js** from CDN automatically — only when needed — so there's no impact on page load for files that don't require them. Safari and iOS use native HLS without loading hls.js.
 
+### Immersive WebXR VR Playback
+
+The video player supports WebXR virtual reality playback using Three.js (lazy-loaded from CDN on demand). When accessing the dashboard from a VR headset (such as Meta Quest or Apple Vision Pro):
+- **WebXR Detection**: An **Enter Immersive VR** button will appear in the player controls if WebXR is supported by the browser. 
+- **Projections**: Toggle between **Flat Screen** (cinema theater mode), **180° Dome** (hemispherical projection), or **360° Sphere** (fully immersive environment).
+- **Stereoscopy**: Supports **Stereo SBS** (Side-by-Side) projection. When enabled, the player dynamically maps left/right perspective channels to each eye during rendering.
+- **Controls & Exit Safeguard**: Click the primary select trigger on either VR controller to instantly exit immersive mode and return to the flat dashboard layout.
+- **Security Prerequisite**: WebXR requires a secure context. You must access the dashboard over `localhost` or an `https://` domain for VR controls to be enabled.
+
 ### Maximizing Compatibility
 
 For guaranteed playback across all browsers and devices, use **Settings → Transcode Queue** to convert files to **MP4 with H.264 video and AAC audio**. This combination plays everywhere without additional OS codec packs.
@@ -215,6 +224,7 @@ For guaranteed playback across all browsers and devices, use **Settings → Tran
 - **Codec error / video won't play**: Open the browser console (F12) and check the error code. `MEDIA_ERR_DECODE` means the codec is unsupported — transcode to MP4. `MEDIA_ERR_SRC_NOT_SUPPORTED` means the container isn't recognized — try Chrome or Edge.
 - **Live stream won't load**: Ensure your browser has internet access to load hls.js from `cdn.jsdelivr.net`. RTMP/RTSP streams must be re-streamed as HLS.
 - **H.265/HEVC content**: Firefox does not natively support H.265. Use the Transcode Queue to convert to H.264.
+- **VR controls missing**: Confirm you are accessing the page over HTTPS. Browsers block WebXR on plain HTTP connections. Ensure your headset has internet access to load the Three.js library from `cdnjs.cloudflare.com`.
 
 ## User Roles
 
