@@ -59,42 +59,42 @@ export default function Dashboard() {
       </Typography>
       
       <Grid container spacing={3} sx={{ justifyContent: 'center' }}>
-        <Grid xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
               <Typography variant="h6">Total Downloads</Typography>
-              <Typography variant="h4">{stats.total_downloads}</Typography>
+              <Typography variant="h4">{stats?.total_downloads ?? 0}</Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
               <Typography variant="h6">Completed</Typography>
-              <Typography variant="h4" color="success.main">{stats.completed}</Typography>
+              <Typography variant="h4" color="success.main">{stats?.completed ?? 0}</Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
               <Typography variant="h6">Running</Typography>
-              <Typography variant="h4" color="primary.main">{stats.running}</Typography>
+              <Typography variant="h4" color="primary.main">{stats?.running ?? 0}</Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
               <Typography variant="h6">Failed</Typography>
-              <Typography variant="h4" color="error.main">{stats.failed}</Typography>
+              <Typography variant="h4" color="error.main">{stats?.failed ?? 0}</Typography>
             </CardContent>
           </Card>
         </Grid>
       </Grid>
 
       <Grid container spacing={3} sx={{ mt: 2, justifyContent: 'center' }}>
-        <Grid xs={12}>
+        <Grid item xs={12}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>Quota Usage (Session Cookies)</Typography>
@@ -110,7 +110,7 @@ export default function Dashboard() {
                     const isUnlimited = limit === 0;
                     
                     return (
-                      <Grid xs={12} md={6} key={cookie?.id}>
+                      <Grid item xs={12} md={6} key={cookie?.id || Math.random()}>
                         <Box sx={{ mb: 2 }}>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                             <Typography variant="body2">{provider?.name || `Provider ID: ${cookie?.provider_id}`}</Typography>
@@ -136,7 +136,7 @@ export default function Dashboard() {
       </Grid>
 
       <Grid container spacing={3} sx={{ mt: 2, justifyContent: 'center' }}>
-        <Grid xs={12} md={6}>
+        <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>Download Status</Typography>
@@ -152,7 +152,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </Grid>
-        <Grid xs={12} md={6}>
+        <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>Status Distribution</Typography>
