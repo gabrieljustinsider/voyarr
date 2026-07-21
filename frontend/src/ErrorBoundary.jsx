@@ -34,13 +34,17 @@ export class ErrorBoundary extends React.Component {
       return (
         <Box
           sx={{
-            minHeight: '350px',
+            minHeight: '100vh',
+            width: '100vw',
+            backgroundColor: '#0b0f19',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             p: 3,
+            boxSizing: 'border-box',
           }}
         >
+
           <Paper
             elevation={6}
             sx={{
