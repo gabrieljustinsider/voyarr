@@ -98,22 +98,22 @@ export default function Dashboard() {
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>Quota Usage (Session Cookies)</Typography>
-              {cookies.length === 0 ? (
+              {(cookies || []).length === 0 ? (
                 <Typography variant="body2" color="text.secondary">No session cookies configured.</Typography>
               ) : (
                 <Grid container spacing={3}>
-                  {cookies.map(cookie => {
-                    const provider = providers.find(p => p.id === cookie.provider_id);
-                    const limit = cookie.download_limit || 0;
-                    const used = cookie.downloads_used || 0;
+                  {(cookies || []).map(cookie => {
+                    const provider = (providers || []).find(p => p.id === cookie?.provider_id);
+                    const limit = cookie?.download_limit || 0;
+                    const used = cookie?.downloads_used || 0;
                     const percentage = limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
                     const isUnlimited = limit === 0;
                     
                     return (
-                      <Grid xs={12} md={6} key={cookie.id}>
+                      <Grid xs={12} md={6} key={cookie?.id}>
                         <Box sx={{ mb: 2 }}>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                            <Typography variant="body2">{provider?.name || `Provider ID: ${cookie.provider_id}`}</Typography>
+                            <Typography variant="body2">{provider?.name || `Provider ID: ${cookie?.provider_id}`}</Typography>
                             <Typography variant="body2" color="text.secondary">
                               {isUnlimited ? `${used} / ∞` : `${used} / ${limit}`}
                             </Typography>

@@ -128,7 +128,7 @@ export default function TranscodeQueue() {
           </Box>
         </Box>
 
-        {jobs.length === 0 ? (
+        {(jobs || []).length === 0 ? (
           <Box sx={{ p: 4, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
             <Typography variant="body2" sx={{ opacity: 0.5 }}>No transcoding jobs currently in queue.</Typography>
           </Box>
@@ -146,7 +146,7 @@ export default function TranscodeQueue() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {jobs.map((job) => (
+                {(jobs || []).map((job) => (
                   <TableRow key={job.id} hover>
                     <TableCell align="center" sx={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       <Tooltip title={job.title || `Entry ${job.library_entry_id}`}>
