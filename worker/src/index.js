@@ -21,9 +21,9 @@ export default {
       // Strip trailing slashes from backendOrigin
       const cleanOrigin = backendOrigin.replace(/\/+$/, '');
       
-      // If cleanOrigin already includes an /api path (e.g. https://domain.com/api) and incoming path starts with /api/, strip the prefix to avoid /api/api duplication
+      // If incoming path starts with /api/, strip the /api prefix before forwarding to backend FastAPI origin
       let targetPath = path;
-      if (cleanOrigin.endsWith('/api') && targetPath.startsWith('/api/')) {
+      if (targetPath.startsWith('/api/')) {
         targetPath = targetPath.substring(4);
       }
 
@@ -59,6 +59,8 @@ export default {
         }));
 
         const proxyHeaders = new Headers(response.headers);
+        proxyHeaders.set("X-Proxy-Target-Url", backendUrl);
+        proxyHeaders.set("X-Proxy-Backend-Origin", backendOrigin);
         proxyHeaders.set("Access-Control-Allow-Origin", "*");
         proxyHeaders.set(
           "Access-Control-Allow-Methods",
