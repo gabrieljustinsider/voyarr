@@ -4,7 +4,7 @@
   "description": "Media downloader/manager and metadata scraper",
   "main": "index.js",
   "scripts": {
-    "deploy": "bash deploy/deploy.sh",
+    "deploy": "wrangler deploy",
     "deploy:frontend": "bash deploy/frontend/deploy.sh",
     "deploy:backend-api": "bash deploy/backend-api/deploy.sh",
     "deploy:workers": "bash deploy/workers/deploy.sh",
@@ -17,7 +17,8 @@
     "test:frontend": "cd frontend && npm run build",
     "test:backend": "cd backend && ../venv/bin/ruff check . && PYTHONPATH=. ../venv/bin/pytest",
     "build": "cd frontend && npm install && npm run build",
-    "version": "python3 sync_version.py && git add -u"
+    "version": "python3 sync_version.py && git add -u",
+    "preview": "wrangler dev"
   },
   "repository": {
     "type": "git",
@@ -35,7 +36,8 @@
     "@types/jest": "^30.0.0",
     "jest": "^30.3.0",
     "ts-jest": "^29.4.11",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "wrangler": "^4.112.0"
   },
   "overrides": {
     "js-yaml": "^4.1.0"
