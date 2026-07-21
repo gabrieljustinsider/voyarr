@@ -22,9 +22,6 @@ from tasks.download_tasks import real_download_task
 import json
 import asyncio
 import requests
-import re
-import os
-import tempfile
 
 from dependencies import verify_api_key, require_permission
 

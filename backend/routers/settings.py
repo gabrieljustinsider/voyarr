@@ -242,9 +242,9 @@ def run_network_diagnostic(db: Session = Depends(get_db)):
             result["latency_ms"] = latency
             if proxy_enabled:
                 result["proxy_working"] = True
-        except Exception as parse_err:
+        except Exception:
             result["status"] = "degraded"
-            result["error"] = f"Failed to parse IP response: {parse_err}"
+            result["error"] = "Failed to parse IP response from public discovery endpoint."
     else:
         if not result["error"]:
             result["error"] = (
@@ -474,8 +474,8 @@ def check_path_permissions(path: str = Query(...)):
                 writable = True
             except PermissionError:
                 error_detail = "Permission denied: Cannot create directories in this path (parent directory is not writable)."
-            except Exception as e:
-                error_detail = f"Parent directory check failed: {str(e)}"
+            except Exception:
+                error_detail = "Parent directory check failed."
         else:
             error_detail = "Parent directory does not exist."
             

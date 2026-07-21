@@ -1,5 +1,4 @@
 import logging
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 from models import Provider, SubscriptionTier, Biller
 

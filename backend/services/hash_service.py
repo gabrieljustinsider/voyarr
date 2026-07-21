@@ -45,7 +45,6 @@ class HashService:
             if file_path == "/":
                 raise ValueError("Invalid path")
 
-            import tempfile
             
             # Calculate middle of the video using ffprobe
             duration_cmd = [

@@ -350,7 +350,6 @@ def _process_discord_command(db: Session, interaction_type: int, data: dict):
         # Command: /status (Access: Admin/User/Viewer)
         elif command_name == "status":
             import platform
-            import sys
             import shutil
             import datetime
             from sqlalchemy import text

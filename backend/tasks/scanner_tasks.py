@@ -4,7 +4,7 @@ from celery import shared_task  # type: ignore
 from models import LibraryEntry, Provider
 from services.hash_service import HashService
 from services.media_tagger import MediaTagger
-from typing import Any, Optional, cast
+from typing import Any, Optional
 from utils import get_media_roots
 from db_utils import get_db_session, get_or_create_studio_by_name
 

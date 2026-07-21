@@ -17,7 +17,7 @@ from typing import Optional
 from decimal import Decimal
 from dependencies import verify_api_key
 from rate_limiter import rate_limit
-from utils import validate_path, sanitize_tainted_path
+from utils import sanitize_tainted_path
 
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC

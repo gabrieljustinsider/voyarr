@@ -95,15 +95,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function updateLogoPreview(url) {
     const trimmed = (url || '').trim();
-    if (trimmed && (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:image/'))) {
-      providerLogoPreview.src = trimmed;
-      providerLogoPreview.style.display = "block";
-      providerLogoFallback.style.display = "none";
-    } else {
-      providerLogoPreview.removeAttribute('src');
-      providerLogoPreview.style.display = "none";
-      providerLogoFallback.style.display = "block";
+    try {
+      const parsed = new URL(trimmed);
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:' || trimmed.startsWith('data:image/')) {
+        providerLogoPreview.setAttribute('src', parsed.href);
+        providerLogoPreview.style.display = "block";
+        providerLogoFallback.style.display = "none";
+        return;
+      }
+    } catch (e) {
+      if (trimmed.startsWith('data:image/')) {
+        providerLogoPreview.setAttribute('src', trimmed);
+        providerLogoPreview.style.display = "block";
+        providerLogoFallback.style.display = "none";
+        return;
+      }
     }
+    providerLogoPreview.removeAttribute('src');
+    providerLogoPreview.style.display = "none";
+    providerLogoFallback.style.display = "block";
   }
 
   if (newProviderLogoUrl) {

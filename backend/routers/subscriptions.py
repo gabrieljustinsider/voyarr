@@ -1,13 +1,12 @@
 import logging
 import re
-from typing import List, Dict, Any, Optional
-from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import List
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import select, update, delete
+from sqlalchemy import select
 
 from database import get_db
-from models import Subscription, SubscriptionTier, Provider, User
+from models import Subscription, SubscriptionTier, User
 from schemas import (
     SubscriptionCreate, SubscriptionUpdate, SubscriptionResponse,
     SubscriptionTierCreate, SubscriptionTierUpdate, SubscriptionTierResponse,
@@ -170,10 +169,14 @@ def parse_email(req: EmailParseRequest, db: Session = Depends(get_db), current_u
     biller = None
     
     # Biller examples (Epoch, CCBill, etc.)
-    if "epoch" in text: biller = "Epoch"
-    elif "ccbill" in text: biller = "CCBill"
-    elif "segpay" in text: biller = "Segpay"
-    elif "verotel" in text: biller = "Verotel"
+    if "epoch" in text:
+        biller = "Epoch"
+    elif "ccbill" in text:
+        biller = "CCBill"
+    elif "segpay" in text:
+        biller = "Segpay"
+    elif "verotel" in text:
+        biller = "Verotel"
     
     is_trial = "trial" in text
     

@@ -744,8 +744,8 @@ def universal_search(
                 payload = QueryRequest(query=req.query, hash=req.hash)
                 tpdb_res = query_theporndb(payload, x_api_key=tpdb_key)
                 results["theporndb"] = tpdb_res.get("results", [])
-            except Exception as e:
-                results["theporndb"] = [{"error": f"ThePornDB query error: {str(e)}"}]
+            except Exception:
+                results["theporndb"] = [{"error": "ThePornDB service query failed."}]
         else:
             # Fallback mock search results if API key not set (safely mock)
             results["theporndb"] = [
@@ -765,8 +765,8 @@ def universal_search(
                 payload = QueryRequest(query=req.query, hash=req.hash)
                 stashdb_res = query_stashdb(payload, x_api_key=stashdb_key)
                 results["stashdb"] = stashdb_res.get("results", [])
-            except Exception as e:
-                results["stashdb"] = [{"error": f"StashDB query error: {str(e)}"}]
+            except Exception:
+                results["stashdb"] = [{"error": "StashDB service query failed."}]
         else:
             # Fallback mock search results if API key not set (safely mock)
             results["stashdb"] = [

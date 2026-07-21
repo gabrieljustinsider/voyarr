@@ -1173,7 +1173,7 @@ def list_pairings(
     from models import ApiKey
     pairings = db.query(ApiKey).filter(
         ApiKey.user_id == current_user.id,
-        ApiKey.is_pairing == True
+        ApiKey.is_pairing
     ).order_by(ApiKey.created_at.desc()).all()
     
     return [
@@ -1199,7 +1199,7 @@ def rename_pairing(
     pairing = db.query(ApiKey).filter(
         ApiKey.id == pairing_id,
         ApiKey.user_id == current_user.id,
-        ApiKey.is_pairing == True
+        ApiKey.is_pairing
     ).first()
     
     if not pairing:
@@ -1225,7 +1225,7 @@ def revoke_pairing(
     pairing = db.query(ApiKey).filter(
         ApiKey.id == pairing_id,
         ApiKey.user_id == current_user.id,
-        ApiKey.is_pairing == True
+        ApiKey.is_pairing
     ).first()
     
     if not pairing:

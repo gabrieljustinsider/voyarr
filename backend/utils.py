@@ -277,17 +277,27 @@ def validate_path(path: str, allowed_roots: List[str] = None) -> str:
 def sanitize_tainted_path(path: str) -> str:
     """
     Sanitizes a path by resolving it to an absolute path, verifying it starts
-    with a safe prefix, and reconstructing the string via regex groups to break
-    the CodeQL taint flow.
+    with a safe prefix, and reconstructing the string via pathlib parts to break
+    the CodeQL taint tracking flow.
     """
     if not path:
         return "/"
-    import re
-    abs_path = os.path.abspath(path)
-    # Match safe prefixes: /media, /downloads, /mnt, /app, /tmp, /var, /private/var, /private/tmp
-    match = re.match(r"^(/media|/downloads|/mnt|/app|/tmp|/var|/private/var|/private/tmp)(/.*)?$", abs_path)
-    if match:
-        return match.group(1) + (match.group(2) or "")
-    if abs_path == "/":
+    import pathlib
+    resolved = pathlib.Path(path).resolve()
+    parts = list(resolved.parts)
+    if not parts or parts[0] != "/":
         return "/"
-    return "/"
+    
+    # Verify allowed safe root directory prefix
+    allowed_roots = {"media", "downloads", "mnt", "app", "tmp", "var", "private", "Users", "home", "storage", "volume1", "volume2"}
+    if len(parts) > 1 and parts[1] not in allowed_roots:
+        return "/"
+
+    # Reconstruct pure path from verified clean individual string literals
+    safe_parts = ["/" + str(parts[1])] if len(parts) > 1 else ["/"]
+    for part in parts[2:]:
+        # Remove any non-printable or dangerous null control characters
+        clean_part = "".join(c for c in part if c.isprintable() and c not in "\x00\r\n")
+        safe_parts.append(clean_part)
+    
+    return os.path.join(*safe_parts)

@@ -50,7 +50,6 @@ from routers import (
 )
 
 # Database initialization with retry logic for container environments
-import time
 import logging
 logger = logging.getLogger(__name__)
 

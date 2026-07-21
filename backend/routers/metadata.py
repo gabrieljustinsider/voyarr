@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from models import LibraryEntry
@@ -8,9 +8,6 @@ from typing import List, Optional
 import os
 from services.media_tagger import MediaTagger
 import json
-import ipaddress
-import socket
-from urllib.parse import urlparse
 
 from dependencies import verify_api_key
 
