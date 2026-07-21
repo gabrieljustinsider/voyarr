@@ -94,11 +94,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const providerSortSelect = document.getElementById('providerSortSelect');
 
   function updateLogoPreview(url) {
-    if (url && url.trim()) {
-      providerLogoPreview.src = url.trim();
+    const trimmed = (url || '').trim();
+    if (trimmed && (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:image/'))) {
+      providerLogoPreview.src = trimmed;
       providerLogoPreview.style.display = "block";
       providerLogoFallback.style.display = "none";
     } else {
+      providerLogoPreview.removeAttribute('src');
       providerLogoPreview.style.display = "none";
       providerLogoFallback.style.display = "block";
     }
