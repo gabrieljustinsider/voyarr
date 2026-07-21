@@ -20,7 +20,15 @@ export default {
 
       // Strip trailing slashes from backendOrigin
       const cleanOrigin = backendOrigin.replace(/\/+$/, '');
-      const backendUrl = `${cleanOrigin}${path}${url.search}`;
+      
+      // If cleanOrigin already includes an /api path (e.g. https://domain.com/api) and incoming path starts with /api/, strip the prefix to avoid /api/api duplication
+      let targetPath = path;
+      if (cleanOrigin.endsWith('/api') && targetPath.startsWith('/api/')) {
+        targetPath = targetPath.substring(4);
+      }
+
+      const backendUrl = `${cleanOrigin}${targetPath}${url.search}`;
+
 
 
       const headers = new Headers(request.headers);
