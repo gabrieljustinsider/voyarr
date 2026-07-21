@@ -244,22 +244,22 @@ export default function SystemStatus() {
                   <Grid container spacing={2} sx={{ mb: 2 }}>
                     <Grid item xs={6}>
                       <Typography variant="body2" sx={{ fontWeight: 'bold' }} color="textSecondary">Host OS</Typography>
-                      <Typography variant="body1" sx={{ mb: 2 }}>{status.environment?.os || 'Linux Container'}</Typography>
+                      <Typography variant="body1" sx={{ mb: 2 }}>{status?.environment?.os || 'Linux Container'}</Typography>
                       
                       <Typography variant="body2" sx={{ fontWeight: 'bold' }} color="textSecondary">Python Runtime</Typography>
                       <Typography variant="body2" sx={{ fontStyle: 'italic', wordBreak: 'break-all' }}>
-                        {status.environment?.python_version}
+                        {status?.environment?.python_version}
                       </Typography>
                     </Grid>
                     
                     <Grid item xs={6}>
                       <Typography variant="body2" sx={{ fontWeight: 'bold' }} color="textSecondary">App Version (Backend)</Typography>
-                      <Typography variant="body1" sx={{ mb: 2 }}>{status.environment?.app_version ? `v${status.environment.app_version}` : `v${__APP_VERSION__}`}</Typography>
+                      <Typography variant="body1" sx={{ mb: 2 }}>{status?.environment?.app_version ? `v${status.environment.app_version}` : `v${__APP_VERSION__}`}</Typography>
 
                       <Typography variant="body2" sx={{ fontWeight: 'bold' }} color="textSecondary">Containerized Environment</Typography>
                       <Typography variant="body1">
-                        {status.environment?.is_container || status.environment?.is_docker
-                          ? `Yes (${status.environment.container_type || 'Docker'})`
+                        {status?.environment?.is_container || status?.environment?.is_docker
+                          ? `Yes (${status?.environment?.container_type || 'Docker'})`
                           : 'No (Host OS / Bare Metal)'}
                       </Typography>
                     </Grid>
@@ -267,33 +267,31 @@ export default function SystemStatus() {
 
                   <Divider sx={{ my: 2 }} />
 
-                  <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>Disk Usage</Typography>
-
-                  {status.environment?.disks && status.environment.disks.length > 0 ? (
+                  {status?.environment?.disks && status.environment.disks.length > 0 ? (
                     status.environment.disks.map((disk, idx) => (
                       <Box key={idx} sx={{ mb: idx === status.environment.disks.length - 1 ? 0 : 3 }}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5, flexWrap: 'wrap' }}>
                           <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                            {disk.mountpoint === '/' ? 'Root filesystem (/)' : disk.mountpoint} ({disk.device})
+                            {disk?.mountpoint === '/' ? 'Root filesystem (/)' : disk?.mountpoint} ({disk?.device})
                           </Typography>
                           <Typography variant="body2" color="textSecondary">
-                            {disk.percent_used}%
+                            {disk?.percent_used}%
                           </Typography>
                         </Box>
                         <LinearProgress 
                           variant="determinate" 
-                          value={disk.percent_used} 
-                          color={disk.percent_used > 85 ? 'error' : (idx % 2 === 0 ? 'primary' : 'secondary')}
+                          value={disk?.percent_used || 0} 
+                          color={disk?.percent_used > 85 ? 'error' : (idx % 2 === 0 ? 'primary' : 'secondary')}
                           sx={{ height: 10, borderRadius: 5, mb: 1 }}
                         />
                         <Typography variant="caption" color="textSecondary">
-                          Used: {disk.used_gb} GB / Free: {disk.free_gb} GB (Total: {disk.total_gb} GB)
+                          Used: {disk?.used_gb} GB / Free: {disk?.free_gb} GB (Total: {disk?.total_gb} GB)
                         </Typography>
                       </Box>
                     ))
                   ) : (
                     <>
-                      {status.environment?.media_storage_disk?.total_gb && (
+                      {status?.environment?.media_storage_disk?.total_gb && (
                         <Box sx={{ mb: 3 }}>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
                             <Typography variant="body2" sx={{ fontWeight: 'bold' }}>Media Storage (/media/storage)</Typography>
@@ -303,7 +301,7 @@ export default function SystemStatus() {
                           </Box>
                           <LinearProgress 
                             variant="determinate" 
-                            value={status.environment.media_storage_disk.percent_used} 
+                            value={status.environment.media_storage_disk.percent_used || 0} 
                             color={status.environment.media_storage_disk.percent_used > 85 ? 'error' : 'primary'}
                             sx={{ height: 10, borderRadius: 5, mb: 1 }}
                           />
@@ -313,7 +311,7 @@ export default function SystemStatus() {
                         </Box>
                       )}
 
-                      {status.environment?.app_disk?.total_gb && (
+                      {status?.environment?.app_disk?.total_gb && (
                         <Box>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
                             <Typography variant="body2" sx={{ fontWeight: 'bold' }}>Application Container Disk (/app)</Typography>
@@ -323,7 +321,7 @@ export default function SystemStatus() {
                           </Box>
                           <LinearProgress 
                             variant="determinate" 
-                            value={status.environment.app_disk.percent_used} 
+                            value={status.environment.app_disk.percent_used || 0} 
                             color={status.environment.app_disk.percent_used > 85 ? 'error' : 'secondary'}
                             sx={{ height: 10, borderRadius: 5, mb: 1 }}
                           />
