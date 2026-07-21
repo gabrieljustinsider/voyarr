@@ -9,6 +9,7 @@ import { X, PlayCircle, Settings, List, CloudUpload, Heart, Cast, Sparkles, Edit
 import ChapterManager from './ChapterManager'
 import SecondScreenRemote from './SecondScreenRemote'
 import SmartVideoPlayer from './SmartVideoPlayer'
+import PathPicker from './PathPicker'
 import { apiFetch } from '../api'
 
 export default function Library() {
@@ -1292,155 +1293,28 @@ export default function Library() {
               required
             />
 
-            {/* Path Selector & Auto-complete input wrapper */}
-            <Box sx={{ position: 'relative' }}>
-              <TextField
-                fullWidth
-                label="File Path / Stream URL *"
-                placeholder="e.g. /media/storage/video.mp4 or https://stream.com/live.m3u8"
-                value={importData.file_path}
-                onChange={(e) => {
-                  const val = e.target.value
-                  setImportData(prev => ({ ...prev, file_path: val }))
-                  if (val && !val.includes('://')) {
-                    setFsShowSuggestions(true)
-                    exploreFilesystem(val)
-                  } else {
-                    setFsShowSuggestions(false)
+            {/* Integrated PathPicker File / Stream selector with real-time backend autocomplete & tree modal */}
+            <PathPicker
+              value={importData.file_path}
+              onChange={(newPath) => {
+                setImportData(prev => {
+                  let updatedTitle = prev.title
+                  if (!prev.title && newPath && !newPath.includes('://')) {
+                    const filename = newPath.substring(newPath.lastIndexOf('/') + 1)
+                    updatedTitle = filename.substring(0, filename.lastIndexOf('.')) || filename
                   }
-                }}
-                onFocus={() => {
-                  if (!importData.file_path.includes('://')) {
-                    setFsShowSuggestions(true)
-                    exploreFilesystem(importData.file_path)
+                  return {
+                    ...prev,
+                    file_path: newPath,
+                    title: updatedTitle
                   }
-                }}
-                InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
-                inputProps={{ style: { color: 'white' } }}
-                required
-              />
-
-              {/* Suggestions Panel */}
-              {fsShowSuggestions && (
-                <Paper 
-                  sx={{ 
-                    position: 'absolute', 
-                    top: '100%', 
-                    left: 0, 
-                    right: 0, 
-                    zIndex: 200, 
-                    maxHeight: 250, 
-                    overflowY: 'auto', 
-                    mt: 0.5, 
-                    backgroundColor: 'rgba(20, 20, 20, 0.98)', 
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.8)'
-                  }}
-                >
-                  {/* Media Roots Shortcuts */}
-                  {fsMediaRoots.length > 1 && !importData.file_path && (
-                    <Box sx={{ p: 1, borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                      {fsMediaRoots.map(root => (
-                        <Chip 
-                          key={root} 
-                          label={root} 
-                          size="small" 
-                          onClick={() => {
-                            setImportData(prev => ({ ...prev, file_path: root }))
-                            exploreFilesystem(root)
-                          }}
-                          sx={{ color: 'white', backgroundColor: 'rgba(255,255,255,0.08)', cursor: 'pointer' }}
-                        />
-                      ))}
-                    </Box>
-                  )}
-
-                  {/* Navigator Controls */}
-                  {fsExplorerPath && (
-                    <Box sx={{ p: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                      <Typography variant="caption" color="rgba(255,255,255,0.5)" sx={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '80%' }}>
-                        📁 {fsExplorerPath}
-                      </Typography>
-                      {fsExplorerPath && (
-                        <Button 
-                          size="small" 
-                          onClick={async () => {
-                            const parent = fsExplorerPath.substring(0, fsExplorerPath.lastIndexOf('/')) || '/'
-                            setImportData(prev => ({ ...prev, file_path: parent }))
-                            exploreFilesystem(parent)
-                          }}
-                          sx={{ textTransform: 'none', py: 0 }}
-                        >
-                          Up ↩
-                        </Button>
-                      )}
-                    </Box>
-                  )}
-
-                  {/* Folders List */}
-                  {fsDirs.map(d => (
-                    <Box 
-                      key={d.path} 
-                      onClick={() => {
-                        setImportData(prev => ({ ...prev, file_path: d.path + '/' }))
-                        exploreFilesystem(d.path)
-                      }}
-                      sx={{ 
-                        p: 1.5, 
-                        cursor: 'pointer', 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: 1,
-                        color: '#90caf9',
-                        '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.05)' } 
-                      }}
-                    >
-                      📁 <strong>{d.name}</strong>
-                    </Box>
-                  ))}
-
-                  {/* Files List */}
-                  {fsFiles.map(f => (
-                    <Box 
-                      key={f.path} 
-                      onClick={() => {
-                        setImportData(prev => ({ 
-                          ...prev, 
-                          file_path: f.path,
-                          title: prev.title || f.name.substring(0, f.name.lastIndexOf('.')) || f.name,
-                          file_size: f.size
-                        }))
-                        setFsShowSuggestions(false)
-                      }}
-                      sx={{ 
-                        p: 1.5, 
-                        cursor: 'pointer', 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'space-between',
-                        gap: 1,
-                        color: 'rgba(255,255,255,0.9)',
-                        '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.05)' } 
-                      }}
-                    >
-                      <span>📄 {f.name}</span>
-                      <Typography variant="caption" color="rgba(255,255,255,0.4)">
-                        {(f.size / (1024*1024)).toFixed(1)} MB
-                      </Typography>
-                    </Box>
-                  ))}
-
-                  {fsDirs.length === 0 && fsFiles.length === 0 && (
-                    <Box sx={{ p: 2, textAlign: 'center' }}>
-                      <Typography variant="caption" color="rgba(255,255,255,0.4)">
-                        No folders or supported files found.
-                      </Typography>
-                    </Box>
-                  )}
-                </Paper>
-              )}
-            </Box>
+                })
+              }}
+              label="File Path / Stream URL *"
+              helperText="Enter a local media file/folder path or a remote stream URL (.m3u8, .mpd)"
+              mode="both"
+              fullWidth
+            />
 
             <Box sx={{ display: 'flex', gap: 2 }}>
               <FormControl fullWidth>
