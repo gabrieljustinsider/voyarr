@@ -18,7 +18,14 @@ export default {
         return new Response("BACKEND_ORIGIN not configured", { status: 500 });
       }
 
-      const backendUrl = `${backendOrigin}${path}${url.search}`;
+      // Normalize target path when BACKEND_ORIGIN ends with /api
+      let targetPath = path;
+      if (backendOrigin.endsWith('/api') && targetPath.startsWith('/api/')) {
+        targetPath = targetPath.replace(/^\/api/, '');
+      }
+
+      const backendUrl = `${backendOrigin}${targetPath}${url.search}`;
+
       const headers = new Headers(request.headers);
       headers.set("Host", new URL(backendOrigin).host);
       headers.delete("CF-Connecting-IP");
