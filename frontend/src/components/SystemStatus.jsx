@@ -380,16 +380,16 @@ export default function SystemStatus() {
                                         <TableBody>
                                           <TableRow>
                                             <TableCell sx={{ fontWeight: 'bold' }}>Concurrency</TableCell>
-                                            <TableCell>{workerStats.pool?.max_concurrency || 'N/A'}</TableCell>
+                                            <TableCell>{workerStats?.pool?.['max-concurrency'] || workerStats?.pool?.max_concurrency || 'N/A'}</TableCell>
                                           </TableRow>
                                           <TableRow>
                                             <TableCell sx={{ fontWeight: 'bold' }}>Broker Transport</TableCell>
-                                            <TableCell>{workerStats.broker?.transport || 'redis'}</TableCell>
+                                            <TableCell>{workerStats?.broker?.transport || 'redis'}</TableCell>
                                           </TableRow>
                                           <TableRow>
                                             <TableCell sx={{ fontWeight: 'bold' }}>Processed Tasks Count</TableCell>
                                             <TableCell>
-                                              {Object.values(workerStats.total || {}).reduce((a, b) => a + b, 0)}
+                                              {Object.values(workerStats?.total || {}).reduce((a, b) => Number(a) + Number(b), 0)}
                                             </TableCell>
                                           </TableRow>
                                         </TableBody>
