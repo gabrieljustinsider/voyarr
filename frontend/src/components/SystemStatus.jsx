@@ -42,11 +42,30 @@ export default function SystemStatus() {
       if (res.ok) {
         const data = await res.json()
         setStatus(data)
+      } else if (res.status === 404) {
+        setError(
+          'API returned 404 on system status request. This usually indicates that the ' +
+          'backend router is running behind an Nginx or Cloudflare prefix but the ' +
+          'ROOT_PATH environment variable is mismatched or missing in the backend .env configuration.'
+        )
       } else {
-        setError('Failed to fetch system status from the API.')
+        setError(`Failed to fetch system status from the API (Status ${res.status}).`)
       }
     } catch (err) {
-      setError(err.message || 'Network error fetching system status.')
+      const isCors = err.message && (
+        err.message.includes('CORS') || 
+        err.message.includes('fetch') || 
+        err.message.includes('Failed to fetch')
+      )
+      if (isCors) {
+        setError(
+          'Network connection blocked: This could be a CORS policy block or a networking resolution failure. ' +
+          'Verify that the backend environment has CORS_ORIGINS configured correctly to allow your frontend origin: ' +
+          `${window.location.origin}. Also check that ROOT_PATH is aligned if you run behind reverse proxies.`
+        )
+      } else {
+        setError(err.message || 'Network error fetching system status.')
+      }
     }
     setLoading(false)
   }, [])
