@@ -48,6 +48,7 @@ const AdminHelpArea = lazy(() => import('./components/AdminHelpArea'))
 const AccountSecurity = lazy(() => import('./components/AccountSecurity'))
 
 import { apiFetch, getAuthHeaders } from './api'
+import ErrorBoundary from './ErrorBoundary'
 import './App.css'
 
 // 7 Premium Theme Configurations
@@ -1001,16 +1002,19 @@ function App() {
 
   if (!isLoggedIn) {
     return (
-      <ThemeProvider theme={currentMuiTheme}>
-        <CssBaseline />
-        <Login onLogin={() => setIsLoggedIn(true)} />
-      </ThemeProvider>
+      <ErrorBoundary title="Authentication Error">
+        <ThemeProvider theme={currentMuiTheme}>
+          <CssBaseline />
+          <Login onLogin={() => setIsLoggedIn(true)} />
+        </ThemeProvider>
+      </ErrorBoundary>
     )
   }
 
   return (
-    <ThemeProvider theme={currentMuiTheme}>
-      <CssBaseline />
+    <ErrorBoundary title="Voyarr Interface Error">
+      <ThemeProvider theme={currentMuiTheme}>
+        <CssBaseline />
       <AppBar position="static" elevation={0} sx={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
         <Toolbar>
           <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -1338,23 +1342,25 @@ function App() {
           </Box>
 
           <Box sx={{ mt: 1 }}>
-            <Suspense fallback={
-              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
-                <CircularProgress />
-              </Box>
-            }>
-              <AnimatePresence mode="wait">
-                <motion.div 
-                  key={tabValue}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.25, ease: "easeOut" }}
-                >
-                  {visibleTabs[tabValue >= visibleTabs.length ? 0 : tabValue]?.component}
-                </motion.div>
-              </AnimatePresence>
-            </Suspense>
+            <ErrorBoundary title="Tab Rendering Error">
+              <Suspense fallback={
+                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
+                  <CircularProgress />
+                </Box>
+              }>
+                <AnimatePresence mode="wait">
+                  <motion.div 
+                    key={tabValue}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.25, ease: "easeOut" }}
+                  >
+                    {visibleTabs[tabValue >= visibleTabs.length ? 0 : tabValue]?.component}
+                  </motion.div>
+                </AnimatePresence>
+              </Suspense>
+            </ErrorBoundary>
           </Box>
         </Paper>
       </Container>
@@ -1607,6 +1613,7 @@ function App() {
         </DialogActions>
       </Dialog>
     </ThemeProvider>
+    </ErrorBoundary>
   )
 }
 
