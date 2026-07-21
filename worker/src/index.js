@@ -88,7 +88,12 @@ export default {
       return asset;
     }
 
-    // SPA fallback: serve index.html for client-side routes
+    // Do NOT return SPA index.html fallback for missing static files (js, css, images, map, etc)
+    if (/\.(js|jsx|ts|tsx|css|json|webmanifest|ico|png|jpg|jpeg|gif|svg|woff2?|ttf|eot)$/i.test(path)) {
+      return new Response("Asset Not Found", { status: 404 });
+    }
+
+    // SPA fallback: serve index.html for client-side navigation routes
     const index = await env.ASSETS.fetch(
       new Request(new URL("/index.html", request.url), request)
     );
@@ -100,3 +105,4 @@ export default {
     });
   },
 };
+
