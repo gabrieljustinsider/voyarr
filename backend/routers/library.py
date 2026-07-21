@@ -722,3 +722,84 @@ def import_manual_entry(req: ImportManualRequest, db: Session = Depends(get_db),
         "path": entry.file_path
     }
 
+
+@router.get("/fs/explore", dependencies=[Depends(verify_api_key)])
+def filesystem_explore(path: Optional[str] = None):
+    """Explore files and directories within media roots for autocomplete and tree views."""
+    media_roots = get_media_roots()
+    if not media_roots:
+        return {"current_path": "", "parent_path": None, "dirs": [], "files": []}
+
+    # Normalize target path
+    if path:
+        target_path = os.path.abspath(os.path.normpath(path.strip()))
+    else:
+        # Default to first media root if none specified
+        target_path = os.path.abspath(os.path.normpath(media_roots[0]))
+
+    # Security: Ensure target path resides inside one of the configured media roots
+    is_valid_dir = False
+    for root in media_roots:
+        root_abs = os.path.abspath(os.path.normpath(root))
+        if target_path.startswith(root_abs + os.sep) or target_path == root_abs:
+            is_valid_dir = True
+            break
+
+    if not is_valid_dir:
+        # Fall back to default root if request attempted path traversal outside media storage
+        target_path = os.path.abspath(os.path.normpath(media_roots[0]))
+
+    if not os.path.exists(target_path) or not os.path.isdir(target_path):
+        return {"current_path": target_path, "parent_path": None, "dirs": [], "files": []}
+
+    # Determine if we can move up to a parent directory (still restricted by media roots boundaries)
+    parent_path = os.path.abspath(os.path.join(target_path, os.pardir))
+    can_go_up = False
+    for root in media_roots:
+        root_abs = os.path.abspath(os.path.normpath(root))
+        if parent_path.startswith(root_abs + os.sep) or parent_path == root_abs:
+            can_go_up = True
+            break
+
+    dirs_list = []
+    files_list = []
+
+    try:
+        for entry in os.scandir(target_path):
+            if entry.name.startswith("."):
+                continue # Skip hidden files
+            
+            if entry.is_dir():
+                dirs_list.append({
+                    "name": entry.name,
+                    "path": entry.path
+                })
+            elif entry.is_file():
+                # Allow video, audio and playlist extensions
+                ext = os.path.splitext(entry.name)[1].lower()
+                allowed_exts = [
+                    ".mp4", ".mkv", ".avi", ".mov", ".webm", ".m3u8", ".mpd", 
+                    ".ts", ".mp3", ".wav", ".flac", ".m4a", ".aac"
+                ]
+                if ext in allowed_exts:
+                    files_list.append({
+                        "name": entry.name,
+                        "path": entry.path,
+                        "size": entry.stat().st_size
+                    })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to scan directory: {str(e)}")
+
+    # Sort names alphabetically
+    dirs_list.sort(key=lambda d: d["name"].lower())
+    files_list.sort(key=lambda f: f["name"].lower())
+
+    return {
+        "current_path": target_path,
+        "parent_path": parent_path if can_go_up else None,
+        "dirs": dirs_list,
+        "files": files_list,
+        "media_roots": media_roots
+    }
+
+
