@@ -37,7 +37,7 @@ jobs:
           FRONTEND_BACKEND_URL: "op://6wgu5yz5yphvacdimgc64ej65i/Voyarr Environment Variables/FRONTEND_BACKEND_URL"
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: 'npm'
