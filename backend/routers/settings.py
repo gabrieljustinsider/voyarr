@@ -230,8 +230,11 @@ def run_network_diagnostic(db: Session = Depends(get_db)):
             if response.status_code == 200:
                 break
         except Exception as e:
-            result["error"] = str(e)
+            import logging
+            logging.getLogger(__name__).warning(f"Network diagnostic ping failed for {url}: {e}")
+            result["error"] = "Network request failed or timed out."
             continue
+
 
     if response and response.status_code == 200:
         try:
@@ -329,7 +332,16 @@ def create_folder(req: CreateFolderRequest):
     if not parent or not folder_name:
         raise HTTPException(status_code=400, detail="Parent path and folder name cannot be empty.")
 
-    full_path = os.path.join(parent, folder_name)
+    safe_folder_name = os.path.basename(folder_name)
+    if not safe_folder_name or safe_folder_name != folder_name:
+        raise HTTPException(status_code=400, detail="Folder name cannot contain path separators.")
+
+    try:
+        validated_parent = validate_path(parent)
+    except HTTPException as e:
+        raise HTTPException(status_code=400, detail=f"Invalid parent path location: {e.detail}")
+
+    full_path = os.path.join(validated_parent, safe_folder_name)
 
     try:
         validated = validate_path(full_path)
@@ -343,9 +355,12 @@ def create_folder(req: CreateFolderRequest):
 
     try:
         os.makedirs(sanitized, exist_ok=True)
-        return {"status": "success", "message": f"Folder '{folder_name}' created successfully."}
+        return {"status": "success", "message": f"Folder '{safe_folder_name}' created successfully."}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create folder: {str(e)}")
+        import logging
+        logging.getLogger(__name__).error(f"Failed to create folder {sanitized}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create folder due to system error.")
+
 
 
 @router.get("/autocomplete")

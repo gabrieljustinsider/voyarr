@@ -297,14 +297,15 @@ def rename_facial_cluster(
     db.commit()
 
     # Rename physical thumbnail
-    faces_dir = os.path.join(os.path.dirname(entry.file_path), f".faces_{entry.id}")
+    safe_entry_path = validate_path(entry.file_path)
+    faces_dir = os.path.join(os.path.dirname(safe_entry_path), f".faces_{entry.id}")
     safe_old_name = os.path.basename(person_name)
     old_thumb = os.path.join(faces_dir, f"{safe_old_name}.jpg")
     new_thumb = os.path.join(faces_dir, f"{safe_new_name}.jpg")
 
     # Inline sanitization for CodeQL path injection tracking
-    abs_old = sanitize_tainted_path(old_thumb)
-    abs_new = sanitize_tainted_path(new_thumb)
+    abs_old = sanitize_tainted_path(validate_path(old_thumb))
+    abs_new = sanitize_tainted_path(validate_path(new_thumb))
     if abs_old == "/" or abs_new == "/":
         raise HTTPException(status_code=403, detail="Access denied")
 
@@ -312,6 +313,7 @@ def rename_facial_cluster(
         os.rename(abs_old, abs_new)
 
     return {"message": "Cluster renamed successfully", "new_name": safe_new_name}
+
 
 
 @router.delete("/{entry_id}", dependencies=[Depends(verify_api_key)])
@@ -356,11 +358,12 @@ def serve_hls_file(entry_id: int, filename: str, db: Session = Depends(get_db)):
     if not safe_filename.endswith(".m3u8") and not safe_filename.endswith(".ts"):
         raise HTTPException(status_code=400, detail="Invalid file type")
 
-    hls_dir = f"{file_path}.hls"
-    file_path = os.path.join(hls_dir, safe_filename)
+    safe_entry_path = validate_path(file_path)
+    hls_dir = f"{safe_entry_path}.hls"
+    target_hls = os.path.join(hls_dir, safe_filename)
 
     # Inline sanitization for CodeQL path injection tracking
-    abs_file_path = sanitize_tainted_path(file_path)
+    abs_file_path = sanitize_tainted_path(validate_path(target_hls))
     if abs_file_path == "/":
         raise HTTPException(status_code=403, detail="Access denied")
 
@@ -368,6 +371,7 @@ def serve_hls_file(entry_id: int, filename: str, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=404, detail="HLS file not found. Ensure generation is complete."
         )
+
 
     media_type = (
         "application/vnd.apple.mpegurl"
@@ -511,11 +515,12 @@ def rename_library_file(entry_id: int, req: RenameRequest, db: Session = Depends
         db.rollback()
         # Roll back physical rename to keep disk in sync with DB
         try:
-            rollback_old = sanitize_tainted_path(old_path)
-            rollback_new = sanitize_tainted_path(new_path)
+            rollback_old = sanitize_tainted_path(validate_path(old_path))
+            rollback_new = sanitize_tainted_path(validate_path(new_path))
             if rollback_old != "/" and rollback_new != "/":
                 os.rename(rollback_new, rollback_old)
         except Exception as fs_err:
+
             import logging
             logger = logging.getLogger(__name__)
             logger.critical(f"Critical: Physical file renamed but database commit failed AND physical rollback failed. Disk: {new_path}, DB: {old_path}. Error: {fs_err}")
@@ -732,10 +737,13 @@ def filesystem_explore(path: Optional[str] = None):
 
     # Normalize target path
     if path:
-        target_path = os.path.abspath(os.path.normpath(path.strip()))
+        try:
+            target_path = sanitize_tainted_path(validate_path(path.strip()))
+        except HTTPException:
+            target_path = os.path.abspath(os.path.normpath(media_roots[0]))
     else:
         # Default to first media root if none specified
-        target_path = os.path.abspath(os.path.normpath(media_roots[0]))
+        target_path = sanitize_tainted_path(validate_path(media_roots[0]))
 
     # Security: Ensure target path resides inside one of the configured media roots
     is_valid_dir = False
@@ -747,7 +755,7 @@ def filesystem_explore(path: Optional[str] = None):
 
     if not is_valid_dir:
         # Fall back to default root if request attempted path traversal outside media storage
-        target_path = os.path.abspath(os.path.normpath(media_roots[0]))
+        target_path = sanitize_tainted_path(validate_path(media_roots[0]))
 
     if not os.path.exists(target_path) or not os.path.isdir(target_path):
         return {"current_path": target_path, "parent_path": None, "dirs": [], "files": []}
@@ -765,7 +773,9 @@ def filesystem_explore(path: Optional[str] = None):
     files_list = []
 
     try:
-        for entry in os.scandir(target_path):
+        clean_target = sanitize_tainted_path(target_path)
+        for entry in os.scandir(clean_target):
+
             if entry.name.startswith("."):
                 continue # Skip hidden files
             
