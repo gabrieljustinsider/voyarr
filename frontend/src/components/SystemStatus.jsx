@@ -136,8 +136,8 @@ export default function SystemStatus() {
     }
   }
 
-  const allHealthy = LAYERS.every(l => getLayerStatus(l.key).status === 'healthy')
-  const anyUnhealthy = LAYERS.some(l => getLayerStatus(l.key).status === 'unhealthy')
+  const allHealthy = status ? LAYERS.every(l => getLayerStatus(l.key).status === 'healthy') : false
+  const anyUnhealthy = status ? LAYERS.some(l => getLayerStatus(l.key).status === 'unhealthy') : false
 
   const getStatusIcon = (compStatus) => {
     if (compStatus === 'healthy') return <CheckCircleIcon color="success" />
