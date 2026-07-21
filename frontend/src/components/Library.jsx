@@ -3,7 +3,7 @@ import {
   Box, Typography, Card, CardContent, Grid, TextField, 
   Chip, FormControl, InputLabel, Select, MenuItem, Paper, CardMedia, Tooltip,
   Dialog, DialogTitle, DialogContent, IconButton, Button, DialogActions,
-  CircularProgress, Alert, Pagination, Checkbox, Slide
+  CircularProgress, Alert, Pagination, Checkbox, Slide, Autocomplete, createFilterOptions
 } from '@mui/material'
 import { X, PlayCircle, Settings, List, CloudUpload, Heart, Cast, Sparkles, Edit2, Plus } from 'lucide-react'
 import ChapterManager from './ChapterManager'
@@ -1267,21 +1267,54 @@ export default function Library() {
               Directly add a local file path or a streaming URL (e.g. <code>.m3u8</code>, <code>.mpd</code>, or http stream) to your media library database.
             </Typography>
 
-            <FormControl fullWidth>
-              <InputLabel id="import-provider-label" sx={{ color: 'rgba(255,255,255,0.7)' }}>Provider context *</InputLabel>
-              <Select
-                labelId="import-provider-label"
-                value={importData.provider_id}
-                label="Provider context *"
-                onChange={(e) => setImportData(prev => ({ ...prev, provider_id: e.target.value }))}
-                sx={{ color: 'white', '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.1)' } }}
-                required
-              >
-                {providers.map(p => (
-                  <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            {/* Searchable & Creatable Provider Selection */}
+            <Autocomplete
+              options={providers}
+              getOptionLabel={(option) => {
+                if (typeof option === 'string') return option
+                if (option?.inputValue) return option.inputValue
+                return option?.name || ''
+              }}
+              value={providers.find(p => String(p.id) === String(importData.provider_id)) || (importData.provider_name ? { name: importData.provider_name } : null)}
+              onChange={(e, newValue) => {
+                if (typeof newValue === 'string') {
+                  setImportData(prev => ({ ...prev, provider_id: '', provider_name: newValue }))
+                } else if (newValue && newValue.inputValue) {
+                  setImportData(prev => ({ ...prev, provider_id: '', provider_name: newValue.inputValue }))
+                } else if (newValue) {
+                  setImportData(prev => ({ ...prev, provider_id: newValue.id, provider_name: newValue.name }))
+                } else {
+                  setImportData(prev => ({ ...prev, provider_id: '', provider_name: '' }))
+                }
+              }}
+              filterOptions={(options, params) => {
+                const filter = createFilterOptions()
+                const filtered = filter(options, params)
+                const { inputValue } = params
+                const isExisting = options.some((option) => inputValue.toLowerCase() === option.name.toLowerCase())
+                if (inputValue !== '' && !isExisting) {
+                  filtered.push({
+                    inputValue,
+                    name: `+ Create "${inputValue}"`,
+                  })
+                }
+                return filtered
+              }}
+              selectOnFocus
+              clearOnBlur
+              handleHomeEndKeys
+              freeSolo
+              fullWidth
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Provider context *"
+                  placeholder="Search or type to create provider..."
+                  required={!importData.provider_id && !importData.provider_name}
+                  InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
+                />
+              )}
+            />
 
             <TextField
               fullWidth
@@ -1317,48 +1350,169 @@ export default function Library() {
             />
 
             <Box sx={{ display: 'flex', gap: 2 }}>
-              <FormControl fullWidth>
-                <InputLabel id="import-studio-label" sx={{ color: 'rgba(255,255,255,0.7)' }}>Studio</InputLabel>
-                <Select
-                  labelId="import-studio-label"
-                  value={importData.studio_id}
-                  label="Studio"
-                  onChange={(e) => setImportData(prev => ({ ...prev, studio_id: e.target.value }))}
-                  sx={{ color: 'white', '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.1)' } }}
-                >
-                  <MenuItem value=""><em>None</em></MenuItem>
-                  {studios.map(s => (
-                    <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              <TextField
+              {/* Searchable & Creatable Studio Selection */}
+              <Autocomplete
+                options={studios}
+                getOptionLabel={(option) => {
+                  if (typeof option === 'string') return option
+                  if (option?.inputValue) return option.inputValue
+                  return option?.name || ''
+                }}
+                value={studios.find(s => String(s.id) === String(importData.studio_id)) || (importData.studio_name ? { name: importData.studio_name } : null)}
+                onChange={(e, newValue) => {
+                  if (typeof newValue === 'string') {
+                    setImportData(prev => ({ ...prev, studio_id: '', studio_name: newValue }))
+                  } else if (newValue && newValue.inputValue) {
+                    setImportData(prev => ({ ...prev, studio_id: '', studio_name: newValue.inputValue }))
+                  } else if (newValue) {
+                    setImportData(prev => ({ ...prev, studio_id: newValue.id, studio_name: newValue.name }))
+                  } else {
+                    setImportData(prev => ({ ...prev, studio_id: '', studio_name: '' }))
+                  }
+                }}
+                filterOptions={(options, params) => {
+                  const filter = createFilterOptions()
+                  const filtered = filter(options, params)
+                  const { inputValue } = params
+                  const isExisting = options.some((option) => inputValue.toLowerCase() === option.name.toLowerCase())
+                  if (inputValue !== '' && !isExisting) {
+                    filtered.push({
+                      inputValue,
+                      name: `+ Create "${inputValue}"`,
+                    })
+                  }
+                  return filtered
+                }}
+                selectOnFocus
+                clearOnBlur
+                handleHomeEndKeys
+                freeSolo
                 fullWidth
-                label="Resolution"
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Studio"
+                    placeholder="Search or type to create studio..."
+                    InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
+                  />
+                )}
+              />
+
+              {/* Searchable & Creatable Resolution Selection */}
+              <Autocomplete
+                options={['2160p (4K)', '1440p (2K)', '1080p', '720p', '480p', '360p']}
                 value={importData.resolution}
-                onChange={(e) => setImportData(prev => ({ ...prev, resolution: e.target.value }))}
-                InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
-                inputProps={{ style: { color: 'white' } }}
+                onChange={(e, newValue) => {
+                  setImportData(prev => ({ ...prev, resolution: newValue || '' }))
+                }}
+                filterOptions={(options, params) => {
+                  const filter = createFilterOptions()
+                  const filtered = filter(options, params)
+                  const { inputValue } = params
+                  const isExisting = options.some((option) => inputValue.toLowerCase() === option.toLowerCase())
+                  if (inputValue !== '' && !isExisting) {
+                    filtered.push(`+ Create "${inputValue}"`)
+                  }
+                  return filtered
+                }}
+                selectOnFocus
+                clearOnBlur
+                handleHomeEndKeys
+                freeSolo
+                fullWidth
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Resolution"
+                    placeholder="Search or enter resolution..."
+                    InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
+                  />
+                )}
               />
             </Box>
 
-            <TextField
-              fullWidth
-              label="Performers (comma-separated)"
-              value={importData.performers}
-              onChange={(e) => setImportData(prev => ({ ...prev, performers: e.target.value }))}
-              InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
-              inputProps={{ style: { color: 'white' } }}
+            {/* Searchable & Creatable Multi-Select Performers */}
+            <Autocomplete
+              multiple
+              freeSolo
+              options={Array.from(new Set(entries.flatMap(e => e.performers || []))).filter(Boolean)}
+              value={importData.performers ? importData.performers.split(',').map(p => p.trim()).filter(Boolean) : []}
+              onChange={(e, newValue) => {
+                const cleanedValues = newValue.map(v => v.replace(/^\+\s*Create\s*"([^"]+)"$/, '$1').trim())
+                setImportData(prev => ({ ...prev, performers: cleanedValues.join(', ') }))
+              }}
+              filterOptions={(options, params) => {
+                const filter = createFilterOptions()
+                const filtered = filter(options, params)
+                const { inputValue } = params
+                const isExisting = options.some((option) => inputValue.toLowerCase() === option.toLowerCase())
+                if (inputValue !== '' && !isExisting) {
+                  filtered.push(`+ Create "${inputValue}"`)
+                }
+                return filtered
+              }}
+              renderTags={(value, getTagProps) =>
+                value.map((option, index) => (
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    label={option}
+                    {...getTagProps({ index })}
+                    key={option}
+                    sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.2)' }}
+                  />
+                ))
+              }
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Performers"
+                  placeholder="Search existing performers or type new ones..."
+                  InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
+                />
+              )}
             />
 
-            <TextField
-              fullWidth
-              label="Tags (comma-separated)"
-              value={importData.tags}
-              onChange={(e) => setImportData(prev => ({ ...prev, tags: e.target.value }))}
-              InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
-              inputProps={{ style: { color: 'white' } }}
+            {/* Searchable & Creatable Multi-Select Tags */}
+            <Autocomplete
+              multiple
+              freeSolo
+              options={Array.from(new Set(entries.flatMap(e => e.tags || []))).filter(Boolean)}
+              value={importData.tags ? importData.tags.split(',').map(t => t.trim()).filter(Boolean) : []}
+              onChange={(e, newValue) => {
+                const cleanedValues = newValue.map(v => v.replace(/^\+\s*Create\s*"([^"]+)"$/, '$1').trim())
+                setImportData(prev => ({ ...prev, tags: cleanedValues.join(', ') }))
+              }}
+              filterOptions={(options, params) => {
+                const filter = createFilterOptions()
+                const filtered = filter(options, params)
+                const { inputValue } = params
+                const isExisting = options.some((option) => inputValue.toLowerCase() === option.toLowerCase())
+                if (inputValue !== '' && !isExisting) {
+                  filtered.push(`+ Create "${inputValue}"`)
+                }
+                return filtered
+              }}
+              renderTags={(value, getTagProps) =>
+                value.map((option, index) => (
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    label={option}
+                    {...getTagProps({ index })}
+                    key={option}
+                    sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.2)' }}
+                  />
+                ))
+              }
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Tags"
+                  placeholder="Search existing tags or type new ones..."
+                  InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
+                />
+              )}
             />
 
             <Box sx={{ display: 'flex', gap: 2 }}>
