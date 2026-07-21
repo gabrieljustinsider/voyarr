@@ -622,3 +622,103 @@ def get_library_file_naming_history(entry_id: int, db: Session = Depends(get_db)
         }
         for h in history
     ]
+
+
+class ImportManualRequest(BaseModel):
+    provider_id: int
+    title: str
+    file_path: str
+    performers: Optional[List[str]] = []
+    tags: Optional[List[str]] = []
+    resolution: Optional[str] = None
+    studio_id: Optional[int] = None
+    duration: Optional[int] = None
+    file_size: Optional[int] = None
+
+
+@router.post("/import/manual", dependencies=[Depends(verify_api_key)])
+def import_manual_entry(req: ImportManualRequest, db: Session = Depends(get_db), current_user = Depends(require_permission("library", "edit"))):
+    """Manually register an individual file path or stream URL directly into the library."""
+    # 1. Path/URL Validation
+    path_or_url = req.file_path.strip()
+    if not path_or_url:
+        raise HTTPException(status_code=400, detail="Invalid target file path or stream URL")
+
+    # If it is a web URL stream (e.g. .m3u8, .mpd or mp4 stream), skip local file checks
+    is_stream_url = any(path_or_url.startswith(prefix) for prefix in ["http://", "https://", "rtmp://", "rtsp://"])
+
+    if not is_stream_url:
+        # Standard local file path checks
+        # SECURITY: Normalize and check against media roots
+        clean_path = sanitize_tainted_path(validate_path(path_or_url))
+        if clean_path == "/" or not os.path.exists(clean_path):
+            raise HTTPException(status_code=400, detail=f"Physical file does not exist on disk: {path_or_url}")
+        
+        media_roots = get_media_roots()
+        is_valid_dir = False
+        for root in media_roots:
+            root_abs = os.path.abspath(os.path.normpath(root))
+            if clean_path.startswith(root_abs + os.sep) or clean_path == root_abs:
+                is_valid_dir = True
+                break
+
+        if not is_valid_dir:
+            raise HTTPException(
+                status_code=403,
+                detail="Forbidden: Cannot import files outside of the configured media roots.",
+            )
+        
+        # Pull file stats if not provided
+        if not req.file_size:
+            try:
+                req.file_size = os.path.getsize(clean_path)
+            except Exception:
+                pass
+        path_or_url = clean_path
+
+    # 2. Check for duplicate imports
+    existing = db.query(LibraryEntry).filter(LibraryEntry.file_path == path_or_url).first()
+    if existing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"This target has already been registered in the library as ID {existing.id}."
+        )
+
+    # 3. Create Library Entry
+    entry = LibraryEntry(
+        provider_id=req.provider_id,
+        title=req.title.strip(),
+        file_path=path_or_url,
+        performers=req.performers or [],
+        tags=req.tags or [],
+        resolution=req.resolution or "1080p",
+        studio_id=req.studio_id,
+        duration=req.duration or 0,
+        file_size=req.file_size or 0,
+        adheres_to_naming_scheme=False,
+        has_metadata_match=False,
+        entry_metadata={"source": "manual_import", "is_stream": is_stream_url}
+    )
+
+    try:
+        db.add(entry)
+        db.commit()
+        db.refresh(entry)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to register import: {str(e)}")
+
+    # 4. Asynchronously queue auto-tagging if not a remote stream
+    if not is_stream_url:
+        try:
+            auto_tag_video_task.delay(entry.id)
+        except Exception:
+            pass # Celery might not be active, fail silently
+
+    return {
+        "message": "Manual import registered successfully",
+        "id": entry.id,
+        "title": entry.title,
+        "path": entry.file_path
+    }
+

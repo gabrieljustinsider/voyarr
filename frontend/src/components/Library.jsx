@@ -5,7 +5,7 @@ import {
   Dialog, DialogTitle, DialogContent, IconButton, Button, DialogActions,
   CircularProgress, Alert, Pagination, Checkbox, Slide
 } from '@mui/material'
-import { X, PlayCircle, Settings, List, CloudUpload, Heart, Cast, Sparkles, Edit2 } from 'lucide-react'
+import { X, PlayCircle, Settings, List, CloudUpload, Heart, Cast, Sparkles, Edit2, Plus } from 'lucide-react'
 import ChapterManager from './ChapterManager'
 import SecondScreenRemote from './SecondScreenRemote'
 import SmartVideoPlayer from './SmartVideoPlayer'
@@ -48,6 +48,21 @@ export default function Library() {
   const [scanResult, setScanResult] = useState(null)
   const [submitFingerprintLoading, setSubmitFingerprintLoading] = useState(false)
   const [fingerprintResult, setFingerprintResult] = useState(null)
+
+  // Manual Import State
+  const [importDialogOpen, setImportDialogOpen] = useState(false)
+  const [importLoading, setImportLoading] = useState(false)
+  const [importData, setImportData] = useState({
+    provider_id: '',
+    title: '',
+    file_path: '',
+    performers: '',
+    tags: '',
+    resolution: '1080p',
+    studio_id: '',
+    duration: '',
+    file_size: ''
+  })
 
   // Performer Profile Modal State
   const [performerProfileOpen, setPerformerProfileOpen] = useState(false)
@@ -454,6 +469,62 @@ export default function Library() {
     } catch (e) { console.error(e) }
   }
 
+  const handleManualImportSubmit = async (e) => {
+    e.preventDefault()
+    if (!importData.provider_id) {
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Please select a Provider ruleset for metadata context.', severity: 'error' } }))
+      return
+    }
+    if (!importData.title.trim() || !importData.file_path.trim()) {
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Title and File Path/URL are required.', severity: 'error' } }))
+      return
+    }
+
+    setImportLoading(true)
+    const payload = {
+      provider_id: parseInt(importData.provider_id, 10),
+      title: importData.title.trim(),
+      file_path: importData.file_path.trim(),
+      performers: importData.performers ? importData.performers.split(',').map(p => p.trim()).filter(Boolean) : [],
+      tags: importData.tags ? importData.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+      resolution: importData.resolution || '1080p',
+      studio_id: importData.studio_id ? parseInt(importData.studio_id, 10) : null,
+      duration: importData.duration ? parseInt(importData.duration, 10) : null,
+      file_size: importData.file_size ? parseInt(importData.file_size, 10) : null
+    }
+
+    try {
+      const res = await apiFetch('/library/import/manual', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      })
+      if (res.ok) {
+        window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Manual import registered successfully!', severity: 'success' } }))
+        setImportDialogOpen(false)
+        setImportData({
+          provider_id: '',
+          title: '',
+          file_path: '',
+          performers: '',
+          tags: '',
+          resolution: '1080p',
+          studio_id: '',
+          duration: '',
+          file_size: ''
+        })
+        fetchLibrary()
+      } else {
+        const errData = await res.json()
+        window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: errData.detail || 'Import registration failed.', severity: 'error' } }))
+      }
+    } catch (err) {
+      console.error(err)
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: err.message || 'Networking error performing manual import.', severity: 'error' } }))
+    } finally {
+      setImportLoading(false)
+    }
+  }
+
   const handleToggleSelect = (id) => {
     const newSet = new Set(selectedEntries)
     if (newSet.has(id)) newSet.delete(id)
@@ -529,6 +600,9 @@ export default function Library() {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h4">Media Library</Typography>
         <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button variant="outlined" color="info" startIcon={<Plus size={18} />} onClick={() => setImportDialogOpen(true)}>
+            Import File / Stream
+          </Button>
           <Button variant="outlined" color="secondary" onClick={handleRescanHashes} disabled={rescanLoading}>
             {rescanLoading ? <CircularProgress size={24} /> : 'Re-scan Hashes'}
           </Button>
@@ -1126,6 +1200,156 @@ export default function Library() {
                 startIcon={bulkSubmitting && <CircularProgress size={20} />}
               >
                 Apply Changes
+              </Button>
+            </DialogActions>
+          </Box>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manual Import Dialog */}
+      <Dialog 
+        open={importDialogOpen} 
+        onClose={() => !importLoading && setImportDialogOpen(false)}
+        PaperProps={{
+          sx: {
+            borderRadius: '16px',
+            backdropFilter: 'blur(20px)',
+            backgroundColor: 'rgba(30, 30, 30, 0.9)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.5)',
+            color: 'white',
+            width: '100%',
+            maxWidth: '600px'
+          }
+        }}
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          Import Video File / Stream
+          <IconButton onClick={() => setImportDialogOpen(false)} sx={{ color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } }}>
+            <X size={20} />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers sx={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
+          <Box component="form" onSubmit={handleManualImportSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 1 }}>
+            <Typography variant="body2" color="rgba(255, 255, 255, 0.6)">
+              Directly add a local file path or a streaming URL (e.g. <code>.m3u8</code>, <code>.mpd</code>, or http stream) to your media library database.
+            </Typography>
+
+            <FormControl fullWidth>
+              <InputLabel id="import-provider-label" sx={{ color: 'rgba(255,255,255,0.7)' }}>Provider context *</InputLabel>
+              <Select
+                labelId="import-provider-label"
+                value={importData.provider_id}
+                label="Provider context *"
+                onChange={(e) => setImportData(prev => ({ ...prev, provider_id: e.target.value }))}
+                sx={{ color: 'white', '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.1)' } }}
+                required
+              >
+                {providers.map(p => (
+                  <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <TextField
+              fullWidth
+              label="Title *"
+              value={importData.title}
+              onChange={(e) => setImportData(prev => ({ ...prev, title: e.target.value }))}
+              InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
+              inputProps={{ style: { color: 'white' } }}
+              required
+            />
+
+            <TextField
+              fullWidth
+              label="File Path / Stream URL *"
+              placeholder="e.g. /media/storage/video.mp4 or https://stream.com/live.m3u8"
+              value={importData.file_path}
+              onChange={(e) => setImportData(prev => ({ ...prev, file_path: e.target.value }))}
+              InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
+              inputProps={{ style: { color: 'white' } }}
+              required
+            />
+
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <FormControl fullWidth>
+                <InputLabel id="import-studio-label" sx={{ color: 'rgba(255,255,255,0.7)' }}>Studio</InputLabel>
+                <Select
+                  labelId="import-studio-label"
+                  value={importData.studio_id}
+                  label="Studio"
+                  onChange={(e) => setImportData(prev => ({ ...prev, studio_id: e.target.value }))}
+                  sx={{ color: 'white', '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.1)' } }}
+                >
+                  <MenuItem value=""><em>None</em></MenuItem>
+                  {studios.map(s => (
+                    <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <TextField
+                fullWidth
+                label="Resolution"
+                value={importData.resolution}
+                onChange={(e) => setImportData(prev => ({ ...prev, resolution: e.target.value }))}
+                InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
+                inputProps={{ style: { color: 'white' } }}
+              />
+            </Box>
+
+            <TextField
+              fullWidth
+              label="Performers (comma-separated)"
+              value={importData.performers}
+              onChange={(e) => setImportData(prev => ({ ...prev, performers: e.target.value }))}
+              InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
+              inputProps={{ style: { color: 'white' } }}
+            />
+
+            <TextField
+              fullWidth
+              label="Tags (comma-separated)"
+              value={importData.tags}
+              onChange={(e) => setImportData(prev => ({ ...prev, tags: e.target.value }))}
+              InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
+              inputProps={{ style: { color: 'white' } }}
+            />
+
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <TextField
+                fullWidth
+                type="number"
+                label="Duration (seconds)"
+                value={importData.duration}
+                onChange={(e) => setImportData(prev => ({ ...prev, duration: e.target.value }))}
+                InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
+                inputProps={{ style: { color: 'white' } }}
+              />
+              <TextField
+                fullWidth
+                type="number"
+                label="File size (bytes)"
+                value={importData.file_size}
+                onChange={(e) => setImportData(prev => ({ ...prev, file_size: e.target.value }))}
+                InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
+                inputProps={{ style: { color: 'white' } }}
+              />
+            </Box>
+
+            <DialogActions sx={{ px: 0, pb: 0, pt: 2 }}>
+              <Button onClick={() => setImportDialogOpen(false)} disabled={importLoading} sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                Cancel
+              </Button>
+              <Button 
+                type="submit" 
+                variant="contained" 
+                color="info"
+                disabled={importLoading}
+                startIcon={importLoading && <CircularProgress size={20} />}
+              >
+                Register Import
               </Button>
             </DialogActions>
           </Box>
