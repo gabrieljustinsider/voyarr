@@ -603,6 +603,107 @@ def run_schema_migrations(engine: Any) -> None:
                     pass
                 logger.warning(f"Failed to add column default_biller_id to providers: {e}")
 
+        # 13d. Check if providers table has supported_methods column, if not, add it
+        try:
+            conn.execute(text("SELECT supported_methods FROM providers LIMIT 1"))
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            try:
+                if dialect_name == "postgresql":
+                    conn.execute(text("ALTER TABLE providers ADD COLUMN supported_methods JSONB DEFAULT '[]'::jsonb"))
+                else:
+                    conn.execute(text("ALTER TABLE providers ADD COLUMN supported_methods JSON DEFAULT '[]'"))
+                conn.commit()
+                logger.info("Database migration successfully added 'supported_methods' to 'providers'.")
+            except Exception as e:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                logger.warning(f"Failed to add column supported_methods to providers: {e}")
+
+        # 13e. Check if providers table has transparent_logo_bg column, if not, add it
+        try:
+            conn.execute(text("SELECT transparent_logo_bg FROM providers LIMIT 1"))
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            try:
+                conn.execute(text("ALTER TABLE providers ADD COLUMN transparent_logo_bg BOOLEAN DEFAULT FALSE"))
+                conn.commit()
+                logger.info("Database migration successfully added 'transparent_logo_bg' to 'providers'.")
+            except Exception as e:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                logger.warning(f"Failed to add column transparent_logo_bg to providers: {e}")
+
+        # 13f. Check if providers table has fit_logo_to_card column, if not, add it
+        try:
+            conn.execute(text("SELECT fit_logo_to_card FROM providers LIMIT 1"))
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            try:
+                conn.execute(text("ALTER TABLE providers ADD COLUMN fit_logo_to_card BOOLEAN DEFAULT FALSE"))
+                conn.commit()
+                logger.info("Database migration successfully added 'fit_logo_to_card' to 'providers'.")
+            except Exception as e:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                logger.warning(f"Failed to add column fit_logo_to_card to providers: {e}")
+
+        # 13g. Check if studios table has parent_id column, if not, add it
+        try:
+            conn.execute(text("SELECT parent_id FROM studios LIMIT 1"))
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            try:
+                if dialect_name == "postgresql":
+                    conn.execute(text("ALTER TABLE studios ADD COLUMN parent_id INTEGER REFERENCES studios(id) ON DELETE SET NULL"))
+                else:
+                    conn.execute(text("ALTER TABLE studios ADD COLUMN parent_id INTEGER"))
+                conn.commit()
+                logger.info("Database migration successfully added 'parent_id' to 'studios'.")
+            except Exception as e:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                logger.warning(f"Failed to add column parent_id to studios: {e}")
+
+        # 13h. Check if studios table has is_network column, if not, add it
+        try:
+            conn.execute(text("SELECT is_network FROM studios LIMIT 1"))
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            try:
+                conn.execute(text("ALTER TABLE studios ADD COLUMN is_network BOOLEAN DEFAULT FALSE"))
+                conn.commit()
+                logger.info("Database migration successfully added 'is_network' to 'studios'.")
+            except Exception as e:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                logger.warning(f"Failed to add column is_network to studios: {e}")
+
         # 14. Seed default adult billers
         try:
             default_billers = [
