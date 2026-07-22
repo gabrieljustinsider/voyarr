@@ -49,6 +49,7 @@ const AccountSecurity = lazy(() => import('./components/AccountSecurity'))
 
 import { apiFetch, getAuthHeaders } from './api'
 import ErrorBoundary from './ErrorBoundary'
+import DevLayoutShell from './components/DevLayoutShell'
 import './App.css'
 
 // 7 Premium Theme Configurations
@@ -164,8 +165,14 @@ function App() {
   const [selectedProvider, setSelectedProvider] = useState(null)
   const [credentials, setCredentials] = useState({ username: '', password: '', dailyLimit: '' })
   const [queue, setQueue] = useState([])
-  const [tabValue, setTabValue] = useState(0)
+  const [layoutMode, setLayoutMode] = useState(() => localStorage.getItem('voyarr_layout_mode') || 'classic')
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
+
+  const handleToggleLayoutMode = () => {
+    const nextMode = layoutMode === 'classic' ? 'modern' : 'classic'
+    setLayoutMode(nextMode)
+    localStorage.setItem('voyarr_layout_mode', nextMode)
+  }
   const [searchQuery, setSearchQuery] = useState('')
   const [confirmModal, setConfirmModal] = useState({ open: false, message: '', onConfirm: null, onCancel: null })
   const [promptModal, setPromptModal] = useState({ open: false, message: '', value: '', onConfirm: null, onCancel: null })
@@ -1019,6 +1026,82 @@ function App() {
     )
   }
 
+  const tabIdMap = {
+    dashboard: 'Dashboard',
+    library: 'Library',
+    search: 'Universal Search',
+    favorites: 'Favorites',
+    livestreams: 'Live Streams',
+    download_queue: 'Downloads',
+    transcode_queue: 'Transcode Queue',
+    mass_rip: 'Mass Rip',
+    subscriptions: 'Subscriptions',
+    download_rules: 'Rules & Lists',
+    providers: 'Providers',
+    billers: 'Billers',
+    studios: 'Studios',
+    metadata_manager: 'Metadata',
+    duplicates: 'Duplicates',
+    scraper_tester: 'Scraper Tester',
+    user_management: 'User Management',
+    p2p_sync: 'P2P Sync',
+    external_apis: 'External APIs',
+    backup_manager: 'Backup',
+    logs_viewer: 'Logs',
+    system_status: 'System Status',
+    settings: 'Settings',
+    help: 'Request Manager'
+  }
+
+  const currentTabId = Object.keys(tabIdMap).find(k => tabIdMap[k] === currentTabLabel) || 'dashboard'
+
+  if (layoutMode === 'modern') {
+    return (
+      <ErrorBoundary title="Voyarr Interface Error">
+        <ThemeProvider theme={currentMuiTheme}>
+          <CssBaseline />
+          <DevLayoutShell
+            currentTab={currentTabId}
+            onSelectTab={(tabId) => {
+              const targetLabel = tabIdMap[tabId] || 'Dashboard'
+              const idx = visibleTabs.findIndex(t => t.label === targetLabel)
+              if (idx >= 0) setTabValue(idx)
+            }}
+            layoutMode={layoutMode}
+            onToggleLayoutMode={handleToggleLayoutMode}
+            onLogout={handleLogout}
+            onOpenSettings={() => {
+              setPrefTab(0)
+              handleOpenPrefDialog()
+            }}
+            activeDownloadsCount={queue.filter(q => q.status === 'downloading' || q.status === 'queued').length}
+            user={{ username: userName }}
+          >
+            <ErrorBoundary title="Tab Rendering Error">
+              <Suspense fallback={
+                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
+                  <CircularProgress />
+                </Box>
+              }>
+                <AnimatePresence mode="wait">
+                  <motion.div 
+                    key={tabValue}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.25, ease: "easeOut" }}
+                  >
+                    {visibleTabs[tabValue >= visibleTabs.length ? 0 : tabValue]?.component}
+                  </motion.div>
+                </AnimatePresence>
+              </Suspense>
+            </ErrorBoundary>
+          </DevLayoutShell>
+        </ThemeProvider>
+      </ErrorBoundary>
+    )
+  }
+
   return (
     <ErrorBoundary title="Voyarr Interface Error">
       <ThemeProvider theme={currentMuiTheme}>
@@ -1083,6 +1166,27 @@ function App() {
                 border: '1px solid rgba(139, 92, 246, 0.25)',
               }}
             />
+            <Button
+              variant="outlined"
+              color="secondary"
+              size="small"
+              onClick={handleToggleLayoutMode}
+              sx={{
+                ml: 2,
+                borderRadius: 3,
+                textTransform: 'none',
+                fontWeight: 'bold',
+                fontSize: '0.75rem',
+                borderColor: 'rgba(236, 72, 153, 0.5)',
+                color: '#f48fb1',
+                '&:hover': {
+                  borderColor: '#ec4899',
+                  bgcolor: 'rgba(236, 72, 153, 0.1)'
+                }
+              }}
+            >
+              ✨ Preview Modern Layout (Dev)
+            </Button>
           </Box>
 
           {/* Interactive Notification Bell */}
