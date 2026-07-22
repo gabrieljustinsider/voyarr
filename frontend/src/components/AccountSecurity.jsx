@@ -855,6 +855,7 @@ export default function AccountSecurity({ setSnackbar }) {
                 fullWidth
                 size="small"
                 type="password"
+                autoComplete="current-password"
                 label="Current Password"
                 value={currentPassword}
                 onChange={e => setCurrentPassword(e.target.value)}
@@ -866,6 +867,7 @@ export default function AccountSecurity({ setSnackbar }) {
                 fullWidth
                 size="small"
                 type="password"
+                autoComplete="new-password"
                 label="New Password"
                 value={newPassword}
                 onChange={e => setNewPassword(e.target.value)}
@@ -877,6 +879,7 @@ export default function AccountSecurity({ setSnackbar }) {
                 fullWidth
                 size="small"
                 type="password"
+                autoComplete="new-password"
                 label="Confirm New Password"
                 value={confirmPassword}
                 onChange={e => setConfirmPassword(e.target.value)}

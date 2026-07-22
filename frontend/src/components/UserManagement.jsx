@@ -375,7 +375,7 @@ export default function UserManagement() {
                   error={isUsernameTaken}
                   helperText={isUsernameTaken ? "Username already exists" : ""}
                 />
-                <TextField fullWidth size="small" type="password" label="Password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} />
+                <TextField fullWidth size="small" type="password" autoComplete="new-password" label="Password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} />
                 <FormControl fullWidth size="small">
                   <InputLabel>Role</InputLabel>
                   <Select value={newUser.role} label="Role" onChange={e => setNewUser({...newUser, role: e.target.value})}>
@@ -1017,7 +1017,7 @@ export default function UserManagement() {
                       <Button
                         variant="outlined"
                         color="warning"
-                        startIcon={<KeyIcon />}
+                        startIcon={<VpnKeyIcon />}
                         onClick={handleAdminRevokeSessions}
                         sx={{ borderRadius: '8px', textTransform: 'none' }}
                       >
@@ -1090,6 +1090,7 @@ export default function UserManagement() {
             <TextField
               fullWidth
               type="password"
+              autoComplete="new-password"
               label="New Password string"
               value={adminResetPasswordNew}
               onChange={e => setAdminResetPasswordNew(e.target.value)}

@@ -1009,6 +1009,7 @@ export default function Login() {
           <TextField 
             fullWidth 
             type="password" 
+            autoComplete="current-password"
             label="Password" 
             margin="normal" 
             value={password} 
