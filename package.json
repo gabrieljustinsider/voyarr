@@ -4,7 +4,7 @@
   "description": "Media downloader/manager and metadata scraper",
   "main": "index.js",
   "scripts": {
-    "deploy": "wrangler deploy",
+    "deploy": "npm run build && wrangler deploy",
     "deploy:frontend": "bash deploy/frontend/deploy.sh",
     "deploy:backend-api": "bash deploy/backend-api/deploy.sh",
     "deploy:workers": "bash deploy/workers/deploy.sh",
