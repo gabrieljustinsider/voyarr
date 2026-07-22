@@ -40,6 +40,10 @@ export default function TranscodeQueue() {
           headers: getAuthHeaders(),
           signal: abortController.signal
         })
+        if (res.status === 403) {
+          console.warn('Access forbidden to /transcode/stream. SSE streaming disabled.')
+          return
+        }
         if (!res.ok) {
           throw new Error(`Transcode stream HTTP error! Status: ${res.status}`)
         }

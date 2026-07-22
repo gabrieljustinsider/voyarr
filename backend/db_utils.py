@@ -616,13 +616,13 @@ def is_feature_enabled(db: Session, feature: str, user: Optional[Any] = None) ->
     from models import Settings
     if feature == "streaming":
         setting = db.query(Settings).filter(Settings.key == "streaming_enabled").first()
-        global_enabled = (setting.value.lower() == "true") if setting else True
+        global_enabled = (setting.value.lower() != "false") if setting else True
     elif feature == "scraping":
         setting = db.query(Settings).filter(Settings.key == "scraping_enabled").first()
-        global_enabled = (setting.value.lower() == "true") if setting else False
+        global_enabled = (setting.value.lower() != "false") if setting else True
     elif feature == "ripping":
         setting = db.query(Settings).filter(Settings.key == "ripping_enabled").first()
-        global_enabled = (setting.value.lower() == "true") if setting else False
+        global_enabled = (setting.value.lower() != "false") if setting else True
     else:
         global_enabled = True
 

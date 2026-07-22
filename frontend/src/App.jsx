@@ -680,6 +680,10 @@ function App() {
           window.location.reload()
           return
         }
+        if (res.status === 403) {
+          console.warn('Access forbidden to /download/stream (feature disabled or insufficient permissions). SSE streaming disabled.')
+          return
+        }
         if (!res.ok) {
           throw new Error(`Download stream HTTP error! Status: ${res.status}`)
         }
@@ -726,6 +730,10 @@ function App() {
           localStorage.removeItem('voyarr_jwt')
           localStorage.removeItem('voyarr_api_key')
           window.location.reload()
+          return
+        }
+        if (res.status === 403) {
+          console.warn('Access forbidden to /notifications/stream. SSE streaming disabled.')
           return
         }
         if (!res.ok) {
