@@ -106,16 +106,12 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
 
     if (!imageSrc) return
 
-    const img = new Image()
-    img.crossOrigin = 'anonymous'
-    img.onload = () => {
-      // 1. Draw checkerboard pattern
+    const renderImageToCanvas = (imageObj) => {
       const pattern = ctx.createPattern(createCheckerboard(), 'repeat')
       ctx.fillStyle = pattern
       ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-      // 2. Calculate aspect ratio fitting
-      const aspect = img.width / img.height
+      const aspect = imageObj.width / imageObj.height
       let drawW, drawH
 
       if (aspect > 1) {
@@ -126,20 +122,27 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
         drawW = canvas.height * aspect
       }
 
-      // Apply transparent padding border (percent of canvas size)
       const padAmount = (padding / 100) * canvas.width
       drawW = Math.max(10, drawW - padAmount)
       drawH = Math.max(10, drawH - padAmount)
 
-      // Apply zoom/scale factor
       drawW = drawW * (scale / 100)
       drawH = drawH * (scale / 100)
 
-      // Center with drag offsets
       const x = (canvas.width - drawW) / 2 + offset.x
       const y = (canvas.height - drawH) / 2 + offset.y
 
-      ctx.drawImage(img, x, y, drawW, drawH)
+      ctx.drawImage(imageObj, x, y, drawW, drawH)
+    }
+
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => renderImageToCanvas(img)
+    img.onerror = () => {
+      // Fallback: retry without crossOrigin so image preview renders on canvas even if CORS is blocked
+      const fallbackImg = new Image()
+      fallbackImg.onload = () => renderImageToCanvas(fallbackImg)
+      fallbackImg.src = imageSrc
     }
     // Append unique query string to bypass CORS caching on some servers
     img.src = imageSrc.startsWith('data:') ? imageSrc : `${imageSrc}${imageSrc.includes('?') ? '&' : '?'}v_cb=${Date.now()}`
@@ -700,14 +703,13 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
           </Box>
         </AccordionDetails>
       </Accordion>
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-        {isModal && (
-          <Button onClick={() => setOpenProviderForm(false)} sx={{ mr: 2 }}>Cancel</Button>
-        )}
-        <Button type="submit" variant="contained" color="secondary">
-          {providerFormId ? 'Save Details' : 'Create Provider'}
-        </Button>
-      </Box>
+      {!isModal && (
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+          <Button type="submit" variant="contained" color="secondary">
+            {providerFormId ? 'Save Details' : 'Create Provider'}
+          </Button>
+        </Box>
+      )}
     </Box>
   )
 
@@ -1069,7 +1071,12 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>Close</Button>
+          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+          {dialogTab === 0 && (
+            <Button onClick={handleSaveProvider} variant="contained" color="secondary">
+              {providerFormId ? 'Save Details' : 'Create Provider'}
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
 
@@ -1144,6 +1151,12 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
         <DialogContent dividers>
           {renderProviderFormDetails(true)}
         </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenProviderForm(false)}>Cancel</Button>
+          <Button onClick={handleSaveProvider} variant="contained" color="secondary">
+            Create Provider
+          </Button>
+        </DialogActions>
       </Dialog>
     </Box>
   )

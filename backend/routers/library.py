@@ -322,11 +322,25 @@ def delete_library_entry(entry_id: int, db: Session = Depends(get_db), current_u
     if not entry:
         raise HTTPException(status_code=404, detail="Library entry not found")
 
-    # Attempt to delete the physical media file
+    # Clean up associated foreign key records to prevent IntegrityError
+    try:
+        from models import FileNamingHistory, DuplicateEntry, VideoChapter
+        db.query(FileNamingHistory).filter(FileNamingHistory.library_entry_id == entry_id).delete(synchronize_session=False)
+        db.query(VideoChapter).filter(VideoChapter.library_entry_id == entry_id).delete(synchronize_session=False)
+        db.query(DuplicateEntry).filter(
+            (DuplicateEntry.library_entry_id1 == entry_id) | (DuplicateEntry.library_entry_id2 == entry_id)
+        ).delete(synchronize_session=False)
+    except Exception as e:
+        logger.warning(f"Error cleaning up child records for library entry {entry_id}: {e}")
+
+    # Attempt to delete the physical media file safely
     if entry.file_path:
-        safe_file_path = sanitize_tainted_path(entry.file_path)
-        if safe_file_path != "/" and os.path.exists(safe_file_path):
-            os.remove(safe_file_path)
+        try:
+            safe_file_path = sanitize_tainted_path(entry.file_path)
+            if safe_file_path != "/" and os.path.exists(safe_file_path):
+                os.remove(safe_file_path)
+        except Exception as e:
+            logger.warning(f"Could not remove physical media file for entry {entry_id}: {e}")
 
     db.delete(entry)
     db.commit()

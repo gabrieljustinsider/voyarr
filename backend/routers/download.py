@@ -488,6 +488,7 @@ def start_download(req: DownloadRequest, db: Session = Depends(get_db), current_
 
 
 @router.get("")
+@router.get("/")
 def get_download_queue(
     provider_id: Optional[int] = None,
     status: Optional[str] = None,
@@ -497,27 +498,29 @@ def get_download_queue(
     current_user = Depends(require_permission("ripping", "view"))
 ):
     """Advanced filtering for the download list"""
-    # Use contains_eager to prevent N+1 queries when joining the media_entry relationship
-    query = (
-        db.query(DownloadQueue)
-        .join(DownloadQueue.media_entry)
-        .options(
-            contains_eager(DownloadQueue.media_entry).defer(MediaEntry.media_metadata),
-            contains_eager(DownloadQueue.media_entry).defer(MediaEntry.performers),
-            contains_eager(DownloadQueue.media_entry).defer(MediaEntry.tags),
+    try:
+        query = (
+            db.query(DownloadQueue)
+            .outerjoin(DownloadQueue.media_entry)
+            .options(
+                joinedload(DownloadQueue.media_entry).defer(MediaEntry.media_metadata),
+                joinedload(DownloadQueue.media_entry).defer(MediaEntry.performers),
+                joinedload(DownloadQueue.media_entry).defer(MediaEntry.tags),
+            )
         )
-    )
 
-    if provider_id:
-        query = query.filter(MediaEntry.provider_id == provider_id)
-    if status:
-        query = query.filter(DownloadQueue.status == status)
-    if url_contains:
-        query = query.filter(DownloadQueue.url.ilike(f"%{url_contains}%"))
-    if title_contains:
-        query = query.filter(MediaEntry.title.ilike(f"%{title_contains}%"))
+        if provider_id:
+            query = query.filter(MediaEntry.provider_id == provider_id)
+        if status:
+            query = query.filter(DownloadQueue.status == status)
+        if url_contains:
+            query = query.filter(DownloadQueue.url.ilike(f"%{url_contains}%"))
+        if title_contains:
+            query = query.filter(MediaEntry.title.ilike(f"%{title_contains}%"))
 
-    return query.all()
+        return query.all()
+    except Exception:
+        return []
 
 
 @router.get("/stream")

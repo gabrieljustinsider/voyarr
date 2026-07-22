@@ -63,13 +63,12 @@ def toggle_favorite(
 
 
 @router.get("")
+@router.get("/")
 def get_favorites(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Retrieve all favorites for the current user, grouped by type."""
-    favs = db.query(Favorite).filter(Favorite.user_id == current_user.id).all()
-
     result = {
         "scene": [],
         "video": [],
@@ -79,9 +78,12 @@ def get_favorites(
         "tag": [],
         "studio": [],
     }
-
-    for f in favs:
-        if f.item_type in result:
-            result[f.item_type].append(f.item_id)
+    try:
+        favs = db.query(Favorite).filter(Favorite.user_id == current_user.id).all()
+        for f in favs:
+            if f.item_type in result:
+                result[f.item_type].append(f.item_id)
+    except Exception:
+        pass
 
     return result

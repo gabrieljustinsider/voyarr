@@ -229,14 +229,18 @@ def get_history(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """Get the recent notification logs for the current user."""
-    logs = (
-        db.query(NotificationLog)
-        .filter(NotificationLog.user_id == current_user.id)
-        .order_by(NotificationLog.created_at.desc())
-        .limit(50)
-        .all()
-    )
-    return logs
+    try:
+        user_id = current_user.id if current_user else None
+        logs = (
+            db.query(NotificationLog)
+            .filter((NotificationLog.user_id == user_id) | (NotificationLog.user_id.is_(None)))
+            .order_by(NotificationLog.created_at.desc())
+            .limit(50)
+            .all()
+        )
+        return logs
+    except Exception as e:
+        return []
 
 
 @router.post("/read")

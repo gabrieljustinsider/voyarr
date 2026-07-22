@@ -14,29 +14,48 @@ from models import LibraryEntry, ApiKey
 
 def verify_deovr_auth(
     request: Request,
-    token: str | None = Query(None, alias="api_key"),
+    token: str | None = Query(None),
+    api_key: str | None = Query(None),
     db: Session = Depends(get_db)
 ):
-    """Verify DeoVR request authentication via query parameters or custom headers."""
-    if token:
+    """Verify DeoVR / stream request authentication via query parameters or custom headers."""
+    auth_token = token or api_key or request.query_params.get("token") or request.query_params.get("api_key")
+    if auth_token:
         master_key = os.getenv("MASTER_KEY", "")
-        if master_key and secrets.compare_digest(token, master_key):
+        if master_key and secrets.compare_digest(auth_token, master_key):
             return True
 
-        hashed = hashlib.sha256(
-            token.encode()
-        ).hexdigest()  # lgtm [py/weak-sensitive-data-hashing]
+        hashed = hashlib.sha256(auth_token.encode()).hexdigest()
         if db.query(ApiKey).filter(ApiKey.key_hash == hashed).first():
             return True
 
-        raise HTTPException(status_code=401, detail="Invalid API Key provided in URL")
+        # Check JWT token validation
+        try:
+            import jwt
+            secret_key = os.getenv("SECRET_KEY", "secret_key_change_me")
+            payload = jwt.decode(auth_token, secret_key, algorithms=["HS256"])
+            if payload and "sub" in payload:
+                return True
+        except Exception:
+            pass
 
-    header_key = request.headers.get("x-voyarr-api-key")
+        raise HTTPException(status_code=401, detail="Invalid auth token provided in URL")
+
+    header_key = request.headers.get("x-voyarr-api-key") or request.headers.get("authorization", "").replace("Bearer ", "")
     master_key = os.getenv("MASTER_KEY", "")
-    if header_key and master_key and secrets.compare_digest(header_key, master_key):
-        return True
+    if header_key:
+        if master_key and secrets.compare_digest(header_key, master_key):
+            return True
+        try:
+            import jwt
+            secret_key = os.getenv("SECRET_KEY", "secret_key_change_me")
+            payload = jwt.decode(header_key, secret_key, algorithms=["HS256"])
+            if payload and "sub" in payload:
+                return True
+        except Exception:
+            pass
 
-    raise HTTPException(status_code=401, detail="Unauthorized. Provide ?api_key= in URL.")
+    raise HTTPException(status_code=401, detail="Unauthorized. Provide ?token= or ?api_key= in URL.")
 
 
 router = APIRouter(
