@@ -1,11 +1,12 @@
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response, Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from typing import Callable, Awaitable
+from sqlalchemy.orm import Session
 from jose import jwt
 from security import JWT_SECRET, ALGORITHM
 from contextlib import asynccontextmanager
-from database import engine
+from database import engine, get_db
 from models import Base
 from utils import get_version, initialize_network_settings
 from routers import (
@@ -250,7 +251,17 @@ async def webauthn_origin_association():
 
 
 @app.get("/")
-async def root():
+async def root(
+    request: Request,
+    api_key: str | None = Query(None),
+    token: str | None = Query(None),
+    db: Session = Depends(get_db)
+):
+    user_agent = request.headers.get("user-agent", "").lower()
+    is_deovr = "deovr" in user_agent or request.query_params.get("deovr") in ("1", "true")
+    if is_deovr:
+        from routers.deovr import deovr_index
+        return deovr_index(request=request, api_key=api_key, token=token, search=None, studio=None, performer=None, tag=None, db=db)
     return {"message": "Voyarr API"}
 
 
