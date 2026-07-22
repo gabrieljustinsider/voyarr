@@ -923,7 +923,18 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
       </Grid>
 
       {/* Unified Manage Auth & Session Modal */}
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
+      <Dialog 
+        open={openDialog} 
+        onClose={() => {
+          if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur()
+          }
+          setOpenDialog(false)
+        }} 
+        disableRestoreFocus 
+        maxWidth="sm" 
+        fullWidth
+      >
         <DialogTitle sx={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Avatar
             src={activeProvider?.logo_url || activeProvider?.favicon_url || ''}

@@ -418,7 +418,13 @@ export default function PathPicker({
       {/* Explorer Modal */}
       <Dialog
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={() => {
+          if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur()
+          }
+          setOpen(false)
+        }}
+        disableRestoreFocus
         maxWidth="md"
         fullWidth
         PaperProps={{

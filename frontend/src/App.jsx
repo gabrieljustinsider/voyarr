@@ -1478,7 +1478,18 @@ function App() {
         </Paper>
       </Container>
 
-      <Dialog open={prefDialogOpen} onClose={() => setPrefDialogOpen(false)} maxWidth={prefTab === 1 ? "md" : "xs"} fullWidth>
+      <Dialog 
+        open={prefDialogOpen} 
+        onClose={() => {
+          if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur()
+          }
+          setPrefDialogOpen(false)
+        }} 
+        disableRestoreFocus 
+        maxWidth={prefTab === 1 ? "md" : "xs"} 
+        fullWidth
+      >
         <DialogTitle sx={{ fontWeight: 'bold' }}>User Settings</DialogTitle>
         <Box sx={{ px: 3 }}>
           <Tabs value={prefTab} onChange={(e, val) => setPrefTab(val)} sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
@@ -1655,7 +1666,19 @@ function App() {
         </Alert>
       </Snackbar>
 
-      <Dialog open={confirmModal.open} onClose={() => { confirmModal.onCancel?.(); setConfirmModal({ ...confirmModal, open: false }) }} maxWidth="xs" fullWidth>
+      <Dialog 
+        open={confirmModal.open} 
+        onClose={() => { 
+          if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur()
+          }
+          confirmModal.onCancel?.()
+          setConfirmModal({ ...confirmModal, open: false }) 
+        }} 
+        disableRestoreFocus 
+        maxWidth="xs" 
+        fullWidth
+      >
         <DialogTitle>Confirmation Required</DialogTitle>
         <DialogContent dividers>
           <Typography>{confirmModal.message}</Typography>
@@ -1670,7 +1693,19 @@ function App() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={promptModal.open} onClose={() => { promptModal.onCancel?.(); setPromptModal({ ...promptModal, open: false }) }} maxWidth="xs" fullWidth>
+      <Dialog 
+        open={promptModal.open} 
+        onClose={() => { 
+          if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur()
+          }
+          promptModal.onCancel?.()
+          setPromptModal({ ...promptModal, open: false }) 
+        }} 
+        disableRestoreFocus 
+        maxWidth="xs" 
+        fullWidth
+      >
         <DialogTitle>Input Required</DialogTitle>
         <DialogContent dividers>
           <Typography sx={{ mb: 2 }}>{promptModal.message}</Typography>
@@ -1703,7 +1738,13 @@ function App() {
       {/* Help Dialog Modal */}
       <Dialog 
         open={helpModalOpen} 
-        onClose={() => setHelpModalOpen(false)}
+        onClose={() => {
+          if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur()
+          }
+          setHelpModalOpen(false)
+        }}
+        disableRestoreFocus
         maxWidth="md"
         fullWidth
         PaperProps={{
