@@ -217,6 +217,7 @@ class ProviderBase(BaseModel):
     automatic_limits: Optional[Dict[str, Any]] = None
     transparent_logo_bg: bool = False
     fit_logo_to_card: bool = False
+    default_biller_id: Optional[int] = None
 
 
 class ProviderCreate(ProviderBase):
@@ -225,6 +226,7 @@ class ProviderCreate(ProviderBase):
 
 class ProviderResponse(ProviderBase):
     id: int
+    default_biller: Optional[BillerResponse] = None
 
     model_config = ConfigDict(from_attributes=True)
 

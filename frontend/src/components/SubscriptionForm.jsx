@@ -1,25 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  FormControl, 
-  InputLabel, 
-  Select, 
-  MenuItem, 
   Button, 
   Box,
-  Typography
+  Typography,
+  TextField,
+  Autocomplete
 } from '@mui/material';
-import axios from 'axios';
+import apiFetch from '../api';
 
 export default function SubscriptionForm({ existingSubscription, onSave }) {
   const [billers, setBillers] = useState([]);
-  const [billerId, setBillerId] = useState(existingSubscription?.biller_id || '');
+  const [billerId, setBillerId] = useState(existingSubscription?.biller_id || null);
 
   // 1. Fetch the list of billers when the form loads
   useEffect(() => {
     const fetchBillers = async () => {
       try {
-        const response = await axios.get('/api/billers');
-        setBillers(response.data);
+        const response = await apiFetch('/billers');
+        if (response.ok) {
+          setBillers(await response.json());
+        }
       } catch (error) {
         console.error("Failed to fetch billers", error);
       }
@@ -31,19 +31,23 @@ export default function SubscriptionForm({ existingSubscription, onSave }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Construct your subscription payload, including the selected biller_id
     const payload = {
-      // ... your other subscription fields (provider_id, tier_id, cost, etc.)
-      biller_id: billerId === '' ? null : billerId, 
+      biller_id: billerId
     };
 
     try {
       if (existingSubscription?.id) {
-        await axios.put(`/api/subscriptions/${existingSubscription.id}`, payload);
+        await apiFetch(`/subscriptions/${existingSubscription.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(payload)
+        });
       } else {
-        await axios.post('/api/subscriptions', payload);
+        await apiFetch('/subscriptions', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
       }
-      if (onSave) onSave(); // Trigger a refresh or close a dialog
+      if (onSave) onSave();
     } catch (error) {
       console.error("Failed to save subscription", error);
     }
@@ -52,28 +56,24 @@ export default function SubscriptionForm({ existingSubscription, onSave }) {
   return (
     <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
       <Typography variant="h6" gutterBottom>Subscription Details</Typography>
-      {/* ... Your other form fields (Provider, Tier, Cost, Date) would go here ... */}
 
-      {/* 3. The Biller Dropdown */}
-      <FormControl fullWidth margin="normal">
-        <InputLabel id="biller-select-label">Biller (Payment Gateway)</InputLabel>
-        <Select
-          labelId="biller-select-label"
-          id="biller-select"
-          value={billerId}
-          label="Biller (Payment Gateway)"
-          onChange={(e) => setBillerId(e.target.value)}
-        >
-          <MenuItem value="">
-            <em>None (Direct)</em>
-          </MenuItem>
-          {billers.map((biller) => (
-            <MenuItem key={biller.id} value={biller.id}>
-              {biller.name}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
+      <Autocomplete
+        options={billers}
+        getOptionLabel={(option) => option.name || ''}
+        value={billers.find(b => b.id === billerId) || null}
+        onChange={(event, newValue) => {
+          setBillerId(newValue ? newValue.id : null);
+        }}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            label="Biller / Payment Gateway (Searchable)"
+            placeholder="Search payment gateway..."
+            fullWidth
+            margin="normal"
+          />
+        )}
+      />
 
       <Button type="submit" variant="contained" sx={{ mt: 3 }}>
         Save Subscription

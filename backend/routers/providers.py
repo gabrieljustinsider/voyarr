@@ -1,6 +1,6 @@
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from database import get_db
 from models import Provider
 from schemas import ProviderResponse, ProviderCreate
@@ -16,7 +16,7 @@ router = APIRouter(
 
 @router.get("", response_model=List[ProviderResponse])
 def get_providers(db: Session = Depends(get_db)):
-    providers = db.query(Provider).all()
+    providers = db.query(Provider).options(joinedload(Provider.default_biller)).all()
     # Return a default provider if database is empty for testing purposes
     if not providers:
         return [
@@ -38,7 +38,7 @@ def get_providers(db: Session = Depends(get_db)):
 
 @router.get("/{provider_id}", response_model=ProviderResponse)
 def get_provider(provider_id: int, db: Session = Depends(get_db)):
-    provider = db.query(Provider).filter(Provider.id == provider_id).first()
+    provider = db.query(Provider).options(joinedload(Provider.default_biller)).filter(Provider.id == provider_id).first()
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
     return provider
@@ -61,7 +61,8 @@ def create_provider(prov: ProviderCreate, db: Session = Depends(get_db)):
         favicon_url=prov.favicon_url,
         description=prov.description,
         transparent_logo_bg=prov.transparent_logo_bg,
-        fit_logo_to_card=prov.fit_logo_to_card
+        fit_logo_to_card=prov.fit_logo_to_card,
+        default_biller_id=prov.default_biller_id
     )
     db.add(db_prov)
     db.commit()
@@ -86,6 +87,7 @@ def update_provider(provider_id: int, prov: ProviderCreate, db: Session = Depend
     db_prov.description = prov.description
     db_prov.transparent_logo_bg = prov.transparent_logo_bg
     db_prov.fit_logo_to_card = prov.fit_logo_to_card
+    db_prov.default_biller_id = prov.default_biller_id
     
     db.commit()
     db.refresh(db_prov)

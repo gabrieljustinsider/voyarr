@@ -4,7 +4,7 @@ import {
   LinearProgress, Dialog, DialogTitle, DialogContent, DialogActions, Tabs, Tab, 
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, 
   IconButton, Alert, Paper, FormControlLabel, Switch, Avatar,
-  Accordion, AccordionSummary, AccordionDetails, Menu, MenuItem, Checkbox, ListItemText, ListItemIcon
+  Accordion, AccordionSummary, AccordionDetails, Menu, MenuItem, Checkbox, ListItemText, ListItemIcon, Autocomplete
 } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
 import AddIcon from '@mui/icons-material/Add'
@@ -18,6 +18,24 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
   const [openDialog, setOpenDialog] = useState(false)
   const [activeProvider, setActiveProvider] = useState(null)
   const [dialogTab, setDialogTab] = useState(0)
+
+  // Billers list state for searchable dropdown
+  const [billersList, setBillersList] = useState([])
+
+  const fetchBillersList = useCallback(async () => {
+    try {
+      const res = await apiFetch('/billers')
+      if (res.ok) {
+        setBillersList(await res.json())
+      }
+    } catch (e) {
+      console.error('Failed to fetch billers list:', e)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchBillersList()
+  }, [fetchBillersList])
 
   // Credentials form state
   const [username, setUsername] = useState('')
@@ -43,7 +61,8 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
     space_replacement: '_',
     automatic_limits: { daily_downloads: 50 },
     transparent_logo_bg: false,
-    fit_logo_to_card: false
+    fit_logo_to_card: false,
+    default_biller_id: null
   })
   const [providerLimitEnabled, setProviderLimitEnabled] = useState(false)
   const [isScraping, setIsScraping] = useState(false)
@@ -253,7 +272,8 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
       space_replacement: provider.space_replacement || '_',
       automatic_limits: provider.automatic_limits || { daily_downloads: 50 },
       transparent_logo_bg: provider.transparent_logo_bg || false,
-      fit_logo_to_card: provider.fit_logo_to_card || false
+      fit_logo_to_card: provider.fit_logo_to_card || false,
+      default_biller_id: provider.default_biller_id || null
     })
     setProviderLimitEnabled(!!provider.automatic_limits?.daily_downloads)
     setEditProviderMode(true)
@@ -385,7 +405,8 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
       space_replacement: '_',
       automatic_limits: { daily_downloads: 50 },
       transparent_logo_bg: false,
-      fit_logo_to_card: false
+      fit_logo_to_card: false,
+      default_biller_id: null
     })
     setProviderLimitEnabled(false)
     setOpenProviderForm(true)
@@ -598,6 +619,27 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
         value={providerForm.description}
         placeholder="Site description..."
         onChange={(e) => setProviderForm({ ...providerForm, description: e.target.value })}
+      />
+
+      <Autocomplete
+        options={billersList}
+        getOptionLabel={(option) => option.name || ''}
+        value={billersList.find(b => b.id === providerForm.default_biller_id) || null}
+        onChange={(event, newValue) => {
+          setProviderForm(prev => ({
+            ...prev,
+            default_biller_id: newValue ? newValue.id : null
+          }))
+        }}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            label="Default Payment Gateway / Biller (Searchable)"
+            placeholder="Type to search payment gateway..."
+            fullWidth
+            margin="normal"
+          />
+        )}
       />
       <Accordion variant="outlined" sx={{ boxShadow: 'none', '&:before': { display: 'none' } }}>
         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
@@ -815,6 +857,15 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
                     <Typography variant="body2" color="text.secondary" gutterBottom>
                       {provider.base_url}
                     </Typography>
+                  )}
+                  {provider.default_biller && (
+                    <Chip
+                      label={`Biller: ${provider.default_biller.name}`}
+                      size="small"
+                      color="secondary"
+                      variant="outlined"
+                      sx={{ mt: 0.5, mb: 1, fontWeight: 'bold', border: '1px solid rgba(236, 72, 153, 0.4)', color: '#ec4899' }}
+                    />
                   )}
                   {cardPrefs.showDailyLimit && provider.automatic_limits && (
                     <Typography variant="body2" sx={{ mt: 1, fontWeight: 'bold' }}>

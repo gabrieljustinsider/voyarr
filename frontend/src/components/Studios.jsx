@@ -3,7 +3,7 @@ import {
   Box, Typography, Grid, Card, CardContent, Button, TextField, Dialog, 
   DialogTitle, DialogContent, DialogActions, FormControlLabel, Switch, 
   FormControl, InputLabel, Select, MenuItem, Chip, CircularProgress, 
-  Alert, IconButton, CardMedia, Tooltip, Paper
+  Alert, IconButton, CardMedia, Tooltip, Paper, Autocomplete
 } from '@mui/material'
 import { Plus, Edit2, Trash2, Link, Building2, Heart } from 'lucide-react'
 import { apiFetch } from '../api'
@@ -472,22 +472,23 @@ export default function Studios() {
               label="Is parent network (contains subsidiary studios)"
             />
 
-            <FormControl fullWidth size="small">
-              <InputLabel>Parent Network</InputLabel>
-              <Select
-                value={formData.parent_id}
-                label="Parent Network"
-                onChange={(e) => setFormData({ ...formData, parent_id: e.target.value })}
-              >
-                <MenuItem value=""><em>None (Independent Studio)</em></MenuItem>
-                {studios
-                  .filter(s => s.is_network && s.id !== editingId)
-                  .map(s => (
-                    <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
-                  ))
-                }
-              </Select>
-            </FormControl>
+            <Autocomplete
+              options={studios.filter(s => s.is_network && s.id !== editingId)}
+              getOptionLabel={(option) => option.name || ''}
+              value={studios.find(s => s.id === formData.parent_id) || null}
+              onChange={(event, newValue) => {
+                setFormData({ ...formData, parent_id: newValue ? newValue.id : '' })
+              }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  size="small"
+                  label="Parent Network (Searchable)"
+                  placeholder="Search and select parent network..."
+                  fullWidth
+                />
+              )}
+            />
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setOpen(false)} disabled={submitting}>Cancel</Button>

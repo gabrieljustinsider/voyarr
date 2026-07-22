@@ -78,6 +78,13 @@ class Provider(Base):
     )  # e.g., ["yt-dlp", "cookies", "direct", "api"]
     transparent_logo_bg = Column(Boolean, default=False)
     fit_logo_to_card = Column(Boolean, default=False)
+    default_biller_id = Column(
+        Integer, ForeignKey("billers.id", ondelete="SET NULL"), nullable=True
+    )
+
+    default_biller = relationship("Biller", foreign_keys=[default_biller_id])
+
+
 class Biller(Base):
     __tablename__ = "billers"
 

@@ -581,6 +581,28 @@ def run_schema_migrations(engine: Any) -> None:
                     pass
                 logger.warning(f"Failed to add column description to providers: {e}")
 
+        # 13c. Check if providers table has default_biller_id column, if not, add it
+        try:
+            conn.execute(text("SELECT default_biller_id FROM providers LIMIT 1"))
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            try:
+                if dialect_name == "postgresql":
+                    conn.execute(text("ALTER TABLE providers ADD COLUMN default_biller_id INTEGER REFERENCES billers(id) ON DELETE SET NULL"))
+                else:
+                    conn.execute(text("ALTER TABLE providers ADD COLUMN default_biller_id INTEGER REFERENCES billers(id) ON DELETE SET NULL"))
+                conn.commit()
+                logger.info("Database migration successfully added 'default_biller_id' to 'providers'.")
+            except Exception as e:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                logger.warning(f"Failed to add column default_biller_id to providers: {e}")
+
         # 14. Seed default adult billers
         try:
             default_billers = [
