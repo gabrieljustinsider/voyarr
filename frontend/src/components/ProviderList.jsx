@@ -457,7 +457,7 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
   }
 
   const handleSaveProvider = async (e) => {
-    e.preventDefault()
+    if (e && e.preventDefault) e.preventDefault()
     try {
       const method = editProviderMode ? 'PUT' : 'POST'
       const endpoint = editProviderMode ? `/providers/${providerFormId}` : '/providers'
@@ -471,6 +471,7 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
           detail: { message: `Provider successfully ${editProviderMode ? 'updated' : 'created'}!`, severity: 'success' } 
         }))
         setOpenProviderForm(false)
+        setOpenDialog(false)
         if (onRefreshProviders) onRefreshProviders()
       } else {
         const errMsg = await getErrorMessage(res, 'Failed to save provider.')
@@ -480,7 +481,7 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
       }
     } catch (err) {
       window.dispatchEvent(new CustomEvent('show-toast', { 
-        detail: { message: err.message, severity: 'error' } 
+        detail: { message: err.message || 'An error occurred while saving provider.', severity: 'error' } 
       }))
     }
   }

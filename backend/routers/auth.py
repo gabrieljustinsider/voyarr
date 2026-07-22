@@ -1041,20 +1041,32 @@ def get_current_user_profile(
     from models import Passkey, SsoLink
     
     # Fetch passkeys
-    passkeys = db.query(Passkey).filter(Passkey.user_id == current_user.id).all()
-    passkeys_list = [
-        {"id": pk.id, "name": pk.name, "created_at": pk.created_at}
-        for pk in passkeys
-    ]
-    
+    passkeys_list = []
+    try:
+        passkeys = db.query(Passkey).filter(Passkey.user_id == current_user.id).all()
+        passkeys_list = [
+            {"id": pk.id, "name": pk.name, "created_at": pk.created_at}
+            for pk in passkeys
+        ]
+    except Exception as e:
+        logger.warning(f"Error querying passkeys for user {current_user.id}: {e}")
+
     # Fetch SSO links
-    sso_links = db.query(SsoLink).filter(SsoLink.user_id == current_user.id).all()
-    sso_list = [
-        {"id": sso.id, "provider": sso.provider, "email": sso.email, "avatar_url": getattr(sso, "avatar_url", None)}
-        for sso in sso_links
-    ]
-    
-    daily_rip_usage = get_daily_rip_usage(db, str(current_user.id))
+    sso_list = []
+    try:
+        sso_links = db.query(SsoLink).filter(SsoLink.user_id == current_user.id).all()
+        sso_list = [
+            {"id": sso.id, "provider": sso.provider, "email": sso.email, "avatar_url": getattr(sso, "avatar_url", None)}
+            for sso in sso_links
+        ]
+    except Exception as e:
+        logger.warning(f"Error querying SSO links for user {current_user.id}: {e}")
+
+    daily_rip_usage = 0
+    try:
+        daily_rip_usage = get_daily_rip_usage(db, str(current_user.id))
+    except Exception as e:
+        logger.warning(f"Error getting daily rip usage for user {current_user.id}: {e}")
 
     return {
         "id": current_user.id,
