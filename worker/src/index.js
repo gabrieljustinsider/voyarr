@@ -11,8 +11,29 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
+    const isApiRoute = 
+      path.startsWith("/api") || 
+      path.startsWith("/auth") || 
+      path.startsWith("/admin") || 
+      path.startsWith("/.well-known") ||
+      path.startsWith("/providers") ||
+      path.startsWith("/billers") ||
+      path.startsWith("/studios") ||
+      path.startsWith("/subscriptions") ||
+      path.startsWith("/favorites") ||
+      path.startsWith("/download") ||
+      path.startsWith("/notifications") ||
+      path.startsWith("/library") ||
+      path.startsWith("/settings") ||
+      path.startsWith("/analytics") ||
+      path.startsWith("/schedules") ||
+      path.startsWith("/transcode") ||
+      path.startsWith("/rules") ||
+      path.startsWith("/cookies") ||
+      path.startsWith("/apikeys");
+
     // API requests: proxy to backend
-    if (path.startsWith("/api/") || path.startsWith("/auth/") || path.startsWith("/admin/") || path.startsWith("/.well-known/")) {
+    if (isApiRoute) {
       const backendOrigin = env.BACKEND_ORIGIN;
       if (!backendOrigin) {
         return new Response("BACKEND_ORIGIN not configured", { status: 500 });
@@ -25,6 +46,8 @@ export default {
       let targetPath = path;
       if (targetPath.startsWith('/api/')) {
         targetPath = targetPath.substring(4);
+      } else if (targetPath === '/api') {
+        targetPath = '/';
       }
 
       const backendUrl = `${cleanOrigin}${targetPath}${url.search}`;

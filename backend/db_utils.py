@@ -426,283 +426,77 @@ def run_schema_migrations(engine: Any) -> None:
                     pass
                 logger.warning(f"Failed to create mass_rip_sessions table: {e}")
 
-        # 7. Check if download_queue has user_id, if not, add it
-        try:
-            conn.execute(text("SELECT user_id FROM download_queue LIMIT 1"))
-        except Exception:
+        def ensure_column_exists(table_name: str, column_name: str, pg_type_sql: str, sqlite_type_sql: str = None):
             try:
-                conn.rollback()
+                conn.execute(text(f"SELECT {column_name} FROM {table_name} LIMIT 1"))
             except Exception:
-                pass
-            try:
-                conn.execute(text("ALTER TABLE download_queue ADD COLUMN user_id VARCHAR(64)"))
-                conn.commit()
-                logger.info("Database migration successfully added 'user_id' to 'download_queue'.")
-            except Exception as e:
                 try:
                     conn.rollback()
                 except Exception:
                     pass
-
-        # 8. Check if mass_rip_sessions has user_id, if not, add it
-        try:
-            conn.execute(text("SELECT user_id FROM mass_rip_sessions LIMIT 1"))
-        except Exception:
-            try:
-                conn.rollback()
-            except Exception:
-                pass
-            try:
-                conn.execute(text("ALTER TABLE mass_rip_sessions ADD COLUMN user_id VARCHAR(64)"))
-                conn.commit()
-                logger.info("Database migration successfully added 'user_id' to 'mass_rip_sessions'.")
-            except Exception as e:
                 try:
-                    conn.rollback()
-                except Exception:
-                    pass
-
-        # 9. Add logo_url to providers table if missing
-        try:
-            conn.execute(text("SELECT logo_url FROM providers LIMIT 1"))
-            # If exists, alter type to TEXT if postgresql
-            if dialect_name == "postgresql":
-                try:
-                    conn.execute(text("ALTER TABLE providers ALTER COLUMN logo_url TYPE TEXT"))
+                    sql_type = pg_type_sql if dialect_name == "postgresql" else (sqlite_type_sql or pg_type_sql)
+                    conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {sql_type}"))
                     conn.commit()
+                    logger.info(f"Database migration successfully added '{column_name}' to '{table_name}'.")
                 except Exception as e:
                     try:
                         conn.rollback()
                     except Exception:
                         pass
-                    logger.warning(f"Failed to alter logo_url to TEXT: {e}")
-        except Exception:
-            try:
-                conn.rollback()
-            except Exception:
-                pass
-            try:
-                conn.execute(text("ALTER TABLE providers ADD COLUMN logo_url TEXT"))
-                conn.commit()
-                logger.info("Database migration successfully added 'logo_url' to 'providers'.")
-            except Exception as e:
-                try:
-                    conn.rollback()
-                except Exception:
-                    pass
-                logger.warning(f"Failed to add logo_url column to providers: {e}")
+                    logger.warning(f"Failed to add column '{column_name}' to '{table_name}': {e}")
 
-        # 10. Check if billers table has new columns, if not, add them
+        # 7. Check & migrate missing table columns using abstract helper
+        ensure_column_exists("download_queue", "user_id", "VARCHAR(64)")
+        ensure_column_exists("mass_rip_sessions", "user_id", "VARCHAR(64)")
+
+        # Providers table columns
+        ensure_column_exists("providers", "logo_url", "TEXT")
+        ensure_column_exists("providers", "favicon_url", "TEXT")
+        ensure_column_exists("providers", "description", "TEXT")
+        ensure_column_exists("providers", "default_biller_id", "INTEGER REFERENCES billers(id) ON DELETE SET NULL", "INTEGER")
+        ensure_column_exists("providers", "supported_methods", "JSONB DEFAULT '[]'::jsonb", "JSON DEFAULT '[]'")
+        ensure_column_exists("providers", "transparent_logo_bg", "BOOLEAN DEFAULT FALSE")
+        ensure_column_exists("providers", "fit_logo_to_card", "BOOLEAN DEFAULT FALSE")
+
+        # Studios table columns
+        ensure_column_exists("studios", "parent_id", "INTEGER REFERENCES studios(id) ON DELETE SET NULL", "INTEGER")
+        ensure_column_exists("studios", "is_network", "BOOLEAN DEFAULT FALSE")
+        ensure_column_exists("studios", "logo_url", "TEXT")
+        ensure_column_exists("studios", "url", "VARCHAR(500)")
+        ensure_column_exists("studios", "details", "TEXT")
+        ensure_column_exists("studios", "tags", "JSONB DEFAULT '[]'::jsonb", "JSON DEFAULT '[]'")
+
+        # Check dictionary-configured table migrations
         for col_name, alter_sql in BILLERS_MIGRATIONS.items():
             try:
                 conn.execute(text(f"SELECT {col_name} FROM billers LIMIT 1"))
             except Exception:
-                try:
-                    conn.rollback()
-                except Exception:
-                    pass
+                try: conn.rollback()
+                except Exception: pass
                 try:
                     conn.execute(text(alter_sql))
                     conn.commit()
                     logger.info(f"Database migration successfully added '{col_name}' to 'billers'.")
                 except Exception as e:
-                    try:
-                        conn.rollback()
-                    except Exception:
-                        pass
+                    try: conn.rollback()
+                    except Exception: pass
                     logger.warning(f"Failed to add column {col_name} to billers: {e}")
 
-        # 11. Check if subscriptions table has new billing/meta columns, if not, add them
         for col_name, alter_sql in SUBSCRIPTIONS_MIGRATIONS.items():
             try:
                 conn.execute(text(f"SELECT {col_name} FROM subscriptions LIMIT 1"))
             except Exception:
-                try:
-                    conn.rollback()
-                except Exception:
-                    pass
+                try: conn.rollback()
+                except Exception: pass
                 try:
                     conn.execute(text(alter_sql))
                     conn.commit()
                     logger.info(f"Database migration successfully added '{col_name}' to 'subscriptions'.")
                 except Exception as e:
-                    try:
-                        conn.rollback()
-                    except Exception:
-                        pass
+                    try: conn.rollback()
+                    except Exception: pass
                     logger.warning(f"Failed to add column {col_name} to subscriptions: {e}")
-
-        # 12. Check if providers table has favicon_url column, if not, add it
-        try:
-            conn.execute(text("SELECT favicon_url FROM providers LIMIT 1"))
-            # If exists, alter type to TEXT if postgresql
-            if dialect_name == "postgresql":
-                try:
-                    conn.execute(text("ALTER TABLE providers ALTER COLUMN favicon_url TYPE TEXT"))
-                    conn.commit()
-                except Exception as e:
-                    try:
-                        conn.rollback()
-                    except Exception:
-                        pass
-                    logger.warning(f"Failed to alter favicon_url to TEXT: {e}")
-        except Exception:
-            try:
-                conn.rollback()
-            except Exception:
-                pass
-            try:
-                conn.execute(text("ALTER TABLE providers ADD COLUMN favicon_url TEXT"))
-                conn.commit()
-                logger.info("Database migration successfully added 'favicon_url' to 'providers'.")
-            except Exception as e:
-                try:
-                    conn.rollback()
-                except Exception:
-                    pass
-                logger.warning(f"Failed to add column favicon_url to providers: {e}")
-
-        # 13b. Check if providers table has description column, if not, add it
-        try:
-            conn.execute(text("SELECT description FROM providers LIMIT 1"))
-        except Exception:
-            try:
-                conn.rollback()
-            except Exception:
-                pass
-            try:
-                conn.execute(text("ALTER TABLE providers ADD COLUMN description TEXT"))
-                conn.commit()
-                logger.info("Database migration successfully added 'description' to 'providers'.")
-            except Exception as e:
-                try:
-                    conn.rollback()
-                except Exception:
-                    pass
-                logger.warning(f"Failed to add column description to providers: {e}")
-
-        # 13c. Check if providers table has default_biller_id column, if not, add it
-        try:
-            conn.execute(text("SELECT default_biller_id FROM providers LIMIT 1"))
-        except Exception:
-            try:
-                conn.rollback()
-            except Exception:
-                pass
-            try:
-                if dialect_name == "postgresql":
-                    conn.execute(text("ALTER TABLE providers ADD COLUMN default_biller_id INTEGER REFERENCES billers(id) ON DELETE SET NULL"))
-                else:
-                    conn.execute(text("ALTER TABLE providers ADD COLUMN default_biller_id INTEGER"))
-                conn.commit()
-                logger.info("Database migration successfully added 'default_biller_id' to 'providers'.")
-            except Exception as e:
-                try:
-                    conn.rollback()
-                except Exception:
-                    pass
-                logger.warning(f"Failed to add column default_biller_id to providers: {e}")
-
-        # 13d. Check if providers table has supported_methods column, if not, add it
-        try:
-            conn.execute(text("SELECT supported_methods FROM providers LIMIT 1"))
-        except Exception:
-            try:
-                conn.rollback()
-            except Exception:
-                pass
-            try:
-                if dialect_name == "postgresql":
-                    conn.execute(text("ALTER TABLE providers ADD COLUMN supported_methods JSONB DEFAULT '[]'::jsonb"))
-                else:
-                    conn.execute(text("ALTER TABLE providers ADD COLUMN supported_methods JSON DEFAULT '[]'"))
-                conn.commit()
-                logger.info("Database migration successfully added 'supported_methods' to 'providers'.")
-            except Exception as e:
-                try:
-                    conn.rollback()
-                except Exception:
-                    pass
-                logger.warning(f"Failed to add column supported_methods to providers: {e}")
-
-        # 13e. Check if providers table has transparent_logo_bg column, if not, add it
-        try:
-            conn.execute(text("SELECT transparent_logo_bg FROM providers LIMIT 1"))
-        except Exception:
-            try:
-                conn.rollback()
-            except Exception:
-                pass
-            try:
-                conn.execute(text("ALTER TABLE providers ADD COLUMN transparent_logo_bg BOOLEAN DEFAULT FALSE"))
-                conn.commit()
-                logger.info("Database migration successfully added 'transparent_logo_bg' to 'providers'.")
-            except Exception as e:
-                try:
-                    conn.rollback()
-                except Exception:
-                    pass
-                logger.warning(f"Failed to add column transparent_logo_bg to providers: {e}")
-
-        # 13f. Check if providers table has fit_logo_to_card column, if not, add it
-        try:
-            conn.execute(text("SELECT fit_logo_to_card FROM providers LIMIT 1"))
-        except Exception:
-            try:
-                conn.rollback()
-            except Exception:
-                pass
-            try:
-                conn.execute(text("ALTER TABLE providers ADD COLUMN fit_logo_to_card BOOLEAN DEFAULT FALSE"))
-                conn.commit()
-                logger.info("Database migration successfully added 'fit_logo_to_card' to 'providers'.")
-            except Exception as e:
-                try:
-                    conn.rollback()
-                except Exception:
-                    pass
-                logger.warning(f"Failed to add column fit_logo_to_card to providers: {e}")
-
-        # 13g. Check if studios table has parent_id column, if not, add it
-        try:
-            conn.execute(text("SELECT parent_id FROM studios LIMIT 1"))
-        except Exception:
-            try:
-                conn.rollback()
-            except Exception:
-                pass
-            try:
-                if dialect_name == "postgresql":
-                    conn.execute(text("ALTER TABLE studios ADD COLUMN parent_id INTEGER REFERENCES studios(id) ON DELETE SET NULL"))
-                else:
-                    conn.execute(text("ALTER TABLE studios ADD COLUMN parent_id INTEGER"))
-                conn.commit()
-                logger.info("Database migration successfully added 'parent_id' to 'studios'.")
-            except Exception as e:
-                try:
-                    conn.rollback()
-                except Exception:
-                    pass
-                logger.warning(f"Failed to add column parent_id to studios: {e}")
-
-        # 13h. Check if studios table has is_network column, if not, add it
-        try:
-            conn.execute(text("SELECT is_network FROM studios LIMIT 1"))
-        except Exception:
-            try:
-                conn.rollback()
-            except Exception:
-                pass
-            try:
-                conn.execute(text("ALTER TABLE studios ADD COLUMN is_network BOOLEAN DEFAULT FALSE"))
-                conn.commit()
-                logger.info("Database migration successfully added 'is_network' to 'studios'.")
-            except Exception as e:
-                try:
-                    conn.rollback()
-                except Exception:
-                    pass
-                logger.warning(f"Failed to add column is_network to studios: {e}")
 
         # 14. Seed default adult billers
         try:
