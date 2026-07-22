@@ -1,6 +1,5 @@
 import os
-
-os.environ["DATABASE_URL"] = "sqlite:///file:testdb_temp?mode=memory&cache=shared"
+import pytest
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 
@@ -14,11 +13,14 @@ def override_verify_api_key():
     return {"type": "master_key"}
 
 
-import pytest
+from models import Base, LibraryEntry, Subscription, Settings, Vault, Provider, SessionCookie
+from database import SessionLocal
 
 # Override auth dependency in a clean fixture
 @pytest.fixture(autouse=True)
 def setup_dependencies():
+    with SessionLocal() as db:
+        Base.metadata.create_all(bind=db.get_bind())
     orig_overrides = dict(app.dependency_overrides)
     app.dependency_overrides[verify_api_key] = override_verify_api_key
     yield
@@ -213,7 +215,11 @@ def test_extract_with_xpath():
     assert res_texts == ["Link 1", "Link 2"]
 
 
+from database import SessionLocal
+
 def test_universal_search():
+    with SessionLocal() as db_session:
+        Base.metadata.create_all(bind=db_session.get_bind())
     # Test query searching OnlyFans and other sites
     response = client.post(
         "/external-api/universal-search",

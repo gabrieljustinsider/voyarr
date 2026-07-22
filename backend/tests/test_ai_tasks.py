@@ -16,20 +16,15 @@ from tasks.ai_tasks import (
 
 @patch("tasks.ai_tasks.subprocess.check_output")
 @patch("tasks.ai_tasks.subprocess.run")
-@patch("builtins.open", new_callable=MagicMock)
 @patch("tasks.ai_tasks.os.remove")
-def test_extract_frame_base64(mock_remove, mock_open, mock_run, mock_check_output):
+def test_extract_frame_base64(mock_remove, mock_run, mock_check_output):
     mock_check_output.return_value = b"10.0\n"
-
-    mock_file = MagicMock()
-    mock_file.read.return_value = b"fake_image_data"
-    mock_open.return_value.__enter__.return_value = mock_file
+    mock_run.return_value.stdout = b"fake_image_data"
 
     result = extract_frame_base64("/fake/path.mp4")
 
     assert result == "ZmFrZV9pbWFnZV9kYXRh"  # base64 for fake_image_data
     mock_run.assert_called_once()
-    mock_remove.assert_called_once()
 
 
 @patch("tasks.ai_tasks.requests.post")

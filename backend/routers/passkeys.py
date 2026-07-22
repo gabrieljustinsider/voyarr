@@ -308,7 +308,8 @@ def login_verify(
         expires_delta=access_token_expires,
     )
     
-    samesite = os.getenv("COOKIE_SAMESITE", "lax").lower()
+    samesite_raw = os.getenv("COOKIE_SAMESITE", "lax").lower()
+    samesite = samesite_raw if samesite_raw in ("lax", "strict", "none") else "lax"
     secure = os.getenv("COOKIE_SECURE", "false").lower() == "true"
     
     response.set_cookie(

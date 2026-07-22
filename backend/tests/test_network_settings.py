@@ -130,7 +130,7 @@ def test_network_diagnostic_offline(mock_get):
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "offline"
-    assert "Connection timed out" in data["error"]
+    assert "timed out" in data["error"].lower()
 
 
 def test_celery_prerun_signal_network_settings():

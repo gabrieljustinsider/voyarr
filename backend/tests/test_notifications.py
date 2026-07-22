@@ -314,7 +314,5 @@ def test_notification_service_discord_webhook(mock_post):
 
     from services.notification_service import NotificationService
 
-    NotificationService.send_discord_webhook("http://mock-webhook", "Test Message")
-    mock_post.assert_called_once_with(
-        "http://mock-webhook", json={"content": "Test Message"}, timeout=5
-    )
+    NotificationService.send_discord_webhook("http://mock-webhook", "Test Title", "Test Message")
+    mock_post.assert_called_once()

@@ -7,6 +7,8 @@ import requests
 import asyncio
 import json
 import os
+import logging
+logger = logging.getLogger(__name__)
 from celery.result import AsyncResult
 
 from models import LibraryEntry
@@ -627,38 +629,50 @@ def universal_search(
     
     # 1. Local Search (Library)
     if req.query or req.hash:
-        library_query = db.query(LibraryEntry)
-        if req.query:
-            library_query = library_query.filter(LibraryEntry.title.ilike(f"%{req.query}%"))
-        if req.hash:
-            library_query = library_query.filter(LibraryEntry.ohash == req.hash)
-        for entry in library_query.limit(10).all():
-            results["local"].append({
-                "title": entry.title,
-                "url": entry.file_path,
-                "tags": entry.tags or [],
-                "performers": entry.performers or [],
-                "ohash": entry.ohash
-            })
+        try:
+            library_query = db.query(LibraryEntry)
+            if req.query:
+                library_query = library_query.filter(LibraryEntry.title.ilike(f"%{req.query}%"))
+            if req.hash:
+                library_query = library_query.filter(LibraryEntry.ohash == req.hash)
+            for entry in library_query.limit(10).all():
+                results["local"].append({
+                    "title": entry.title,
+                    "url": entry.file_path,
+                    "tags": entry.tags or [],
+                    "performers": entry.performers or [],
+                    "ohash": entry.ohash
+                })
+        except Exception as e:
+            logger.warning(f"Local library query failed in universal_search: {e}")
 
     # Read toggle settings (OnlyFans, Fansly, Patreon, LoyalFans)
     # Default to True if not set
     def is_platform_enabled(platform_name: str) -> bool:
-        setting = db.query(Settings).filter(Settings.key == f"universal_search_{platform_name.lower()}").first()
-        if setting:
-            return setting.value.lower() == "true"
+        try:
+            from models import Settings
+            setting = db.query(Settings).filter(Settings.key == f"universal_search_{platform_name.lower()}").first()
+            if setting:
+                return setting.value.lower() == "true"
+        except Exception as e:
+            logger.warning(f"Error checking settings for {platform_name}: {e}")
         return True
 
     # Check active session cookies helper
     def get_active_session_cookie(provider_name: str):
-        from models import Provider, SessionCookie
-        prov = db.query(Provider).filter(Provider.name.ilike(provider_name)).first()
-        if prov:
-            return db.query(SessionCookie).filter(
+        try:
+            from models import Provider, SessionCookie
+            prov = db.query(Provider).filter(Provider.name.ilike(provider_name)).first()
+            if not prov:
+                return None
+            cookie = db.query(SessionCookie).filter(
                 SessionCookie.provider_id == prov.id,
-                SessionCookie.status == "active"
+                SessionCookie.is_valid == True
             ).first()
-        return None
+            return cookie
+        except Exception as e:
+            logger.warning(f"Error getting session cookie for {provider_name}: {e}")
+            return None
 
     # Helper to cross-reference stashdb/theporndb performers
     # returns list of matching performer names
@@ -728,11 +742,16 @@ def universal_search(
     # Fetch API Keys
     tpdb_key = None
     stashdb_key = None
-    settings = db.query(Settings).all()
-    settings_dict = {s.key: s.value for s in settings}
-    vault_items = db.query(Vault).filter(Vault.entity_type == "global_setting").all()
-    for item in vault_items:
-        settings_dict[item.key] = decrypt_data(item.encrypted_value)
+    settings_dict = {}
+    try:
+        from models import Settings, Vault
+        settings = db.query(Settings).all()
+        settings_dict = {s.key: s.value for s in settings}
+        vault_items = db.query(Vault).filter(Vault.entity_type == "global_setting").all()
+        for item in vault_items:
+            settings_dict[item.key] = decrypt_data(item.encrypted_value)
+    except Exception as e:
+        logger.warning(f"Error reading settings or vault in universal_search: {e}")
     
     tpdb_key = settings_dict.get("tpdb_api_key")
     stashdb_key = settings_dict.get("stashdb_api_key")

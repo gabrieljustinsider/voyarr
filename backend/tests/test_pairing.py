@@ -19,15 +19,17 @@ from jose import jwt
 from security import JWT_SECRET, ALGORITHM
 
 db = SessionLocal()
-test_user = User(
-    id="test-user-id-123",
-    username="test_admin",
-    password_hash="mock_hash",
-    role="admin",
-    is_active=True
-)
-db.add(test_user)
-db.commit()
+existing_user = db.query(User).filter(User.username == "test_admin").first()
+if not existing_user:
+    test_user = User(
+        id="test-user-id-123",
+        username="test_admin",
+        password_hash="mock_hash",
+        role="admin",
+        is_active=True
+    )
+    db.add(test_user)
+    db.commit()
 db.close()
 
 # Generate a JWT token for the test user
