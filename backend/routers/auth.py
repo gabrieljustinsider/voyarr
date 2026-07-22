@@ -1196,6 +1196,113 @@ def confirm_pairing(
     }
 
 
+DEVICE_PAIRING_STORE = {}  # device_code -> {"user_code": str, "status": "pending"|"approved", "expires_at": float, "user_id": int|None, "raw_key": str|None, "key_hash": str|None}
+
+class DeviceApproveRequest(BaseModel):
+    user_code: str
+    device_name: str | None = "VR Headset"
+
+class DevicePollRequest(BaseModel):
+    device_code: str
+
+@router.post("/pair/device/request")
+def request_device_pairing():
+    """Generates a 6-digit VR device pairing code for VR headsets and smart players."""
+    device_code = f"dev_{secrets.token_urlsafe(24)}"
+    user_code = "".join(secrets.choice("0123456789") for _ in range(6))
+    expires_at = time.time() + 300
+
+    raw_key = f"vyr_vr_{secrets.token_urlsafe(32)}"
+    key_hash = sha256(raw_key.encode()).hexdigest()
+
+    DEVICE_PAIRING_STORE[device_code] = {
+        "user_code": user_code,
+        "status": "pending",
+        "expires_at": expires_at,
+        "user_id": None,
+        "raw_key": raw_key,
+        "key_hash": key_hash,
+    }
+
+    return {
+        "device_code": device_code,
+        "user_code": user_code,
+        "expires_in": 300,
+        "verification_uri": "/pair"
+    }
+
+@router.post("/pair/device/approve")
+def approve_device_pairing(
+    req: DeviceApproveRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Authenticated user enters user_code on phone or desktop to approve a VR device pairing."""
+    code = req.user_code.strip()
+    now = time.time()
+
+    target_device_code = None
+    target_data = None
+    for d_code, data in list(DEVICE_PAIRING_STORE.items()):
+        if data["expires_at"] < now:
+            DEVICE_PAIRING_STORE.pop(d_code, None)
+            continue
+        if data["user_code"] == code and data["status"] == "pending":
+            target_device_code = d_code
+            target_data = data
+            break
+
+    if not target_data or not target_device_code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired pairing code."
+        )
+
+    from models import ApiKey
+    new_key = ApiKey(
+        name=req.device_name or "VR Headset (Paired)",
+        key_hash=target_data["key_hash"],
+        user_id=current_user.id,
+        is_pairing=True
+    )
+    db.add(new_key)
+    db.commit()
+
+    target_data["status"] = "approved"
+    target_data["user_id"] = current_user.id
+
+    return {"status": "success", "message": "VR device paired successfully!"}
+
+@router.post("/pair/device/poll")
+def poll_device_pairing(
+    req: DevicePollRequest,
+    db: Session = Depends(get_db)
+):
+    """VR Headset polls to check if pairing code was approved by logged-in user."""
+    data = DEVICE_PAIRING_STORE.get(req.device_code)
+    if not data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pairing request expired or invalid.")
+
+    if time.time() > data["expires_at"]:
+        DEVICE_PAIRING_STORE.pop(req.device_code, None)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Pairing request expired.")
+
+    if data["status"] == "pending":
+        return {"status": "authorization_pending"}
+
+    # Successfully approved!
+    raw_key = data["raw_key"]
+    user_id = data["user_id"]
+    DEVICE_PAIRING_STORE.pop(req.device_code, None)
+
+    return {
+        "status": "success",
+        "token": raw_key,
+        "api_key": raw_key,
+        "user_id": user_id
+    }
+
+
 class PairingRenameRequest(BaseModel):
     name: str
 

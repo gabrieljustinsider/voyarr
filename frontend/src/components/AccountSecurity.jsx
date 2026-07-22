@@ -15,6 +15,7 @@ import LinkOffIcon from '@mui/icons-material/LinkOff'
 import { apiFetch, API_BASE } from '../api'
 import PasswordChecklist from './PasswordChecklist'
 import InlineTextField from './InlineTextField'
+import { QRCodeSVG } from 'qrcode.react'
 
 const AppleSvg = () => (
   <svg viewBox="0 0 170 170" width="20" height="20" style={{ fill: 'currentColor' }}>
@@ -97,6 +98,36 @@ export default function AccountSecurity({ setSnackbar }) {
   const [avatarAnchorEl, setAvatarAnchorEl] = useState(null)
   const [urlDialogOpen, setUrlDialogOpen] = useState(false)
   const [tempUrl, setTempUrl] = useState('')
+
+  const [vrApproveCode, setVrApproveCode] = useState('')
+  const [vrApproveMsg, setVrApproveMsg] = useState('')
+  const [vrApproveSeverity, setVrApproveSeverity] = useState('info')
+  const [deovrCopied, setDeovrCopied] = useState(false)
+
+  const handleApproveVrDevice = async () => {
+    if (!vrApproveCode.trim()) return
+    setVrApproveMsg('')
+    try {
+      const res = await apiFetch('/auth/pair/device/approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_code: vrApproveCode.trim(), device_name: 'VR Headset' })
+      })
+      if (res.ok) {
+        setVrApproveSeverity('success')
+        setVrApproveMsg('✅ VR Headset paired successfully! Your headset is now signed in.')
+        setVrApproveCode('')
+        fetchPairings()
+      } else {
+        const data = await res.json().catch(() => ({}))
+        setVrApproveSeverity('error')
+        setVrApproveMsg(data.detail || 'Failed to pair device. Please check the 6-digit code.')
+      }
+    } catch (err) {
+      setVrApproveSeverity('error')
+      setVrApproveMsg(err.message || 'Error connecting to pairing server.')
+    }
+  }
 
   useEffect(() => {
     let timer
@@ -1437,6 +1468,97 @@ export default function AccountSecurity({ setSnackbar }) {
             </Grid>
           )}
         </Box>
+      </Paper>
+
+      {/* VR Headset 6-Digit Device Pairing & DeoVR Player Quick Feed */}
+      <Paper elevation={0} sx={{ p: 3, mb: 4, borderRadius: 3, bgcolor: 'background.paper', border: '1px solid rgba(255,255,255,0.08)' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+          <Box sx={{ p: 1, borderRadius: 2, bgcolor: 'primary.main', color: 'primary.contrastText', display: 'flex' }}>
+            <KeyRound size={20} />
+          </Box>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>VR Headset & DeoVR Easy Sign-In</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Pair VR headsets effortlessly without typing passwords, or scan the QR code to load your DeoVR feed.
+            </Typography>
+          </Box>
+        </Box>
+
+        <Grid container spacing={3}>
+          {/* Card 1: 6-Digit VR Device Pairing Approval */}
+          <Grid item xs={12} md={6}>
+            <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: 'action.hover', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
+                  🔢 Pair New VR Headset (6-Digit Code)
+                </Typography>
+                <Typography variant="caption" color="text.secondary" paragraph>
+                  Opened Voyarr on your Meta Quest or Vision Pro headset? Enter the 6-digit PIN displayed on your headset screen below:
+                </Typography>
+
+                {vrApproveMsg && (
+                  <Alert severity={vrApproveSeverity} sx={{ mb: 2 }} onClose={() => setVrApproveMsg('')}>
+                    {vrApproveMsg}
+                  </Alert>
+                )}
+
+                <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', mt: 1 }}>
+                  <TextField
+                    size="small"
+                    placeholder="e.g. 839201"
+                    value={vrApproveCode}
+                    onChange={(e) => setVrApproveCode(e.target.value)}
+                    inputProps={{ maxLength: 6, style: { letterSpacing: '3px', fontWeight: 'bold', textAlign: 'center', fontSize: '1.1rem' } }}
+                    sx={{ maxWidth: 160 }}
+                  />
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    disabled={!vrApproveCode || vrApproveCode.trim().length !== 6}
+                    onClick={handleApproveVrDevice}
+                  >
+                    Approve VR Device
+                  </Button>
+                </Box>
+              </Box>
+            </Box>
+          </Grid>
+
+          {/* Card 2: DeoVR QR Code Feed Link */}
+          <Grid item xs={12} md={6}>
+            <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: 'action.hover', display: 'flex', alignItems: 'center', gap: 2.5, height: '100%' }}>
+              <Box sx={{ p: 1.5, bgcolor: '#ffffff', borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <QRCodeSVG
+                  value={`${window.location.origin}?token=${localStorage.getItem('voyarr_token') || ''}`}
+                  size={110}
+                  level="M"
+                />
+              </Box>
+              <Box sx={{ flexGrow: 1 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+                  📷 DeoVR QR Code Quick Scan
+                </Typography>
+                <Typography variant="caption" color="text.secondary" paragraph>
+                  Scan this QR code with your headset camera or DeoVR app to load your library feed instantly.
+                </Typography>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<LinkIcon fontSize="small" />}
+                  onClick={() => {
+                    const url = `${window.location.origin}?token=${localStorage.getItem('voyarr_token') || ''}`
+                    navigator.clipboard.writeText(url)
+                    setDeovrCopied(true)
+                    setTimeout(() => setDeovrCopied(false), 3000)
+                  }}
+                  sx={{ textTransform: 'none', borderRadius: '6px' }}
+                >
+                  {deovrCopied ? 'Copied DeoVR URL!' : 'Copy DeoVR Feed Link'}
+                </Button>
+              </Box>
+            </Box>
+          </Grid>
+        </Grid>
       </Paper>
 
       {/* Mock SSO Simulated OAuth Dialog */}
