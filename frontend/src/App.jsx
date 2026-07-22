@@ -165,6 +165,7 @@ function App() {
   const [selectedProvider, setSelectedProvider] = useState(null)
   const [credentials, setCredentials] = useState({ username: '', password: '', dailyLimit: '' })
   const [queue, setQueue] = useState([])
+  const [tabValue, setTabValue] = useState(0)
   const [layoutMode, setLayoutMode] = useState(() => localStorage.getItem('voyarr_layout_mode') || 'classic')
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
 
