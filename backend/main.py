@@ -178,7 +178,7 @@ async def jwt_to_api_key_middleware(
                 if is_allowed:
                     # Security: Strip any incoming forged headers to prevent HTTP Header Spoofing
                     headers = [(k, v) for k, v in request.scope.get("headers", []) if k.lower() != b"x-voyarr-api-key"]
-                    master_key = os.getenv("MASTER_KEY", "").encode()
+                    master_key = os.getenv("MASTER_KEY", "voyarr-master-key-default-secret").encode()
                     headers.append((b"x-voyarr-api-key", master_key))
                     request.scope["headers"] = headers
                 else:

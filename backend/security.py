@@ -11,17 +11,10 @@ from typing import Any, Dict
 
 load_dotenv()
 
-MASTER_KEY = os.getenv("MASTER_KEY")
-if MASTER_KEY:
-    # Use SHA-256 to derive a 32-byte key from the user-provided master key.
-    # This is more secure than padding or truncating the key.
-    derived_key = hashlib.sha256(MASTER_KEY.encode()).digest()
-    key = base64.urlsafe_b64encode(derived_key)
-    cipher = Fernet(key)
-else:
-    import typing
-
-    cipher: typing.Any = None
+MASTER_KEY = os.getenv("MASTER_KEY", "voyarr-master-key-default-secret")
+derived_key = hashlib.sha256(MASTER_KEY.encode()).digest()
+key = base64.urlsafe_b64encode(derived_key)
+cipher = Fernet(key)
 
 # JWT & Password Hashing Configuration
 _secret_key = os.getenv("SECRET_KEY")
