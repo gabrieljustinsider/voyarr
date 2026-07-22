@@ -1,114 +1,117 @@
-# **Voyarr Lens — Chrome Web Store Listing**
+# Chrome Web Store Listing — Voyarr Lens
 
-This document serves as the single source of truth for the **Voyarr Lens** companion Chrome extension store listing, containing all descriptive copy, assets mappings, plain-English permissions justifications, and privacy disclosures.
+> Last Updated: 2026-07-22
 
----
+## Store Listing
 
-## **📝 Store Listing Copy**
+**Extension Name**: Voyarr Lens
 
-### **1. Extension Title**
-`Voyarr Lens`
+**Short Description**: Companion browser extension for Voyarr media automation, live stream extraction, and visual element selector mapping.
 
-### **2. Short Description (max 150 chars)**
-`The official companion tool for Voyarr. Visually map CSS selectors to integrate premium media subscriptions into your self-hosted library.`
+**Detailed Description**:
+Voyarr Lens is the official browser companion extension for your Voyarr Media Server. It enables seamless media discovery, live stream extraction, and visual scraper recipe building directly from any website.
 
-### **3. Detailed Description**
-```markdown
-### Unify Your Premium Media Subscriptions
-Voyarr is a powerful, self-hosted media aggregator that unifies your disparate content libraries. It serves as your ultimate private media player, allowing you to seamlessly sync, organize, and stream all of your premium subscription services from one centralized, private platform.
+Key Features:
+- Direct Stream Extraction: Extract and stream live webcams, video feeds, and content directly into your Voyarr media server.
+- Visual Map Mode: Interactively map CSS selectors and scraper rules for unsupported video platforms without writing code.
+- Multi-Provider Support: Configure default payment gateways (CCBill, Epoch, Verotel, etc.) and auto-fill provider credentials.
+- Instant Authentication: Pair seamlessly with your Voyarr server via one-click pairing or API key token.
 
-### The Voyarr Lens Extension
-Voyarr Lens is the official companion extension designed to help you easily build integration "recipes" for your Voyarr server. Instead of manually inspecting source code to figure out how to extract metadata from a website, Voyarr Lens provides a visual, point-and-click interface to map out metadata fields directly on the page.
+How to Use:
+1. Open the Voyarr Lens popup and connect your Voyarr server URL and API key.
+2. Navigate to any video or live stream page.
+3. Click "Extract Live Stream" or activate "Voyarr Map Mode" (Ctrl+Shift+M) to map element selectors.
+4. Send streams and content directly to your Voyarr library and download queues.
 
-Simply browse to one of your premium subscription sites, activate Map Mode, and click on the elements you want Voyarr to capture (like Titles, Performers, Tags, or Video Sources). The extension instantly calculates the exact CSS selector and securely transmits it to your self-hosted backend.
+Privacy & Security:
+Voyarr Lens only communicates with your self-hosted or designated Voyarr media server instance. No user data, browser history, or telemetry is ever sold or collected by third parties.
 
-### Key Features
-* 🎯 **Point-and-Click Mapping:** Visually click any element on a webpage to instantly generate a mathematically exact, deep-DOM CSS selector.
-* ✅ **Match Validation & Testing:** Ensure your selectors are perfect. The extension displays the exact number of matching elements on the page and lets you flash them in bright green to verify your targeting.
-* ✏️ **Editable Selectors:** Prefer writing your own CSS? Manually tweak and test your selectors directly within the popup before saving.
-* ⚡ **Power-User Shortcuts:** Instantly launch into Map Mode on any website using the `Ctrl+Shift+M` (`Cmd+Shift+M` on Mac) global keyboard shortcut or via the right-click context menu.
-* 🛡️ **Privacy First & Least Privilege:** Voyarr Lens respects your privacy. It requires zero global tracking permissions. It only requests connection access to the specific self-hosted Voyarr server URL you provide, and scripts are strictly injected on-demand.
+**Category**: Developer Tools / Search Tools
 
-### Requirements
-This extension requires a running, self-hosted instance of the Voyarr backend server to function.
-```
+**Single Purpose**: Connects browser content, live stream URLs, and CSS selectors directly to a Voyarr media server instance.
 
----
-
-## **🔑 Permissions & Host Justifications**
-
-The Chrome Web Store review team requires explicit, plain-English justifications for all permissions declared in the extension manifest.
-
-| Permission | Declaration | Plain-English Justification for Reviewers |
-| :--- | :--- | :--- |
-| **`activeTab`** | `"activeTab"` | Grants temporary access to the active tab to execute visual crosshair highlight selection. |
-| **`storage`** | `"storage"` | Safely stores your Voyarr Server URL, API Master Keys, and pending selector states locally on the machine. |
-| **`scripting`** | `"scripting"` | Injects the map mode content script (`content.js`) onto the active webpage when visual selection is toggled. |
-| **`contextMenus`** | `"contextMenus"` | Registers the "Start Voyarr Map Mode" context menu option to trigger mapping directly from any right-click. |
-| **`tabs`** | `"tabs"` | Reads the active tab URL to resolve the site hostname, which is required to map selectors to the correct provider. |
+**Primary Language**: English
 
 ---
 
-## **🔒 Privacy & Data Use Disclosures**
+## Graphics & Assets
 
-* **Data Collection**: This extension **does not** collect, track, or transmit any user data to external third-party servers.
-* **Server Communication**: All data exchanges (such as saving site selectors) are transmitted **strictly and directly** to your own self-hosted Voyarr server instance configured in your local settings.
-* **Storage Encryption**: Configured server secrets and master keys are stored securely inside the browser's isolated local extension storage.
+| Asset | Dimensions | Status | Filename |
+|-------|-----------|--------|----------|
+| Store Icon | 128×128 PNG | ✅ Ready | `extension/icon-128.png` |
+| Small Icon | 48×48 PNG | ✅ Ready | `extension/icon-48.png` |
+| Mini Icon | 16×16 PNG | ✅ Ready | `extension/icon-16.png` |
+| Package ZIP | Compressed ZIP | ✅ Ready | `voyarr-extension.zip` |
 
 ---
 
-## **📈 Version History**
+## Permissions Justification
 
-### **v1.18.13** (Current Release)
-* **System Status subtab**: Added a dedicated status subtab under System & Admin detailing the health, logs, active workers, and resource usages of the database, Redis, Celery, and Browserless.
-* **Universal Search Relocation**: Moved the Universal Search subtab into the primary "Library & Media" category to streamline media aggregation workflows.
-* **Robust Scraper Fallbacks**: Expanded site details scraper to search for regular image tags and favicons if standard Open Graph / Twitter metadata is missing.
-* **Database Migration Updates**: Resolved table creation and seeding mismatches by implementing schema updates for `providers.description` dynamically.
-* **Biller Management**: Added full support for mapping subscriptions to specific payment gateways (such as CCBill, Epoch, Vendo, and netbilling).
-* **Async Architecture**: Upgraded log streaming to non-blocking asynchronous operations (`aiofiles`) and modernized server startup lifespan events.
-* **Subscription UI**: Introduced nested eager-loading for Provider and Tier details, plus a new filterable interface with clean currency/date formatting.
+| Permission | Type | Justification |
+|------------|------|---------------|
+| `activeTab` | permissions | Required to inspect active tab DOM elements when the user triggers Map Mode or auto-detects site details. |
+| `storage` | permissions | Required to persist the user's Voyarr server URL, API key, and pending pairing tokens locally in Chrome storage. |
+| `scripting` | permissions | Required to inject the visual element highlight overlay (`content.js`) when Map Mode is activated. |
+| `contextMenus` | permissions | Required to add "Start Voyarr Map Mode" and "Extract Live Stream" options to the browser context menu. |
+| `tabs` | permissions | Required to detect tab URL and page titles for stream extraction and automatic provider branding lookups. |
+| `http://*/*`, `https://*/*` | host_permissions | Required to send authenticated API requests to self-hosted or custom Voyarr backend server endpoints. |
 
-### **v1.18.0**
-* **Previous Stable Release**: Introduced initial async logging structure.
+---
 
-### **v1.17.1**
-* **Bug Fix**: Resolved a frontend build error caused by a malformed JSX tag inside the user settings dialog.
+## Privacy & Data Use
 
-### **v1.17.0**
-* **Granular Role-Based Access Control (RBAC)**: Expanded system permissions into a comprehensive module-level "None / View / Edit" hierarchy.
-* **Daily Rip Quotas**: Added strict, per-user daily download and mass rip limits, tracked automatically across active sessions.
-* **Custom & Material UI Themes**: Introduced "Standard Material" themes, and a dynamic "Custom Theme" generator allowing users to pick their own primary/secondary colors and toggle glassmorphism.
-* **User Management Dashboard**: Enhanced the admin user profile screen to display visual progress bars for daily quota usage.
+### Data Collection
 
-### **v1.16.6**
-* **Bug Fix**: Fixed a critical backend 500 error on Stash sync endpoint by removing an invalid leftover debug print statement referencing non-existent `db_utils.SessionLocal`.
+**Does the extension collect user data?** No (Data remains strictly local or sent to user's self-hosted Voyarr server).
 
-### **v1.16.5**
-* **UI & Defaults**: Updated Stash synchronization integration to use Stash's official logo next to the app name and default Stash connection port to port 9999.
+| Data Type | Collected? | Transmitted Off-Device? | Purpose | Shared with Third Parties? |
+|-----------|-----------|------------------------|---------|---------------------------|
+| Personally identifiable info | No | No | N/A | No |
+| Health / Financial info | No | No | N/A | No |
+| Authentication info | Yes | Only to user's Voyarr server | Local storage & server API auth | No |
+| Web history / Activity | No | No | N/A | No |
+| Website content | Yes | Only when requested by user | Sending selected media URL / CSS selectors | No |
 
-### **v1.16.4**
-* **Bug Fix**: Fixed a critical frontend build error by resolving the non-existent `@mui/icons-material/HelpOutline` import to `@mui/icons-material/HelpOutlineOutlined` in `App.jsx`.
+### Data Use Certification
+- [x] Data is NOT sold to third parties.
+- [x] Data is NOT used for purposes unrelated to the extension's core functionality.
+- [x] Data is NOT used for creditworthiness or lending purposes.
 
-### **v1.16.3**
-* **Maintenance**: Resolved all Pylance type diagnostics and type checker warnings across the backend.
+---
 
-### **v1.16.2**
-* **Bug Fixes**: Minor UI corrections and stability improvements.
+## Step-by-Step Instructions to Deploy / Upload to Chrome Web Store
 
-### **v1.16.1**
-* **Security Update**: Removed the legacy `bcrypt` dependency and migrated to `argon2-cffi` for enhanced password hashing.
+1. **Access Developer Console**:
+   - Go to [Chrome Developer Dashboard](https://chrome.google.com/webstore/devconsole/).
+   - Sign in with your Google account (a one-time $5 developer registration fee applies if not registered).
 
-### **v1.15.0**
-* **Unified Brand Styling**: Restructured the popup user interface with premium glassmorphism, clean grid elements, and integrated the modern Google Font **Outfit** to match the core Voyarr server branding.
-* **Dynamic Versioning**: Added an auto-populating version badge chip directly adjacent to the main "VOYARR LENS" title, reading version metadata dynamically from the extension's runtime manifest.
-* **Multi-Server & Probing**: Expanded settings to support active multi-server environments with backward-compatible migration, instant server switching, and a visual network card list.
-* **Least Privilege Scoping**: Refactored host permission declarations to target standard private subnets, eliminating scary wildcard warnings while allowing full local network subnet scanning and zero-touch API health discovery.
+2. **Upload Package**:
+   - Click **"New Item"** (top right).
+   - Drag and drop or upload `voyarr-extension.zip` from your project root:
+     `file:///Users/morenicano/coding/projects/bots/voyarr/voyarr-extension.zip`
 
-### **v1.14.1** & v1.14.0
-* Incorporated security improvements and direct network subnet scanning features.
+3. **Fill Store Listing Details**:
+   - Copy-paste the **Title**, **Short Description**, and **Detailed Description** from above.
+   - Category: **Developer Tools**.
+   - Language: **English**.
 
-### **v1.13.0**
-* Refactored service workers (`background.js`) and popup interfaces (`popup.js`) to use modern ES6 `async/await` syntax.
-* Added the required `tabs` permission to resolve domain hostnames, correcting a silent lookup failure.
-* Programmatically resized high-quality PNG icons for 16x16, 48x48, and 128x128 pixel dimensions to comply with Manifest V3.
-* Added direct `provider_id` selection mapping from the popup target dropdown to bridge communications with the main app.
+4. **Upload Store Icons & Screenshots**:
+   - Store Icon: Upload `extension/icon-128.png`.
+   - Screenshots: Take 1-2 screenshots of the Voyarr Lens popup window (1280×800 or 640×400) and upload.
+
+5. **Complete Privacy Tab**:
+   - Single Purpose: *"Connects browser content, live stream URLs, and CSS selectors directly to a Voyarr media server instance."*
+   - Copy justifications from the **Permissions Justification** table above into each corresponding justification box.
+   - Check all three Data Use Certification checkboxes.
+
+6. **Submit for Review**:
+   - Click **"Submit for Review"**.
+   - Chrome Web Store reviews typically take 24–48 hours for new versions or initial submissions.
+
+---
+
+## Version History
+
+| Version | Date | Changes | Status |
+|---------|------|---------|--------|
+| `v1.68.2` | 2026-07-22 | Initial Chrome Web Store package build with default payment biller dropdown, live stream extraction support, and host permissions. | Ready to Submit |
