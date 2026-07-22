@@ -15,6 +15,21 @@ export class ErrorBoundary extends React.Component {
   componentDidCatch(error, errorInfo) {
     console.error('Uncaught component error in Voyarr UI:', error, errorInfo);
     this.setState({ errorInfo });
+
+    // Automatically recover from stale asset chunk hashes after new deployments
+    const isChunkError = /Failed to fetch dynamically imported module|Loading chunk|Failed to load resource|net::ERR_ABORTED/i.test(
+      (error?.message || '') + ' ' + (error?.stack || '')
+    );
+    if (isChunkError) {
+      const pageHasBeenRefreshed = JSON.parse(
+        window.sessionStorage.getItem('voyarr_lazy_retry') || 'false'
+      );
+      if (!pageHasBeenRefreshed) {
+        window.sessionStorage.setItem('voyarr_lazy_retry', 'true');
+        console.warn('Stale frontend chunk detected after build release. Reloading page...');
+        window.location.reload();
+      }
+    }
   }
 
   handleReload = () => {

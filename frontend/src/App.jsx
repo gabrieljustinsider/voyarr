@@ -13,39 +13,60 @@ import { LogOut, SlidersHorizontal, Bell, CircleHelp, Clapperboard, Key, Downloa
 // Synchronously load Login to keep initial login paint instant
 import Login from './components/Login'
 
-// Lazily load tab components to optimize bundle size and FCP/LCP
-const ProviderList = lazy(() => import('./components/ProviderList'))
-const DownloadQueue = lazy(() => import('./components/DownloadQueue'))
-const Settings = lazy(() => import('./components/Settings'))
-const UserManagement = lazy(() => import('./components/UserManagement'))
-const Dashboard = lazy(() => import('./components/Dashboard'))
-const Library = lazy(() => import('./components/Library'))
-const Duplicates = lazy(() => import('./components/Duplicates'))
-const MetadataManager = lazy(() => import('./components/MetadataManager'))
-const ExternalAPIs = lazy(() => import('./components/ExternalAPIs'))
-const UniversalSearch = lazy(() => import('./components/UniversalSearch'))
-const SystemStatus = lazy(() => import('./components/SystemStatus'))
-const DownloadRules = lazy(() => import('./components/DownloadRules'))
-const MassRip = lazy(() => import('./components/MassRip'))
-const ScheduleManager = lazy(() => import('./components/ScheduleManager'))
-const BackupManager = lazy(() => import('./components/BackupManager'))
-const LogsViewer = lazy(() => import('./components/LogsViewer'))
-const ScraperTester = lazy(() => import('./components/ScraperTester'))
-const RequestManager = lazy(() => import('./components/RequestManager'))
+// Automatic retry helper for lazy loading components across production builds with new chunk hashes
+const lazyWithRetry = (componentImport) =>
+  lazy(async () => {
+    const pageHasBeenRefreshed = JSON.parse(
+      window.sessionStorage.getItem('voyarr_lazy_retry') || 'false'
+    );
+    try {
+      const component = await componentImport();
+      window.sessionStorage.setItem('voyarr_lazy_retry', 'false');
+      return component;
+    } catch (error) {
+      if (!pageHasBeenRefreshed) {
+        window.sessionStorage.setItem('voyarr_lazy_retry', 'true');
+        console.warn('Stale build chunk detected. Auto-refreshing app assets...', error);
+        window.location.reload();
+        return new Promise(() => {});
+      }
+      throw error;
+    }
+  });
+
+// Lazily load tab components with auto-recovery to optimize bundle size and FCP/LCP
+const ProviderList = lazyWithRetry(() => import('./components/ProviderList'))
+const DownloadQueue = lazyWithRetry(() => import('./components/DownloadQueue'))
+const Settings = lazyWithRetry(() => import('./components/Settings'))
+const UserManagement = lazyWithRetry(() => import('./components/UserManagement'))
+const Dashboard = lazyWithRetry(() => import('./components/Dashboard'))
+const Library = lazyWithRetry(() => import('./components/Library'))
+const Duplicates = lazyWithRetry(() => import('./components/Duplicates'))
+const MetadataManager = lazyWithRetry(() => import('./components/MetadataManager'))
+const ExternalAPIs = lazyWithRetry(() => import('./components/ExternalAPIs'))
+const UniversalSearch = lazyWithRetry(() => import('./components/UniversalSearch'))
+const SystemStatus = lazyWithRetry(() => import('./components/SystemStatus'))
+const DownloadRules = lazyWithRetry(() => import('./components/DownloadRules'))
+const MassRip = lazyWithRetry(() => import('./components/MassRip'))
+const ScheduleManager = lazyWithRetry(() => import('./components/ScheduleManager'))
+const BackupManager = lazyWithRetry(() => import('./components/BackupManager'))
+const LogsViewer = lazyWithRetry(() => import('./components/LogsViewer'))
+const ScraperTester = lazyWithRetry(() => import('./components/ScraperTester'))
+const RequestManager = lazyWithRetry(() => import('./components/RequestManager'))
 
 // New Feature components
-const Favorites = lazy(() => import('./components/Favorites'))
-const Studios = lazy(() => import('./components/Studios'))
-const Analytics = lazy(() => import('./components/Analytics'))
-const LiveStreams = lazy(() => import('./components/LiveStreams'))
-const NotificationSettings = lazy(() => import('./components/NotificationSettings'))
-const TranscodeQueue = lazy(() => import('./components/TranscodeQueue'))
-const SubscriptionManager = lazy(() => import('./components/SubscriptionManager'))
-const BillerList = lazy(() => import('./components/BillerList'))
-const P2PSync = lazy(() => import('./components/P2PSync'))
-const HelpArea = lazy(() => import('./components/HelpArea'))
-const AdminHelpArea = lazy(() => import('./components/AdminHelpArea'))
-const AccountSecurity = lazy(() => import('./components/AccountSecurity'))
+const Favorites = lazyWithRetry(() => import('./components/Favorites'))
+const Studios = lazyWithRetry(() => import('./components/Studios'))
+const Analytics = lazyWithRetry(() => import('./components/Analytics'))
+const LiveStreams = lazyWithRetry(() => import('./components/LiveStreams'))
+const NotificationSettings = lazyWithRetry(() => import('./components/NotificationSettings'))
+const TranscodeQueue = lazyWithRetry(() => import('./components/TranscodeQueue'))
+const SubscriptionManager = lazyWithRetry(() => import('./components/SubscriptionManager'))
+const BillerList = lazyWithRetry(() => import('./components/BillerList'))
+const P2PSync = lazyWithRetry(() => import('./components/P2PSync'))
+const HelpArea = lazyWithRetry(() => import('./components/HelpArea'))
+const AdminHelpArea = lazyWithRetry(() => import('./components/AdminHelpArea'))
+const AccountSecurity = lazyWithRetry(() => import('./components/AccountSecurity'))
 
 import { apiFetch, getAuthHeaders } from './api'
 import ErrorBoundary from './ErrorBoundary'
