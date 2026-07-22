@@ -259,6 +259,25 @@ export default function UserManagement() {
     }
   }
 
+  const handleAdminRevokeSessions = async () => {
+    const confirmed = await window.appConfirm("Are you sure you want to force sign-out this user and revoke all paired devices & API keys?")
+    if (!confirmed) return
+    try {
+      const res = await apiFetch(`/auth/users/${selectedUserForManage.id}/revoke-sessions`, { method: 'POST' })
+      if (res.ok) {
+        const data = await res.json()
+        setSnackbar({ open: true, message: data.message || 'Successfully revoked all active user sessions.', severity: 'success' })
+        handleOpenManageUser(selectedUserForManage.id)
+      } else {
+        const err = await res.json()
+        setSnackbar({ open: true, message: `Failed: ${err.detail}`, severity: 'error' })
+      }
+    } catch (err) {
+      console.error(err)
+      setSnackbar({ open: true, message: 'Error revoking sessions.', severity: 'error' })
+    }
+  }
+
   const handleAdminSavePermissions = async (updatedUsername, updatedRole, updatedActive, updatedPermissions) => {
     try {
       const res = await apiFetch(`/auth/users/${selectedUserForManage ? selectedUserForManage.id : usersList.find(u => u.username === updatedUsername)?.id}`, {
@@ -343,49 +362,51 @@ export default function UserManagement() {
           Create user accounts to grant access to the UI.
         </Typography>
         <Divider sx={{ mb: 2 }} />
-        <Grid container spacing={4} sx={{ alignItems: 'flex-start' }}>
-          <Grid item xs={12} sm={6}>
-            <Stack spacing={2.5}>
-              <TextField 
-                fullWidth 
-                size="small" 
-                label="Username" 
-                value={newUser.username} 
-                onChange={e => setNewUser({...newUser, username: e.target.value})} 
-                error={isUsernameTaken}
-                helperText={isUsernameTaken ? "Username already exists" : ""}
-              />
-              <TextField fullWidth size="small" type="password" label="Password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} />
-              <FormControl fullWidth size="small">
-                <InputLabel>Role</InputLabel>
-                <Select value={newUser.role} label="Role" onChange={e => setNewUser({...newUser, role: e.target.value})}>
-                  <MenuItem value="admin">Admin</MenuItem>
-                  <MenuItem value="user">User</MenuItem>
-                </Select>
-              </FormControl>
-            </Stack>
+        <form onSubmit={(e) => { e.preventDefault(); handleCreateUser(); }}>
+          <Grid container spacing={4} sx={{ alignItems: 'flex-start' }}>
+            <Grid item xs={12} sm={6}>
+              <Stack spacing={2.5}>
+                <TextField 
+                  fullWidth 
+                  size="small" 
+                  label="Username" 
+                  value={newUser.username} 
+                  onChange={e => setNewUser({...newUser, username: e.target.value})} 
+                  error={isUsernameTaken}
+                  helperText={isUsernameTaken ? "Username already exists" : ""}
+                />
+                <TextField fullWidth size="small" type="password" label="Password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} />
+                <FormControl fullWidth size="small">
+                  <InputLabel>Role</InputLabel>
+                  <Select value={newUser.role} label="Role" onChange={e => setNewUser({...newUser, role: e.target.value})}>
+                    <MenuItem value="admin">Admin</MenuItem>
+                    <MenuItem value="user">User</MenuItem>
+                  </Select>
+                </FormControl>
+              </Stack>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <PasswordChecklist password={newUser.password} />
+            </Grid>
           </Grid>
-          <Grid item xs={12} sm={6}>
-            <PasswordChecklist password={newUser.password} />
-        </Grid>
-        </Grid>
-        <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center', width: '100%' }}>
-          <Button 
-            variant="contained" 
-            color={creationSuccess ? "success" : "primary"}
-            onClick={handleCreateUser} 
-            disabled={!newUser.username || !newUser.password || newUser.password.length < 8 || isUsernameTaken || isCreating} 
-            sx={{ minWidth: 220, transition: 'all 0.3s ease' }}
-          >
-            {creationSuccess ? (
-              <><CheckIcon sx={{ mr: 1 }} /> Success!</>
-            ) : isCreating ? (
-              <CircularProgress size={24} color="inherit" />
-            ) : (
-              'Create User'
-            )}
-          </Button>
-        </Box>
+          <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+            <Button 
+              type="submit"
+              variant="contained" 
+              color={creationSuccess ? "success" : "primary"}
+              disabled={!newUser.username || !newUser.password || newUser.password.length < 8 || isUsernameTaken || isCreating} 
+              sx={{ minWidth: 180, transition: 'all 0.3s ease' }}
+            >
+              {creationSuccess ? (
+                <><CheckIcon sx={{ mr: 1 }} /> Success!</>
+              ) : isCreating ? (
+                <CircularProgress size={24} color="inherit" />
+              ) : (
+                'Create User'
+              )}
+            </Button>
+          </Box>
+        </form>
       </Paper>
 
       {/* Users List & Advanced Management Dashboard */}
@@ -986,6 +1007,25 @@ export default function UserManagement() {
                     </Grid>
                   </Paper>
 
+                  {/* Revoke All Active Sessions & Paired Keys */}
+                  <Paper elevation={1} sx={{ p: 2.5, mb: 3 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>Force Sign-Out & Revoke Sessions</Typography>
+                    <Typography variant="body2" color="textSecondary" sx={{ mb: 2, fontSize: '0.85rem' }}>
+                      Immediately invalidate all active session tokens, browser extension pairings, and API keys for <strong>{selectedUserForManage.username}</strong> across all devices.
+                    </Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                      <Button
+                        variant="outlined"
+                        color="warning"
+                        startIcon={<KeyIcon />}
+                        onClick={handleAdminRevokeSessions}
+                        sx={{ borderRadius: '8px', textTransform: 'none' }}
+                      >
+                        Revoke All Active Sessions & API Keys
+                      </Button>
+                    </Box>
+                  </Paper>
+
                   {/* Danger Zone: Delete Account */}
                   <Paper elevation={1}
                     sx={{ 
@@ -1033,6 +1073,7 @@ export default function UserManagement() {
       <Dialog 
         open={adminResetPasswordOpen} 
         onClose={() => setAdminResetPasswordOpen(false)}
+        disableRestoreFocus
         PaperProps={{
           elevation: 6,
           sx: {
@@ -1040,33 +1081,35 @@ export default function UserManagement() {
           }
         }}
       >
-        <DialogTitle sx={{ pb: 1 }}>Reset User Password</DialogTitle>
-        <DialogContent>
-          <Typography sx={{ mb: 2, fontSize: '0.9rem', opacity: 0.8 }}>
-            Set a new temporary or custom password for user <strong>{selectedUserForManage?.username}</strong>. The user will be required to input this password to authenticate next time.
-          </Typography>
-          <TextField
-            fullWidth
-            type="password"
-            label="New Password string"
-            value={adminResetPasswordNew}
-            onChange={e => setAdminResetPasswordNew(e.target.value)}
-            sx={{ mt: 1, '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
-          />
-          <PasswordChecklist password={adminResetPasswordNew} />
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button onClick={() => setAdminResetPasswordOpen(false)} sx={{ textTransform: 'none' }}>Cancel</Button>
-          <Button 
-            variant="contained" 
-            color="secondary" 
-            onClick={() => handleAdminResetPassword(adminResetPasswordNew)} 
-            disabled={adminResetPasswordNew.length < 8}
-            sx={{ borderRadius: '8px', textTransform: 'none', px: 3 }}
-          >
-            Reset password
-          </Button>
-        </DialogActions>
+        <form onSubmit={(e) => { e.preventDefault(); if (adminResetPasswordNew.length >= 8) handleAdminResetPassword(adminResetPasswordNew); }}>
+          <DialogTitle sx={{ pb: 1 }}>Reset User Password</DialogTitle>
+          <DialogContent>
+            <Typography sx={{ mb: 2, fontSize: '0.9rem', opacity: 0.8 }}>
+              Set a new temporary or custom password for user <strong>{selectedUserForManage?.username}</strong>. The user will be required to input this password to authenticate next time.
+            </Typography>
+            <TextField
+              fullWidth
+              type="password"
+              label="New Password string"
+              value={adminResetPasswordNew}
+              onChange={e => setAdminResetPasswordNew(e.target.value)}
+              sx={{ mt: 1, '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+            />
+            <PasswordChecklist password={adminResetPasswordNew} />
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 3 }}>
+            <Button onClick={() => setAdminResetPasswordOpen(false)} sx={{ textTransform: 'none' }}>Cancel</Button>
+            <Button 
+              type="submit"
+              variant="contained" 
+              color="secondary" 
+              disabled={adminResetPasswordNew.length < 8}
+              sx={{ borderRadius: '8px', textTransform: 'none', px: 3 }}
+            >
+              Reset password
+            </Button>
+          </DialogActions>
+        </form>
       </Dialog>
 
       <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={() => setSnackbar({ ...snackbar, open: false })}>

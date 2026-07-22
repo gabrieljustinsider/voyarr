@@ -595,26 +595,41 @@ def get_user_details(
     ]
 
     # Database-agnostic log filtration (avoids vendor-locked SQL operations)
-    from models import AdminLog
-    all_logs = db.query(AdminLog).order_by(AdminLog.timestamp.desc()).all()
-    filtered_logs = []
-    for log in all_logs:
-        details = log.details or {}
-        if (log.admin_id == user_id or 
-            str(details.get("target_user_id")) == user_id or 
-            str(details.get("user_id")) == user_id or 
-            str(details.get("created_user_id")) == user_id):
-            filtered_logs.append({
-                "id": log.id,
-                "admin_username": log.admin_username,
-                "action": log.action,
-                "details": details,
-                "timestamp": log.timestamp
-            })
-            if len(filtered_logs) >= 200:
-                break
+    try:
+        from models import AdminLog
+        all_logs = db.query(AdminLog).order_by(AdminLog.timestamp.desc()).all()
+        filtered_logs = []
+        for log in all_logs:
+            details = log.details
+            if isinstance(details, str):
+                try:
+                    import json
+                    details = json.loads(details)
+                except Exception:
+                    details = {}
+            if not isinstance(details, dict):
+                details = {}
 
-    daily_rip_usage = get_daily_rip_usage(db, str(user.id))
+            if (str(log.admin_id or "") == str(user_id) or 
+                str(details.get("target_user_id") or "") == str(user_id) or 
+                str(details.get("user_id") or "") == str(user_id) or 
+                str(details.get("created_user_id") or "") == str(user_id)):
+                filtered_logs.append({
+                    "id": log.id,
+                    "admin_username": log.admin_username,
+                    "action": log.action,
+                    "details": details,
+                    "timestamp": log.timestamp
+                })
+                if len(filtered_logs) >= 200:
+                    break
+    except Exception:
+        filtered_logs = []
+
+    try:
+        daily_rip_usage = get_daily_rip_usage(db, str(user.id))
+    except Exception:
+        daily_rip_usage = 0
 
     return {
         "id": user.id,
@@ -917,6 +932,88 @@ def admin_reset_sso(
         details={"target_user_id": user_id, "target_username": target_user.username, "deleted_count": deleted_count}
     )
     return {"message": f"Successfully unlinked {deleted_count} SSO provider connection(s)"}
+
+
+@router.post("/users/{user_id}/revoke-sessions")
+def admin_revoke_sessions(
+    user_id: str,
+    auth_info: dict[str, Any] = Depends(verify_api_key),
+    db: Session = Depends(get_db)
+):
+    """Revoke all active paired API keys and session credentials for a user."""
+    actor_username = "Unknown"
+    actor_id: str | None = None
+    if auth_info.get("type") == "master_key":
+        actor_username = "Master Key"
+    elif auth_info.get("type") == "jwt":
+        if auth_info.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Admin privileges required")
+        actor_username = str(auth_info.get("user") or "Admin User")
+        actor_user = db.query(User).filter(User.username == actor_username).first()
+        if actor_user:
+            actor_id = str(actor_user.id)
+    else:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    from models import ApiKey
+    deleted_keys = db.query(ApiKey).filter(ApiKey.user_id == user_id).delete()
+    db.commit()
+
+    from db_utils import log_admin_action
+    log_admin_action(
+        db,
+        admin_id=actor_id,
+        admin_username=actor_username,
+        action="admin_revoke_user_sessions",
+        details={"target_user_id": user_id, "target_username": target_user.username, "keys_revoked": deleted_keys}
+    )
+    return {"message": f"Successfully revoked all active sessions & {deleted_keys} API keys for {target_user.username}"}
+
+
+@router.post("/users/{user_id}/toggle-lock")
+def admin_toggle_lock(
+    user_id: str,
+    auth_info: dict[str, Any] = Depends(verify_api_key),
+    db: Session = Depends(get_db)
+):
+    """Toggle user active / frozen state (lock or unlock user account)."""
+    actor_username = "Unknown"
+    actor_id: str | None = None
+    if auth_info.get("type") == "master_key":
+        actor_username = "Master Key"
+    elif auth_info.get("type") == "jwt":
+        if auth_info.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Admin privileges required")
+        actor_username = str(auth_info.get("user") or "Admin User")
+        actor_user = db.query(User).filter(User.username == actor_username).first()
+        if actor_user:
+            actor_id = str(actor_user.id)
+    else:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    target_user.is_active = not target_user.is_active
+    db.commit()
+    db.refresh(target_user)
+
+    from db_utils import log_admin_action
+    action = "admin_unlock_user" if target_user.is_active else "admin_lock_user"
+    log_admin_action(
+        db,
+        admin_id=actor_id,
+        admin_username=actor_username,
+        action=action,
+        details={"target_user_id": user_id, "target_username": target_user.username, "is_active": target_user.is_active}
+    )
+    status_str = "unlocked and enabled" if target_user.is_active else "locked and disabled"
+    return {"message": f"User account '{target_user.username}' has been {status_str}", "is_active": target_user.is_active}
 
 
 @router.post("/users/merge")
