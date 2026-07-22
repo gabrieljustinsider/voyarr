@@ -307,11 +307,42 @@ def browse_directory(path: Optional[str] = Query(None)):
         folders.sort(key=lambda x: x["name"].lower())
         files.sort(key=lambda x: x["name"].lower())
 
+        is_writable = os.access(target_path, os.W_OK)
+
+        # Detect accessible volumes and calculate free disk space
+        import shutil
+        standard_volumes = [
+            {"label": "Root (/)", "path": "/"},
+            {"label": "Storage", "path": "/media/storage"},
+            {"label": "Downloads", "path": "/downloads"},
+            {"label": "Media", "path": "/media"},
+            {"label": "Mounts", "path": "/mnt"},
+            {"label": "App Root", "path": "/app"}
+        ]
+        volumes = []
+        for vol in standard_volumes:
+            if os.path.exists(vol["path"]) and os.path.isdir(vol["path"]):
+                try:
+                    usage = shutil.disk_usage(vol["path"])
+                    free_gb = round(usage.free / (1024 ** 3), 1)
+                    volumes.append({
+                        "label": vol["label"],
+                        "path": vol["path"],
+                        "free_gb": free_gb
+                    })
+                except Exception:
+                    volumes.append({
+                        "label": vol["label"],
+                        "path": vol["path"]
+                    })
+
         return {
             "current_path": target_path,
             "parent_path": parent_path,
             "folders": folders,
             "files": files,
+            "volumes": volumes,
+            "is_writable": is_writable
         }
     except Exception as e:
         raise HTTPException(
