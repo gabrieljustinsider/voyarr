@@ -630,7 +630,7 @@ def get_library_file_naming_history(entry_id: int, db: Session = Depends(get_db)
 
 
 class ImportManualRequest(BaseModel):
-    provider_id: int
+    provider_id: Optional[int] = None
     title: str
     file_path: str
     performers: Optional[List[str]] = []
@@ -689,9 +689,21 @@ def import_manual_entry(req: ImportManualRequest, db: Session = Depends(get_db),
             detail=f"This target has already been registered in the library as ID {existing.id}."
         )
 
-    # 3. Create Library Entry
+    # 3. Resolve Provider ID (Fallback to Local/General provider if not specified)
+    provider_id = req.provider_id
+    if not provider_id:
+        from models import Provider
+        default_provider = db.query(Provider).filter(Provider.name == "Local / General").first()
+        if not default_provider:
+            default_provider = Provider(name="Local / General", base_url="local://", description="Default provider for direct file picker imports")
+            db.add(default_provider)
+            db.commit()
+            db.refresh(default_provider)
+        provider_id = default_provider.id
+
+    # 4. Create Library Entry
     entry = LibraryEntry(
-        provider_id=req.provider_id,
+        provider_id=provider_id,
         title=req.title.strip(),
         file_path=path_or_url,
         performers=req.performers or [],

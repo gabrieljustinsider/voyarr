@@ -9,7 +9,7 @@ deploy_frontend() {
 
   echo "Building frontend..."
   cd "$PROJECT_DIR/frontend"
-  VITE_API_BASE_URL="$backend_origin" npx vite build --mode production
+  VITE_API_BASE_URL="/api" npx vite build --mode production
 
   echo "Deploying Worker with assets..."
   cd "$PROJECT_DIR/worker"

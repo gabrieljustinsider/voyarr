@@ -5,7 +5,7 @@ import {
   Dialog, DialogTitle, DialogContent, IconButton, Button, DialogActions,
   CircularProgress, Alert, Pagination, Checkbox, Slide, Autocomplete, createFilterOptions
 } from '@mui/material'
-import { X, PlayCircle, Settings, List, CloudUpload, Heart, Cast, Sparkles, Edit2, Plus } from 'lucide-react'
+import { X, PlayCircle, Settings, List, CloudUpload, Heart, Cast, Sparkles, Edit2, Plus, FolderOpen, FileUp } from 'lucide-react'
 import ChapterManager from './ChapterManager'
 import SecondScreenRemote from './SecondScreenRemote'
 import SmartVideoPlayer from './SmartVideoPlayer'
@@ -625,6 +625,34 @@ export default function Library() {
     }
   }
 
+  const [directPickerOpen, setDirectPickerOpen] = useState(false)
+
+  const handleDirectFileImport = async (selectedPath) => {
+    if (!selectedPath) return
+    const filename = selectedPath.substring(selectedPath.lastIndexOf('/') + 1)
+    const title = filename.substring(0, filename.lastIndexOf('.')) || filename
+
+    try {
+      const res = await apiFetch('/library/import/manual', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: title,
+          file_path: selectedPath
+        })
+      })
+      if (res.ok) {
+        window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: `Imported "${title}" to library!`, severity: 'success' } }))
+        fetchLibrary()
+      } else {
+        const errData = await res.json()
+        window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: errData.detail || 'Import failed.', severity: 'error' } }))
+      }
+    } catch (err) {
+      console.error(err)
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: err.message || 'Network error performing import.', severity: 'error' } }))
+    }
+  }
+
   const API_BASE = import.meta.env.VITE_API_BASE || '/api'
 
   return (
@@ -632,15 +660,31 @@ export default function Library() {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h4">Media Library</Typography>
         <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button variant="contained" color="primary" startIcon={<FileUp size={18} />} onClick={() => setDirectPickerOpen(true)}>
+            Import Media
+          </Button>
           <Button variant="outlined" color="info" startIcon={<Plus size={18} />} onClick={() => setImportDialogOpen(true)}>
-            Import File / Stream
+            Register with Metadata
           </Button>
           <Button variant="outlined" color="secondary" onClick={handleRescanHashes} disabled={rescanLoading}>
             {rescanLoading ? <CircularProgress size={24} /> : 'Re-scan Hashes'}
           </Button>
-          <Button variant="contained" onClick={() => setScanDialogOpen(true)}>Scan Directory</Button>
+          <Button variant="contained" color="inherit" sx={{ bgcolor: 'rgba(255,255,255,0.08)' }} onClick={() => setScanDialogOpen(true)}>Scan Directory</Button>
         </Box>
       </Box>
+
+      {/* Direct File Picker (Bypasses metadata modal) */}
+      {directPickerOpen && (
+        <PathPicker
+          value=""
+          onChange={(newPath) => {
+            setDirectPickerOpen(false)
+            if (newPath) handleDirectFileImport(newPath)
+          }}
+          label="Select Media File to Import"
+          mode="both"
+        />
+      )}
 
       {/* Filters Bar */}
       <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
