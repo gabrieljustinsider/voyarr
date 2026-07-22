@@ -29,13 +29,23 @@ def verify_deovr_auth(
         if db.query(ApiKey).filter(ApiKey.key_hash == hashed).first():
             return True
 
-        # Check JWT token validation
+        # Check JWT token validation using system JWT_SECRET
         try:
             import jwt
-            secret_key = os.getenv("SECRET_KEY", "secret_key_change_me")
-            payload = jwt.decode(auth_token, secret_key, algorithms=["HS256"])
-            if payload and "sub" in payload:
-                return True
+            from security import JWT_SECRET
+            keys_to_try = [JWT_SECRET]
+            env_secret = os.getenv("SECRET_KEY")
+            if env_secret and env_secret not in keys_to_try:
+                keys_to_try.append(env_secret)
+            keys_to_try.append("secret_key_change_me")
+
+            for skey in keys_to_try:
+                try:
+                    payload = jwt.decode(auth_token, skey, algorithms=["HS256"])
+                    if payload and "sub" in payload:
+                        return True
+                except Exception:
+                    continue
         except Exception:
             pass
 
@@ -48,10 +58,20 @@ def verify_deovr_auth(
             return True
         try:
             import jwt
-            secret_key = os.getenv("SECRET_KEY", "secret_key_change_me")
-            payload = jwt.decode(header_key, secret_key, algorithms=["HS256"])
-            if payload and "sub" in payload:
-                return True
+            from security import JWT_SECRET
+            keys_to_try = [JWT_SECRET]
+            env_secret = os.getenv("SECRET_KEY")
+            if env_secret and env_secret not in keys_to_try:
+                keys_to_try.append(env_secret)
+            keys_to_try.append("secret_key_change_me")
+
+            for skey in keys_to_try:
+                try:
+                    payload = jwt.decode(header_key, skey, algorithms=["HS256"])
+                    if payload and "sub" in payload:
+                        return True
+                except Exception:
+                    continue
         except Exception:
             pass
 
