@@ -199,6 +199,24 @@ def stream_video(
     )
 
 
+@router.get("/{entry_id}/funscript", dependencies=[Depends(verify_deovr_auth)])
+def get_library_funscript(entry_id: int, db: Session = Depends(get_db)):
+    file_path = db.query(LibraryEntry.file_path).filter(LibraryEntry.id == entry_id).scalar()
+    if not file_path:
+        raise HTTPException(status_code=404, detail="Media entry not found")
+
+    base, _ = os.path.splitext(file_path)
+    funscript_path = base + ".funscript"
+    if not os.path.exists(funscript_path):
+        raise HTTPException(status_code=404, detail="No funscript file found for this entry")
+
+    return FileResponse(
+        funscript_path,
+        media_type="application/json",
+        headers={"Content-Disposition": "attachment; filename=" + os.path.basename(funscript_path)}
+    )
+
+
 @router.post(
     "/rescan-hashes",
     dependencies=[Depends(rate_limit(max_requests=2, window_seconds=60)), Depends(verify_api_key)],
