@@ -593,7 +593,7 @@ def run_schema_migrations(engine: Any) -> None:
                 if dialect_name == "postgresql":
                     conn.execute(text("ALTER TABLE providers ADD COLUMN default_biller_id INTEGER REFERENCES billers(id) ON DELETE SET NULL"))
                 else:
-                    conn.execute(text("ALTER TABLE providers ADD COLUMN default_biller_id INTEGER REFERENCES billers(id) ON DELETE SET NULL"))
+                    conn.execute(text("ALTER TABLE providers ADD COLUMN default_biller_id INTEGER"))
                 conn.commit()
                 logger.info("Database migration successfully added 'default_biller_id' to 'providers'.")
             except Exception as e:
