@@ -246,6 +246,8 @@ def get_current_user(
             jwt_token = auth_header.split(" ")[1]
     if not jwt_token:
         jwt_token = request.cookies.get("access_token")
+    if not jwt_token:
+        jwt_token = request.query_params.get("token")
         
     if jwt_token:
         try:

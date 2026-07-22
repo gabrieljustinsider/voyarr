@@ -5,7 +5,7 @@ import {
   Dialog, DialogTitle, DialogContent, IconButton, Button, DialogActions,
   CircularProgress, Alert, Pagination, Checkbox, Slide, Autocomplete, createFilterOptions
 } from '@mui/material'
-import { X, PlayCircle, Settings, List, CloudUpload, Heart, Cast, Sparkles, Edit2, Plus, FolderOpen, FileUp } from 'lucide-react'
+import { X, PlayCircle, Settings, List, CloudUpload, Heart, Cast, Sparkles, Edit2, Plus, FolderOpen, FileUp, Trash2 } from 'lucide-react'
 import ChapterManager from './ChapterManager'
 import SecondScreenRemote from './SecondScreenRemote'
 import SmartVideoPlayer from './SmartVideoPlayer'
@@ -557,6 +557,43 @@ export default function Library() {
     }
   }
 
+  const handleDeleteEntry = async (entry) => {
+    const confirmed = await window.appConfirm(`Are you sure you want to remove "${entry.title}" from the library?`)
+    if (!confirmed) return
+
+    try {
+      const res = await apiFetch(`/library/${entry.id}`, { method: 'DELETE' })
+      if (res.ok) {
+        window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Item removed from library.', severity: 'success' } }))
+        fetchLibrary()
+      } else {
+        const err = await res.json()
+        window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: err.detail || 'Failed to remove item', severity: 'error' } }))
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedEntries.size === 0) return
+    const confirmed = await window.appConfirm(`Are you sure you want to remove ${selectedEntries.size} selected items from the library?`)
+    if (!confirmed) return
+
+    try {
+      let count = 0
+      for (const id of selectedEntries) {
+        const res = await apiFetch(`/library/${id}`, { method: 'DELETE' })
+        if (res.ok) count++
+      }
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: `Removed ${count} items from library.`, severity: 'success' } }))
+      handleClearSelection()
+      fetchLibrary()
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
   const handleToggleSelect = (id) => {
     const newSet = new Set(selectedEntries)
     if (newSet.has(id)) newSet.delete(id)
@@ -780,11 +817,18 @@ export default function Library() {
                   <CardContent sx={{ flexGrow: 1 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <Typography variant="h6" noWrap title={entry.title} sx={{ flex: 1, mr: 1 }}>{entry.title}</Typography>
-                      <Tooltip title="Manage Chapters">
-                        <IconButton size="small" onClick={() => setManagingChaptersFor(entry)}>
-                      <List size={18} />
-                        </IconButton>
-                      </Tooltip>
+                      <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+                        <Tooltip title="Manage Chapters">
+                          <IconButton size="small" onClick={() => setManagingChaptersFor(entry)}>
+                            <List size={18} />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Remove Item from Library">
+                          <IconButton size="small" color="error" onClick={() => handleDeleteEntry(entry)}>
+                            <Trash2 size={18} />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
                     </Box>
                     <Typography variant="body2" color="textSecondary" gutterBottom>
                       {entry.resolution} • {entry.file_size ? (entry.file_size / (1024*1024)).toFixed(1) + ' MB' : 'Unknown Size'}

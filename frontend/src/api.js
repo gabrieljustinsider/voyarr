@@ -48,6 +48,41 @@ export const apiFetch = async (endpoint, options = {}) => {
   return response
 }
 
+// Opportunistic Abstraction: Attach HTTP verb methods to apiFetch for clean axios-like consumption
+apiFetch.get = async (endpoint, options = {}) => {
+  const res = await apiFetch(endpoint, { ...options, method: 'GET' })
+  if (!res.ok) throw res
+  return res.headers.get('content-type')?.includes('application/json') ? res.json().then(data => ({ data, status: res.status, headers: res.headers })) : res.text().then(data => ({ data, status: res.status, headers: res.headers }))
+}
+
+apiFetch.post = async (endpoint, body = {}, options = {}) => {
+  const isFormData = body instanceof FormData
+  const res = await apiFetch(endpoint, {
+    ...options,
+    method: 'POST',
+    body: isFormData ? body : JSON.stringify(body)
+  })
+  if (!res.ok) throw res
+  return res.headers.get('content-type')?.includes('application/json') ? res.json().then(data => ({ data, status: res.status, headers: res.headers })) : res.text().then(data => ({ data, status: res.status, headers: res.headers }))
+}
+
+apiFetch.put = async (endpoint, body = {}, options = {}) => {
+  const isFormData = body instanceof FormData
+  const res = await apiFetch(endpoint, {
+    ...options,
+    method: 'PUT',
+    body: isFormData ? body : JSON.stringify(body)
+  })
+  if (!res.ok) throw res
+  return res.headers.get('content-type')?.includes('application/json') ? res.json().then(data => ({ data, status: res.status, headers: res.headers })) : res.text().then(data => ({ data, status: res.status, headers: res.headers }))
+}
+
+apiFetch.delete = async (endpoint, options = {}) => {
+  const res = await apiFetch(endpoint, { ...options, method: 'DELETE' })
+  if (!res.ok) throw res
+  return res.headers.get('content-type')?.includes('application/json') ? res.json().then(data => ({ data, status: res.status, headers: res.headers })) : res.text().then(data => ({ data, status: res.status, headers: res.headers }))
+}
+
 export const getErrorMessage = async (response, defaultMsg = 'An error occurred') => {
   try {
     const contentType = response.headers.get('content-type')

@@ -673,6 +673,61 @@ def import_manual_entry(req: ImportManualRequest, db: Session = Depends(get_db),
                 detail="Forbidden: Cannot import files outside of the configured media roots.",
             )
         
+        if os.path.isdir(clean_path):
+            # User selected a directory! Recursively scan all subdirectories and import contained media files
+            media_exts = {".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m4v", ".ts", ".mp3", ".m4a", ".flac", ".wav", ".aac", ".ogg"}
+            provider_id = req.provider_id
+            if not provider_id:
+                from models import Provider
+                default_provider = db.query(Provider).filter(Provider.name == "Local / General").first()
+                if not default_provider:
+                    default_provider = Provider(name="Local / General", base_url="local://", description="Default provider for direct file picker imports")
+                    db.add(default_provider)
+                    db.commit()
+                    db.refresh(default_provider)
+                provider_id = default_provider.id
+
+            imported_count = 0
+            skipped_count = 0
+            for root_dir, _, files in os.walk(clean_path):
+                for f in files:
+                    ext = os.path.splitext(f)[1].lower()
+                    if ext in media_exts:
+                        full_file_path = os.path.join(root_dir, f)
+                        existing_file = db.query(LibraryEntry).filter(LibraryEntry.file_path == full_file_path).first()
+                        if existing_file:
+                            skipped_count += 1
+                            continue
+                        
+                        file_title = os.path.splitext(f)[0].replace("_", " ").replace("-", " ")
+                        try:
+                            f_size = os.path.getsize(full_file_path)
+                        except Exception:
+                            f_size = 0
+
+                        new_entry = LibraryEntry(
+                            provider_id=provider_id,
+                            title=file_title,
+                            file_path=full_file_path,
+                            performers=req.performers or [],
+                            tags=req.tags or [],
+                            duration=0,
+                            file_size=f_size,
+                            adheres_to_naming_scheme=False,
+                            has_metadata_match=False
+                        )
+                        db.add(new_entry)
+                        imported_count += 1
+
+            if imported_count > 0:
+                db.commit()
+
+            return {
+                "message": f"Successfully imported {imported_count} media files recursively ({skipped_count} skipped duplicates).",
+                "imported_count": imported_count,
+                "skipped_count": skipped_count
+            }
+
         # Pull file stats if not provided
         if not req.file_size:
             try:
