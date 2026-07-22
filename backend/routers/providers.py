@@ -17,23 +17,19 @@ router = APIRouter(
 @router.get("", response_model=List[ProviderResponse])
 def get_providers(db: Session = Depends(get_db)):
     providers = db.query(Provider).options(joinedload(Provider.default_biller)).all()
-    # Return a default provider if database is empty for testing purposes
-    if not providers:
-        return [
-            Provider(
-                id=1,
-                name="Example Provider",
-                base_url="https://example.com",
-                automatic_limits={"daily_downloads": 50},
-                naming_pattern="{title}_{performers}_{resolution}",
-                separator="_",
-                space_replacement="_",
-                logo_url=None,
-                favicon_url=None,
-                description=None
-            )
-        ]
-    return providers
+    filtered_providers = [p for p in providers if p.name != "Example Provider"]
+    
+    # If database only contains dummy Example Provider or is empty, run seed_default_data
+    if not filtered_providers:
+        try:
+            from seed_data import seed_default_data
+            seed_default_data(db.get_bind())
+            providers = db.query(Provider).options(joinedload(Provider.default_biller)).all()
+            filtered_providers = [p for p in providers if p.name != "Example Provider"]
+        except Exception as e:
+            print(f"Auto-seeding error in get_providers: {e}")
+            
+    return filtered_providers
 
 
 @router.get("/{provider_id}", response_model=ProviderResponse)

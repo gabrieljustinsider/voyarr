@@ -777,13 +777,13 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
           variant="outlined"
         />
       </Box>
-      <Grid container spacing={3} sx={{ justifyContent: 'center' }}>
+      <Grid container spacing={3} alignItems="stretch">
         {providers.map(provider => {
           const providerCookies = cookies.filter(c => c.provider_id === provider.id)
           
           return (
-            <Grid item xs={12} sm={6} md={4} key={provider.id}>
-              <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+            <Grid item xs={12} sm={6} md={4} lg={3} key={provider.id} sx={{ display: 'flex' }}>
+              <Card sx={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
                 <IconButton 
                   size="small" 
                   color="error" 

@@ -149,16 +149,17 @@ export default function Favorites() {
           </Typography>
         </Paper>
       ) : (
-        <Grid container spacing={3}>
+        <Grid container spacing={3} alignItems="stretch">
           {currentItems.map(item => {
             let displayName = item;
             if (currentType === 'studio') {
               displayName = studiosMap[item] || `Studio ID: ${item}`;
             }
             return (
-            <Grid item xs={12} sm={6} md={4} lg={3} key={item}>
+            <Grid item xs={12} sm={6} md={4} lg={3} key={item} sx={{ display: 'flex' }}>
               <Card sx={{ 
                 height: '100%', 
+                width: '100%',
                 display: 'flex', 
                 flexDirection: 'column',
                 position: 'relative',

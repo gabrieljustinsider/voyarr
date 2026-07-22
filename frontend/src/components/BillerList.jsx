@@ -123,11 +123,12 @@ export default function BillerList() {
         </Button>
       </Box>
 
-      <Grid container spacing={3}>
+      <Grid container spacing={3} alignItems="stretch">
         {billers.map(biller => (
-          <Grid item xs={12} sm={6} md={4} key={biller.id}>
+          <Grid item xs={12} sm={6} md={4} lg={3} key={biller.id} sx={{ display: 'flex' }}>
             <Card sx={{ 
               height: '100%', 
+              width: '100%',
               display: 'flex', 
               flexDirection: 'column', 
               borderRadius: '20px', 

@@ -306,14 +306,15 @@ export default function Studios() {
           <Typography color="textSecondary">No studio profiles found.</Typography>
         </Paper>
       ) : (
-        <Grid container spacing={3}>
+        <Grid container spacing={3} alignItems="stretch">
           {studios.map(studio => {
             const stringId = String(studio.id)
             const isFavorited = favStudios.includes(stringId)
             return (
-              <Grid item xs={12} sm={6} md={4} key={studio.id}>
+              <Grid item xs={12} sm={6} md={4} lg={3} key={studio.id} sx={{ display: 'flex' }}>
                 <Card sx={{ 
                   height: '100%', 
+                  width: '100%',
                   display: 'flex', 
                   flexDirection: 'column',
                   background: 'rgba(255, 255, 255, 0.02)',

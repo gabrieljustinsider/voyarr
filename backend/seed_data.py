@@ -164,6 +164,10 @@ def seed_default_data(engine):
                 ("General", "https://voyarr.local", "{title}", None, ["cookies", "direct", "api"], "Default provider for local media and direct imports.")
             ]
 
+            # Purge dummy fallback Example Provider if present
+            session.query(Provider).filter(Provider.name == "Example Provider").delete()
+            session.commit()
+
             seeded_providers = []
             for name, base_url, pattern, biller_name, methods, desc in providers_data:
                 biller_inst = biller_map.get(biller_name) if biller_name else None
