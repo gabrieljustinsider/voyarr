@@ -81,6 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const newProviderSpaceRepl = document.getElementById('newProviderSpaceRepl');
   const providerTransparentBg = document.getElementById('providerTransparentBg');
   const providerFitToCard = document.getElementById('providerFitToCard');
+  const newProviderDefaultBiller = document.getElementById('newProviderDefaultBiller');
   const saveProviderBtn = document.getElementById('saveProviderBtn');
   const cancelProviderEditBtn = document.getElementById('cancelProviderEditBtn');
   const providersToast = document.getElementById('providersToast');
@@ -1741,8 +1742,40 @@ document.addEventListener('DOMContentLoaded', () => {
   // PROVIDER CRUD MANAGEMENT FOR VOYARR LENS
   // ==========================================
 
+  let currentBillersList = [];
+
+  async function fetchBillersList() {
+    if (!newProviderDefaultBiller) return;
+    const config = await chrome.storage.local.get(['voyarrApiUrl', 'voyarrSecret']);
+    if (!config.voyarrApiUrl || !config.voyarrSecret) return;
+    try {
+      const baseUrl = config.voyarrApiUrl.replace(/\/$/, '');
+      const res = await fetch(`${baseUrl}/billers`, {
+        headers: {
+          'X-Voyarr-Api-Key': config.voyarrSecret,
+          'Accept': 'application/json'
+        }
+      });
+      if (res.ok) {
+        currentBillersList = await res.json();
+        const currentVal = newProviderDefaultBiller.value;
+        newProviderDefaultBiller.innerHTML = '<option value="">None (Direct Billing)</option>';
+        currentBillersList.forEach(b => {
+          const opt = document.createElement('option');
+          opt.value = b.id;
+          opt.textContent = b.name;
+          newProviderDefaultBiller.appendChild(opt);
+        });
+        if (currentVal) newProviderDefaultBiller.value = currentVal;
+      }
+    } catch (err) {
+      console.error("Failed to fetch billers:", err);
+    }
+  }
+
   // Fetch Providers List from active server
   async function fetchProvidersList() {
+    await fetchBillersList();
     const config = await chrome.storage.local.get(['voyarrApiUrl', 'voyarrSecret']);
     if (!config.voyarrApiUrl || !config.voyarrSecret) {
       renderProvidersList([]);
@@ -1811,7 +1844,24 @@ document.addEventListener('DOMContentLoaded', () => {
       nameRow.style.overflow = "hidden";
       nameRow.style.textOverflow = "ellipsis";
       nameRow.style.whiteSpace = "nowrap";
+      nameRow.style.display = "flex";
+      nameRow.style.alignItems = "center";
+      nameRow.style.gap = "6px";
       nameRow.textContent = p.name;
+
+      if (p.default_biller || p.default_biller_id) {
+        const billerName = p.default_biller ? p.default_biller.name : `Biller #${p.default_biller_id}`;
+        const billerBadge = document.createElement('span');
+        billerBadge.style.fontSize = "9px";
+        billerBadge.style.padding = "1px 5px";
+        billerBadge.style.borderRadius = "4px";
+        billerBadge.style.border = "1px solid rgba(236, 72, 153, 0.3)";
+        billerBadge.style.color = "#ec4899";
+        billerBadge.style.backgroundColor = "rgba(236, 72, 153, 0.08)";
+        billerBadge.style.fontWeight = "500";
+        billerBadge.textContent = billerName;
+        nameRow.appendChild(billerBadge);
+      }
 
       const urlDiv = document.createElement('div');
       urlDiv.style.color = "var(--text-muted)";
@@ -1907,6 +1957,9 @@ document.addEventListener('DOMContentLoaded', () => {
     newProviderSpaceRepl.value = provider.space_replacement || "_";
     providerTransparentBg.checked = !!provider.transparent_logo_bg;
     providerFitToCard.checked = !!provider.fit_logo_to_card;
+    if (newProviderDefaultBiller) {
+      newProviderDefaultBiller.value = provider.default_biller_id || "";
+    }
     
     // Save scraped properties to preserve them
     scrapedLogoUrl = provider.logo_url || null;
@@ -1934,6 +1987,9 @@ document.addEventListener('DOMContentLoaded', () => {
     newProviderSpaceRepl.value = "_";
     providerTransparentBg.checked = false;
     providerFitToCard.checked = false;
+    if (newProviderDefaultBiller) {
+      newProviderDefaultBiller.value = "";
+    }
     
     // Reset scraped properties
     scrapedLogoUrl = null;
@@ -2054,6 +2110,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       try {
         const logoUrlVal = newProviderLogoUrl ? newProviderLogoUrl.value.trim() : scrapedLogoUrl;
+        const defaultBillerVal = newProviderDefaultBiller && newProviderDefaultBiller.value ? parseInt(newProviderDefaultBiller.value, 10) : null;
         const payload = {
           name,
           base_url: baseUrlStr,
@@ -2062,6 +2119,7 @@ document.addEventListener('DOMContentLoaded', () => {
           space_replacement: spaceRepl,
           transparent_logo_bg: transparentBg,
           fit_logo_to_card: fitToCard,
+          default_biller_id: defaultBillerVal,
           automatic_limits: {},
           logo_url: logoUrlVal,
           favicon_url: scrapedFaviconUrl,

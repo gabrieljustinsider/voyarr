@@ -581,6 +581,13 @@
           <input type="text" id="newProviderSeparator" placeholder="Separator" value="_" style="padding: 8px 10px; font-size: 12px; flex: 1;" />
           <input type="text" id="newProviderSpaceRepl" placeholder="Space Replacement" value="_" style="padding: 8px 10px; font-size: 12px; flex: 1;" />
         </div>
+
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <label for="newProviderDefaultBiller" style="margin: 0; font-size: 11px;">Default Payment Gateway / Biller</label>
+          <select id="newProviderDefaultBiller" style="padding: 8px 10px; font-size: 12px; border-radius: 6px; background-color: var(--bg-secondary); color: var(--text-main); border: 1px solid var(--border-color);">
+            <option value="">None (Direct Billing)</option>
+          </select>
+        </div>
         
         <div style="display: flex; align-items: center; gap: 8px; font-size: 11px;">
           <input type="checkbox" id="providerTransparentBg" />
