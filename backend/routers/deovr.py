@@ -33,19 +33,9 @@ def verify_deovr_auth(
         try:
             import jwt
             from security import JWT_SECRET
-            keys_to_try = [JWT_SECRET]
-            env_secret = os.getenv("SECRET_KEY")
-            if env_secret and env_secret not in keys_to_try:
-                keys_to_try.append(env_secret)
-            keys_to_try.append("secret_key_change_me")
-
-            for skey in keys_to_try:
-                try:
-                    payload = jwt.decode(auth_token, skey, algorithms=["HS256"])
-                    if payload and "sub" in payload:
-                        return True
-                except Exception:
-                    continue
+            payload = jwt.decode(auth_token, JWT_SECRET, algorithms=["HS256"])
+            if payload and "sub" in payload:
+                return True
         except Exception:
             pass
 
@@ -59,19 +49,9 @@ def verify_deovr_auth(
         try:
             import jwt
             from security import JWT_SECRET
-            keys_to_try = [JWT_SECRET]
-            env_secret = os.getenv("SECRET_KEY")
-            if env_secret and env_secret not in keys_to_try:
-                keys_to_try.append(env_secret)
-            keys_to_try.append("secret_key_change_me")
-
-            for skey in keys_to_try:
-                try:
-                    payload = jwt.decode(header_key, skey, algorithms=["HS256"])
-                    if payload and "sub" in payload:
-                        return True
-                except Exception:
-                    continue
+            payload = jwt.decode(header_key, JWT_SECRET, algorithms=["HS256"])
+            if payload and "sub" in payload:
+                return True
         except Exception:
             pass
 
