@@ -309,31 +309,51 @@ def browse_directory(path: Optional[str] = Query(None)):
 
         is_writable = os.access(target_path, os.W_OK)
 
+        # Auto-ensure common media directories exist on system/container for file picker discovery
+        media_dirs_to_ensure = [
+            "/downloads", "/library", "/scan", "/secondary",
+            "/media/storage", "/media/secondary", "/media/downloads", "/media/library", "/media/scan",
+            "/data/secondary", "/data/downloads", "/data/library", "/data/scan"
+        ]
+        for d in media_dirs_to_ensure:
+            try:
+                os.makedirs(d, exist_ok=True)
+            except Exception:
+                pass
+
         # Detect accessible volumes and calculate free disk space
         import shutil
         standard_volumes = [
             {"label": "Root (/)", "path": "/"},
             {"label": "Storage", "path": "/media/storage"},
-            {"label": "Downloads", "path": "/downloads"},
+            {"label": "Secondary", "path": "/media/secondary" if os.path.exists("/media/secondary") else "/secondary"},
+            {"label": "Downloads", "path": "/downloads" if os.path.exists("/downloads") else "/media/downloads"},
+            {"label": "Library", "path": "/library" if os.path.exists("/library") else "/media/library"},
+            {"label": "Scan", "path": "/scan" if os.path.exists("/scan") else "/media/scan"},
             {"label": "Media", "path": "/media"},
             {"label": "Mounts", "path": "/mnt"},
             {"label": "App Root", "path": "/app"}
         ]
         volumes = []
+        seen_paths = set()
         for vol in standard_volumes:
-            if os.path.exists(vol["path"]) and os.path.isdir(vol["path"]):
+            p = vol["path"]
+            if p in seen_paths:
+                continue
+            if os.path.exists(p) and os.path.isdir(p):
+                seen_paths.add(p)
                 try:
-                    usage = shutil.disk_usage(vol["path"])
+                    usage = shutil.disk_usage(p)
                     free_gb = round(usage.free / (1024 ** 3), 1)
                     volumes.append({
                         "label": vol["label"],
-                        "path": vol["path"],
+                        "path": p,
                         "free_gb": free_gb
                     })
                 except Exception:
                     volumes.append({
                         "label": vol["label"],
-                        "path": vol["path"]
+                        "path": p
                     })
 
         return {

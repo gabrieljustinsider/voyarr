@@ -467,7 +467,10 @@ export default function PathPicker({
                 {(volumes.length > 0 ? volumes : [
                   { label: 'Root (/)', path: '/' },
                   { label: 'Storage', path: '/media/storage' },
+                  { label: 'Secondary', path: '/secondary' },
                   { label: 'Downloads', path: '/downloads' },
+                  { label: 'Library', path: '/library' },
+                  { label: 'Scan', path: '/scan' },
                   { label: 'Media', path: '/media' },
                   { label: 'Mounts', path: '/mnt' }
                 ]).map(vol => {
