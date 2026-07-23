@@ -156,7 +156,7 @@ export default function ScheduleManager() {
             <Grid item xs={12}>
               <TextField 
                 fullWidth size="small" name="name" label="Schedule Name" 
-                InputLabelProps={{ shrink: true }}
+                slotProps={{ inputLabel: { shrink: true } }}
                 value={formData.name} onChange={handleChange} required 
                 disabled={!scrapingEnabled}
               />
@@ -194,7 +194,7 @@ export default function ScheduleManager() {
             <Grid item xs={12}>
               <TextField 
                 fullWidth size="small" name="cron_expression" label="Cron Expression" 
-                InputLabelProps={{ shrink: true }}
+                slotProps={{ inputLabel: { shrink: true } }}
                 value={formData.cron_expression} onChange={handleChange} required 
                 helperText="e.g. 0 0 * * * (Daily at midnight)"
                 disabled={!scrapingEnabled}
@@ -203,7 +203,7 @@ export default function ScheduleManager() {
             <Grid item xs={12}>
               <TextField 
                 fullWidth size="small" name="target_url" label="Target URL (Channel/Playlist/Index)" 
-                InputLabelProps={{ shrink: true }}
+                slotProps={{ inputLabel: { shrink: true } }}
                 value={formData.target_url} onChange={handleChange} required 
                 disabled={!scrapingEnabled}
               />

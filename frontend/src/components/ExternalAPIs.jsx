@@ -621,7 +621,7 @@ export default function ExternalAPIs() {
           <TextField 
             fullWidth 
             value={generatedKey || ''} 
-            InputProps={{ 
+            slotProps={{ input: { 
               readOnly: true,
               endAdornment: (
                 <InputAdornment position="end">
@@ -630,7 +630,7 @@ export default function ExternalAPIs() {
                   </IconButton>
                 </InputAdornment>
               )
-            }} 
+            }}} 
           />
         </DialogContent>
         <DialogActions>

@@ -394,7 +394,7 @@ else:
                 onChange={(e) => setExportPassword(e.target.value)}
                 placeholder="Leave blank for unencrypted signed backup"
                 helperText="Secures your database tables utilizing AES-256 standard encryption (Fernet & PBKDF2)."
-                InputProps={{
+                slotProps={{ input: {
                   startAdornment: (
                     <InputAdornment position="start">
                       <LockIcon fontSize="small" sx={{ color: exportPassword ? 'var(--accent)' : 'text.secondary' }} />
@@ -407,7 +407,7 @@ else:
                       </IconButton>
                     </InputAdornment>
                   )
-                }}
+                }}}
               />
             </Box>
 
@@ -536,7 +536,7 @@ else:
                       value={restorePassword}
                       onChange={(e) => setRestorePassword(e.target.value)}
                       sx={{ mb: 2, '& .MuiInputBase-root': { backgroundColor: 'rgba(0,0,0,0.2)' } }}
-                      InputProps={{
+                      slotProps={{ input: {
                         endAdornment: (
                           <InputAdornment position="end">
                             <IconButton onClick={() => setShowRestorePassword(!showRestorePassword)} edge="end" size="small">
@@ -544,7 +544,7 @@ else:
                             </IconButton>
                           </InputAdornment>
                         )
-                      }}
+                      }}}
                     />
                     <Button
                       fullWidth

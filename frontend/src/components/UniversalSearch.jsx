@@ -174,7 +174,7 @@ export default function UniversalSearch() {
               value={universalQuery}
               onChange={(e) => setUniversalQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleUniversalSearch()}
-              InputProps={{
+              slotProps={{ input: {
                 endAdornment: (
                   <InputAdornment position="end">
                     <IconButton onClick={handleUniversalSearch} disabled={loading}>
@@ -182,7 +182,7 @@ export default function UniversalSearch() {
                     </IconButton>
                   </InputAdornment>
                 ),
-              }}
+              }}}
             />
             <Button 
               variant="contained" 

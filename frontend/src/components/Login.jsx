@@ -718,14 +718,14 @@ export default function Login() {
                 onChange={e => setUsername(e.target.value)}
                 placeholder="e.g. administrator"
                 required
-                InputProps={{
+                slotProps={{ input: {
                   startAdornment: (
                     <InputAdornment position="start">
                       <PersonIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
                     </InputAdornment>
                   ),
                   sx: { borderRadius: '10px' }
-                }}
+                }}}
               />
               <TextField
                 fullWidth
@@ -736,14 +736,14 @@ export default function Login() {
                 onChange={e => setPassword(e.target.value)}
                 placeholder="Min. 8 characters"
                 required
-                InputProps={{
+                slotProps={{ input: {
                   startAdornment: (
                     <InputAdornment position="start">
                       <LockIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
                     </InputAdornment>
                   ),
                   sx: { borderRadius: '10px' }
-                }}
+                }}}
               />
               <PasswordChecklist password={password} />
               <TextField
@@ -755,14 +755,14 @@ export default function Login() {
                 onChange={e => setConfirmPassword(e.target.value)}
                 placeholder="Re-enter password"
                 required
-                InputProps={{
+                slotProps={{ input: {
                   startAdornment: (
                     <InputAdornment position="start">
                       <LockIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
                     </InputAdornment>
                   ),
                   sx: { borderRadius: '10px' }
-                }}
+                }}}
               />
               <Button
                 fullWidth
@@ -848,7 +848,7 @@ export default function Login() {
                       value={passkeyConfig.passkeys_rp_name}
                       onChange={e => setPasskeyConfig({...passkeyConfig, passkeys_rp_name: e.target.value})}
                       helperText="The name shown on your device prompt when logging in."
-                      InputProps={{ sx: { borderRadius: '10px' } }}
+                      slotProps={{ input: { sx: { borderRadius: '10px' } } }}
                     />
                   </Grid>
 
@@ -860,7 +860,7 @@ export default function Login() {
                       onChange={e => setPasskeyConfig({...passkeyConfig, passkeys_rp_id: e.target.value})}
                       placeholder="e.g. example.com"
                       helperText="Domain that will be validated. Auto-populated with your current domain."
-                      InputProps={{ sx: { borderRadius: '10px' } }}
+                      slotProps={{ input: { sx: { borderRadius: '10px' } } }}
                     />
                   </Grid>
 
@@ -924,7 +924,7 @@ export default function Login() {
                       value={passkeyConfig.passkeys_timeout}
                       onChange={e => setPasskeyConfig({...passkeyConfig, passkeys_timeout: Number(e.target.value)})}
                       helperText="Maximum allowed time to complete scanner verification."
-                      InputProps={{ sx: { borderRadius: '10px' } }}
+                      slotProps={{ input: { sx: { borderRadius: '10px' } } }}
                     />
 
                     <FormControl fullWidth>
@@ -996,14 +996,14 @@ export default function Login() {
             placeholder="e.g. administrator"
             autoComplete="username webauthn"
             required 
-            InputProps={{
+            slotProps={{ input: {
               startAdornment: (
                 <InputAdornment position="start">
                   <PersonIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
                 </InputAdornment>
               ),
               sx: { borderRadius: '10px' }
-            }}
+            }}}
           />
           
           <TextField 
@@ -1016,14 +1016,14 @@ export default function Login() {
             onChange={e => setPassword(e.target.value)} 
             placeholder="••••••••"
             required 
-            InputProps={{
+            slotProps={{ input: {
               startAdornment: (
                 <InputAdornment position="start">
                   <LockIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
                 </InputAdornment>
               ),
               sx: { borderRadius: '10px' }
-            }}
+            }}}
           />
 
           <Button 

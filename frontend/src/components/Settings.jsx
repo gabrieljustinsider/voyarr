@@ -102,7 +102,7 @@ function PillListInput({ label, value, onChange, placeholder = "Type and press e
         onChange={(e) => setInputValue(e.target.value)}
         onKeyDown={handleKeyDown}
         helperText="Press Enter to add items to the list"
-        InputProps={{
+        slotProps={{ input: {
           startAdornment: pills.length > 0 ? (
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, p: 0.5 }}>
               {pills.map((pill) => (
@@ -115,7 +115,7 @@ function PillListInput({ label, value, onChange, placeholder = "Type and press e
               ))}
             </Box>
           ) : null
-        }}
+        }}}
       />
     </Box>
   )

@@ -547,8 +547,8 @@ function App() {
         MuiTextField: {
           defaultProps: {
             variant: 'outlined',
-            InputLabelProps: {
-              shrink: true
+            slotProps: {
+              inputLabel: { shrink: true }
             }
           },
           styleOverrides: {
@@ -1577,13 +1577,13 @@ function App() {
                     </Grid>
                     <Grid item xs={12} sm={3}>
                       <TextField fullWidth size="small" label="Primary Color" type="color"
-                        value={tempCustomThemeSettings.primary} InputLabelProps={{ shrink: true }}
+                        value={tempCustomThemeSettings.primary} slotProps={{ inputLabel: { shrink: true } }}
                         onChange={(e) => setTempCustomThemeSettings({...tempCustomThemeSettings, primary: e.target.value})}
                         sx={{ '& input': { padding: '4px 8px', height: '32px', cursor: 'pointer' } }} />
                     </Grid>
                     <Grid item xs={12} sm={3}>
                       <TextField fullWidth size="small" label="Secondary Color" type="color"
-                        value={tempCustomThemeSettings.secondary} InputLabelProps={{ shrink: true }}
+                        value={tempCustomThemeSettings.secondary} slotProps={{ inputLabel: { shrink: true } }}
                         onChange={(e) => setTempCustomThemeSettings({...tempCustomThemeSettings, secondary: e.target.value})}
                         sx={{ '& input': { padding: '4px 8px', height: '32px', cursor: 'pointer' } }} />
                     </Grid>

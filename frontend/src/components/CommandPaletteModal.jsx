@@ -77,7 +77,7 @@ export default function CommandPaletteModal({ open, onClose, onSelectTab, onRunQ
           placeholder="Type a command or search tabs... (Cmd + K)"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          InputProps={{
+          slotProps={{ input: {
             disableUnderline: true,
             startAdornment: (
               <InputAdornment position="start">
@@ -88,7 +88,7 @@ export default function CommandPaletteModal({ open, onClose, onSelectTab, onRunQ
               <Chip label="ESC" size="small" sx={{ fontSize: '0.65rem', fontWeight: 'bold', height: 20 }} />
             ),
             sx: { fontSize: '1.1rem', py: 0.5 }
-          }}
+          }}}
         />
       </Box>
 

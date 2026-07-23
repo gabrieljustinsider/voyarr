@@ -523,9 +523,9 @@ export default function SubscriptionManager() {
               placeholder="Search subscriptions by provider, tier, biller, or status..."
               value={subSearchQuery}
               onChange={(e) => setSubSearchQuery(e.target.value)}
-              InputProps={{
+              slotProps={{ input: {
                 startAdornment: <InputAdornment position="start"><Search size={18} /></InputAdornment>
-              }}
+              }}}
               sx={{ mb: 2, position: 'relative', zIndex: 1 }}
             />
 
@@ -733,7 +733,7 @@ export default function SubscriptionManager() {
                       isOptionEqualToValue={(option, value) => option?.id === value?.id}
                       value={providers.find(p => p.id === subForm.provider_id) || null}
                       onChange={(e, newValue) => setSubForm({ ...subForm, provider_id: newValue ? newValue.id : '', tier_id: '' })}
-                      renderInput={(params) => <TextField {...params} label="Media Provider" size="small" required InputProps={{ ...params.InputProps, startAdornment: <InputAdornment position="start" sx={{ pl: 1 }}><Globe size={16} /></InputAdornment> }} />}
+                      renderInput={(params) => <TextField {...params} label="Media Provider" size="small" required slotProps={{ input: { startAdornment: <InputAdornment position="start" sx={{ pl: 1 }}><Globe size={16} /></InputAdornment> } }} />}
                       fullWidth
                     />
                   </Grid>
@@ -745,7 +745,7 @@ export default function SubscriptionManager() {
                       value={tierOptions.find(t => t.id === subForm.tier_id) || tierOptions[0]}
                       onChange={(e, newValue) => setSubForm({ ...subForm, tier_id: newValue ? newValue.id : '' })}
                       disabled={!subForm.provider_id}
-                      renderInput={(params) => <TextField {...params} label="Subscription Tier" size="small" InputProps={{ ...params.InputProps, startAdornment: <InputAdornment position="start" sx={{ pl: 1 }}><Layers size={16} /></InputAdornment> }} />}
+                      renderInput={(params) => <TextField {...params} label="Subscription Tier" size="small" slotProps={{ input: { startAdornment: <InputAdornment position="start" sx={{ pl: 1 }}><Layers size={16} /></InputAdornment> } }} />}
                       fullWidth
                     />
                   </Grid>
@@ -756,7 +756,7 @@ export default function SubscriptionManager() {
                       isOptionEqualToValue={(option, value) => option?.value === value?.value}
                       value={STATUS_OPTIONS.find(o => o.value === subForm.status) || null}
                       onChange={(e, newValue) => setSubForm({ ...subForm, status: newValue ? newValue.value : 'active' })}
-                      renderInput={(params) => <TextField {...params} label="Status" size="small" InputProps={{ ...params.InputProps, startAdornment: <InputAdornment position="start" sx={{ pl: 1 }}><Activity size={16} /></InputAdornment> }} />}
+                      renderInput={(params) => <TextField {...params} label="Status" size="small" slotProps={{ input: { startAdornment: <InputAdornment position="start" sx={{ pl: 1 }}><Activity size={16} /></InputAdornment> } }} />}
                       fullWidth
                     />
                   </Grid>
@@ -773,11 +773,10 @@ export default function SubscriptionManager() {
                       size="small"
                       label="Total Cost"
                       type="number"
-                      InputLabelProps={{ shrink: true }}
                       inputProps={{ step: "0.01" }}
                       value={subForm.cost}
                       onChange={e => setSubForm({ ...subForm, cost: e.target.value })}
-                      InputProps={{ startAdornment: <InputAdornment position="start"><DollarSign size={16} /></InputAdornment> }}
+                      slotProps={{ inputLabel: { shrink: true }, input: { startAdornment: <InputAdornment position="start"><DollarSign size={16} /></InputAdornment> } }}
                     />
                   </Grid>
                   <Grid item xs={12} sm={6}>
@@ -787,7 +786,7 @@ export default function SubscriptionManager() {
                       isOptionEqualToValue={(option, value) => option?.value === value?.value}
                       value={TIMEFRAME_OPTIONS.find(o => o.value === subForm.billing_cycle) || null}
                       onChange={(e, newValue) => setSubForm({ ...subForm, billing_cycle: newValue ? newValue.value : 'monthly' })}
-                      renderInput={(params) => <TextField {...params} label="Timeframe" size="small" InputProps={{ ...params.InputProps, startAdornment: <InputAdornment position="start" sx={{ pl: 1 }}><Clock size={16} /></InputAdornment> }} />}
+                      renderInput={(params) => <TextField {...params} label="Timeframe" size="small" slotProps={{ input: { startAdornment: <InputAdornment position="start" sx={{ pl: 1 }}><Clock size={16} /></InputAdornment> } }} />}
                       fullWidth
                     />
                   </Grid>
@@ -798,7 +797,7 @@ export default function SubscriptionManager() {
                       isOptionEqualToValue={(option, value) => option?.id === value?.id}
                       value={billers.find(b => b.id === subForm.biller_id) || null}
                       onChange={(e, newValue) => setSubForm({ ...subForm, biller_id: newValue ? newValue.id : '' })}
-                      renderInput={(params) => <TextField {...params} label="Biller / Gateway" size="small" InputProps={{ ...params.InputProps, startAdornment: <InputAdornment position="start" sx={{ pl: 1 }}><CreditCard size={16} /></InputAdornment> }} />}
+                      renderInput={(params) => <TextField {...params} label="Biller / Gateway" size="small" slotProps={{ input: { startAdornment: <InputAdornment position="start" sx={{ pl: 1 }}><CreditCard size={16} /></InputAdornment> } }} />}
                       fullWidth
                     />
                   </Grid>
@@ -843,7 +842,7 @@ export default function SubscriptionManager() {
                       size="small"
                       type="datetime-local"
                       label="Start Date"
-                      InputLabelProps={{ shrink: true }}
+                      slotProps={{ inputLabel: { shrink: true } }}
                       value={subForm.start_date}
                       onChange={e => setSubForm({ ...subForm, start_date: e.target.value })}
                     />
@@ -854,7 +853,7 @@ export default function SubscriptionManager() {
                       size="small"
                       type="datetime-local"
                       label="Expiration / End Date"
-                      InputLabelProps={{ shrink: true }}
+                      slotProps={{ inputLabel: { shrink: true } }}
                       value={subForm.end_date}
                       onChange={e => setSubForm({ ...subForm, end_date: e.target.value })}
                     />
@@ -876,7 +875,7 @@ export default function SubscriptionManager() {
                       size="small"
                       type="datetime-local"
                       label="Trial Start"
-                      InputLabelProps={{ shrink: true }}
+                      slotProps={{ inputLabel: { shrink: true } }}
                       disabled={!subForm.is_trial}
                       value={subForm.trial_start}
                       onChange={e => setSubForm({ ...subForm, trial_start: e.target.value })}
@@ -888,7 +887,7 @@ export default function SubscriptionManager() {
                       size="small"
                       type="datetime-local"
                       label="Trial End"
-                      InputLabelProps={{ shrink: true }}
+                      slotProps={{ inputLabel: { shrink: true } }}
                       disabled={!subForm.is_trial}
                       value={subForm.trial_end}
                       onChange={e => setSubForm({ ...subForm, trial_end: e.target.value })}
@@ -959,7 +958,7 @@ export default function SubscriptionManager() {
                     size="small" 
                     label="Tier Name (e.g. Gold)" 
                     required
-                    InputLabelProps={{ shrink: true }}
+                    slotProps={{ inputLabel: { shrink: true } }}
                     value={newTier.name} 
                     onChange={e => setNewTier({...newTier, name: e.target.value})}
                   />
@@ -970,7 +969,7 @@ export default function SubscriptionManager() {
                     size="small" 
                     label="Price ($)" 
                     type="number" 
-                    InputLabelProps={{ shrink: true }}
+                    slotProps={{ inputLabel: { shrink: true } }}
                     inputProps={{ step: "0.01" }}
                     value={newTier.price} 
                     onChange={e => setNewTier({...newTier, price: parseFloat(e.target.value) || 0})}

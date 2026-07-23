@@ -49,6 +49,9 @@ import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import BlockIcon from '@mui/icons-material/Block'
 import FilterListIcon from '@mui/icons-material/FilterList'
+import DownloadIcon from '@mui/icons-material/Download'
+import SaveIcon from '@mui/icons-material/Save'
+import FileUploadIcon from '@mui/icons-material/FileUpload'
 import { apiFetch } from '../api'
 
 const CONTEXT_CONFIGS = {
@@ -389,7 +392,7 @@ export default function PathPicker({
             error={!!validationError}
             size="small"
             onBlur={() => { if (inputValue !== value) onChange(inputValue) }}
-            InputProps={{
+            slotProps={{ input: {
               ...params.InputProps,
               startAdornment: (
                 <React.Fragment>
@@ -405,7 +408,7 @@ export default function PathPicker({
                   {params.InputProps?.endAdornment}
                 </React.Fragment>
               )
-            }}
+            }}}
           />
         )}
       />
@@ -584,14 +587,14 @@ export default function PathPicker({
               placeholder="Search folders or files..."
               value={filterText}
               onChange={(e) => setFilterText(e.target.value)}
-              InputProps={{
+              slotProps={{ input: {
                 startAdornment: (
                   <InputAdornment position="start">
                     <SearchIcon sx={{ color: '#6b7280' }} />
                   </InputAdornment>
                 ),
                 sx: { backgroundColor: 'rgba(255, 255, 255, 0.03)', color: '#f3f4f6' }
-              }}
+              }}}
             />
 
             <Tooltip title={showHidden ? "Hide Hidden Files" : "Show Hidden Files"}>

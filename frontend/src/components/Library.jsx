@@ -1268,7 +1268,7 @@ export default function Library() {
               label="Set Resolution (e.g. 1080p, 4K)"
               value={bulkEditData.resolution}
               onChange={(e) => setBulkEditData(prev => ({ ...prev, resolution: e.target.value }))}
-              InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
+              slotProps={{ inputLabel: { style: { color: 'rgba(255,255,255,0.7)' } } }}
               inputProps={{ style: { color: 'white' } }}
             />
 
@@ -1277,7 +1277,7 @@ export default function Library() {
               label="Tags to Add (comma-separated)"
               value={bulkEditData.tags_to_add}
               onChange={(e) => setBulkEditData(prev => ({ ...prev, tags_to_add: e.target.value }))}
-              InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
+              slotProps={{ inputLabel: { style: { color: 'rgba(255,255,255,0.7)' } } }}
               inputProps={{ style: { color: 'white' } }}
             />
 
@@ -1286,7 +1286,7 @@ export default function Library() {
               label="Tags to Remove (comma-separated)"
               value={bulkEditData.tags_to_remove}
               onChange={(e) => setBulkEditData(prev => ({ ...prev, tags_to_remove: e.target.value }))}
-              InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
+              slotProps={{ inputLabel: { style: { color: 'rgba(255,255,255,0.7)' } } }}
               inputProps={{ style: { color: 'white' } }}
             />
 
@@ -1295,7 +1295,7 @@ export default function Library() {
               label="Performers to Add (comma-separated)"
               value={bulkEditData.performers_to_add}
               onChange={(e) => setBulkEditData(prev => ({ ...prev, performers_to_add: e.target.value }))}
-              InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
+              slotProps={{ inputLabel: { style: { color: 'rgba(255,255,255,0.7)' } } }}
               inputProps={{ style: { color: 'white' } }}
             />
 
@@ -1304,7 +1304,7 @@ export default function Library() {
               label="Performers to Remove (comma-separated)"
               value={bulkEditData.performers_to_remove}
               onChange={(e) => setBulkEditData(prev => ({ ...prev, performers_to_remove: e.target.value }))}
-              InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
+              slotProps={{ inputLabel: { style: { color: 'rgba(255,255,255,0.7)' } } }}
               inputProps={{ style: { color: 'white' } }}
             />
 
@@ -1399,7 +1399,7 @@ export default function Library() {
                   label="Provider context *"
                   placeholder="Search or type to create provider..."
                   required={!importData.provider_id && !importData.provider_name}
-                  InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
+                  slotProps={{ inputLabel: { style: { color: 'rgba(255,255,255,0.7)' } } }}
                 />
               )}
             />
@@ -1409,7 +1409,7 @@ export default function Library() {
               label="Title *"
               value={importData.title}
               onChange={(e) => setImportData(prev => ({ ...prev, title: e.target.value }))}
-              InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
+              slotProps={{ inputLabel: { style: { color: 'rgba(255,255,255,0.7)' } } }}
               inputProps={{ style: { color: 'white' } }}
               required
             />
@@ -1481,7 +1481,7 @@ export default function Library() {
                     {...params}
                     label="Studio"
                     placeholder="Search or type to create studio..."
-                    InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
+                    slotProps={{ inputLabel: { style: { color: 'rgba(255,255,255,0.7)' } } }}
                   />
                 )}
               />
@@ -1513,7 +1513,7 @@ export default function Library() {
                     {...params}
                     label="Resolution"
                     placeholder="Search or enter resolution..."
-                    InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
+                    slotProps={{ inputLabel: { style: { color: 'rgba(255,255,255,0.7)' } } }}
                   />
                 )}
               />
@@ -1556,7 +1556,7 @@ export default function Library() {
                   {...params}
                   label="Performers"
                   placeholder="Search existing performers or type new ones..."
-                  InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
+                  slotProps={{ inputLabel: { style: { color: 'rgba(255,255,255,0.7)' } } }}
                 />
               )}
             />
@@ -1598,7 +1598,7 @@ export default function Library() {
                   {...params}
                   label="Tags"
                   placeholder="Search existing tags or type new ones..."
-                  InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
+                  slotProps={{ inputLabel: { style: { color: 'rgba(255,255,255,0.7)' } } }}
                 />
               )}
             />
@@ -1610,7 +1610,7 @@ export default function Library() {
                 label="Duration (seconds)"
                 value={importData.duration}
                 onChange={(e) => setImportData(prev => ({ ...prev, duration: e.target.value }))}
-                InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
+                slotProps={{ inputLabel: { style: { color: 'rgba(255,255,255,0.7)' } } }}
                 inputProps={{ style: { color: 'white' } }}
               />
               <TextField
@@ -1619,7 +1619,7 @@ export default function Library() {
                 label="File size (bytes)"
                 value={importData.file_size}
                 onChange={(e) => setImportData(prev => ({ ...prev, file_size: e.target.value }))}
-                InputLabelProps={{ style: { color: 'rgba(255,255,255,0.7)' } }}
+                slotProps={{ inputLabel: { style: { color: 'rgba(255,255,255,0.7)' } } }}
                 inputProps={{ style: { color: 'white' } }}
               />
             </Box>
