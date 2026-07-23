@@ -86,37 +86,56 @@ export default function SidebarNav({ currentTab, onSelectTab, isCollapsed, onTog
       <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: isCollapsed ? 'center' : 'space-between' }}>
         {!isCollapsed && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Avatar 
+            <Box 
+              component="img" 
+              src="/app_icon.png" 
+              alt="Voyarr Logo" 
               sx={{ 
-                bgcolor: 'secondary.main', 
-                width: 36, 
-                height: 36, 
-                fontWeight: 'bold',
-                boxShadow: '0 0 16px rgba(236, 72, 153, 0.5)'
-              }}
-            >
-              V
-            </Avatar>
-            <Box>
-              <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.1, letterSpacing: -0.5 }}>
+                height: 32, 
+                width: 32, 
+                borderRadius: '8px', 
+                boxShadow: '0 2px 8px rgba(99, 102, 241, 0.3)',
+                transition: 'transform 0.3s ease',
+                '&:hover': {
+                  transform: 'rotate(15deg) scale(1.1)'
+                }
+              }} 
+            />
+            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
+              <Typography
+                variant="h6"
+                component="div"
+                sx={{
+                  fontFamily: "'Outfit', sans-serif",
+                  fontWeight: 900,
+                  letterSpacing: '1.5px',
+                  background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  lineHeight: 1.1
+                }}
+              >
                 VOYARR
               </Typography>
-              <Chip label="Dev Overhaul" size="small" color="secondary" sx={{ height: 16, fontSize: '0.6rem', fontWeight: 'bold' }} />
             </Box>
           </Box>
         )}
         {isCollapsed && (
-          <Avatar 
+          <Box 
+            component="img" 
+            src="/app_icon.png" 
+            alt="Voyarr Logo" 
             sx={{ 
-              bgcolor: 'secondary.main', 
-              width: 38, 
-              height: 38, 
-              fontWeight: 'bold',
-              boxShadow: '0 0 16px rgba(236, 72, 153, 0.5)'
-            }}
-          >
-            V
-          </Avatar>
+              height: 32, 
+              width: 32, 
+              borderRadius: '8px', 
+              boxShadow: '0 2px 8px rgba(99, 102, 241, 0.3)',
+              transition: 'transform 0.3s ease',
+              '&:hover': {
+                transform: 'rotate(15deg) scale(1.1)'
+              }
+            }} 
+          />
         )}
         <IconButton onClick={onToggleCollapse} size="small" sx={{ color: 'text.secondary', ml: isCollapsed ? 0 : 1 }}>
           {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
