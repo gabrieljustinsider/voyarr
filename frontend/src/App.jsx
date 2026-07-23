@@ -1024,18 +1024,19 @@ function App() {
     }
   }, [currentTabLabel, uiConfig.rememberLastTab])
 
-  // Restore last selected tab from localStorage if preference enabled
+  // Restore last selected tab from localStorage once on initial load if preference enabled
   useEffect(() => {
     if (uiConfig.rememberLastTab && visibleTabs.length > 0) {
       const savedTab = localStorage.getItem('voyarr_last_tab')
       if (savedTab) {
         const targetIdx = visibleTabs.findIndex(t => t.label === savedTab)
-        if (targetIdx >= 0 && targetIdx !== tabValue) {
+        if (targetIdx >= 0) {
           setTabValue(targetIdx)
         }
       }
     }
-  }, [uiConfig.rememberLastTab, visibleTabs])
+    // Only run when preferences first finish loading (uiConfig.rememberLastTab changes) or initial tabs load
+  }, [uiConfig.rememberLastTab])
 
   if (!isLoggedIn) {
     return (
