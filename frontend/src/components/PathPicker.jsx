@@ -47,10 +47,8 @@ import ViewModuleIcon from '@mui/icons-material/ViewModule'
 import BookmarkIcon from '@mui/icons-material/Bookmark'
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder'
 import VisibilityIcon from '@mui/icons-material/Visibility'
-import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
-import DownloadIcon from '@mui/icons-material/Download'
-import SaveIcon from '@mui/icons-material/Save'
-import FileUploadIcon from '@mui/icons-material/FileUpload'
+import BlockIcon from '@mui/icons-material/Block'
+import FilterListIcon from '@mui/icons-material/FilterList'
 import { apiFetch } from '../api'
 
 const CONTEXT_CONFIGS = {
@@ -182,11 +180,13 @@ export default function PathPicker({
     }
   }, [bookmarks])
 
+  const [showExcluded, setShowExcluded] = useState(true)
+
   const loadDirectory = async (targetPath, addToHistory = true) => {
     setBrowserLoading(true)
     setFetchError('')
     try {
-      const res = await doFetch(`${browseEndpoint}?path=${encodeURIComponent(targetPath)}`)
+      const res = await doFetch(`${browseEndpoint}?path=${encodeURIComponent(targetPath)}&show_excluded=${showExcluded}`)
       if (res.ok) {
         const data = await res.json()
         const newPath = data.current_path || targetPath
@@ -208,6 +208,22 @@ export default function PathPicker({
       setFetchError('Network error loading directory.')
     } finally {
       setBrowserLoading(false)
+    }
+  }
+
+  const handleToggleExclusion = async (folderPath, currentlyExcluded, e) => {
+    if (e) e.stopPropagation()
+    try {
+      const res = await doFetch('/api/settings/toggle-folder-exclusion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: folderPath, exclude: !currentlyExcluded })
+      })
+      if (res.ok) {
+        loadDirectory(currentPath, false)
+      }
+    } catch (err) {
+      console.error('Failed to toggle folder exclusion:', err)
     }
   }
 
@@ -465,14 +481,11 @@ export default function PathPicker({
               </Typography>
               <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                 {(volumes.length > 0 ? volumes : [
-                  { label: 'All Media (Unified)', path: '/media/unified' },
+                  { label: 'Media Library', path: '/media' },
                   { label: 'Root (/)', path: '/' },
-                  { label: 'Main Storage', path: '/media/storage' },
                   { label: 'Downloads', path: '/downloads' },
                   { label: 'Library', path: '/library' },
-                  { label: 'Scan', path: '/scan' },
-                  { label: 'Additional Storage', path: '/secondary' },
-                  { label: 'Media', path: '/media' },
+                  { label: 'Scan / Import', path: '/scan' },
                   { label: 'Mounts', path: '/mnt' }
                 ]).map(vol => {
                   const isActive = currentPath === vol.path || currentPath.startsWith(vol.path + '/')
@@ -587,6 +600,12 @@ export default function PathPicker({
               </IconButton>
             </Tooltip>
 
+            <Tooltip title={showExcluded ? "Hide Excluded Folders" : "Show Excluded Folders"}>
+              <IconButton size="small" onClick={() => { const next = !showExcluded; setShowExcluded(next); loadDirectory(currentPath, false); }} sx={{ color: showExcluded ? '#f59e0b' : '#9ca3af', border: '1px solid rgba(255,255,255,0.1)', p: 1 }}>
+                <BlockIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+
             {enableViewToggle && (
               <Box sx={{ display: 'flex', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', overflow: 'hidden' }}>
                 <IconButton size="small" onClick={() => setViewMode('list')} sx={{ color: viewMode === 'list' ? 'var(--accent, #6366f1)' : '#9ca3af', borderRadius: 0 }}>
@@ -661,7 +680,17 @@ export default function PathPicker({
             <Paper variant="outlined" sx={{ backgroundColor: 'rgba(0, 0, 0, 0.2)', borderColor: 'rgba(255,255,255,0.08)', maxHeight: 340, overflowY: 'auto' }}>
               <List disablePadding>
                 {filteredFolders.map(folder => (
-                  <ListItem key={folder.path} disablePadding>
+                  <ListItem
+                    key={folder.path}
+                    disablePadding
+                    secondaryAction={
+                      <Tooltip title={folder.is_excluded ? "Include folder in scanning" : "Exclude folder from scanning"}>
+                        <IconButton size="small" onClick={(e) => handleToggleExclusion(folder.path, folder.is_excluded, e)} sx={{ color: folder.is_excluded ? '#ef4444' : '#9ca3af' }}>
+                          <BlockIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    }
+                  >
                     <ListItemButton onClick={() => loadDirectory(folder.path)}>
                       {multiple && (
                         <Checkbox
@@ -671,8 +700,19 @@ export default function PathPicker({
                           size="small"
                         />
                       )}
-                      <ListItemIcon><FolderIcon sx={{ color: 'var(--accent, #6366f1)' }} /></ListItemIcon>
-                      <ListItemText primary={folder.name} primaryTypographyProps={{ fontWeight: 600 }} />
+                      <ListItemIcon><FolderIcon sx={{ color: folder.is_excluded ? '#ef4444' : 'var(--accent, #6366f1)' }} /></ListItemIcon>
+                      <ListItemText
+                        primary={
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 600, color: folder.is_excluded ? '#9ca3af' : 'inherit', textDecoration: folder.is_excluded ? 'line-through' : 'none' }}>
+                              {folder.name}
+                            </Typography>
+                            {folder.is_excluded && (
+                              <Chip label="Excluded" size="small" color="error" variant="outlined" sx={{ height: 18, fontSize: '0.65rem' }} />
+                            )}
+                          </Box>
+                        }
+                      />
                     </ListItemButton>
                   </ListItem>
                 ))}

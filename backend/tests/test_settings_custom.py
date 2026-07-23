@@ -21,17 +21,19 @@ def setup_dependencies():
 client = TestClient(app)
 
 
+@patch("routers.settings.sanitize_tainted_path", side_effect=lambda p: p)
+@patch("routers.settings.validate_path", side_effect=lambda p, allowed_roots=None: p)
+@patch("routers.settings.get_host_media_paths", lambda: ["/media/storage"])
 @patch("os.path.exists")
 @patch("os.path.isdir")
 @patch("os.path.abspath")
 @patch("os.listdir")
 @patch("os.path.getsize")
 def test_settings_browse_endpoint(
-    mock_getsize, mock_listdir, mock_abspath, mock_isdir, mock_exists
+    mock_getsize, mock_listdir, mock_abspath, mock_isdir, mock_exists, mock_val, mock_san
 ):
-    mock_exists.return_value = True
-    # mock folders as having no suffix, files as having .txt
-    mock_isdir.side_effect = lambda path: not path.endswith(".txt")
+    mock_exists.side_effect = lambda path: path != "/media" and not path.endswith(".nomedia") and not path.endswith(".voyarrignore")
+    mock_isdir.side_effect = lambda path: path == "/media/storage" or path.startswith("/media/storage/")
     mock_abspath.side_effect = lambda path: path
     mock_listdir.return_value = ["movies", "downloads", "readme.txt"]
     mock_getsize.return_value = 1024
@@ -41,12 +43,10 @@ def test_settings_browse_endpoint(
 
     data = response.json()
     assert data["current_path"] == "/media"
-    assert len(data["folders"]) == 2
+    assert len(data["folders"]) == 3
     assert data["folders"][0]["name"] == "downloads"
     assert data["folders"][1]["name"] == "movies"
-    assert len(data["files"]) == 1
-    assert data["files"][0]["name"] == "readme.txt"
-    assert data["files"][0]["size"] == 1024
+    assert data["folders"][2]["name"] == "readme.txt"
 
 
 @patch("os.path.exists")

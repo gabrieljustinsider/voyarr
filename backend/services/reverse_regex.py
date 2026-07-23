@@ -82,11 +82,35 @@ class ReverseRegexMatcher:
             pat = pattern or target_provider.naming_pattern or "{title}"
             providers_with_regex.append((target_provider, self.pattern_to_regex(pat)))
 
+        # Fetch global excluded subfolders from DB
+        excluded_set = set()
+        try:
+            from models import Settings
+            import json
+            setting = self.db.query(Settings).filter(Settings.key == "ignored_subfolders").first()
+            if setting and setting.value:
+                excluded_set = set(json.loads(str(setting.value)))
+        except Exception:
+            pass
+
         added = 0
         matched = 0
         errors = []
 
-        for root, _, files in os.walk(abs_real_dir):  # lgtm [py/path-injection]
+        for root, dirs, files in os.walk(abs_real_dir):  # lgtm [py/path-injection]
+            # Prune excluded directories in-place from os.walk
+            pruned_dirs = []
+            for d in list(dirs):
+                d_path = os.path.normpath(os.path.join(root, d))
+                has_nomedia = os.path.exists(os.path.join(d_path, ".nomedia")) or os.path.exists(os.path.join(d_path, ".voyarrignore"))
+                if d_path in excluded_set or has_nomedia:
+                    dirs.remove(d)
+
+            # Skip scanning current root if marked as excluded
+            norm_root = os.path.normpath(root)
+            if norm_root in excluded_set or os.path.exists(os.path.join(norm_root, ".nomedia")) or os.path.exists(os.path.join(norm_root, ".voyarrignore")):
+                continue
+
             for filename in files:
                 if not filename.lower().endswith((".mp4", ".mkv", ".avi", ".mov", ".webm")):
                     continue

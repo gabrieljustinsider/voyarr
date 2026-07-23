@@ -257,8 +257,51 @@ def run_network_diagnostic(db: Session = Depends(get_db)):
     return result
 
 
+def get_host_media_paths() -> list[str]:
+    """Find all valid paths defined by environment variables starting with HOST_MEDIA_PATH or mounted in /media."""
+    target_dirs = []
+    
+    # 1. Discover environment variables matching HOST_MEDIA_PATH*
+    for key, value in os.environ.items():
+        if key.upper().startswith("HOST_MEDIA_PATH") and value:
+            if os.path.exists(value) and os.path.isdir(value):
+                target_dirs.append(value)
+    
+    # 2. Discover container mount subdirectories under /media (excluding /media itself)
+    if os.path.exists("/media") and os.path.isdir("/media"):
+        for item in os.listdir("/media"):
+            sub_path = os.path.join("/media", item)
+            if os.path.isdir(sub_path) and sub_path != "/media":
+                target_dirs.append(sub_path)
+
+    # 3. Fallback default
+    if not target_dirs and os.path.exists("/media/storage") and os.path.isdir("/media/storage"):
+        target_dirs.append("/media/storage")
+
+    # Deduplicate while preserving order
+    deduped = []
+    for d in target_dirs:
+        norm = os.path.normpath(d)
+        if norm not in deduped and os.path.exists(norm) and os.path.isdir(norm):
+            deduped.append(norm)
+
+    return deduped
+
+
+def get_excluded_subfolders(db: Session) -> set[str]:
+    """Fetch user-configured excluded subfolders list from DB Settings."""
+    try:
+        setting = db.query(Settings).filter(Settings.key == "ignored_subfolders").first()
+        if setting and setting.value:
+            import json
+            return set(json.loads(str(setting.value)))
+    except Exception:
+        pass
+    return set()
+
+
 @router.get("/browse")
-def browse_directory(path: Optional[str] = Query(None)):
+def browse_directory(path: Optional[str] = Query(None), show_excluded: bool = Query(False), db: Session = Depends(get_db)):
     target_path = path if path else "/"
 
     try:
@@ -270,19 +313,17 @@ def browse_directory(path: Optional[str] = Query(None)):
     # Use the regex-based sanitizer to break the CodeQL taint trace!
     target_path = sanitize_tainted_path(target_path)
 
-    if not os.path.exists(target_path):
+    if not os.path.exists(target_path) and target_path not in ["/media"]:
         target_path = "/"
 
-    if not os.path.isdir(target_path):
+    if os.path.exists(target_path) and not os.path.isdir(target_path):
         target_path = os.path.dirname(target_path)
 
-    # Handle Unified Virtual Directory Aggregation (/media/unified)
-    if target_path in ["/media/unified", "/unified"]:
-        unified_dirs = [
-            "/media/storage", "/media/secondary", "/secondary",
-            "/downloads", "/media/downloads", "/library", "/media/library",
-            "/scan", "/media/scan"
-        ]
+    excluded_set = get_excluded_subfolders(db)
+
+    # Handle Unified Virtual Directory Aggregation (/media)
+    if target_path in ["/media", "/media/unified", "/unified"]:
+        unified_dirs = get_host_media_paths()
         merged_folders = {}
         merged_files = {}
 
@@ -295,11 +336,19 @@ def browse_directory(path: Optional[str] = Query(None)):
                         continue
                     full_path = os.path.join(root_dir, item)
                     full_path = sanitize_tainted_path(full_path)
+                    
+                    # Check exclusion markers
+                    has_nomedia = os.path.exists(os.path.join(full_path, ".nomedia")) or os.path.exists(os.path.join(full_path, ".voyarrignore"))
+                    is_excluded = full_path in excluded_set or has_nomedia
+
                     if os.path.isdir(full_path):
-                        if item not in merged_folders:
-                            merged_folders[item] = {"name": item, "path": full_path, "sources": [full_path]}
-                        else:
-                            merged_folders[item]["sources"].append(full_path)
+                        if not is_excluded or show_excluded:
+                            if item not in merged_folders:
+                                merged_folders[item] = {"name": item, "path": full_path, "sources": [full_path], "is_excluded": is_excluded}
+                            else:
+                                merged_folders[item]["sources"].append(full_path)
+                                if is_excluded:
+                                    merged_folders[item]["is_excluded"] = True
                     elif os.path.isfile(full_path):
                         if item not in merged_files:
                             try:
@@ -318,14 +367,11 @@ def browse_directory(path: Optional[str] = Query(None)):
         files_list = sorted(list(merged_files.values()), key=lambda x: x["name"].lower())
 
         standard_volumes = [
-            {"label": "All Media (Unified)", "path": "/media/unified"},
+            {"label": "Media Library", "path": "/media"},
             {"label": "Root (/)", "path": "/"},
-            {"label": "Main Storage", "path": "/media/storage"},
             {"label": "Downloads", "path": "/downloads" if os.path.exists("/downloads") else "/media/downloads"},
             {"label": "Library", "path": "/library" if os.path.exists("/library") else "/media/library"},
             {"label": "Scan / Import", "path": "/scan" if os.path.exists("/scan") else "/media/scan"},
-            {"label": "Additional Storage", "path": "/media/secondary" if os.path.exists("/media/secondary") else "/secondary"},
-            {"label": "Media", "path": "/media"},
             {"label": "Mounts", "path": "/mnt"}
         ]
         volumes = []
@@ -334,12 +380,12 @@ def browse_directory(path: Optional[str] = Query(None)):
             p = vol["path"]
             if p in seen_paths:
                 continue
-            if p == "/media/unified" or (os.path.exists(p) and os.path.isdir(p)):
+            if p == "/media" or (os.path.exists(p) and os.path.isdir(p)):
                 seen_paths.add(p)
                 volumes.append({"label": vol["label"], "path": p})
 
         return {
-            "current_path": "/media/unified",
+            "current_path": "/media",
             "parent_path": "/",
             "folders": folders_list,
             "files": files_list,
@@ -364,7 +410,10 @@ def browse_directory(path: Optional[str] = Query(None)):
             full_path = sanitize_tainted_path(full_path)
             try:
                 if os.path.isdir(full_path):
-                    folders.append({"name": item, "path": full_path})
+                    has_nomedia = os.path.exists(os.path.join(full_path, ".nomedia")) or os.path.exists(os.path.join(full_path, ".voyarrignore"))
+                    is_excluded = full_path in excluded_set or has_nomedia
+                    if not is_excluded or show_excluded:
+                        folders.append({"name": item, "path": full_path, "is_excluded": is_excluded})
                 else:
                     files.append(
                         {
@@ -383,9 +432,8 @@ def browse_directory(path: Optional[str] = Query(None)):
 
         # Auto-ensure common media directories exist on system/container for file picker discovery
         media_dirs_to_ensure = [
-            "/downloads", "/library", "/scan", "/secondary",
-            "/media/storage", "/media/secondary", "/media/downloads", "/media/library", "/media/scan",
-            "/data/secondary", "/data/downloads", "/data/library", "/data/scan"
+            "/downloads", "/library", "/scan",
+            "/media/storage", "/media/downloads", "/media/library", "/media/scan"
         ]
         for d in media_dirs_to_ensure:
             try:
@@ -396,14 +444,11 @@ def browse_directory(path: Optional[str] = Query(None)):
         # Detect accessible volumes and calculate free disk space
         import shutil
         standard_volumes = [
-            {"label": "All Media (Unified)", "path": "/media/unified"},
+            {"label": "Media Library", "path": "/media"},
             {"label": "Root (/)", "path": "/"},
-            {"label": "Main Storage", "path": "/media/storage"},
             {"label": "Downloads", "path": "/downloads" if os.path.exists("/downloads") else "/media/downloads"},
             {"label": "Library", "path": "/library" if os.path.exists("/library") else "/media/library"},
             {"label": "Scan / Import", "path": "/scan" if os.path.exists("/scan") else "/media/scan"},
-            {"label": "Additional Storage", "path": "/media/secondary" if os.path.exists("/media/secondary") else "/secondary"},
-            {"label": "Media", "path": "/media"},
             {"label": "Mounts", "path": "/mnt"},
             {"label": "App Root", "path": "/app"}
         ]
@@ -413,10 +458,10 @@ def browse_directory(path: Optional[str] = Query(None)):
             p = vol["path"]
             if p in seen_paths:
                 continue
-            if p == "/media/unified" or (os.path.exists(p) and os.path.isdir(p)):
+            if p == "/media" or (os.path.exists(p) and os.path.isdir(p)):
                 seen_paths.add(p)
                 try:
-                    free_gb = round(shutil.disk_usage(p if p != "/media/unified" else "/").free / (1024 ** 3), 1)
+                    free_gb = round(shutil.disk_usage(p if p != "/media" else "/").free / (1024 ** 3), 1)
                     volumes.append({
                         "label": vol["label"],
                         "path": p,
@@ -440,6 +485,37 @@ def browse_directory(path: Optional[str] = Query(None)):
         raise HTTPException(
             status_code=500, detail=f"Failed to browse directory: {str(e)}"
         )
+
+
+class FolderExclusionRequest(BaseModel):
+    path: str
+    exclude: bool = True
+
+
+@router.post("/toggle-folder-exclusion")
+def toggle_folder_exclusion(req: FolderExclusionRequest, db: Session = Depends(get_db)):
+    """Toggle a subfolder path in the global scan exclusion list."""
+    if not req.path:
+        raise HTTPException(status_code=400, detail="Path cannot be empty.")
+    
+    clean_path = os.path.normpath(req.path)
+    excluded_set = get_excluded_subfolders(db)
+
+    if req.exclude:
+        excluded_set.add(clean_path)
+    else:
+        excluded_set.discard(clean_path)
+
+    import json
+    setting = db.query(Settings).filter(Settings.key == "ignored_subfolders").first()
+    if not setting:
+        setting = Settings(key="ignored_subfolders", value=json.dumps(list(excluded_set)))
+        db.add(setting)
+    else:
+        setting.value = json.dumps(list(excluded_set))
+
+    db.commit()
+    return {"message": f"Folder '{clean_path}' exclusion status updated.", "excluded": clean_path in excluded_set, "ignored_subfolders": list(excluded_set)}
 
 
 class CreateFolderRequest(BaseModel):
