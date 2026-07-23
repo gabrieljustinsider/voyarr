@@ -448,6 +448,7 @@ def run_schema_migrations(engine: Any) -> None:
 
         # 7. Check & migrate missing table columns using abstract helper
         ensure_column_exists("download_queue", "user_id", "VARCHAR(64)")
+        ensure_column_exists("download_queue", "extraction_method", "VARCHAR(100)")
         ensure_column_exists("mass_rip_sessions", "user_id", "VARCHAR(64)")
 
         # Providers table columns

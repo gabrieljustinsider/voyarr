@@ -362,7 +362,7 @@ export default function Studios() {
                     
                     {studio.url && (
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
-                        <LinkIcon fontSize="small" color="primary" />
+                        <Link size={16} color="var(--accent, #6366f1)" />
                         <Typography 
                           variant="caption" 
                           component="a" 

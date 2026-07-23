@@ -193,9 +193,11 @@ export default function SidebarNav({ currentTab, onSelectTab, isCollapsed, onTog
                     {!isCollapsed && (
                       <ListItemText 
                         primary={item.label} 
-                        primaryTypographyProps={{ 
-                          fontSize: '0.875rem', 
-                          fontWeight: isSelected ? 700 : 500 
+                        slotProps={{
+                          primary: {
+                            fontSize: '0.875rem', 
+                            fontWeight: isSelected ? 700 : 500 
+                          }
                         }} 
                       />
                     )}

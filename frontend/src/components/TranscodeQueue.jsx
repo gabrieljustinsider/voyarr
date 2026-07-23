@@ -20,7 +20,7 @@ export default function TranscodeQueue() {
 
   const fetchJobs = useCallback(async () => {
     try {
-      const res = await apiFetch('/transcode/')
+      const res = await apiFetch('/transcode')
       if (res.ok) {
         const data = await res.json()
         setJobs(data)

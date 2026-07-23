@@ -83,7 +83,7 @@ export default defineConfig(({ mode }) => {
       https: getHttpsConfig(),
       proxy: {
         '/api': {
-          target: env.VITE_API_BASE_URL || 'http://backend:8000',
+          target: env.VITE_API_BASE_URL || 'http://localhost:8000',
           changeOrigin: true,
           secure: false, 
           rewrite: (path) => path.replace(/^\/api/, ''),
