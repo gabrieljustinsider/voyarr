@@ -44,3 +44,4 @@ voyarr-extension.zip
 .dev.vars*
 !.dev.vars.example
 !.env.example
+backend/voyarr.db
