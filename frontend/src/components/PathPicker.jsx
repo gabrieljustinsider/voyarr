@@ -465,12 +465,13 @@ export default function PathPicker({
               </Typography>
               <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                 {(volumes.length > 0 ? volumes : [
+                  { label: 'All Media (Unified)', path: '/media/unified' },
                   { label: 'Root (/)', path: '/' },
-                  { label: 'Storage', path: '/media/storage' },
-                  { label: 'Secondary', path: '/secondary' },
+                  { label: 'Main Storage', path: '/media/storage' },
                   { label: 'Downloads', path: '/downloads' },
                   { label: 'Library', path: '/library' },
                   { label: 'Scan', path: '/scan' },
+                  { label: 'Additional Storage', path: '/secondary' },
                   { label: 'Media', path: '/media' },
                   { label: 'Mounts', path: '/mnt' }
                 ]).map(vol => {

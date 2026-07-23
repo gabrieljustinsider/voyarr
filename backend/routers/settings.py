@@ -276,6 +276,78 @@ def browse_directory(path: Optional[str] = Query(None)):
     if not os.path.isdir(target_path):
         target_path = os.path.dirname(target_path)
 
+    # Handle Unified Virtual Directory Aggregation (/media/unified)
+    if target_path in ["/media/unified", "/unified"]:
+        unified_dirs = [
+            "/media/storage", "/media/secondary", "/secondary",
+            "/downloads", "/media/downloads", "/library", "/media/library",
+            "/scan", "/media/scan"
+        ]
+        merged_folders = {}
+        merged_files = {}
+
+        for root_dir in unified_dirs:
+            if not os.path.exists(root_dir) or not os.path.isdir(root_dir):
+                continue
+            try:
+                for item in os.listdir(root_dir):
+                    if item.startswith("."):
+                        continue
+                    full_path = os.path.join(root_dir, item)
+                    full_path = sanitize_tainted_path(full_path)
+                    if os.path.isdir(full_path):
+                        if item not in merged_folders:
+                            merged_folders[item] = {"name": item, "path": full_path, "sources": [full_path]}
+                        else:
+                            merged_folders[item]["sources"].append(full_path)
+                    elif os.path.isfile(full_path):
+                        if item not in merged_files:
+                            try:
+                                size = os.path.getsize(full_path)
+                            except Exception:
+                                size = 0
+                            merged_files[item] = {
+                                "name": item,
+                                "path": full_path,
+                                "size": size
+                            }
+            except Exception:
+                continue
+
+        folders_list = sorted(list(merged_folders.values()), key=lambda x: x["name"].lower())
+        files_list = sorted(list(merged_files.values()), key=lambda x: x["name"].lower())
+
+        standard_volumes = [
+            {"label": "All Media (Unified)", "path": "/media/unified"},
+            {"label": "Root (/)", "path": "/"},
+            {"label": "Main Storage", "path": "/media/storage"},
+            {"label": "Downloads", "path": "/downloads" if os.path.exists("/downloads") else "/media/downloads"},
+            {"label": "Library", "path": "/library" if os.path.exists("/library") else "/media/library"},
+            {"label": "Scan / Import", "path": "/scan" if os.path.exists("/scan") else "/media/scan"},
+            {"label": "Additional Storage", "path": "/media/secondary" if os.path.exists("/media/secondary") else "/secondary"},
+            {"label": "Media", "path": "/media"},
+            {"label": "Mounts", "path": "/mnt"}
+        ]
+        volumes = []
+        seen_paths = set()
+        for vol in standard_volumes:
+            p = vol["path"]
+            if p in seen_paths:
+                continue
+            if p == "/media/unified" or (os.path.exists(p) and os.path.isdir(p)):
+                seen_paths.add(p)
+                volumes.append({"label": vol["label"], "path": p})
+
+        return {
+            "current_path": "/media/unified",
+            "parent_path": "/",
+            "folders": folders_list,
+            "files": files_list,
+            "volumes": volumes,
+            "is_writable": True,
+            "is_unified": True
+        }
+
     try:
         parent_path = os.path.dirname(target_path)
         if parent_path == target_path:
@@ -324,12 +396,13 @@ def browse_directory(path: Optional[str] = Query(None)):
         # Detect accessible volumes and calculate free disk space
         import shutil
         standard_volumes = [
+            {"label": "All Media (Unified)", "path": "/media/unified"},
             {"label": "Root (/)", "path": "/"},
-            {"label": "Storage", "path": "/media/storage"},
-            {"label": "Secondary", "path": "/media/secondary" if os.path.exists("/media/secondary") else "/secondary"},
+            {"label": "Main Storage", "path": "/media/storage"},
             {"label": "Downloads", "path": "/downloads" if os.path.exists("/downloads") else "/media/downloads"},
             {"label": "Library", "path": "/library" if os.path.exists("/library") else "/media/library"},
-            {"label": "Scan", "path": "/scan" if os.path.exists("/scan") else "/media/scan"},
+            {"label": "Scan / Import", "path": "/scan" if os.path.exists("/scan") else "/media/scan"},
+            {"label": "Additional Storage", "path": "/media/secondary" if os.path.exists("/media/secondary") else "/secondary"},
             {"label": "Media", "path": "/media"},
             {"label": "Mounts", "path": "/mnt"},
             {"label": "App Root", "path": "/app"}
@@ -340,11 +413,10 @@ def browse_directory(path: Optional[str] = Query(None)):
             p = vol["path"]
             if p in seen_paths:
                 continue
-            if os.path.exists(p) and os.path.isdir(p):
+            if p == "/media/unified" or (os.path.exists(p) and os.path.isdir(p)):
                 seen_paths.add(p)
                 try:
-                    usage = shutil.disk_usage(p)
-                    free_gb = round(usage.free / (1024 ** 3), 1)
+                    free_gb = round(shutil.disk_usage(p if p != "/media/unified" else "/").free / (1024 ** 3), 1)
                     volumes.append({
                         "label": vol["label"],
                         "path": p,
