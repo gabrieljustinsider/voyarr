@@ -1,6 +1,6 @@
 # Terms of Service for Voyarr
 
-**Last Updated:** June 14, 2026
+**Last Updated:** July 23, 2026
 
 Please read these Terms of Service ("Terms") carefully before using the Voyarr software ("the Software"). Your access to and use of the Software is conditioned on your acceptance of and compliance with these Terms.
 
@@ -20,6 +20,8 @@ Voyarr is a tool for managing digital media. You acknowledge and agree that:
 *   The developers of Voyarr have no control over and assume no responsibility for the content you manage.
 *   You must comply with all applicable local, state, national, and international laws and regulations regarding copyright, intellectual property, and content legality in your jurisdiction.
 *   The Software is intended for use with legally owned or licensed content. It is your responsibility to ensure you have the legal right to download and store any media you acquire using the Software.
+*   **External API Keys:** If you generate API keys for third-party access to your Voyarr instance, you are responsible for safeguarding those keys and for all actions taken using them.
+*   **Subscription Tracking:** The Software provides tools to track media service subscriptions and billing information you enter. You are responsible for the accuracy of this data. The Software does not process, validate, or connect to any payment provider on your behalf.
 
 ## 4. Security
 

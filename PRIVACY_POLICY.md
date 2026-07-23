@@ -1,6 +1,6 @@
 # Privacy Policy for Voyarr
 
-**Last Updated:** June 17, 2026
+**Last Updated:** July 23, 2026
 
 This Privacy Policy describes how your personal information is handled in the Voyarr software. As Voyarr is a self-hosted application, it's important to understand that we, the developers of Voyarr, do not collect or have access to your data. Your data remains on your own server.
 
@@ -19,9 +19,11 @@ The Voyarr software, running on your server, stores and processes the following 
 *   **Password Manager Tokens:** Connection tokens for 1Password and Bitwarden are similarly encrypted at rest via AES-256-GCM and stored in the secure Vault.
 *   **User Accounts:** If you utilize the Multi-User RBAC system, user profile details (such as usernames, display names, custom avatar URLs, hashed passwords, and regional/display preferences) are stored locally in your database. If you authenticate or link via Single Sign-On (SSO) providers (Google, GitHub, or Discord), these profile details (such as your display name and avatar image URL) may be automatically synchronized from the provider's OAuth metadata into your local profile settings.
 *   **Passkeys (WebAuthn metadata):** Cryptographic public keys and associated connection metadata (AAGUID, browser, OS, registered IP address, and domain/Relying Party ID) are stored in your database to secure, display, and verify passwordless login bindings.
-*   **Configuration Data:** Settings, download rules, schedules, provider configurations, and other operational data are stored in your database.
-*   **Media Metadata:** Information about media files, such as titles, performers, tags, and file hashes (ohash/phash), is stored in your database. This data is either generated from your local files, or securely collected from third-party sites at your explicit direction (via configured administrative scraping tools).
-*   **Session & API Keys:** Session cookies for providers and API keys you generate for third-party access are stored in your database.
+*   **Configuration Data:** Settings, download rules, schedules, provider configurations, naming patterns, subfolder scan exclusion rules, and other operational data are stored in your database.
+*   **Media Metadata:** Information about media files, such as titles, performers, tags, studios, and file hashes (ohash/phash), is stored in your database. This data is either generated from your local files, or securely collected from third-party sites at your explicit direction (via configured administrative scraping tools).
+*   **Download Queue Data:** Per-item download metadata including status, URL, extraction method, and associated user ID are stored in your database. The `extraction_method` field records which download engine (e.g., yt-dlp preset) was used for each item.
+*   **Subscription & Billing Records:** Subscription tier, billing cycle, cost, start/end dates, and linked biller gateway data you enter are stored locally in your database. No payment card data is stored or processed by Voyarr.
+*   **Session & API Keys:** Session cookies for providers and external API keys you generate for third-party access are stored in your database. External API keys are stored as cryptographic hashes only — the plaintext key is displayed once on creation and is never recoverable from the database.
 
 ## 3. Browser Extension
 

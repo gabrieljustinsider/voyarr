@@ -1,19 +1,26 @@
 # Voyarr
 
-Voyarr is a self-hosted media player and library management system for adult video collections. Stream directly from your subscriptions and organize your personal library in one place.
+> **v1.100.1** — Self-hosted media server and library management system for adult video collections.
 
-User Guide is available at [USER_GUIDE.md](USER_GUIDE.md). Troubleshooting help at [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
+Voyarr unifies your subscriptions, local files, and metadata into one interface. Stream from your subscriptions, organize your personal library, and automate downloads — all from a single self-hosted dashboard.
+
+- **User Guide**: [USER_GUIDE.md](USER_GUIDE.md)
+- **Troubleshooting**: [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+- **Security Policy**: [SECURITY.md](SECURITY.md)
+- **Privacy Policy**: [PRIVACY_POLICY.md](PRIVACY_POLICY.md)
+
+---
 
 ## System Architecture
 
 Voyarr is composed of five independently deployable layers:
 
 | Layer | Role | Deployment targets |
-|-------|------|-------------------|
-| **Frontend** | React PWA with Material UI | `docker`, `cloudflare-pages` |
+|-------|------|--------------------|
+| **Frontend** | React 19 PWA with Material UI v9 | `docker`, `cloudflare-pages` |
 | **Backend API** | Python FastAPI server | `docker` |
 | **Workers** | Celery task queue (downloads, transcodes, AI) | `docker` |
-| **Database** | PostgreSQL 15 | `docker`, `neon` |
+| **Database** | PostgreSQL 15 or Neon serverless | `docker`, `neon` |
 | **Scraper Browser** | Headless Chrome for metadata scraping | `docker`, `browserless-io` |
 
 Each layer has an independent target variable in your `.env` file:
@@ -30,7 +37,7 @@ When a layer is set to `docker`, it runs as a container managed by Docker Compos
 
 ### Volume Architecture
 
-System data uses Docker named volumes (managed by Docker, no manual folder creation needed):
+System data uses Docker named volumes (managed by Docker — no manual folder creation needed):
 
 | Volume | Mount point | Purpose |
 |--------|-------------|---------|
@@ -42,11 +49,13 @@ System data uses Docker named volumes (managed by Docker, no manual folder creat
 User-managed data uses bind mounts — you specify the host paths:
 
 | Variable | Container path | Purpose |
-|----------|---------------|---------|
-| `HOST_MEDIA_PATH_1` | `/media/storage` | Primary media library |
+|----------|----------------|---------|
+| `HOST_MEDIA_PATH_1` | `/media/storage` | Primary media library (Main Storage) |
 | `HOST_MEDIA_PATH_2` | `/media/storage_alt1` | Additional media drive |
 | `HOST_MEDIA_PATH_3` | `/media/storage_alt2` | Additional media drive |
 | `DEFAULT_DOWNLOAD_PATH` | (under media) | Download destination |
+
+All configured paths are also aggregated and exposed as a **unified virtual media directory** at `/media/unified`, allowing the backend to treat your entire library as a single tree regardless of how many drives you have.
 
 ### Secrets Management
 
@@ -69,12 +78,15 @@ op inject -i .env -o .env.portainer --force
 
 Load this into Portainer's environment variables, or any other deployment target that reads plaintext `.env` files. Keep the original `.env` with `op://` refs committed — it contains no actual secrets.
 
+---
+
 ## Quick Start
 
 ### Prerequisites
 
 - Docker and Docker Compose (v2)
 - Git
+- Node.js 22+ (for deploy scripts and version management)
 
 ### Setup
 
@@ -92,7 +104,7 @@ Load this into Portainer's environment variables, or any other deployment target
 3. Configure `.env` with your settings. At minimum:
    - `MASTER_KEY` — 32-byte hex key for credential encryption
    - `SECRET_KEY` — JWT signing secret
-   - `HOST_MEDIA_PATH_1` — path to your media directory
+   - `HOST_MEDIA_PATH_1` — path to your primary media directory
    - Choose deployment targets for each layer
 
 4. Deploy all layers:
@@ -110,7 +122,9 @@ Load this into Portainer's environment variables, or any other deployment target
 
 5. Access the web UI at `http://localhost:80` (or the port configured in `FRONTEND_PORT`).
 
-### Deploying with Docker only (all layers local)
+6. **First run**: The first account you register is automatically assigned the **admin** role.
+
+### Docker-only (all layers local)
 
 ```bash
 # Start the full stack
@@ -120,7 +134,7 @@ npm run up
 npm run down
 ```
 
-### Deploying with Cloudflare Pages frontend + Neon database
+### Cloudflare Pages frontend + Neon database
 
 Set in `.env`:
 ```env
@@ -157,6 +171,8 @@ Or deploy with the tunnel automatically:
 npm run up  # includes cloudflared container when FRONTEND_TARGET is not docker
 ```
 
+---
+
 ## Deployment Drivers
 
 Each layer's deployment system follows a driver pattern:
@@ -168,22 +184,50 @@ deploy/<layer>/<target>.sh   # Driver for a specific target
 
 To add a new deployment target (e.g., `database/supabase.sh`), create a driver script that exports a `deploy_database()` function.
 
+---
+
 ## Core Features
 
-- Multi-user RBAC with admin, user, and viewer roles
-- WebAuthn passkey authentication, SSO (Google, GitHub, Discord), and OIDC
-- Automated media scraping and metadata management
-- Celery-backed task queue with pause/resume support
-- Download rules with multi-criteria filtering (performers, categories, resolution)
-- Perceptual video hashing (phash) for duplicate detection
-- FFmpeg transcoding engine with H.265 support
-- Cron-scheduled library scans and P2P sync between Voyarr nodes
-- Discord bot with slash commands for remote administration
-- Outbound webhooks for scan/transcode completion events
-- Backup and restore with automated scheduling
-- Chrome browser extension (Voyarr Lens) for CSS selector mapping
-- Studio modeling, chapter management, and facial recognition clustering
-- **Universal video/audio playback** via `SmartVideoPlayer` — auto-detects HLS, MPEG-DASH, and native HTML5 formats with lazy-loaded hls.js / dash.js
+### Media Hub
+- **Library**: Browse, search, filter, and stream your entire media collection with advanced faceted search
+- **Universal Search**: Search across local media, remote databases, and active subscription platforms simultaneously
+- **Favorites**: Bookmark and curate preferred content
+- **Live Streams**: Real-time streaming from configured providers
+
+### Operations & Queues
+- **Download Queue**: Celery-backed task queue with pause/resume and per-item extraction method tracking
+- **Transcode Queue**: FFmpeg transcoding engine with H.264/H.265/AV1 output support
+- **Mass Ripper**: Batch-rip entire provider channels, playlists, and indexes
+- **Subscriptions**: Track, manage, and monitor all your media service subscriptions with billing cycle tracking
+- **Download Rules**: Multi-criteria download automation (performers, categories, resolution, studio)
+
+### Metadata & Intelligence
+- **Media Providers**: Configure and manage subscription platforms and their CSS scraping maps
+- **Payment Billers**: Track billing gateways and payment history per subscription
+- **Studios**: Studio and network management with logo, website, and metadata support
+- **Metadata Manager**: Automated metadata enrichment from StashDB, ThePornDB, and custom scrapers
+- **Duplicates Engine**: Perceptual video hashing (phash/ohash) for duplicate detection and deduplication
+- **Scraper Tester**: Live CSS selector testing and recipe validation tool
+
+### System Administration
+- **User Management**: Multi-user RBAC with Admin, User, and Viewer roles
+- **P2P Sync Nodes**: Sync library metadata between Voyarr instances on your network
+- **External API Keys**: Generate and revoke API keys for third-party integrations
+- **Backup Manager**: Automated and manual database backup/restore with AES-256 encrypted exports
+- **System Logs**: Live log viewer for all backend services
+- **System Status**: Real-time service health monitoring
+
+### Authentication
+- **Passkeys (WebAuthn)**: Passwordless login with biometrics or hardware security keys; full Conditional UI (autofill mediation) support
+- **SSO**: Google, GitHub, and Discord OAuth login with secure account linking
+- **OIDC**: Connect any OpenID Connect-compliant identity provider (Keycloak, Authentik, Azure AD, Okta)
+- **Trusted Subnet Bypass**: Skip login for trusted local network CIDR ranges
+- **Command Palette**: App-wide keyboard navigation via `Cmd/Ctrl + K`
+
+### Browser Extension
+- **Voyarr Lens** (Chrome Extension, Manifest V3): Visual CSS selector mapping for metadata scraping with a Map Mode picker, default biller integration, and webcam support
+
+---
 
 ## Video Playback
 
@@ -210,7 +254,32 @@ Voyarr uses a `SmartVideoPlayer` component that automatically detects the correc
 - **Safari / iOS**: HLS is played natively without loading hls.js
 - **Error surfacing**: Codec errors, network errors, and unsupported formats show clear, actionable messages
 
+### WebXR / VR Playback
+
+The player supports immersive WebXR virtual reality playback (Three.js, lazy-loaded from CDN). When accessing from a VR headset (Meta Quest, Apple Vision Pro):
+- An **Enter Immersive VR** button appears if WebXR is supported
+- Toggle between **Flat Screen**, **180° Dome**, and **360° Sphere** projections
+- **Stereo SBS** (Side-by-Side) for stereoscopic content
+- Requires a **secure context** (HTTPS or localhost)
+
 ### Maximizing Compatibility
 
 For the widest browser compatibility, use the **Transcode Queue** to convert any file to **MP4 with H.264 video and AAC audio**. MP4/H.264 plays in every modern browser on every platform without additional codecs.
 
+---
+
+## Changelog Highlights
+
+| Version | Highlights |
+|---------|-----------|
+| **v1.100.x** | MUI v9 full migration (`slotProps`), Grid v2 props, extraction_method DB column, Vite proxy localhost fallback |
+| **v1.96.x** | Tab restoration dependency loop fix; app stability improvements |
+| **v1.95.x** | Unified media directory (`/media/unified`) with subfolder scan exclusion controls |
+| **v1.94.x** | Multi-drive storage aggregation; Main Storage / Additional Storage labeling |
+| **v1.93.x** | Auto-ensure storage volumes in file picker and backend directory browser |
+| **v1.92.x** | `autoComplete` attributes on auth inputs; KeyIcon import fix |
+| **v1.91.x** | `lazyWithRetry` + `ErrorBoundary` auto-recovery for stale asset chunk hashes |
+| **v1.79.x** | Library item removal; recursive folder media import with query-token stream auth |
+| **v1.77.x** | Abstract database auto-migration system; Cloudflare Worker route proxy expansion |
+| **v1.73.x** | Provider auto-seeding; balanced card grid layouts |
+| **v1.68.x** | Voyarr Lens: default biller integration, webcam support, universal host permissions |
