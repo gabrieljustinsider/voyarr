@@ -106,6 +106,7 @@ export default function Dashboard() {
             icon={Download}
             variant="primary"
             subtitle="All-time queued & processed"
+            onClick={() => window.location.hash = 'download_queue'}
           />
         </Grid>
         <Grid xs={12} sm={6} md={3}>
@@ -115,6 +116,7 @@ export default function Dashboard() {
             icon={CheckCircle2}
             variant="success"
             subtitle="Successfully downloaded"
+            onClick={() => window.location.hash = 'download_queue'}
           />
         </Grid>
         <Grid xs={12} sm={6} md={3}>
@@ -124,6 +126,7 @@ export default function Dashboard() {
             icon={PlayCircle}
             variant="warning"
             subtitle="Active tasks in progress"
+            onClick={() => window.location.hash = 'download_queue'}
           />
         </Grid>
         <Grid xs={12} sm={6} md={3}>
@@ -133,6 +136,7 @@ export default function Dashboard() {
             icon={AlertCircle}
             variant="error"
             subtitle="Tasks requiring attention"
+            onClick={() => window.location.hash = 'download_queue'}
           />
         </Grid>
       </Grid>

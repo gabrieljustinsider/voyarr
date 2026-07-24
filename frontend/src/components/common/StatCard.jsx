@@ -36,12 +36,13 @@ export default function StatCard({
   icon: Icon, 
   variant = 'primary',
   subtitle,
-  animate = true 
+  animate = true,
+  onClick
 }) {
   const themeColors = COLOR_MAP[variant] || COLOR_MAP.primary
 
   return (
-    <GlassCard animate={animate} hoverEffect sx={{ height: '100%', position: 'relative', overflow: 'hidden' }}>
+    <GlassCard animate={animate} hoverEffect sx={{ height: '100%', position: 'relative', overflow: 'hidden', cursor: onClick ? 'pointer' : 'default' }} onClick={onClick}>
       <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, mb: 3 }}>
         <Typography 
           variant="subtitle2" 
