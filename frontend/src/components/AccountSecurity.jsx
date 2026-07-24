@@ -655,10 +655,23 @@ export default function AccountSecurity({ setSnackbar }) {
     }
   }
 
+  const cardStyle = {
+    p: 4,
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+    background: 'rgba(255, 255, 255, 0.03)',
+    backdropFilter: 'blur(12px)',
+    borderRadius: '16px',
+    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+    '&:hover': {
+      transform: 'translateY(-2px)',
+      boxShadow: '0 12px 32px rgba(0,0,0,0.3)'
+    }
+  }
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, maxWidth: 1400, mx: 'auto', width: '100%' }}>
       {/* Overhauled User Profile & Regional Preferences Card */}
-      <Paper sx={{ p: 4, border: '1px solid rgba(255, 255, 255, 0.05)', background: 'rgba(255, 255, 255, 0.01)', borderRadius: '12px' }}>
+      <Paper sx={cardStyle}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, mb: 4, color: 'primary.main' }}>
           <User size={24} />
           <Typography variant="h6" fontWeight="bold" color="text.primary">Profile &amp; Display Preferences</Typography>
@@ -841,7 +854,7 @@ export default function AccountSecurity({ setSnackbar }) {
       </Paper>
 
       {/* Change Password Card */}
-      <Paper sx={{ p: 3, border: '1px solid rgba(255, 255, 255, 0.05)', background: 'rgba(255, 255, 255, 0.01)', borderRadius: '12px' }}>
+      <Paper sx={{ ...cardStyle, p: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, mb: 2, color: 'primary.main' }}>
           <KeyRound size={24} />
           <Typography variant="subtitle1" fontWeight="bold" color="text.primary">Change Password</Typography>
@@ -904,7 +917,7 @@ export default function AccountSecurity({ setSnackbar }) {
       </Paper>
 
       {/* Account Security & Passkeys Panel */}
-      <Paper sx={{ p: 3, border: '1px solid rgba(255, 255, 255, 0.05)', background: 'rgba(255, 255, 255, 0.01)', borderRadius: '12px', mb: 3 }}>
+      <Paper sx={{ ...cardStyle, p: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, mb: 1 }}>
           <SecurityIcon color="primary" sx={{ fontSize: 32 }} />
           <Typography variant="h6" sx={{ fontWeight: '700', letterSpacing: '0.5px' }}>Account Security & Authentication</Typography>
@@ -968,14 +981,17 @@ export default function AccountSecurity({ setSnackbar }) {
                   const brand = pk.aaguid_info || { name: 'Generic Security Key', provider: 'Unknown Platform', icon: 'key', description: 'Standard WebAuthn authenticating device.' };
                   return (
                     <Grid xs={12} md={6} key={pk.id}>
-                      <Paper elevation={1} sx={{ 
+                      <Paper sx={{ 
                         p: 2, 
-                        borderRadius: 2,
+                        borderRadius: '12px',
                         position: 'relative',
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        backdropFilter: 'blur(8px)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
                         transition: 'transform 0.2s, box-shadow 0.2s, border-color 0.2s',
                         '&:hover': {
                           transform: 'translateY(-2px)',
-                          boxShadow: '0 6px 20px rgba(0,0,0,0.4)',
+                          boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
                         }
                       }}>
                         {/* Center Card Confirmation Overlay (Toast-like Overlay) */}
@@ -1210,10 +1226,12 @@ export default function AccountSecurity({ setSnackbar }) {
               
               return (
                 <Box key={provider} sx={{ flex: 1, maxWidth: 350, minWidth: 250 }}>
-                  <Paper elevation={1} sx={{ 
+                  <Paper sx={{ 
                     p: 2, 
-                    borderRadius: 2,
-                    bgcolor: isLinked ? 'rgba(0, 230, 118, 0.05)' : 'background.paper',
+                    borderRadius: '12px',
+                    background: isLinked ? 'rgba(0, 230, 118, 0.06)' : 'rgba(255, 255, 255, 0.03)',
+                    backdropFilter: 'blur(8px)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between',
@@ -1288,7 +1306,7 @@ export default function AccountSecurity({ setSnackbar }) {
       </Paper>
 
       {/* Voyarr Lens Companion Pairing Card */}
-      <Paper sx={{ p: 3, border: '1px solid rgba(255, 255, 255, 0.05)', background: 'rgba(255, 255, 255, 0.01)', borderRadius: '12px', mb: 3 }}>
+      <Paper sx={{ ...cardStyle, p: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, mb: 2, color: 'primary.main' }}>
           <LinkIcon color="primary" />
           <Typography variant="subtitle1" fontWeight="bold" color="text.primary">Voyarr Lens Companion Pairing</Typography>
@@ -1363,11 +1381,12 @@ export default function AccountSecurity({ setSnackbar }) {
             <Grid container spacing={2}>
               {pairings.map(pairing => (
                 <Grid xs={12} md={6} key={pairing.id}>
-                  <Paper elevation={1} sx={{
+                  <Paper sx={{
                     p: 2,
-                    borderRadius: 2,
-                    border: '1px solid rgba(255, 255, 255, 0.05)',
-                    background: 'rgba(255, 255, 255, 0.02)',
+                    borderRadius: '12px',
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    backdropFilter: 'blur(8px)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
                     position: 'relative',
                     transition: 'transform 0.2s, border-color 0.2s',
                     '&:hover': {
@@ -1472,7 +1491,7 @@ export default function AccountSecurity({ setSnackbar }) {
       </Paper>
 
       {/* VR Headset 6-Digit Device Pairing & DeoVR Player Quick Feed */}
-      <Paper elevation={0} sx={{ p: 3, mb: 4, borderRadius: 3, bgcolor: 'background.paper', border: '1px solid rgba(255,255,255,0.08)' }}>
+      <Paper sx={{ ...cardStyle, p: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
           <Box sx={{ p: 1, borderRadius: 2, bgcolor: 'primary.main', color: 'primary.contrastText', display: 'flex' }}>
             <KeyRound size={20} />
