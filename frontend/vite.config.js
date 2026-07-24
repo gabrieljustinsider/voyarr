@@ -54,6 +54,9 @@ export default defineConfig(({ mode }) => {
       VitePWA({
         registerType: 'autoUpdate',
         includeAssets: ['favicon.ico', 'favicon-32x32.png', 'pwa-192x192.png', 'pwa-512x512.png'],
+        workbox: {
+          navigateFallbackDenylist: [/^\/pair/, /^\/deovr/],
+        },
         manifest: {
           name: 'Voyarr Media Manager',
           short_name: 'Voyarr',
