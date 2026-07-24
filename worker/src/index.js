@@ -30,7 +30,8 @@ export default {
       path.startsWith("/transcode") ||
       path.startsWith("/rules") ||
       path.startsWith("/cookies") ||
-      path.startsWith("/apikeys");
+      path.startsWith("/apikeys") ||
+      path.startsWith("/deovr");
 
     // API requests: proxy to backend
     if (isApiRoute) {
