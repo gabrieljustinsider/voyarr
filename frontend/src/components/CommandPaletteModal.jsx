@@ -59,13 +59,15 @@ export default function CommandPaletteModal({ open, onClose, onSelectTab, onRunQ
       onClose={onClose} 
       maxWidth="sm" 
       fullWidth 
-      PaperProps={{
-        sx: {
-          borderRadius: 3,
-          bgcolor: (theme) => theme.palette.mode === 'dark' ? '#14161f' : '#ffffff',
-          boxShadow: '0 24px 48px rgba(0, 0, 0, 0.4)',
-          overflow: 'hidden',
-          border: '1px solid rgba(255, 255, 255, 0.1)'
+      slotProps={{
+        paper: {
+          sx: {
+            borderRadius: 3,
+            bgcolor: (theme) => theme.palette.mode === 'dark' ? '#14161f' : '#ffffff',
+            boxShadow: '0 24px 48px rgba(0, 0, 0, 0.4)',
+            overflow: 'hidden',
+            border: '1px solid rgba(255, 255, 255, 0.1)'
+          }
         }
       }}
     >
@@ -126,7 +128,7 @@ export default function CommandPaletteModal({ open, onClose, onSelectTab, onRunQ
                     </ListItemIcon>
                     <ListItemText 
                       primary={item.label} 
-                      primaryTypographyProps={{ fontSize: '0.9rem', fontWeight: 500 }} 
+                      slotProps={{ primary: { fontSize: '0.9rem', fontWeight: 500 } }} 
                     />
                   </Box>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

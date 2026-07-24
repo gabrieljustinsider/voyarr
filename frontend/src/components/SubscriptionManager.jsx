@@ -761,11 +761,11 @@ export default function SubscriptionManager() {
                           size="small" 
                           required 
                           InputProps={{
-                            ...params.InputProps,
+                            ...(params.InputProps || {}),
                             startAdornment: (
                               <>
                                 <InputAdornment position="start" sx={{ pl: 1 }}><Globe size={16} /></InputAdornment>
-                                {params.InputProps.startAdornment}
+                                {params.InputProps?.startAdornment}
                               </>
                             )
                           }}
@@ -788,11 +788,11 @@ export default function SubscriptionManager() {
                           label="Subscription Tier" 
                           size="small" 
                           InputProps={{
-                            ...params.InputProps,
+                            ...(params.InputProps || {}),
                             startAdornment: (
                               <>
                                 <InputAdornment position="start" sx={{ pl: 1 }}><Layers size={16} /></InputAdornment>
-                                {params.InputProps.startAdornment}
+                                {params.InputProps?.startAdornment}
                               </>
                             )
                           }}
@@ -814,11 +814,11 @@ export default function SubscriptionManager() {
                           label="Status" 
                           size="small" 
                           InputProps={{
-                            ...params.InputProps,
+                            ...(params.InputProps || {}),
                             startAdornment: (
                               <>
                                 <InputAdornment position="start" sx={{ pl: 1 }}><Activity size={16} /></InputAdornment>
-                                {params.InputProps.startAdornment}
+                                {params.InputProps?.startAdornment}
                               </>
                             )
                           }}
@@ -859,11 +859,11 @@ export default function SubscriptionManager() {
                           label="Timeframe" 
                           size="small" 
                           InputProps={{
-                            ...params.InputProps,
+                            ...(params.InputProps || {}),
                             startAdornment: (
                               <>
                                 <InputAdornment position="start" sx={{ pl: 1 }}><Clock size={16} /></InputAdornment>
-                                {params.InputProps.startAdornment}
+                                {params.InputProps?.startAdornment}
                               </>
                             )
                           }}
@@ -885,11 +885,11 @@ export default function SubscriptionManager() {
                           label="Biller / Gateway" 
                           size="small" 
                           InputProps={{
-                            ...params.InputProps,
+                            ...(params.InputProps || {}),
                             startAdornment: (
                               <>
                                 <InputAdornment position="start" sx={{ pl: 1 }}><CreditCard size={16} /></InputAdornment>
-                                {params.InputProps.startAdornment}
+                                {params.InputProps?.startAdornment}
                               </>
                             )
                           }}
