@@ -14,17 +14,44 @@ import { apiFetch } from '../api'
 
 export default function Library() {
   const [entries, setEntries] = useState([])
-  const [filters, setFilters] = useState({
-    resolution: '',
-    performer: '',
-    tag: '',
-    ohash: ''
+  const [filters, setFilters] = useState(() => {
+    try {
+      const saved = localStorage.getItem('voyarr_library_filters')
+      return saved ? JSON.parse(saved) : { resolution: '', performer: '', tag: '', ohash: '' }
+    } catch {
+      return { resolution: '', performer: '', tag: '', ohash: '' }
+    }
   })
   const [debouncedFilters, setDebouncedFilters] = useState(filters)
-  const [page, setPage] = useState(1)
+  const [page, setPage] = useState(() => {
+    try {
+      const saved = localStorage.getItem('voyarr_library_page')
+      return saved ? parseInt(saved, 10) || 1 : 1
+    } catch { return 1 }
+  })
   const [totalPages, setTotalPages] = useState(1)
-  const [viewMode, setViewMode] = useState('grid') // 'grid' | 'list'
-  const [sortBy, setSortBy] = useState('newest') // 'newest' | 'title' | 'size' | 'resolution'
+  const [viewMode, setViewMode] = useState(() => {
+    return localStorage.getItem('voyarr_library_view_mode') || 'grid'
+  })
+  const [sortBy, setSortBy] = useState(() => {
+    return localStorage.getItem('voyarr_library_sort_by') || 'newest'
+  })
+
+  useEffect(() => {
+    localStorage.setItem('voyarr_library_filters', JSON.stringify(filters))
+  }, [filters])
+
+  useEffect(() => {
+    localStorage.setItem('voyarr_library_page', page.toString())
+  }, [page])
+
+  useEffect(() => {
+    localStorage.setItem('voyarr_library_view_mode', viewMode)
+  }, [viewMode])
+
+  useEffect(() => {
+    localStorage.setItem('voyarr_library_sort_by', sortBy)
+  }, [sortBy])
   const [playingVideo, setPlayingVideo] = useState(null)
   const [managingChaptersFor, setManagingChaptersFor] = useState(null)
 

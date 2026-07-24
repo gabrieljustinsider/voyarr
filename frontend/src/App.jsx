@@ -1008,42 +1008,7 @@ function App() {
     return idx >= 0 ? idx : 0;
   }, [activeCategorySubTabs, currentTabLabel]);
 
-  // Save last selected tab to localStorage if preference enabled
-  useEffect(() => {
-    if (uiConfig.rememberLastTab && currentTabLabel) {
-      localStorage.setItem('voyarr_last_tab', currentTabLabel)
-    } else if (uiConfig.rememberLastTab === false) {
-      localStorage.removeItem('voyarr_last_tab')
-    }
-  }, [currentTabLabel, uiConfig.rememberLastTab])
-
-  // Restore last selected tab from localStorage once when visibleTabs finishes initializing
-  const hasRestoredTab = useRef(false)
-  useEffect(() => {
-    if (!hasRestoredTab.current && uiConfig.rememberLastTab && visibleTabs.length > 0) {
-      hasRestoredTab.current = true
-      const savedTab = localStorage.getItem('voyarr_last_tab')
-      if (savedTab) {
-        const targetIdx = visibleTabs.findIndex(t => t.label === savedTab)
-        if (targetIdx >= 0) {
-          setTabValue(targetIdx)
-        }
-      }
-    }
-  }, [uiConfig.rememberLastTab, visibleTabs])
-
-  if (!isLoggedIn) {
-    return (
-      <ErrorBoundary title="Authentication Error">
-        <ThemeProvider theme={currentMuiTheme}>
-          <CssBaseline />
-          <Login onLogin={() => setIsLoggedIn(true)} />
-        </ThemeProvider>
-      </ErrorBoundary>
-    )
-  }
-
-  const tabIdMap = {
+  const tabIdMap = useMemo(() => ({
     dashboard: 'Dashboard',
     library: 'Library',
     search: 'Universal Search',
@@ -1068,9 +1033,82 @@ function App() {
     system_status: 'System Status',
     settings: 'Settings',
     help: 'Request Manager'
-  }
+  }), [])
 
-  const currentTabId = Object.keys(tabIdMap).find(k => tabIdMap[k] === currentTabLabel) || 'dashboard'
+  const currentTabId = useMemo(() => {
+    return Object.keys(tabIdMap).find(k => tabIdMap[k] === currentTabLabel) || 'dashboard'
+  }, [tabIdMap, currentTabLabel])
+
+  // Save last selected tab to localStorage and update URL hash for page persistence & deep-linking
+  useEffect(() => {
+    if (currentTabLabel) {
+      if (uiConfig.rememberLastTab) {
+        localStorage.setItem('voyarr_last_tab', currentTabLabel)
+      }
+      if (currentTabId && window.location.hash !== `#${currentTabId}`) {
+        window.history.replaceState(null, '', `#${currentTabId}`)
+      }
+    }
+  }, [currentTabLabel, currentTabId, uiConfig.rememberLastTab])
+
+  // Restore last selected tab from URL hash (#library), query param (?tab=library), or localStorage
+  const hasRestoredTab = useRef(false)
+  useEffect(() => {
+    if (!hasRestoredTab.current && visibleTabs.length > 0) {
+      hasRestoredTab.current = true
+
+      // 1. Check URL hash (#tabId) or query param (?tab=tabId)
+      const hashTab = window.location.hash.replace('#', '').toLowerCase()
+      const urlParams = new URLSearchParams(window.location.search)
+      const queryTab = urlParams.get('tab')?.toLowerCase()
+      const targetTabId = hashTab || queryTab
+
+      if (targetTabId && tabIdMap[targetTabId]) {
+        const targetLabel = tabIdMap[targetTabId]
+        const targetIdx = visibleTabs.findIndex(t => t.label === targetLabel)
+        if (targetIdx >= 0) {
+          setTabValue(targetIdx)
+          return
+        }
+      }
+
+      // 2. Fallback to localStorage if rememberLastTab is enabled
+      if (uiConfig.rememberLastTab) {
+        const savedTab = localStorage.getItem('voyarr_last_tab')
+        if (savedTab) {
+          const targetIdx = visibleTabs.findIndex(t => t.label === savedTab)
+          if (targetIdx >= 0) {
+            setTabValue(targetIdx)
+          }
+        }
+      }
+    }
+  }, [uiConfig.rememberLastTab, visibleTabs, tabIdMap])
+
+  // Support browser back / forward button navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const hashTab = window.location.hash.replace('#', '').toLowerCase()
+      if (hashTab && tabIdMap[hashTab]) {
+        const targetLabel = tabIdMap[hashTab]
+        const idx = visibleTabs.findIndex(t => t.label === targetLabel)
+        if (idx >= 0) setTabValue(idx)
+      }
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [visibleTabs, tabIdMap])
+
+  if (!isLoggedIn) {
+    return (
+      <ErrorBoundary title="Authentication Error">
+        <ThemeProvider theme={currentMuiTheme}>
+          <CssBaseline />
+          <Login onLogin={() => setIsLoggedIn(true)} />
+        </ThemeProvider>
+      </ErrorBoundary>
+    )
+  }
 
   return (
     <ErrorBoundary title="Voyarr Interface Error">
