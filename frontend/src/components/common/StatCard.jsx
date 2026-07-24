@@ -42,7 +42,7 @@ export default function StatCard({
 
   return (
     <GlassCard animate={animate} hoverEffect sx={{ height: '100%', position: 'relative', overflow: 'hidden' }}>
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 3 }}>
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, mb: 3 }}>
         <Typography 
           variant="subtitle2" 
           sx={{ 
@@ -51,7 +51,9 @@ export default function StatCard({
             letterSpacing: 0.8,
             textTransform: 'uppercase',
             fontSize: '0.85rem',
-            pt: 0.5
+            pt: 0.5,
+            flex: 1,
+            mr: 1
           }}
         >
           {title}
