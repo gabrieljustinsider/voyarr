@@ -11,6 +11,21 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
+    // DeoVR detection: proxy to backend if DeoVR user-agent or deovr=1 query param
+    const userAgent = request.headers.get("user-agent") || "";
+    const hasDeovrParam = url.searchParams.get("deovr") === "1" || url.searchParams.get("deovr") === "true";
+    if (userAgent.toLowerCase().includes("deovr") || hasDeovrParam) {
+      const backendOrigin = env.BACKEND_ORIGIN;
+      if (backendOrigin) {
+        const cleanOrigin = backendOrigin.replace(/\/+$/, '');
+        const backendUrl = `${cleanOrigin}${path}${url.search}`;
+        const headers = new Headers(request.headers);
+        headers.set("Host", new URL(backendOrigin).host);
+        const response = await fetch(backendUrl, { method: request.method, headers, body: request.method !== "GET" && request.method !== "HEAD" ? request.body : null });
+        return new Response(response.body, { status: response.status, statusText: response.statusText, headers: response.headers });
+      }
+    }
+
     const isApiRoute = 
       path.startsWith("/api") || 
       path.startsWith("/auth") || 
