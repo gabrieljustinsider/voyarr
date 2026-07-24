@@ -42,7 +42,7 @@ export default function StatCard({
 
   return (
     <GlassCard animate={animate} hoverEffect sx={{ height: '100%', position: 'relative', overflow: 'hidden' }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 3 }}>
         <Typography 
           variant="subtitle2" 
           sx={{ 
@@ -50,7 +50,8 @@ export default function StatCard({
             fontWeight: 700, 
             letterSpacing: 0.8,
             textTransform: 'uppercase',
-            fontSize: '0.75rem' 
+            fontSize: '0.85rem',
+            pt: 0.5
           }}
         >
           {title}
@@ -59,7 +60,7 @@ export default function StatCard({
         {Icon && (
           <Box 
             sx={{ 
-              p: 1, 
+              p: 1.25, 
               borderRadius: '12px', 
               background: themeColors.gradient,
               color: '#ffffff',
@@ -69,26 +70,29 @@ export default function StatCard({
               boxShadow: `0 4px 14px ${themeColors.glow}`
             }}
           >
-            <Icon size={20} />
+            <Icon size={22} />
           </Box>
         )}
       </Box>
 
-      <Typography 
-        variant="h3" 
-        sx={{ 
-          fontFamily: "'Outfit', sans-serif",
-          fontWeight: 900, 
-          letterSpacing: '-1px',
-          color: themeColors.text,
-          lineHeight: 1.1
-        }}
-      >
-        {value}
-      </Typography>
+      <Box sx={{ textAlign: 'center', mb: subtitle ? 1 : 0 }}>
+        <Typography 
+          variant="h3" 
+          sx={{ 
+            fontFamily: "'Outfit', sans-serif",
+            fontWeight: 900, 
+            letterSpacing: '-1px',
+            color: themeColors.text,
+            lineHeight: 1.1,
+            fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' }
+          }}
+        >
+          {value}
+        </Typography>
+      </Box>
 
       {subtitle && (
-        <Typography variant="caption" sx={{ color: 'text.secondary', mt: 1, display: 'block', fontSize: '0.75rem' }}>
+        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', textAlign: 'center', fontSize: '0.75rem', mt: 0.5 }}>
           {subtitle}
         </Typography>
       )}

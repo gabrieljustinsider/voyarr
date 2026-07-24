@@ -39,6 +39,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchStats()
+    const interval = setInterval(fetchStats, 10000)
+    return () => clearInterval(interval)
   }, [fetchStats])
 
   const barData = [
@@ -96,7 +98,7 @@ export default function Dashboard() {
       </Alert>
       
       {/* KPI Cards Row using reusable StatCard primitive */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
+      <Grid container spacing={3} sx={{ mb: 3, justifyContent: 'center' }}>
         <Grid xs={12} sm={6} md={3}>
           <StatCard 
             title="Total Downloads" 

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Voyarr Lens",
-  "version": "1.122.0",
+  "version": "1.123.0",
   "description": "Voyarr companion extension for visual CSS mapping and element scoping.",
   "permissions": [
     "activeTab",
