@@ -57,7 +57,9 @@ p { color: #94a3b8; font-size: 0.9rem; margin-bottom: 2rem; line-height: 1.5; }
         if (pdata.status === 'success') {
           codeEl.className = 'code approved';
           codeEl.textContent = 'PAIRED!';
-          statusEl.innerHTML = '<span class="approved">Device approved! You can close this page.</span>';
+          statusEl.innerHTML = '<span class="approved">Redirecting to Voyarr...</span>';
+          localStorage.setItem('voyarr_api_key', pdata.api_key || pdata.token || '');
+          setTimeout(function() { window.location.href = '/'; }, 1500);
           return;
         }
       } catch(e) {}
