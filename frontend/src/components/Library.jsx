@@ -37,6 +37,7 @@ export default function Library() {
   const [sortBy, setSortBy] = useState(() => {
     return localStorage.getItem('voyarr_library_sort_by') || 'newest'
   })
+  const [showFilters, setShowFilters] = useState(false)
   const [perPage, setPerPage] = useState(() => {
     try { return parseInt(localStorage.getItem('voyarr_library_per_page') || '20', 10) || 20 }
     catch { return 20 }
@@ -897,14 +898,13 @@ export default function Library() {
           boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)'
         }}
       >
-        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, alignItems: 'center', justifyContent: 'space-between' }}>
-          
-          {/* Left: Search & Filter Inputs */}
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, alignItems: 'center', flex: 1, width: { xs: '100%', md: 'auto' } }}>
-            {/* Search — primary, always visible */}
+        {/* Top row: Search + Right controls */}
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, alignItems: 'center', mb: showFilters ? 2 : 0 }}>
+          {/* Search + Filter toggle */}
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flex: 1, width: { xs: '100%', md: 'auto' } }}>
             <TextField 
               size="small" 
-              label="Search title or file name..." 
+              placeholder="Search title or file name..." 
               name="search" 
               value={filters.search || ''} 
               onChange={handleFilterChange} 
@@ -922,41 +922,17 @@ export default function Library() {
                   </InputAdornment>
                 ) : null
               }}
-              sx={{ minWidth: 260, maxWidth: 380, flex: 1, '& .MuiOutlinedInput-root': { borderRadius: '10px', bgcolor: 'rgba(255,255,255,0.04)' } }} 
+              sx={{ flex: 1, '& .MuiOutlinedInput-root': { borderRadius: '10px', bgcolor: 'rgba(255,255,255,0.04)' } }} 
             />
-
-            {/* Filter chips group */}
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center', p: 0.75, borderRadius: '10px', bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-              <FormControl size="small" sx={{ minWidth: 120 }}>
-                <Select name="resolution" value={filters.resolution} onChange={handleFilterChange}
-                  displayEmpty sx={{ borderRadius: '8px', fontSize: '0.78rem', height: 32, '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.1)' } }}
-                  renderValue={(v) => v ? (v === '4K' ? '4K UHD' : v === '1080p' ? '1080p FHD' : v === '720p' ? '720p HD' : v) : 'Resolution'}>
-                  <MenuItem value=""><em>All Resolutions</em></MenuItem>
-                  <MenuItem value="4K">4K UHD</MenuItem>
-                  <MenuItem value="1080p">1080p FHD</MenuItem>
-                  <MenuItem value="720p">720p HD</MenuItem>
-                </Select>
-              </FormControl>
-
-              <TextField size="small" placeholder="Performer" name="performer" value={filters.performer} onChange={handleFilterChange}
-                sx={{ minWidth: 110, maxWidth: 140, '& .MuiOutlinedInput-root': { borderRadius: '8px', fontSize: '0.78rem', height: 32 } }} />
-
-              <TextField size="small" placeholder="Tag" name="tag" value={filters.tag} onChange={handleFilterChange}
-                sx={{ minWidth: 90, maxWidth: 120, '& .MuiOutlinedInput-root': { borderRadius: '8px', fontSize: '0.78rem', height: 32 } }} />
-
-              <TextField size="small" placeholder="ohash" name="ohash" value={filters.ohash} onChange={handleFilterChange}
-                sx={{ minWidth: 100, maxWidth: 140, '& .MuiOutlinedInput-root': { borderRadius: '8px', fontSize: '0.78rem', height: 32 } }} />
-
-              {(filters.search || filters.resolution || filters.performer || filters.tag || filters.ohash) && (
-                <Button size="small" color="warning" onClick={() => setFilters({ search: '', resolution: '', performer: '', tag: '', ohash: '' })}
-                  sx={{ borderRadius: '6px', textTransform: 'none', fontWeight: 'bold', fontSize: '0.7rem', minWidth: 'auto', px: 1, height: 28 }}>
-                  Clear
-                </Button>
-              )}
-            </Box>
+            <Tooltip title={showFilters ? 'Hide filters' : 'Show filters'}>
+              <IconButton size="small" onClick={() => setShowFilters(!showFilters)}
+                sx={{ borderRadius: '8px', color: showFilters ? 'primary.main' : 'rgba(255,255,255,0.5)', bgcolor: showFilters ? 'rgba(99,102,241,0.15)' : 'rgba(255,255,255,0.06)' }}>
+                <SlidersHorizontal size={18} />
+              </IconButton>
+            </Tooltip>
           </Box>
 
-          {/* Right: Per Page, Sort Dropdown & View Mode Switcher */}
+          {/* Right controls */}
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', width: { xs: '100%', md: 'auto' }, justifyContent: 'flex-end' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, bgcolor: 'rgba(255,255,255,0.04)', borderRadius: '10px', px: 1, py: 0.25, border: '1px solid rgba(255,255,255,0.06)' }}>
               <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', fontWeight: 600, fontSize: '0.65rem', whiteSpace: 'nowrap' }}>
@@ -973,7 +949,6 @@ export default function Library() {
                 per page
               </Typography>
             </Box>
-
             <FormControl size="small" sx={{ minWidth: 140 }}>
               <Select value={sortBy} onChange={e => setSortBy(e.target.value)} sx={{ borderRadius: '10px', fontSize: '0.8rem', height: 34 }}
                 renderValue={(v) => {
@@ -986,7 +961,6 @@ export default function Library() {
                 <MenuItem value="resolution">Resolution</MenuItem>
               </Select>
             </FormControl>
-
             <Box sx={{ display: 'flex', bgcolor: 'rgba(255,255,255,0.06)', p: 0.5, borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)' }}>
               <Tooltip title="Grid View">
                 <IconButton size="small" onClick={() => setViewMode('grid')} color={viewMode === 'grid' ? 'primary' : 'default'}
@@ -1003,6 +977,46 @@ export default function Library() {
             </Box>
           </Box>
         </Box>
+
+        {/* Expandable filter panel */}
+        {showFilters && (
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, alignItems: 'center', p: 1.5, borderRadius: '12px', bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <FormControl size="small" sx={{ minWidth: 130 }}>
+              <Select name="resolution" value={filters.resolution} onChange={handleFilterChange}
+                displayEmpty sx={{ borderRadius: '8px', fontSize: '0.78rem', height: 34 }}
+                renderValue={(v) => v || 'Resolution'}>
+                <MenuItem value=""><em>All Resolutions</em></MenuItem>
+                <MenuItem value="4K">4K UHD</MenuItem>
+                <MenuItem value="1080p">1080p FHD</MenuItem>
+                <MenuItem value="720p">720p HD</MenuItem>
+              </Select>
+            </FormControl>
+            <TextField size="small" placeholder="Performer name" name="performer" value={filters.performer} onChange={handleFilterChange}
+              sx={{ minWidth: 140, '& .MuiOutlinedInput-root': { borderRadius: '8px', height: 34 } }} />
+            <TextField size="small" placeholder="Tag" name="tag" value={filters.tag} onChange={handleFilterChange}
+              sx={{ minWidth: 120, '& .MuiOutlinedInput-root': { borderRadius: '8px', height: 34 } }} />
+            <TextField size="small" placeholder="ohash" name="ohash" value={filters.ohash} onChange={handleFilterChange}
+              sx={{ minWidth: 120, '& .MuiOutlinedInput-root': { borderRadius: '8px', height: 34 } }} />
+            <Button size="small" color="warning" onClick={() => setFilters({ search: '', resolution: '', performer: '', tag: '', ohash: '' })}
+              sx={{ borderRadius: '6px', textTransform: 'none', fontWeight: 'bold', fontSize: '0.75rem', minWidth: 'auto', px: 1.5, height: 34 }}>
+              Clear filters
+            </Button>
+          </Box>
+        )}
+
+        {/* Active filter chips */}
+        {!showFilters && (filters.resolution || filters.performer || filters.tag || filters.ohash) && (
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1.5 }}>
+            {filters.resolution && <Chip label={`Resolution: ${filters.resolution}`} size="small" onDelete={() => setFilters(f => ({ ...f, resolution: '' }))} sx={{ borderRadius: '6px', fontSize: '0.7rem' }} />}
+            {filters.performer && <Chip label={`Performer: ${filters.performer}`} size="small" onDelete={() => setFilters(f => ({ ...f, performer: '' }))} sx={{ borderRadius: '6px', fontSize: '0.7rem' }} />}
+            {filters.tag && <Chip label={`Tag: ${filters.tag}`} size="small" onDelete={() => setFilters(f => ({ ...f, tag: '' }))} sx={{ borderRadius: '6px', fontSize: '0.7rem' }} />}
+            {filters.ohash && <Chip label={`ohash: ${filters.ohash}`} size="small" onDelete={() => setFilters(f => ({ ...f, ohash: '' }))} sx={{ borderRadius: '6px', fontSize: '0.7rem' }} />}
+            <Button size="small" variant="text" color="warning" onClick={() => setFilters({ search: '', resolution: '', performer: '', tag: '', ohash: '' })}
+              sx={{ borderRadius: '6px', textTransform: 'none', fontSize: '0.7rem', minWidth: 'auto', px: 0.5, height: 24 }}>
+              Clear all
+            </Button>
+          </Box>
+        )}
       </GlassCard>
 
       {/* Media Content Rendering */}
