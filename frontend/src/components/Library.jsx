@@ -111,6 +111,12 @@ export default function Library() {
   const [castVolume, setCastVolume] = useState(50)
   const [castIsPlaying, setCastIsPlaying] = useState(false)
 
+  // Player settings ref and state
+  const playerRef = useRef(null)
+  const [playerSpeed, setPlayerSpeed] = useState(1)
+  const [pipActive, setPipActive] = useState(false)
+  const [copiedStream, setCopiedStream] = useState(false)
+
   const castTimerRef = useRef(null)
 
   // Item Metadata Edit State
@@ -1438,6 +1444,7 @@ export default function Library() {
                 <Box sx={{ flexGrow: 1, backgroundColor: 'black', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                   {streamingEnabled ? (
                     <SmartVideoPlayer
+                      ref={playerRef}
                       key={playingVideo.id}
                       src={`${API_BASE}/library/${playingVideo.id}/stream?${getAuthQuery()}`}
                       onPlay={() => handleVideoPlay(playingVideo.id)}
@@ -1461,23 +1468,50 @@ export default function Library() {
                     Size: {playingVideo.file_size ? (playingVideo.file_size / (1024*1024)).toFixed(1) + ' MB' : 'Unknown'}
                   </Typography>
 
-                  {/* Casting protocols selector */}
+                  {/* Player Settings */}
                   <Paper sx={{ p: 1.5, my: 2, backgroundColor: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Box sx={{ color: 'primary.main', display: 'flex' }}><Cast size={18} /></Box>
-                      Casting Protocol
+                    <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Settings size={16} />
+                      Player Settings
                     </Typography>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                      <Button variant="outlined" size="small" onClick={() => handleStartCasting('Chromecast')} sx={{ textTransform: 'none' }}>
-                        Google Chromecast
-                      </Button>
-                      <Button variant="outlined" size="small" onClick={() => handleStartCasting('AirPlay')} sx={{ textTransform: 'none' }}>
-                        Apple AirPlay
-                      </Button>
-                      <Button variant="outlined" size="small" onClick={() => handleStartCasting('DLNA')} sx={{ textTransform: 'none' }}>
-                        DLNA TV Stream
+
+                    {/* Playback Speed */}
+                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.6)', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.5px', mb: 0.5, display: 'block' }}>Speed</Typography>
+                    <Box sx={{ display: 'flex', gap: 0.5, mb: 1.5, flexWrap: 'wrap' }}>
+                      {[0.5, 0.75, 1, 1.25, 1.5, 2].map(rate => (
+                        <Chip key={rate} label={`${rate}x`} size="small" clickable
+                          onClick={() => { setPlayerSpeed(rate); if (playerRef.current?.setPlaybackRate) playerRef.current.setPlaybackRate(rate); }}
+                          sx={{ bgcolor: playerSpeed === rate ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.08)', color: 'white', fontWeight: playerSpeed === rate ? 'bold' : 'normal', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.7rem', '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' } }}
+                        />
+                      ))}
+                    </Box>
+
+                    {/* Picture-in-Picture */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.75rem' }}>Picture-in-Picture</Typography>
+                      <Button size="small" variant="outlined" onClick={async () => {
+                        if (pipActive) { try { await document.exitPictureInPicture() } catch(e) {} setPipActive(false) }
+                        else if (playerRef.current?.requestPip) { try { await playerRef.current.requestPip(); setPipActive(true) } catch(e) {} }
+                      }} sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.2)', fontSize: '0.65rem', textTransform: 'none', py: 0 }}>
+                        {pipActive ? 'Exit' : 'PiP'}
                       </Button>
                     </Box>
+
+                    {/* Stream URL */}
+                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.6)', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.5px', mb: 0.5, display: 'block' }}>Stream Link</Typography>
+                    <Button size="small" variant="outlined" fullWidth onClick={() => {
+                      const url = `${API_BASE}/library/${playingVideo.id}/stream?${getAuthQuery()}`
+                      navigator.clipboard.writeText(url)
+                      setCopiedStream(true)
+                      setTimeout(() => setCopiedStream(false), 2000)
+                    }} sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.2)', fontSize: '0.65rem', textTransform: 'none', mb: 1.5 }}>
+                      {copiedStream ? 'Copied!' : 'Copy Stream URL'}
+                    </Button>
+
+                    {/* Casting note */}
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', display: 'block', fontSize: '0.6rem', lineHeight: 1.4 }}>
+                      To cast to your TV, use your browser's built-in Cast menu (Chrome: ⋮ → Cast) or AirPlay (Safari).
+                    </Typography>
                   </Paper>
 
                   <Box sx={{ mt: 2, mb: 2, p: 1.5, backgroundColor: 'rgba(255, 152, 0, 0.05)', border: '1px solid rgba(255, 152, 0, 0.2)', borderRadius: 1 }}>
