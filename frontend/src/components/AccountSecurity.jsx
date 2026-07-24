@@ -1513,7 +1513,7 @@ export default function AccountSecurity({ setSnackbar }) {
                   🔢 Pair New VR Headset (6-Digit Code)
                 </Typography>
                 <Typography variant="caption" color="text.secondary" paragraph>
-                  Opened Voyarr on your Meta Quest or Vision Pro headset? Enter the 6-digit PIN displayed on your headset screen below:
+                  On your Meta Quest or Vision Pro headset, open <strong>voyarr.gabrieljustinsider.com/pair</strong>. A 6-digit code will appear. Enter it below:
                 </Typography>
 
                 {vrApproveMsg && (
