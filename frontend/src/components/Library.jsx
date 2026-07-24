@@ -974,18 +974,29 @@ export default function Library() {
           </Box>
 
           {/* Right: Per Page, Sort Dropdown & View Mode Switcher */}
-          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', width: { xs: '100%', md: 'auto' }, justifyContent: 'flex-end' }}>
-            <FormControl size="small" sx={{ minWidth: 80 }}>
-              <Select value={perPage} onChange={e => { setPerPage(e.target.value); setPage(1) }} sx={{ borderRadius: '10px', fontSize: '0.8rem' }}>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', width: { xs: '100%', md: 'auto' }, justifyContent: 'flex-end' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, bgcolor: 'rgba(255,255,255,0.04)', borderRadius: '10px', px: 1, py: 0.25, border: '1px solid rgba(255,255,255,0.06)' }}>
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', fontWeight: 600, fontSize: '0.65rem', whiteSpace: 'nowrap' }}>
+                Show
+              </Typography>
+              <Select value={perPage} onChange={e => { setPerPage(e.target.value); setPage(1) }}
+                sx={{ borderRadius: '8px', fontSize: '0.75rem', height: 30, '& .MuiOutlinedInput-notchedOutline': { border: 'none' }, '& .MuiSelect-select': { py: 0.5 } }}>
                 <MenuItem value={10}>10</MenuItem>
                 <MenuItem value={20}>20</MenuItem>
                 <MenuItem value={50}>50</MenuItem>
                 <MenuItem value={100}>100</MenuItem>
               </Select>
-            </FormControl>
-            <FormControl size="small" sx={{ minWidth: 160 }}>
-              <InputLabel>Sort By</InputLabel>
-              <Select value={sortBy} label="Sort By" onChange={e => setSortBy(e.target.value)} sx={{ borderRadius: '10px' }}>
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.65rem' }}>
+                per page
+              </Typography>
+            </Box>
+
+            <FormControl size="small" sx={{ minWidth: 140 }}>
+              <Select value={sortBy} onChange={e => setSortBy(e.target.value)} sx={{ borderRadius: '10px', fontSize: '0.8rem', height: 34 }}
+                renderValue={(v) => {
+                  const labels = { newest: 'Newest', title: 'A–Z', size: 'Largest', resolution: 'Resolution' };
+                  return <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}><ArrowUpDown size={14} style={{ opacity: 0.5 }} />{labels[v] || v}</Box>;
+                }}>
                 <MenuItem value="newest">Newest Added</MenuItem>
                 <MenuItem value="title">Title (A-Z)</MenuItem>
                 <MenuItem value="size">File Size (Largest)</MenuItem>
@@ -993,25 +1004,17 @@ export default function Library() {
               </Select>
             </FormControl>
 
-            <Box sx={{ display: 'flex', bgcolor: 'rgba(255,255,255,0.06)', p: 0.5, borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <Box sx={{ display: 'flex', bgcolor: 'rgba(255,255,255,0.06)', p: 0.5, borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)' }}>
               <Tooltip title="Grid View">
-                <IconButton 
-                  size="small" 
-                  onClick={() => setViewMode('grid')} 
-                  color={viewMode === 'grid' ? 'primary' : 'default'}
-                  sx={{ borderRadius: '8px', bgcolor: viewMode === 'grid' ? 'rgba(99, 102, 241, 0.2)' : 'transparent' }}
-                >
-                  <LayoutGrid size={18} />
+                <IconButton size="small" onClick={() => setViewMode('grid')} color={viewMode === 'grid' ? 'primary' : 'default'}
+                  sx={{ borderRadius: '6px', bgcolor: viewMode === 'grid' ? 'rgba(99, 102, 241, 0.2)' : 'transparent' }}>
+                  <LayoutGrid size={16} />
                 </IconButton>
               </Tooltip>
               <Tooltip title="List View">
-                <IconButton 
-                  size="small" 
-                  onClick={() => setViewMode('list')} 
-                  color={viewMode === 'list' ? 'primary' : 'default'}
-                  sx={{ borderRadius: '8px', bgcolor: viewMode === 'list' ? 'rgba(99, 102, 241, 0.2)' : 'transparent' }}
-                >
-                  <List size={18} />
+                <IconButton size="small" onClick={() => setViewMode('list')} color={viewMode === 'list' ? 'primary' : 'default'}
+                  sx={{ borderRadius: '6px', bgcolor: viewMode === 'list' ? 'rgba(99, 102, 241, 0.2)' : 'transparent' }}>
+                  <List size={16} />
                 </IconButton>
               </Tooltip>
             </Box>
