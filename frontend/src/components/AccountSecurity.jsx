@@ -1532,7 +1532,7 @@ export default function AccountSecurity({ setSnackbar }) {
             <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: 'action.hover', display: 'flex', alignItems: 'center', gap: 2.5, height: '100%' }}>
               <Box sx={{ p: 1.5, bgcolor: '#ffffff', borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <QRCodeSVG
-                  value={`${window.location.origin}?token=${localStorage.getItem('voyarr_token') || ''}`}
+                  value={`${window.location.origin}/deovr?token=${localStorage.getItem('voyarr_jwt') || ''}`}
                   size={110}
                   level="M"
                 />
@@ -1549,7 +1549,7 @@ export default function AccountSecurity({ setSnackbar }) {
                   size="small"
                   startIcon={<LinkIcon fontSize="small" />}
                   onClick={() => {
-                    const url = `${window.location.origin}?token=${localStorage.getItem('voyarr_token') || ''}`
+                    const url = `${window.location.origin}/deovr?token=${localStorage.getItem('voyarr_jwt') || ''}`
                     navigator.clipboard.writeText(url)
                     setDeovrCopied(true)
                     setTimeout(() => setDeovrCopied(false), 3000)
