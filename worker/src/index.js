@@ -166,18 +166,7 @@ export default {
           body,
         });
 
-        // Log proxy event
-        console.log(JSON.stringify({
-          event: "proxy_success",
-          method: request.method,
-          path: path,
-          status: response.status,
-          cf_ray: request.headers.get("cf-ray")
-        }));
-
         const proxyHeaders = new Headers(response.headers);
-        proxyHeaders.set("X-Proxy-Target-Url", backendUrl);
-        proxyHeaders.set("X-Proxy-Backend-Origin", backendOrigin);
         proxyHeaders.set("Access-Control-Allow-Origin", "*");
         proxyHeaders.set(
           "Access-Control-Allow-Methods",
@@ -188,6 +177,17 @@ export default {
           "Content-Type, Authorization, X-Voyarr-Api-Key, X-Api-Key"
         );
         proxyHeaders.set("Access-Control-Allow-Credentials", "true");
+
+        // For SSE/streaming responses, use the raw response body to keep the connection open
+        if (response.headers.get("content-type")?.includes("text/event-stream")) {
+          const { readable, writable } = new TransformStream();
+          response.body.pipeTo(writable).catch(() => {});
+          return new Response(readable, {
+            status: response.status,
+            statusText: response.statusText,
+            headers: proxyHeaders,
+          });
+        }
 
         return new Response(response.body, {
           status: response.status,
