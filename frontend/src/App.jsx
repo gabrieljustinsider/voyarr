@@ -939,6 +939,7 @@ function App() {
 
     { label: "Metadata", component: <MetadataManager />, visible: true },
     { label: "System Status", component: <SystemStatus />, visible: true },
+    { label: "Account Security", component: <AccountSecurity setSnackbar={setSnackbar} />, visible: true },
     { label: "External APIs", component: <ExternalAPIs />, visible: true },
     { label: "Settings", component: <Settings />, visible: true },
     { label: "User Management", component: <UserManagement />, visible: true },
@@ -1031,6 +1032,7 @@ function App() {
     backup_manager: 'Backup',
     logs_viewer: 'Logs',
     system_status: 'System Status',
+    account_security: 'Account Security',
     settings: 'Settings',
     help: 'Request Manager'
   }), [])
