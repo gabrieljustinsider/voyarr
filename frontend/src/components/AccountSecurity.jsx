@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { 
   Box, Typography, TextField, Button, Paper, Grid, Divider, CircularProgress, 
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, 
+  IconButton, 
   Alert, Dialog, DialogTitle, DialogContent, DialogActions, Select, MenuItem,
-  FormControl, InputLabel, Avatar, Chip, Menu
+  FormControl, InputLabel, Avatar, Menu
 } from '@mui/material'
-import { Trash2, Link, Link2Off, Fingerprint, KeyRound, Plus, ShieldCheck, User, Globe } from 'lucide-react'
+import { Link, KeyRound, User } from 'lucide-react'
 import FingerprintIcon from '@mui/icons-material/Fingerprint'
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
@@ -74,7 +74,6 @@ export default function AccountSecurity({ setSnackbar }) {
 
   // Passkeys State
   const [passkeys, setPasskeys] = useState([])
-  const [newPasskeyName, setNewPasskeyName] = useState('')
   const [passkeyLoading, setPasskeyLoading] = useState(false)
 
   // SSO Linking State
@@ -550,7 +549,6 @@ export default function AccountSecurity({ setSnackbar }) {
       }
       
       setSnackbar({ open: true, message: 'Passkey registered successfully!', severity: 'success' })
-      setNewPasskeyName('')
       
       const res = await apiFetch('/auth/passkeys/')
       if (res.ok) {
@@ -1638,7 +1636,7 @@ export default function AccountSecurity({ setSnackbar }) {
             disabled={!mockSsoEmail.trim() || !mockSsoEmail.includes('@')}
             sx={{ borderRadius: '10px', textTransform: 'none', px: 3 }}
           >
-            Authorize Exit
+            Authorize
           </Button>
         </DialogActions>
       </Dialog>
