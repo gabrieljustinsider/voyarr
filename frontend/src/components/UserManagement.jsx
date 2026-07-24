@@ -375,7 +375,6 @@ export default function UserManagement() {
               <Stack spacing={2.5} sx={{ width: '100%', boxSizing: 'border-box' }}>
                 <TextField 
                   fullWidth 
-                  size="small" 
                   label="Username" 
                   value={newUser.username} 
                   onChange={e => setNewUser({...newUser, username: e.target.value})} 
@@ -385,7 +384,6 @@ export default function UserManagement() {
                 />
                 <TextField 
                   fullWidth 
-                  size="small" 
                   type="password" 
                   autoComplete="new-password" 
                   label="Password" 
@@ -393,7 +391,7 @@ export default function UserManagement() {
                   onChange={e => setNewUser({...newUser, password: e.target.value})} 
                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
                 />
-                <FormControl fullWidth size="small">
+                <FormControl fullWidth>
                   <InputLabel>Role</InputLabel>
                   <Select value={newUser.role} label="Role" onChange={e => setNewUser({...newUser, role: e.target.value})} sx={{ borderRadius: '10px' }}>
                     <MenuItem value="admin">Admin</MenuItem>
