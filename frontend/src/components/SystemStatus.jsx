@@ -10,6 +10,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import ErrorIcon from '@mui/icons-material/Error'
 import HelpIcon from '@mui/icons-material/Help'
 import CircleIcon from '@mui/icons-material/Circle'
+import GlassCard from './common/GlassCard'
 import { apiFetch } from '../api'
 
 const LAYERS = [
@@ -176,6 +177,13 @@ export default function SystemStatus() {
         </Button>
       </Box>
 
+      <Alert severity="info" sx={{ mb: 3, borderRadius: '12px', bgcolor: 'rgba(99,102,241,0.08)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.2)', '& .MuiAlert-icon': { color: '#818cf8' } }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.25 }}>📊 System Health &amp; Service Status</Typography>
+        <Typography variant="caption" sx={{ display: 'block', opacity: 0.9, lineHeight: 1.4 }}>
+          Real-time monitoring of all Voyarr layers and services. Each layer's status is automatically detected based on its active configuration. Use the status bar above to quickly identify any service disruptions.
+        </Typography>
+      </Alert>
+
       {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
       {status?.version_check?.warnings?.map((warn, idx) => (
@@ -186,8 +194,7 @@ export default function SystemStatus() {
 
       {status && (
         <>
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
+          <GlassCard sx={{ mb: 3 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                 <CircleIcon sx={{ fontSize: 14, color: anyUnhealthy ? 'error.main' : (allHealthy ? 'success.main' : 'warning.main') }} />
                 <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
@@ -219,13 +226,11 @@ export default function SystemStatus() {
                   )
                 })}
               </Box>
-            </CardContent>
-          </Card>
+          </GlassCard>
 
           <Grid container spacing={3}>
             <Grid xs={12} md={6} lg={4}>
-              <Card sx={{ height: '100%' }}>
-                <CardContent>
+              <GlassCard sx={{ height: '100%' }}>
                   <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>System Environment</Typography>
                   
                   <Box sx={{ mb: 3 }}>
@@ -332,14 +337,12 @@ export default function SystemStatus() {
                       )}
                     </>
                   )}
-                </CardContent>
-              </Card>
+              </GlassCard>
             </Grid>
 
             <Grid xs={12} md={6} lg={4}>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <Card>
-                  <CardContent>
+                <GlassCard>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                       <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Celery Workers</Typography>
                       <Chip 
@@ -407,11 +410,9 @@ export default function SystemStatus() {
                         )}
                       </Box>
                     )}
-                  </CardContent>
-                </Card>
+                </GlassCard>
 
-                <Card>
-                  <CardContent>
+                <GlassCard>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                       <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Headless Browserless</Typography>
                       <Chip 
@@ -455,17 +456,15 @@ export default function SystemStatus() {
                           </TableBody>
                         </Table>
                       </TableContainer>
-                    )}
-                  </CardContent>
-                </Card>
+                      )}
+                </GlassCard>
               </Box>
             </Grid>
 
             <Grid xs={12} lg={4}>
               <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', width: '100%' }}>
                 <Box sx={{ flex: { xs: '1 1 100%', lg: '1 1 calc(50% - 12px)' }, minWidth: 0 }}>
-                  <Card sx={{ height: '100%' }}>
-                    <CardContent>
+                  <GlassCard sx={{ height: '100%' }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                         <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Database</Typography>
                         <Chip 
@@ -506,13 +505,11 @@ export default function SystemStatus() {
                           </Table>
                         </TableContainer>
                       )}
-                    </CardContent>
-                  </Card>
+                </GlassCard>
                 </Box>
 
                 <Box sx={{ flex: { xs: '1 1 100%', lg: '1 1 calc(50% - 12px)' }, minWidth: 0 }}>
-                  <Card sx={{ height: '100%' }}>
-                    <CardContent>
+                  <GlassCard sx={{ height: '100%' }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                         <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Redis</Typography>
                         <Chip 
@@ -549,8 +546,7 @@ export default function SystemStatus() {
                           </Table>
                         </TableContainer>
                       )}
-                    </CardContent>
-                  </Card>
+                </GlassCard>
                 </Box>
               </Box>
             </Grid>

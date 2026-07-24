@@ -1019,6 +1019,7 @@ function App() {
     transcode_queue: 'Transcode Queue',
     mass_rip: 'Mass Rip',
     subscriptions: 'Subscriptions',
+    schedules: 'Schedules',
     download_rules: 'Settings',
     providers: 'Providers',
     billers: 'Providers',

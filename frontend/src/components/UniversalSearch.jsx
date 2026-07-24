@@ -8,6 +8,7 @@ import {
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
 import { apiFetch } from '../api'
+import GlassCard from './common/GlassCard'
 
 export default function UniversalSearch() {
   const [universalQuery, setUniversalQuery] = useState('')
@@ -160,14 +161,20 @@ export default function UniversalSearch() {
         Universal Search
       </Typography>
 
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>Universal Aggregated Search</Typography>
-          <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-            Search across local media, remote standard databases, and active subscription platforms in a single interface.
-          </Typography>
-          
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 3 }}>
+      <Alert severity="info" sx={{ mb: 3, borderRadius: '12px', bgcolor: 'rgba(99,102,241,0.08)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.2)', '& .MuiAlert-icon': { color: '#818cf8' } }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.25 }}>🔍 Universal Aggregated Search</Typography>
+        <Typography variant="caption" sx={{ display: 'block', opacity: 0.9, lineHeight: 1.4 }}>
+          Search across your local library, ThePornDB, StashDB, and connected subscription platforms in one place. Toggle search indices below to refine results.
+        </Typography>
+      </Alert>
+
+      <GlassCard sx={{ mb: 3 }}>
+        <Typography variant="h6" sx={{ fontWeight: '700', mb: 2 }}>Universal Aggregated Search</Typography>
+        <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+          Search across local media, remote standard databases, and active subscription platforms in a single interface.
+        </Typography>
+        
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 3 }}>
             <TextField
               fullWidth
               label="Search handle, performer or scene..."
@@ -223,8 +230,7 @@ export default function UniversalSearch() {
               />
             </Grid>
           </Grid>
-        </CardContent>
-      </Card>
+      </GlassCard>
 
       {message && (
         <Alert severity={message.includes('Error') || message.includes('Failed') ? 'error' : 'info'} sx={{ mb: 3 }}>
@@ -236,13 +242,12 @@ export default function UniversalSearch() {
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           {/* Local Library Hits */}
           {universalResults.local?.length > 0 && (
-            <Card>
-              <CardContent>
+            <GlassCard>
                 <Typography variant="h6" color="primary" gutterBottom>Local Library Matches</Typography>
-                <TableContainer component={Paper} variant="outlined">
+                <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: '12px', bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
                   <Table size="small">
                     <TableHead>
-                      <TableRow>
+                      <TableRow sx={{ '&:hover': { bgcolor: 'rgba(99,102,241,0.06)' } }}>
                         <TableCell>Title</TableCell>
                         <TableCell>Performers</TableCell>
                         <TableCell>File Path</TableCell>
@@ -250,7 +255,7 @@ export default function UniversalSearch() {
                     </TableHead>
                     <TableBody>
                       {universalResults.local.map((entry, idx) => (
-                        <TableRow key={idx}>
+                        <TableRow key={idx} sx={{ '&:hover': { bgcolor: 'rgba(99,102,241,0.06)' } }}>
                           <TableCell><strong>{entry.title}</strong></TableCell>
                           <TableCell>{entry.performers?.map(p => p.name || p).join(', ') || 'None'}</TableCell>
                           <TableCell sx={{ fontStyle: 'italic', fontSize: '0.8rem' }}>{entry.url}</TableCell>
@@ -259,19 +264,17 @@ export default function UniversalSearch() {
                     </TableBody>
                   </Table>
                 </TableContainer>
-              </CardContent>
-            </Card>
+            </GlassCard>
           )}
 
           {/* Subscription Matches */}
           {universalResults.subscriptions?.length > 0 && (
-            <Card>
-              <CardContent>
+            <GlassCard>
                 <Typography variant="h6" color="secondary" gutterBottom>Subscription Platforms Matches</Typography>
-                <TableContainer component={Paper} variant="outlined">
+                <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: '12px', bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
                   <Table size="small">
                     <TableHead>
-                      <TableRow>
+                      <TableRow sx={{ '&:hover': { bgcolor: 'rgba(99,102,241,0.06)' } }}>
                         <TableCell>Platform</TableCell>
                         <TableCell>Handle</TableCell>
                         <TableCell>Display Name</TableCell>
@@ -282,7 +285,7 @@ export default function UniversalSearch() {
                     </TableHead>
                     <TableBody>
                       {universalResults.subscriptions.map((sub, idx) => (
-                        <TableRow key={idx}>
+                        <TableRow key={idx} sx={{ '&:hover': { bgcolor: 'rgba(99,102,241,0.06)' } }}>
                           <TableCell>
                             <Chip 
                               size="small" 
@@ -318,19 +321,17 @@ export default function UniversalSearch() {
                     </TableBody>
                   </Table>
                 </TableContainer>
-              </CardContent>
-            </Card>
+            </GlassCard>
           )}
 
           {/* Remote StashDB Hits */}
           {universalResults.stashdb?.length > 0 && (
-            <Card>
-              <CardContent>
+            <GlassCard>
                 <Typography variant="h6" sx={{ color: '#9c27b0' }} gutterBottom>StashDB Registry Matches</Typography>
-                <TableContainer component={Paper} variant="outlined">
+                <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: '12px', bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
                   <Table size="small">
                     <TableHead>
-                      <TableRow>
+                      <TableRow sx={{ '&:hover': { bgcolor: 'rgba(99,102,241,0.06)' } }}>
                         <TableCell>Title</TableCell>
                         <TableCell>Performers</TableCell>
                         <TableCell>Actions</TableCell>
@@ -338,7 +339,7 @@ export default function UniversalSearch() {
                     </TableHead>
                     <TableBody>
                       {universalResults.stashdb.map((item, idx) => (
-                        <TableRow key={idx}>
+                        <TableRow key={idx} sx={{ '&:hover': { bgcolor: 'rgba(99,102,241,0.06)' } }}>
                           <TableCell><strong>{item.title}</strong></TableCell>
                           <TableCell>{item.performers?.map(p => p.name || p).join(', ') || 'None'}</TableCell>
                           <TableCell>
@@ -351,19 +352,17 @@ export default function UniversalSearch() {
                     </TableBody>
                   </Table>
                 </TableContainer>
-              </CardContent>
-            </Card>
+            </GlassCard>
           )}
 
           {/* Remote ThePornDB Hits */}
           {universalResults.theporndb?.length > 0 && (
-            <Card>
-              <CardContent>
+            <GlassCard>
                 <Typography variant="h6" sx={{ color: '#009688' }} gutterBottom>ThePornDB Registry Matches</Typography>
-                <TableContainer component={Paper} variant="outlined">
+                <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: '12px', bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
                   <Table size="small">
                     <TableHead>
-                      <TableRow>
+                      <TableRow sx={{ '&:hover': { bgcolor: 'rgba(99,102,241,0.06)' } }}>
                         <TableCell>Title</TableCell>
                         <TableCell>Performers</TableCell>
                         <TableCell>Actions</TableCell>
@@ -371,7 +370,7 @@ export default function UniversalSearch() {
                     </TableHead>
                     <TableBody>
                       {universalResults.theporndb.map((item, idx) => (
-                        <TableRow key={idx}>
+                        <TableRow key={idx} sx={{ '&:hover': { bgcolor: 'rgba(99,102,241,0.06)' } }}>
                           <TableCell><strong>{item.title}</strong></TableCell>
                           <TableCell>{item.performers?.map(p => p.name || p).join(', ') || 'None'}</TableCell>
                           <TableCell>
@@ -384,8 +383,7 @@ export default function UniversalSearch() {
                     </TableBody>
                   </Table>
                 </TableContainer>
-              </CardContent>
-            </Card>
+            </GlassCard>
           )}
         </Box>
       )}

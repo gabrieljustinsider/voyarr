@@ -18,6 +18,7 @@ import TuneIcon from '@mui/icons-material/Tune'
 import LanIcon from '@mui/icons-material/Lan'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import CheckIcon from '@mui/icons-material/Check'
+import GlassCard from './common/GlassCard'
 import { apiFetch } from '../api'
 import PasswordChecklist from './PasswordChecklist'
 import PermissionsManager from './PermissionsManager'
@@ -356,8 +357,14 @@ export default function UserManagement() {
 
   return (
     <Box sx={{ maxWidth: 1400, mx: 'auto', width: '100%' }}>
-      <Paper sx={{ p: 3, mb: 3 }}>
+      <GlassCard sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>User Management</Typography>
+      <Alert severity="info" sx={{ mb: 3, borderRadius: '12px', bgcolor: 'rgba(99,102,241,0.08)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.2)', '& .MuiAlert-icon': { color: '#818cf8' } }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.25 }}>👥 User Management Console</Typography>
+        <Typography variant="caption" sx={{ display: 'block', opacity: 0.9, lineHeight: 1.4 }}>
+          Create and manage user accounts, configure role-based permissions, manage WebAuthn passkeys and SSO identity links for all users.
+        </Typography>
+      </Alert>
         <Typography variant="body2" sx={{ mb: 2 }} color="textSecondary">
           Create user accounts to grant access to the UI.
         </Typography>
@@ -417,11 +424,11 @@ export default function UserManagement() {
             </Button>
           </Box>
         </form>
-      </Paper>
+      </GlassCard>
 
       {/* Users List & Advanced Management Dashboard */}
       {usersList.length > 0 && (
-        <Paper sx={{ p: 3, mb: 3 }}>
+        <GlassCard sx={{ p: 3, mb: 3 }}>
           <Typography variant="h6" gutterBottom>User Directory & Management Dashboard</Typography>
           <Typography variant="body2" sx={{ mb: 2 }} color="textSecondary">
             Manage system roles, suspend accounts, reset credentials, revoke passkeys, check IPs, or consolidate history using merges.
@@ -443,7 +450,7 @@ export default function UserManagement() {
                 {usersList.map((u) => {
                   const perms = u.permissions || { can_stream: true, can_scrape: false, can_rip: false, url_parsing: 'edit' };
                   return (
-                    <TableRow key={u.id} hover>
+                    <TableRow key={u.id} hover sx={{ '&:hover': { bgcolor: 'rgba(99,102,241,0.06)' } }}>
                       <TableCell align="center" sx={{ fontWeight: 500, whiteSpace: 'nowrap' }}>{u.username}</TableCell>
                       <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                         <Chip
@@ -483,12 +490,12 @@ export default function UserManagement() {
               </TableBody>
             </Table>
           </Box>
-        </Paper>
+        </GlassCard>
       )}
 
       {/* Admin Action Audit Logs */}
       {adminLogs.length > 0 && (
-        <Paper sx={{ p: 3, mb: 3 }}>
+        <GlassCard sx={{ p: 3, mb: 3 }}>
           <Typography variant="h6" gutterBottom>Admin Action Audit Logs</Typography>
           <Typography variant="body2" sx={{ mb: 2 }} color="textSecondary">
             A chronological security audit log of all administrative actions, policy adjustments, and user permission updates.
@@ -506,7 +513,7 @@ export default function UserManagement() {
               </TableHead>
               <TableBody>
                 {adminLogs.map((log) => (
-                  <TableRow key={log.id} hover>
+                  <TableRow key={log.id} hover sx={{ '&:hover': { bgcolor: 'rgba(99,102,241,0.06)' } }}>
                     <TableCell align="center" sx={{ opacity: 0.8, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
                       {new Date(log.timestamp).toLocaleString()}
                     </TableCell>
@@ -530,7 +537,7 @@ export default function UserManagement() {
               </TableBody>
             </Table>
           </Box>
-        </Paper>
+        </GlassCard>
       )}
 
       {/* Advanced User Management Details Dialog */}

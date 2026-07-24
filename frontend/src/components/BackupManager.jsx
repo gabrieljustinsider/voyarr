@@ -34,6 +34,7 @@ import Visibility from '@mui/icons-material/Visibility'
 import VisibilityOff from '@mui/icons-material/VisibilityOff'
 import FolderZipIcon from '@mui/icons-material/FolderZip'
 import { apiFetch } from '../api'
+import GlassCard from './common/GlassCard'
 
 const BACKUP_API = '/backup'
 
@@ -356,11 +357,18 @@ else:
       <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold' }}>
         Backup & Restore
       </Typography>
+
+      <Alert severity="info" sx={{ mb: 3, borderRadius: '12px', bgcolor: 'rgba(99,102,241,0.08)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.2)', '& .MuiAlert-icon': { color: '#818cf8' } }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.25 }}>💾 Backup &amp; Restore Center</Typography>
+        <Typography variant="caption" sx={{ display: 'block', opacity: 0.9, lineHeight: 1.4 }}>
+          Export your complete PostgreSQL database schema and media metadata configurations, or restore from previous backups to recover your system to a known state.
+        </Typography>
+      </Alert>
       
       <Grid container spacing={3}>
         {/* Left Side: Export Controls */}
         <Grid xs={12} md={6}>
-          <Paper sx={{ p: 3, height: '100%', boxSizing: 'border-box' }}>
+          <GlassCard sx={{ height: '100%', boxSizing: 'border-box' }}>
             <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>Export Data</Typography>
             <Divider sx={{ mb: 2 }} />
             <Typography variant="body2" sx={{ mb: 2 }} color="textSecondary">
@@ -425,12 +433,12 @@ else:
             
             {loading && <CircularProgress size={24} sx={{ mt: 2 }} />}
             {message && <Alert severity={message.type} sx={{ mt: 2 }}>{message.text}</Alert>}
-          </Paper>
+          </GlassCard>
         </Grid>
 
         {/* Right Side: Local Backups Browser */}
         <Grid xs={12} md={6}>
-          <Paper sx={{ p: 3, height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
+          <GlassCard sx={{ height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
             <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 1 }}>
               <StorageIcon sx={{ color: 'var(--accent)' }} /> Server-Side Backups
             </Typography>
@@ -485,12 +493,12 @@ else:
                 </TableContainer>
               )}
             </Box>
-          </Paper>
+          </GlassCard>
         </Grid>
 
         {/* Restore Section (Unified for Uploaded & Local) */}
         <Grid xs={12}>
-          <Paper sx={{ p: 3 }}>
+          <GlassCard>
             <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>Restore & Verify Backup</Typography>
             <Divider sx={{ mb: 2 }} />
             
@@ -568,7 +576,7 @@ else:
                     
                     <Grid container spacing={2} sx={{ mb: 2 }}>
                       <Grid xs={12} sm={6}>
-                        <Paper variant="outlined" sx={{ p: 2, backgroundColor: 'rgba(255,255,255,0.01)' }}>
+                        <Paper variant="outlined" sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
                           <Typography variant="caption" color="textSecondary">Backup Type</Typography>
                           <Typography variant="body1" sx={{ fontWeight: 'bold', textTransform: 'capitalize' }}>
                             {verifyData.type}
@@ -576,7 +584,7 @@ else:
                         </Paper>
                       </Grid>
                       <Grid xs={12} sm={6}>
-                        <Paper variant="outlined" sx={{ p: 2, backgroundColor: 'rgba(255,255,255,0.01)' }}>
+                        <Paper variant="outlined" sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
                           <Typography variant="caption" color="textSecondary">Encryption Mode</Typography>
                           <Typography variant="body1" sx={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             {verifyData.encrypted ? (
@@ -589,7 +597,7 @@ else:
                       </Grid>
 
                       <Grid xs={12}>
-                        <Paper variant="outlined" sx={{ p: 2, backgroundColor: 'rgba(255,255,255,0.01)' }}>
+                        <Paper variant="outlined" sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
                           <Typography variant="caption" color="textSecondary">SHA-256 Checksum</Typography>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
                             <Typography variant="body2" sx={{ fontFamily: 'var(--mono)', backgroundColor: 'var(--code-bg)', p: 0.5, borderRadius: '4px', wordBreak: 'break-all', flexGrow: 1 }}>
@@ -605,7 +613,7 @@ else:
                       </Grid>
 
                       <Grid xs={12}>
-                        <Paper variant="outlined" sx={{ p: 2, backgroundColor: 'rgba(255,255,255,0.01)' }}>
+                        <Paper variant="outlined" sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
                           <Typography variant="caption" color="textSecondary">Signature Integrity Status</Typography>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
                             {verifyData.verified_signature || (verifyData.encrypted && verifyData.decrypted_data) ? (
@@ -687,7 +695,7 @@ else:
             </Grid>
 
             {restoreMessage && <Alert severity={restoreMessage.type} sx={{ mt: 2 }}>{restoreMessage.text}</Alert>}
-          </Paper>
+          </GlassCard>
         </Grid>
       </Grid>
     </Box>

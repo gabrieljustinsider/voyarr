@@ -6,6 +6,7 @@ import {
   CircularProgress, Alert, Pagination, Checkbox, Slide, Autocomplete, createFilterOptions, InputAdornment
 } from '@mui/material'
 import { X, PlayCircle, Settings, List, CloudUpload, Heart, Cast, Sparkles, Edit2, Plus, FolderOpen, FileUp, Trash2, Film, LayoutGrid, Clock, HardDrive, Filter, ArrowUpDown, SlidersHorizontal, Video, Layers, Search } from 'lucide-react'
+import GlassCard from './common/GlassCard'
 import ChapterManager from './ChapterManager'
 import SecondScreenRemote from './SecondScreenRemote'
 import SmartVideoPlayer from './SmartVideoPlayer'
@@ -877,8 +878,7 @@ export default function Library() {
       )}
 
       {/* Modernized Filters & Controls Bar */}
-      <Paper 
-        elevation={0}
+      <GlassCard
         sx={{ 
           p: 2.5, 
           mb: 3.5, 
@@ -1001,11 +1001,11 @@ export default function Library() {
             </Box>
           </Box>
         </Box>
-      </Paper>
+      </GlassCard>
 
       {/* Media Content Rendering */}
       {sortedEntries.length === 0 ? (
-        <Paper sx={{ p: 6, textAlign: 'center', background: 'rgba(255, 255, 255, 0.01)', borderRadius: '16px', border: '1px dashed rgba(255, 255, 255, 0.1)' }}>
+        <GlassCard sx={{ p: 6, textAlign: 'center', background: 'rgba(255, 255, 255, 0.01)', borderRadius: '16px', border: '1px dashed rgba(255, 255, 255, 0.1)' }}>
           <Film size={48} style={{ opacity: 0.3, marginBottom: '16px' }} />
           <Typography variant="h6" color="textSecondary" gutterBottom>No media items found</Typography>
           <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
@@ -1014,7 +1014,7 @@ export default function Library() {
           <Button variant="contained" color="primary" startIcon={<FileUp size={18} />} onClick={() => setDirectPickerOpen(true)}>
             Import Media
           </Button>
-        </Paper>
+        </GlassCard>
       ) : viewMode === 'grid' ? (
         /* Grid View Mode */
         <Grid container spacing={3} sx={{ alignItems: 'stretch' }}>
@@ -1025,7 +1025,7 @@ export default function Library() {
             
             return (
               <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={entry.id}>
-                <Card sx={{ 
+                <GlassCard sx={{ 
                   height: '100%', 
                   display: 'flex', 
                   flexDirection: 'column', 
@@ -1165,7 +1165,6 @@ export default function Library() {
                   </Box>
 
                   {/* Card Content Details */}
-                  <CardContent sx={{ flexGrow: 1, p: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
                     <Typography 
                       variant="subtitle1" 
                       noWrap 
@@ -1205,8 +1204,6 @@ export default function Library() {
                         )}
                       </Box>
                     )}
-                  </CardContent>
-
                   {/* Card Footer Actions Row */}
                   <Box sx={{ 
                     p: 1.5, 
@@ -1238,14 +1235,14 @@ export default function Library() {
                       </Tooltip>
                     </Box>
                   </Box>
-                </Card>
+                </GlassCard>
               </Grid>
             )
           })}
         </Grid>
       ) : (
         /* Compact List View Mode */
-        <Paper sx={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(15, 23, 42, 0.4)' }}>
+        <GlassCard sx={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(15, 23, 42, 0.4)' }}>
           <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Showing {sortedEntries.length} Items</Typography>
           </Box>
@@ -1266,7 +1263,7 @@ export default function Library() {
                   const isFav = favScenes.includes(String(entry.id))
                   const isSelected = selectedEntries.has(entry.id)
                   return (
-                    <Box component="tr" key={entry.id} sx={{ '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' } }}>
+                    <Box component="tr" key={entry.id} sx={{ '&:hover': { bgcolor: 'rgba(99,102,241,0.06)' } }}>
                       <Box component="td">
                         <Checkbox size="small" checked={isSelected} onChange={() => handleToggleSelect(entry.id)} />
                       </Box>
@@ -1298,13 +1295,12 @@ export default function Library() {
               </Box>
             </Box>
           </Box>
-        </Paper>
+        </GlassCard>
       )}
 
       {/* Floating Sticky Bulk Action Bar */}
       {selectedEntries.size > 0 && (
-        <Paper
-          elevation={12}
+        <GlassCard
           sx={{
             position: 'fixed',
             bottom: 24,
@@ -1371,7 +1367,7 @@ export default function Library() {
           >
             Clear Selection
           </Button>
-        </Paper>
+        </GlassCard>
       )}
 
       {totalPages > 1 && (
@@ -1908,7 +1904,7 @@ export default function Library() {
               {/* Right Column: Bio & Aliases */}
               <Grid xs={12} md={8} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 {performerDetails.aliases && performerDetails.aliases.length > 0 && (
-                  <Box>
+    <Box sx={{ maxWidth: 1400, mx: 'auto', width: '100%' }}>
                     <Typography variant="subtitle2" sx={{ color: 'warning.main', fontWeight: '600', mb: 1 }}>
                       Aliases / Known As
                     </Typography>
