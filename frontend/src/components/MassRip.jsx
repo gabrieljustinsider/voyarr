@@ -160,9 +160,9 @@ export default function MassRip() {
         </Typography>
       </Alert>
       
-      <Paper sx={{ p: 3, mb: 3, borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)', backgroundImage: 'linear-gradient(rgba(255,255,255,0.01), rgba(255,255,255,0))' }}>
+      <Paper sx={{ p: 3, mb: 3, borderRadius: '16px', background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255, 255, 255, 0.08)', boxShadow: '0 8px 32px rgba(0,0,0,0.25)' }}>
         {!rippingEnabled && (
-          <Alert severity="warning" sx={{ mb: 3, borderRadius: '8px' }}>
+          <Alert severity="warning" sx={{ mb: 3, borderRadius: '10px' }}>
             ⚠️ Access Denied: The Ripping feature is disabled globally by the administrator. Please enable it in Settings to use this workflow.
           </Alert>
         )}
@@ -171,36 +171,45 @@ export default function MassRip() {
         </Typography>
         
         <Grid container spacing={2} sx={{ alignItems: 'center' }}>
-          <Grid xs={12} md="auto" sx={{ minWidth: 260 }}>
+          <Grid item xs={12} md="auto" sx={{ minWidth: 280 }}>
             <FormControl fullWidth size="small" disabled={!rippingEnabled}>
-              <InputLabel>Provider Ruleset</InputLabel>
-              <Select value={providerId} label="Provider Ruleset" onChange={e => setProviderId(e.target.value)}>
+              <InputLabel id="mass-rip-provider-label">Provider Ruleset</InputLabel>
+              <Select 
+                labelId="mass-rip-provider-label"
+                value={providerId} 
+                label="Provider Ruleset" 
+                onChange={e => setProviderId(e.target.value)}
+                sx={{ borderRadius: '10px' }}
+              >
                 {providers.map(p => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
               </Select>
             </FormControl>
           </Grid>
-          <Grid xs={12} md={true}>
+          <Grid item xs={12} md={true} sx={{ minWidth: 320 }}>
             <TextField 
               fullWidth 
               size="small" 
               label="Target URL (Channel/Playlist)" 
+              placeholder="https://..."
               value={url} 
               onChange={e => setUrl(e.target.value)} 
               disabled={!rippingEnabled} 
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
             />
           </Grid>
-          <Grid xs={12} md="auto">
+          <Grid item xs={12} md="auto">
             <Button 
               variant="contained" 
+              color="primary"
               onClick={handleMassRip} 
               disabled={loading || !providerId || !url || !rippingEnabled}
-              sx={{ minWidth: 160, height: 40, fontWeight: 600 }}
+              sx={{ minWidth: 160, height: 40, fontWeight: 'bold', borderRadius: '10px', textTransform: 'none' }}
             >
-              {loading ? <CircularProgress size={24} color="inherit" /> : 'Start Mass Rip'}
+              {loading ? <CircularProgress size={22} color="inherit" /> : 'Start Mass Rip'}
             </Button>
           </Grid>
         </Grid>
-        {result && <Alert severity={result.type} sx={{ mt: 3, borderRadius: '8px' }}>{result.message}</Alert>}
+        {result && <Alert severity={result.type} sx={{ mt: 3, borderRadius: '10px' }}>{result.message}</Alert>}
       </Paper>
 
       {/* Ripping Tasks Log Table */}

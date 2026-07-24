@@ -7,8 +7,11 @@ import {
 import { apiFetch } from '../api'
 import { Tag } from 'lucide-react'
 import UrlParseConfirmationModal from './UrlParseConfirmationModal'
+import Duplicates from './Duplicates'
+import { Paper, Tabs, Tab } from '@mui/material'
 
 export default function MetadataManager() {
+  const [subTab, setSubTab] = useState(0)
   const [entryId, setEntryId] = useState('')
   const [metadata, setMetadata] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -212,59 +215,74 @@ export default function MetadataManager() {
 
   return (
     <Box sx={{ maxWidth: 1400, mx: 'auto', width: '100%' }}>
-      <Typography variant="h4" gutterBottom>
-        Metadata Management
+      <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 3 }}>
+        Metadata Management Hub
       </Typography>
 
-      {/* Purpose Banner */}
-      <Alert 
-        severity="info" 
-        icon={<Tag size={20} />} 
-        sx={{ 
-          mb: 3, 
-          borderRadius: '12px', 
-          bgcolor: 'rgba(99, 102, 241, 0.08)', 
-          color: '#a5b4fc',
-          border: '1px solid rgba(99, 102, 241, 0.2)',
-          '& .MuiAlert-icon': { color: '#818cf8' } 
-        }}
-      >
-        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.25 }}>
-          🏷️ Metadata Enrichment &amp; File Tagging Manager
-        </Typography>
-        <Typography variant="caption" sx={{ display: 'block', opacity: 0.9, lineHeight: 1.4 }}>
-          The Metadata Manager fetches external scraper data (TPDB, StashDB), parses page URLs, enriches video titles, updates performer profiles, tags categories, and formats NFO files.
-        </Typography>
-      </Alert>
+      <Paper sx={{ mb: 3, borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)', bgcolor: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(12px)' }}>
+        <Tabs 
+          value={subTab} 
+          onChange={(e, val) => setSubTab(val)}
+          sx={{ px: 2, '& .MuiTab-root': { fontWeight: 'bold', textTransform: 'none', minHeight: 48 } }}
+        >
+          <Tab label="Metadata Clean & Auto-Tag" />
+          <Tab label="Duplicate Hash Resolver" />
+        </Tabs>
+      </Paper>
 
-      {/* Fetch Metadata */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>Fetch & Edit Metadata</Typography>
-          <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-            <FormControl sx={{ minWidth: 300 }} size="small">
-              <InputLabel>Select Library Entry</InputLabel>
-              <Select
-                value={entryId}
-                label="Select Library Entry"
-                onChange={(e) => setEntryId(e.target.value)}
-              >
-                {libraryEntries.map(entry => <MenuItem key={entry.id} value={entry.id}>{entry.title || `Entry ${entry.id}`}</MenuItem>)}
-              </Select>
-            </FormControl>
-            <Button variant="contained" onClick={handleFetchMetadata} disabled={loading}>
-              {loading ? <CircularProgress size={24} /> : 'Fetch'}
-            </Button>
-          </Box>
+      {subTab === 0 && (
+        <>
+          {/* Purpose Banner */}
+          <Alert 
+            severity="info" 
+            icon={<Tag size={20} />} 
+            sx={{ 
+              mb: 3, 
+              borderRadius: '12px', 
+              bgcolor: 'rgba(99, 102, 241, 0.08)', 
+              color: '#a5b4fc',
+              border: '1px solid rgba(99, 102, 241, 0.2)',
+              '& .MuiAlert-icon': { color: '#818cf8' } 
+            }}
+          >
+            <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.25 }}>
+              🏷️ Centralized Media Metadata &amp; Taxonomy Engine
+            </Typography>
+            <Typography variant="caption" sx={{ display: 'block', opacity: 0.9, lineHeight: 1.4 }}>
+              Inspect and clean scene titles, studio assignments, tags, and performer profiles. Run AI auto-tagging across your library, fetch missing metadata from provider scrapers, or parse metadata directly from video URLs.
+            </Typography>
+          </Alert>
 
           {message && (
-            <Alert severity={message.includes('Error') ? 'error' : 'info'} sx={{ mb: 2 }}>
+            <Alert 
+              severity={message.includes('Error') ? 'error' : 'info'} 
+              sx={{ mb: 3, borderRadius: '10px' }} 
+              onClose={() => setMessage('')}
+            >
               {message}
             </Alert>
           )}
 
-          {metadata && (
-            <Box>
+          {/* Fetch & Edit Metadata Card */}
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>Fetch &amp; Edit Metadata</Typography>
+              <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+                <FormControl sx={{ minWidth: 300 }} size="small">
+                  <InputLabel>Select Library Entry</InputLabel>
+                  <Select
+                    value={entryId}
+                    label="Select Library Entry"
+                    onChange={(e) => setEntryId(e.target.value)}
+                  >
+                    {libraryEntries.map(entry => <MenuItem key={entry.id} value={entry.id}>{entry.title || `Entry #${entry.id}`}</MenuItem>)}
+                  </Select>
+                </FormControl>
+                <Button variant="contained" onClick={() => handleFetchMetadata(entryId)} disabled={!entryId || loading}>
+                  {loading ? <CircularProgress size={20} color="inherit" /> : 'Fetch'}
+                </Button>
+              </Box>
+
               {urlParsingPermission !== 'no_access' && (
                 <Box sx={{ display: 'flex', gap: 1, mb: 2, mt: 1, p: 2, borderRadius: '10px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', alignItems: 'center' }}>
                   <TextField
@@ -280,93 +298,94 @@ export default function MetadataManager() {
                   </Button>
                 </Box>
               )}
-              <TextField
-                fullWidth
-                label="Title"
-                value={metadata.title}
-                onChange={(e) => setMetadata({...metadata, title: e.target.value})}
-                margin="normal"
-              />
-              <TextField
-                fullWidth
-                label="Studio"
-                value={metadata.studio_name || ''}
-                onChange={(e) => setMetadata({...metadata, studio_name: e.target.value})}
-                margin="normal"
-              />
-              <TextField
-                fullWidth
-                label="Performers (comma-separated)"
-                value={metadata.performers?.join(', ')}
-                onChange={(e) => setMetadata({
-                  ...metadata,
-                  performers: e.target.value.split(',').map(p => p.trim())
-                })}
-                margin="normal"
-              />
-              <TextField
-                fullWidth
-                label="Tags (comma-separated)"
-                value={metadata.tags?.join(', ')}
-                onChange={(e) => setMetadata({
-                  ...metadata,
-                  tags: e.target.value.split(',').map(t => t.trim())
-                })}
-                margin="normal"
-              />
-              <TextField
-                fullWidth
-                label="Description"
-                value={metadata.entry_metadata?.description || ''}
-                onChange={(e) => setMetadata({
-                  ...metadata,
-                  entry_metadata: {...metadata.entry_metadata, description: e.target.value}
-                })}
-                margin="normal"
-                multiline
-                rows={3}
-              />
 
-              <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
-                <Button variant="contained" onClick={handleUpdateMetadata}>
-                  Update Metadata
+              {metadata && (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+                  <TextField
+                    fullWidth
+                    label="Title"
+                    value={metadata.title || ''}
+                    onChange={(e) => setMetadata({...metadata, title: e.target.value})}
+                  />
+                  <TextField
+                    fullWidth
+                    label="Studio"
+                    value={metadata.studio_name || ''}
+                    onChange={(e) => setMetadata({...metadata, studio_name: e.target.value})}
+                  />
+                  <TextField
+                    fullWidth
+                    label="Performers (comma-separated)"
+                    value={metadata.performers?.join(', ') || ''}
+                    onChange={(e) => setMetadata({
+                      ...metadata,
+                      performers: e.target.value.split(',').map(p => p.trim())
+                    })}
+                  />
+                  <TextField
+                    fullWidth
+                    label="Tags (comma-separated)"
+                    value={metadata.tags?.join(', ') || ''}
+                    onChange={(e) => setMetadata({
+                      ...metadata,
+                      tags: e.target.value.split(',').map(t => t.trim())
+                    })}
+                  />
+                  <TextField
+                    fullWidth
+                    label="Description"
+                    value={metadata.entry_metadata?.description || ''}
+                    onChange={(e) => setMetadata({
+                      ...metadata,
+                      entry_metadata: {...metadata.entry_metadata, description: e.target.value}
+                    })}
+                    multiline
+                    rows={3}
+                  />
+
+                  <Box sx={{ mt: 1, display: 'flex', gap: 1.5 }}>
+                    <Button variant="contained" color="success" onClick={handleSaveMetadata}>
+                      Update Metadata
+                    </Button>
+                  </Box>
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Quick Actions */}
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>Metadata Caching</Typography>
+              <Box sx={{ display: 'flex', gap: 1.5 }}>
+                <Button variant="contained" onClick={() => handleQuickCache('theporndb')} disabled={loading}>
+                  Cache Metadata from ThePornDB
                 </Button>
-                <Button variant="outlined" onClick={handleWriteToFile}>
-                  Write to File
+                <Button variant="contained" onClick={() => handleQuickCache('stashdb')} disabled={loading}>
+                  Cache Metadata from StashDB
                 </Button>
               </Box>
-            </Box>
-          )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
 
-      {/* Quick Actions */}
-      <Card>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>Metadata Caching</Typography>
-          <Button variant="contained" sx={{ mr: 1 }} onClick={() => handleQuickCache('theporndb')} disabled={loading}>
-            Cache Metadata from ThePornDB
-          </Button>
-          <Button variant="contained" onClick={() => handleQuickCache('stashdb')} disabled={loading}>
-            Cache Metadata from StashDB
-          </Button>
-        </CardContent>
-      </Card>
+          <UrlParseConfirmationModal
+            open={modalOpen}
+            onClose={() => setModalOpen(false)}
+            parsedData={parsedMetadata}
+            currentData={{
+              title: metadata?.title || '',
+              studio: metadata?.studio_name || '',
+              performers: metadata?.performers || [],
+              tags: metadata?.tags || [],
+              description: metadata?.entry_metadata?.description || ''
+            }}
+            onApply={handleApplyParsedMetadata}
+            permission={urlParsingPermission}
+          />
+        </>
+      )}
 
-      <UrlParseConfirmationModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        parsedData={parsedMetadata}
-        currentData={{
-          title: metadata?.title || '',
-          studio: metadata?.studio_name || '',
-          performers: metadata?.performers || [],
-          tags: metadata?.tags || [],
-          description: metadata?.entry_metadata?.description || ''
-        }}
-        onApply={handleApplyParsedMetadata}
-        permission={urlParsingPermission}
-      />
+      {subTab === 1 && <Duplicates />}
     </Box>
   )
 }

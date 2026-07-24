@@ -116,114 +116,167 @@ export default function DownloadQueue({ queue, onRefresh }) {
 
   return (
     <Box sx={{ maxWidth: 1400, mx: 'auto', width: '100%' }}>
-      <Typography variant="h4" gutterBottom>
+      <Typography variant="h4" sx={{ fontWeight: '800', letterSpacing: '-0.5px', mb: 3 }}>
         Download Queue
       </Typography>
 
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>Add Single Download</Typography>
+      {/* Add Single Download Card */}
+      <Paper sx={{ p: 3, mb: 3, borderRadius: '16px', background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255, 255, 255, 0.08)', boxShadow: '0 8px 32px rgba(0,0,0,0.25)' }}>
+        <Typography variant="h6" sx={{ fontWeight: '700', mb: 2 }}>Add Single Download</Typography>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-          <Box sx={{ flexShrink: 0, minWidth: 200 }}>
+          <Box sx={{ flexShrink: 0, minWidth: 240 }}>
             <FormControl fullWidth size="small">
-              <InputLabel>Provider</InputLabel>
-              <Select value={newDownload.provider_id} label="Provider" onChange={e => setNewDownload({...newDownload, provider_id: e.target.value})}>
+              <InputLabel id="provider-select-label">Select Media Provider</InputLabel>
+              <Select 
+                labelId="provider-select-label"
+                value={newDownload.provider_id} 
+                label="Select Media Provider" 
+                onChange={e => setNewDownload({...newDownload, provider_id: e.target.value})}
+                sx={{ borderRadius: '10px' }}
+              >
                 {providers.map(p => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
               </Select>
             </FormControl>
           </Box>
-          <Box sx={{ flexGrow: 1, minWidth: 200 }}>
-            <TextField fullWidth size="small" label="Media URL" value={newDownload.url} onChange={e => setNewDownload({...newDownload, url: e.target.value})} />
+          <Box sx={{ flexGrow: 1, minWidth: 280 }}>
+            <TextField 
+              fullWidth 
+              size="small" 
+              label="Media URL" 
+              placeholder="https://..."
+              value={newDownload.url} 
+              onChange={e => setNewDownload({...newDownload, url: e.target.value})} 
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+            />
           </Box>
           <Box sx={{ flexShrink: 0 }}>
-            <Button variant="contained" onClick={() => handleAddDownload(false)} disabled={loading || !newDownload.provider_id || !newDownload.url} sx={{ height: 40, px: 3 }}>
-              {loading ? <CircularProgress size={24} /> : 'Queue'}
+            <Button 
+              variant="contained" 
+              color="primary"
+              onClick={() => handleAddDownload(false)} 
+              disabled={loading || !newDownload.provider_id || !newDownload.url} 
+              sx={{ height: 40, px: 3, borderRadius: '10px', textTransform: 'none', fontWeight: 'bold' }}
+            >
+              {loading ? <CircularProgress size={22} color="inherit" /> : 'Queue Download'}
             </Button>
           </Box>
         </Box>
       </Paper>
 
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>Live Stream Extractor</Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Extract direct .m3u8 or .mp4 stream URLs from supported sites (like Chaturbate) to copy or save.
+      {/* Live Stream Extractor Card */}
+      <Paper sx={{ p: 3, mb: 3, borderRadius: '16px', background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255, 255, 255, 0.08)', boxShadow: '0 8px 32px rgba(0,0,0,0.25)' }}>
+        <Typography variant="h6" sx={{ fontWeight: '700', mb: 0.5 }}>Live Stream Extractor</Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+          Extract direct stream URLs (.m3u8 / .mp4) from supported sites to copy or add to your Live Stream Hub.
         </Typography>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-          <Box sx={{ flexGrow: 1, minWidth: 200 }}>
-            <TextField fullWidth size="small" label="Page URL (e.g., https://chaturbate.com/username)" value={streamUrlInput} onChange={e => setStreamUrlInput(e.target.value)} />
+          <Box sx={{ flexGrow: 1, minWidth: 280 }}>
+            <TextField 
+              fullWidth 
+              size="small" 
+              label="Webcam Page URL" 
+              placeholder="e.g. https://chaturbate.com/room_name/"
+              value={streamUrlInput} 
+              onChange={e => setStreamUrlInput(e.target.value)} 
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+            />
           </Box>
           <Box sx={{ flexShrink: 0 }}>
-            <Button variant="outlined" onClick={handleExtractStream} disabled={extracting || !streamUrlInput} sx={{ height: 40, px: 3 }}>
-              {extracting ? <CircularProgress size={24} /> : 'Extract Stream URL'}
+            <Button 
+              variant="outlined" 
+              color="secondary"
+              onClick={handleExtractStream} 
+              disabled={extracting || !streamUrlInput} 
+              sx={{ height: 40, px: 3, borderRadius: '10px', textTransform: 'none', fontWeight: 'bold' }}
+            >
+              {extracting ? <CircularProgress size={20} color="inherit" /> : 'Extract Stream URL'}
             </Button>
           </Box>
         </Box>
 
         {extractedStream && (
-          <Box sx={{ mt: 2, p: 2, backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 1 }}>
-            <Typography variant="subtitle2" color="primary" gutterBottom>{extractedStream.title}</Typography>
-            <Typography variant="body2" sx={{ wordBreak: 'break-all', mb: 2, fontFamily: 'monospace', p: 1, backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 1 }}>
+          <Box sx={{ mt: 2.5, p: 2, backgroundColor: 'rgba(0, 0, 0, 0.3)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px' }}>
+            <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 'bold' }} gutterBottom>{extractedStream.title}</Typography>
+            <Typography variant="caption" sx={{ wordBreak: 'break-all', display: 'block', mb: 2, fontFamily: 'monospace', p: 1.5, backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
               {extractedStream.stream_url}
             </Typography>
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <Button size="small" variant="contained" onClick={handleCopyStreamUrl}>Copy Link</Button>
-              <Button size="small" variant="contained" color="secondary" onClick={handleSaveStream}>Save to Live Streams</Button>
+            <Box sx={{ display: 'flex', gap: 1.5 }}>
+              <Button size="small" variant="contained" onClick={handleCopyStreamUrl} sx={{ borderRadius: '8px', textTransform: 'none', px: 2 }}>Copy Link</Button>
+              <Button size="small" variant="contained" color="secondary" onClick={handleSaveStream} sx={{ borderRadius: '8px', textTransform: 'none', px: 2 }}>Save to Live Streams</Button>
             </Box>
           </Box>
         )}
       </Paper>
 
-      <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 2, flexWrap: 'wrap' }}>
-        <Box sx={{ flexShrink: 0, minWidth: 200 }}>
-          <FormControl fullWidth size="small">
-            <InputLabel>Filter by Status</InputLabel>
-            <Select value={filters.status} label="Filter by Status" onChange={e => setFilters({...filters, status: e.target.value})}>
-              <MenuItem value="">All Statuses</MenuItem>
-              <MenuItem value="running">Running</MenuItem>
-              <MenuItem value="queued">Queued</MenuItem>
-              <MenuItem value="completed">Completed</MenuItem>
-              <MenuItem value="failed">Failed</MenuItem>
-            </Select>
-          </FormControl>
+      {/* Filter & Search Toolbar */}
+      <Paper sx={{ p: 2, mb: 3, borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)', bgcolor: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(12px)' }}>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Box sx={{ flexShrink: 0, minWidth: 220 }}>
+            <FormControl fullWidth size="small">
+              <InputLabel id="filter-status-label">Filter Status</InputLabel>
+              <Select 
+                labelId="filter-status-label"
+                value={filters.status} 
+                label="Filter Status" 
+                onChange={e => setFilters({...filters, status: e.target.value})}
+                sx={{ borderRadius: '10px' }}
+              >
+                <MenuItem value="">All Statuses</MenuItem>
+                <MenuItem value="running">Running</MenuItem>
+                <MenuItem value="queued">Queued</MenuItem>
+                <MenuItem value="completed">Completed</MenuItem>
+                <MenuItem value="failed">Failed</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+          <Box sx={{ flexGrow: 1, minWidth: 240 }}>
+            <TextField 
+              fullWidth 
+              size="small" 
+              label="Search Download URL" 
+              value={filters.url_contains} 
+              onChange={e => setFilters({...filters, url_contains: e.target.value})} 
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+            />
+          </Box>
         </Box>
-        <Box sx={{ flexGrow: 1, minWidth: 200 }}>
-          <TextField fullWidth size="small" label="Search URL..." value={filters.url_contains} onChange={e => setFilters({...filters, url_contains: e.target.value})} />
-        </Box>
-      </Box>
+      </Paper>
 
       {filteredQueue.length > 0 ? (
-        <List>
+        <List sx={{ p: 0 }}>
           {filteredQueue.map((task) => (
-            <ListItem key={task.id} sx={{ flexDirection: 'column', alignItems: 'flex-start', mb: 2, p: 2, border: '1px solid #333', borderRadius: 2 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', mb: 1 }}>
-                <Typography variant="h6" noWrap sx={{ maxWidth: '70%' }} title={task.url}>
-                  Task {task.id}: {task.url}
+            <Paper key={task.id} sx={{ mb: 2, p: 2.5, borderRadius: '14px', background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', mb: 1.5, gap: 1 }}>
+                <Typography variant="subtitle1" noWrap sx={{ maxWidth: '75%', fontWeight: '700' }} title={task.url}>
+                  Task #{task.id}: {task.url}
                 </Typography>
                 <Chip 
-                  label={task.status} 
+                  label={(task.status || 'unknown').toUpperCase()} 
                   color={task.status === 'completed' ? 'success' : task.status === 'failed' ? 'error' : task.status === 'queued' ? 'warning' : 'primary'} 
                   size="small"
+                  sx={{ fontWeight: 'bold', fontSize: '0.65rem' }}
                 />
               </Box>
-              <Box sx={{ width: '100%', mb: 1 }}>
-                <LinearProgress variant="determinate" value={task.progress_percentage || 0} sx={{ height: 10, borderRadius: 5 }} />
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              <Box sx={{ width: '100%', mb: 1.5 }}>
+                <LinearProgress variant="determinate" value={task.progress_percentage || 0} sx={{ height: 8, borderRadius: 4 }} />
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block', fontWeight: 'bold' }}>
                   {(task.progress_percentage || 0).toFixed(1)}% complete
                 </Typography>
               </Box>
               <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', width: '100%' }}>
                 <Box sx={{ display: 'flex', gap: 1 }}>
                   {(task.status === 'running' || task.status === 'pending' || task.status === 'queued') && (
-                    <Button size="small" variant="outlined" onClick={() => handleAction(task.id, 'pause')}>
+                    <Button size="small" variant="outlined" color="warning" onClick={() => handleAction(task.id, 'pause')} sx={{ borderRadius: '8px', textTransform: 'none' }}>
                       Pause
                     </Button>
                   )}
                   {task.status === 'paused' && (
-                    <Button size="small" variant="outlined" onClick={() => handleAction(task.id, 'resume')}>
+                    <Button size="small" variant="outlined" color="success" onClick={() => handleAction(task.id, 'resume')} sx={{ borderRadius: '8px', textTransform: 'none' }}>
                       Resume
                     </Button>
                   )}
                   {task.status !== 'completed' && task.status !== 'failed' && task.status !== 'cancelled' && (
-                    <Button size="small" variant="outlined" color="error" onClick={() => handleAction(task.id, 'cancel')}>
+                    <Button size="small" variant="outlined" color="error" onClick={() => handleAction(task.id, 'cancel')} sx={{ borderRadius: '8px', textTransform: 'none' }}>
                       Cancel
                     </Button>
                   )}
@@ -231,7 +284,7 @@ export default function DownloadQueue({ queue, onRefresh }) {
 
                 {task.status !== 'completed' && task.status !== 'failed' && task.status !== 'cancelled' && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 'auto' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold' }}>
                       Priority: {task.priority || 0}
                     </Typography>
                     <IconButton size="small" onClick={() => handleAction(task.id, 'priority/up')} color="primary">
@@ -243,11 +296,13 @@ export default function DownloadQueue({ queue, onRefresh }) {
                   </Box>
                 )}
               </Box>
-            </ListItem>
+            </Paper>
           ))}
         </List>
       ) : (
-        <Typography>No downloads match your criteria.</Typography>
+        <Paper sx={{ p: 6, textAlign: 'center', background: 'rgba(255, 255, 255, 0.01)', border: '1px dashed rgba(255, 255, 255, 0.08)', borderRadius: '16px' }}>
+          <Typography color="text.secondary">No downloads currently match your criteria.</Typography>
+        </Paper>
       )}
     </Box>
   )

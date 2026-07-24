@@ -158,31 +158,31 @@ export default function NotificationSettings() {
   return (
     <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 3.5, maxWidth: 1400, mx: 'auto', width: '100%' }}>
       <Box>
-        <Typography variant="h5" sx={{ fontWeight: '800', display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <NotificationsIcon color="primary" /> Notifications & Webhooks
+        <Typography variant="h4" sx={{ fontWeight: '800', display: 'flex', alignItems: 'center', gap: 1.5, letterSpacing: '-0.5px' }}>
+          <NotificationsIcon color="primary" sx={{ fontSize: 32 }} /> Notifications &amp; Webhooks
         </Typography>
-        <Typography variant="body2" sx={{ opacity: 0.6 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
           Manage your personal notification preferences and system automation alerts.
         </Typography>
       </Box>
 
       <Grid container spacing={3}>
         {/* Personal Preferences Card */}
-        <Grid xs={12}>
-          <Card sx={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+        <Grid item xs={12}>
+          <Card sx={{ background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '16px', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)' }}>
+            <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, p: 3 }}>
               <Typography variant="h6" sx={{ fontWeight: '700' }}>Your Notification Channels</Typography>
-              <Typography variant="body2" sx={{ opacity: 0.7 }}>
+              <Typography variant="body2" color="text.secondary">
                 Choose where you'd like to receive notifications for background tasks and catalog updates.
               </Typography>
-              <Divider />
+              <Divider sx={{ borderColor: 'rgba(255,255,255,0.08)' }} />
 
               {/* Task Completion Delivery */}
               <Box>
                 <Typography variant="subtitle1" sx={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 1 }}>
                   <TaskAltIcon fontSize="small" color="primary" /> Task Completed Alerts
                 </Typography>
-                <Typography variant="caption" sx={{ opacity: 0.6, display: 'block', mb: 1 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
                   Fires when a queued download completes processing or metadata syncing finishes.
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 3 }}>
@@ -207,14 +207,14 @@ export default function NotificationSettings() {
                 </Box>
               </Box>
 
-              <Divider />
+              <Divider sx={{ borderColor: 'rgba(255,255,255,0.08)' }} />
 
               {/* Favorite Items Alerts */}
               <Box>
                 <Typography variant="subtitle1" sx={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 1 }}>
                   <FavoriteBorderIcon fontSize="small" color="error" /> Favorite Catalog Matches
                 </Typography>
-                <Typography variant="caption" sx={{ opacity: 0.6, display: 'block', mb: 1 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
                   Fires when a newly scanned or downloaded item matches your favorited performers, tags, or studios.
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 3 }}>
@@ -244,10 +244,10 @@ export default function NotificationSettings() {
 
         {/* Discord Automation Rules (Admin Only) */}
         {isAdmin && (
-          <Grid xs={12}>
-            <Card sx={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.05)' }}>
-              <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <Typography variant="h6" sx={{ fontWeight: '700' }}>Admin Broadcast Webhooks & Rules</Typography>
+          <Grid item xs={12}>
+            <Card sx={{ background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '16px', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)' }}>
+              <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 3, p: 3 }}>
+                <Typography variant="h6" sx={{ fontWeight: '700' }}>Admin Broadcast Webhooks &amp; Rules</Typography>
                 <Typography variant="body2" sx={{ opacity: 0.7 }}>
                   Create rules to automatically broadcast specific system events to Discord channels via custom webhooks or channel post dispatches.
                 </Typography>

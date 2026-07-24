@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Box, Typography, TextField, Button, Paper, Grid, Snackbar, Alert, Divider, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Select, MenuItem, FormControl, InputLabel, Tabs, Tab, Switch, FormControlLabel, InputAdornment, Autocomplete, Chip, LinearProgress, Stack, FormHelperText } from '@mui/material'
+import { Box, Typography, TextField, Button, Paper, Grid, Snackbar, Alert, Divider, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Select, MenuItem, FormControl, InputLabel, Tabs, Tab, Switch, FormControlLabel, InputAdornment, Autocomplete, Chip, LinearProgress, Stack, FormHelperText, Avatar, Tooltip, CircularProgress } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
 import SyncIcon from '@mui/icons-material/Sync'
 import Visibility from '@mui/icons-material/Visibility'
@@ -18,12 +18,16 @@ import TuneIcon from '@mui/icons-material/Tune'
 import LanIcon from '@mui/icons-material/Lan'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
+import DownloadIcon from '@mui/icons-material/Download'
+import HelpIcon from '@mui/icons-material/Help'
 import { apiFetch } from '../api'
 import PathPicker from './PathPicker'
 import InlineTextField from './InlineTextField'
 import PasswordChecklist from './PasswordChecklist'
 import PermissionsManager from './PermissionsManager'
 import AccountSecurity from './AccountSecurity'
+import ExternalAPIs from './ExternalAPIs'
+import DownloadRules from './DownloadRules'
 
 const AppleSvg = () => (
   <svg viewBox="0 0 170 170" width="20" height="20" style={{ fill: 'currentColor' }}>
@@ -52,6 +56,20 @@ const WindowsHelloSvg = () => (
     <path fill="#7fba00" d="M12 0h11v11H12z"/>
     <path fill="#00a4ef" d="M0 12h11v11H0z"/>
     <path fill="#ffb900" d="M12 12h11v11H12z"/>
+  </svg>
+)
+
+const OnePasswordLogoSvg = () => (
+  <svg viewBox="0 0 32 32" width="22" height="22">
+    <path fill="#056dae" d="M16 0C7.163 0 0 7.163 0 16s7.163 16 16 16 16-7.163 16-16S24.837 0 16 0z"/>
+    <path fill="#ffffff" d="M16 6c-3.314 0-6 2.686-6 6v3.5A2.5 2.5 0 007.5 18v8a2.5 2.5 0 002.5 2.5h12a2.5 2.5 0 002.5-2.5v-8a2.5 2.5 0 00-2.5-2.5V12c0-3.314-2.686-6-6-6zm-3.5 6c0-1.933 1.567-3.5 3.5-3.5s3.5 1.567 3.5 3.5v3.5h-7V12z"/>
+  </svg>
+)
+
+const BitwardenLogoSvg = () => (
+  <svg viewBox="0 0 24 24" width="22" height="22">
+    <path fill="#175DDC" d="M12 1.75L3.5 5.25v6.125c0 5.469 3.631 10.59 8.5 11.875 4.869-1.285 8.5-6.406 8.5-11.875V5.25L12 1.75z"/>
+    <path fill="#FFFFFF" d="M12 4.5v14.5c-3.1-1.1-5.5-4.8-5.5-8.8V6.8L12 4.5zm0 0l5.5 2.3v3.4c0 4-2.4 7.7-5.5 8.8V4.5z"/>
   </svg>
 )
 
@@ -214,6 +232,55 @@ export default function Settings() {
   })
   const [isTvMode, setIsTvMode] = useState(false)
 
+  // Password Vault Integrations: Auto-fetch vaults & folders when Host & Token are supplied
+  const [opVaults, setOpVaults] = useState([])
+  const [opLoadingVaults, setOpLoadingVaults] = useState(false)
+  const [bwFolders, setBwFolders] = useState([])
+  const [bwLoadingFolders, setBwLoadingFolders] = useState(false)
+
+  useEffect(() => {
+    if (settings.op_connect_host && settings.op_connect_token) {
+      setOpLoadingVaults(true)
+      const cleanHost = settings.op_connect_host.replace(/\/$/, '')
+      fetch(`${cleanHost}/v1/vaults`, {
+        headers: { Authorization: `Bearer ${settings.op_connect_token}` }
+      })
+        .then(res => res.ok ? res.json() : [])
+        .then(data => {
+          if (Array.isArray(data)) {
+            setOpVaults(data.map(v => ({ id: v.id, name: v.name || v.id, label: `${v.name || v.id} (${v.id})` })))
+          } else {
+            setOpVaults([])
+          }
+        })
+        .catch(() => setOpVaults([]))
+        .finally(() => setOpLoadingVaults(false))
+    } else {
+      setOpVaults([])
+    }
+  }, [settings.op_connect_host, settings.op_connect_token])
+
+  useEffect(() => {
+    if (settings.bw_connect_host && settings.bw_session_token) {
+      setBwLoadingFolders(true)
+      const cleanHost = settings.bw_connect_host.replace(/\/$/, '')
+      fetch(`${cleanHost}/object/folder?session=${encodeURIComponent(settings.bw_session_token)}`)
+        .then(res => res.ok ? res.json() : [])
+        .then(data => {
+          const list = data.data || data || []
+          if (Array.isArray(list)) {
+            setBwFolders(list.map(f => ({ id: f.id, name: f.name || f.id, label: `${f.name || f.id} (${f.id})` })))
+          } else {
+            setBwFolders([])
+          }
+        })
+        .catch(() => setBwFolders([]))
+        .finally(() => setBwLoadingFolders(false))
+    } else {
+      setBwFolders([])
+    }
+  }, [settings.bw_connect_host, settings.bw_session_token])
+
   // Load preferences from DB on mount
   useEffect(() => {
     const loadUserPreferences = async () => {
@@ -263,7 +330,7 @@ export default function Settings() {
 
   const fetchPasskeys = async () => {
     try {
-      const res = await apiFetch('/auth/passkeys/')
+      const res = await apiFetch('/auth/passkeys')
       if (res.ok) {
         setPasskeys(await res.json())
       }
@@ -626,7 +693,7 @@ export default function Settings() {
       })
       if (res.ok) {
         setSnackbar({ open: true, message: `Setting "${key}" updated successfully!`, severity: 'success' })
-        fetchAdminLogs()
+        if (typeof fetchAdminLogs === 'function') fetchAdminLogs()
       } else {
         setSnackbar({ open: true, message: `Failed to update "${key}". Server returned ${res.status}`, severity: 'error' })
       }
@@ -678,7 +745,7 @@ export default function Settings() {
         setSnackbar({ open: true, message: `User ${newUser.username} created successfully!`, severity: 'success' })
         setNewUser({ username: '', password: '', role: 'user' })
         fetchUsersList()
-        fetchAdminLogs()
+        if (typeof fetchAdminLogs === 'function') fetchAdminLogs()
       } else {
         const err = await res.json()
         setSnackbar({ open: true, message: `Failed: ${err.detail}`, severity: 'error' })
@@ -711,26 +778,44 @@ export default function Settings() {
 
   return (
     <Box sx={{ maxWidth: 1400, mx: 'auto', width: '100%' }}>
-      {/* Purpose Banner */}
-      <Alert 
-        severity="info" 
-        icon={<TuneIcon fontSize="small" color="primary" />} 
-        sx={{ 
-          mb: 3, 
-          borderRadius: '12px', 
-          bgcolor: 'rgba(99, 102, 241, 0.08)', 
-          color: '#a5b4fc',
-          border: '1px solid rgba(99, 102, 241, 0.2)',
-          '& .MuiAlert-icon': { color: '#818cf8' } 
-        }}
-      >
-        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.25 }}>
-          ⚙️ System Settings &amp; Global Preference Controls
-        </Typography>
-        <Typography variant="caption" sx={{ display: 'block', opacity: 0.9, lineHeight: 1.4 }}>
-          The Settings console manages media root paths, 1Password / Bitwarden vault integrations, global authentication policies (Passkeys, SSO, OAuth), role-based feature toggles, error log retention, and external API keys.
-        </Typography>
-      </Alert>
+      <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 3 }}>
+        System Settings &amp; Preferences
+      </Typography>
+
+      <Paper sx={{ mb: 3, borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)', bgcolor: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(12px)' }}>
+        <Tabs 
+          value={settingsTab} 
+          onChange={(e, val) => setSettingsTab(val)}
+          sx={{ px: 2, '& .MuiTab-root': { fontWeight: 'bold', textTransform: 'none', minHeight: 48 } }}
+        >
+          <Tab label="System & App Settings" />
+          <Tab label="Integrations & API Keys" />
+          <Tab label="Download Rules & Automation" />
+        </Tabs>
+      </Paper>
+
+      {settingsTab === 0 && (
+        <>
+          {/* Purpose Banner */}
+          <Alert 
+            severity="info" 
+            icon={<TuneIcon fontSize="small" color="primary" />} 
+            sx={{ 
+              mb: 3, 
+              borderRadius: '12px', 
+              bgcolor: 'rgba(99, 102, 241, 0.08)', 
+              color: '#a5b4fc',
+              border: '1px solid rgba(99, 102, 241, 0.2)',
+              '& .MuiAlert-icon': { color: '#818cf8' } 
+            }}
+          >
+            <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.25 }}>
+              ⚙️ System Settings &amp; Global Preference Controls
+            </Typography>
+            <Typography variant="caption" sx={{ display: 'block', opacity: 0.9, lineHeight: 1.4 }}>
+              The Settings console manages media root paths, 1Password / Bitwarden vault integrations, global authentication policies (Passkeys, SSO, OAuth), role-based feature toggles, error log retention, and external API keys.
+            </Typography>
+          </Alert>
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" align="center" gutterBottom>Storage &amp; Directory Paths</Typography>
         <Typography variant="body2" sx={{ mb: 2, textAlign: 'center' }} color="textSecondary">
@@ -902,58 +987,126 @@ export default function Settings() {
         <Divider sx={{ mb: 2 }} />
         
         <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3 }}>
-          <Box sx={{ p: 2, flex: 1, backgroundColor: 'rgba(33, 150, 243, 0.1)', borderRadius: 1, border: '1px solid #2196f3' }}>
-            <Typography variant="subtitle2" color="info.main" gutterBottom style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-              <strong>Chrome / Edge Extension (Standard)</strong>
+          <Box 
+            sx={{ 
+              p: 3, 
+              flex: 1, 
+              backgroundColor: 'rgba(99, 102, 241, 0.05)', 
+              borderRadius: '16px', 
+              border: '1px solid rgba(99, 102, 241, 0.25)', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: 2 
+            }}
+          >
+            {/* Official Chrome Web Store Listing Header */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Avatar 
+                src="/voyarr-lens.png" 
+                alt="Voyarr Lens" 
+                variant="rounded"
+                sx={{ 
+                  width: 54, 
+                  height: 54, 
+                  borderRadius: '12px', 
+                  bgcolor: 'transparent', 
+                  boxShadow: '0 4px 16px rgba(99, 102, 241, 0.35)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)'
+                }}
+              />
+              <Box sx={{ flexGrow: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                  <Typography variant="h6" sx={{ fontWeight: '800', fontSize: '1.05rem', color: '#ffffff', letterSpacing: '-0.3px' }}>
+                    Voyarr Lens
+                  </Typography>
+                  <Chip label="Chrome Web Store Listing" size="small" color="primary" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 'bold' }} />
+                </Box>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+                  Listing ID: <code>onhleknmoagbflmddadhkkkclodpppgn</code>
+                </Typography>
+              </Box>
+            </Box>
+
+            <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.08)' }} />
+
+            <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+              Official Chrome Web Store extension for Voyarr browser integration and remote media workflows.
             </Typography>
-            <Divider sx={{ my: 1, borderColor: 'info.main', opacity: 0.3 }} />
-            <Typography variant="body2" sx={{ textAlign: 'left' }}>
-              • Open Chrome or Edge and navigate to <code>chrome://extensions/</code><br/>
-              • Enable <strong>Developer mode</strong> in the top right corner.<br/>
-              • Click <strong>Load unpacked</strong> and select the <code>/extension</code> folder from your Voyarr installation directory.
-            </Typography>
+
+            {/* Official Listing Action Buttons */}
+            <Box sx={{ display: 'flex', gap: 1.5, mt: 'auto', pt: 1, flexWrap: 'wrap', justifyContent: 'center' }}>
+              <Button 
+                variant="contained" 
+                color="primary" 
+                startIcon={<DownloadIcon />}
+                href="https://chromewebstore.google.com/detail/onhleknmoagbflmddadhkkkclodpppgn" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 'bold', px: 2.5, height: 40 }}
+              >
+                Add to Chrome
+              </Button>
+              <Button 
+                variant="outlined" 
+                color="inherit" 
+                onClick={() => {
+                  navigator.clipboard.writeText('https://chromewebstore.google.com/detail/onhleknmoagbflmddadhkkkclodpppgn');
+                  setSnackbar({ open: true, message: 'Chrome Web Store URL copied to clipboard!', severity: 'success' });
+                }}
+                startIcon={<ContentCopyIcon />}
+                sx={{ borderRadius: '10px', textTransform: 'none', height: 40, color: 'text.secondary' }}
+              >
+                Copy Listing URL
+              </Button>
+            </Box>
           </Box>
           
-          <Box sx={{ p: 2, flex: 1, backgroundColor: 'rgba(76, 175, 80, 0.1)', borderRadius: 1, border: '1px solid #4caf50' }}>
-            <Typography variant="subtitle2" color="success.main" gutterBottom style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-              <strong>Meta Quest & Mobile (Universal Bookmarklet)</strong>
+          <Box 
+            sx={{ 
+              p: 2.5, 
+              flex: 1, 
+              backgroundColor: 'rgba(99, 102, 241, 0.05)', 
+              borderRadius: '16px', 
+              border: '1px solid rgba(99, 102, 241, 0.25)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2
+            }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: '800', fontSize: '1.05rem', color: '#ffffff', letterSpacing: '-0.3px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.25 }}>
+              <Avatar src="https://www.google.com/s2/favicons?domain=meta.com&sz=128" alt="Meta Quest" sx={{ width: 28, height: 28, borderRadius: '6px', bgcolor: 'transparent' }} /> Meta Quest &amp; Mobile (Universal Bookmarklet)
             </Typography>
-            <Divider sx={{ my: 1, borderColor: 'success.main', opacity: 0.3 }} />
-            <Typography variant="body2" sx={{ mb: 1.5, textAlign: 'left' }}>
+            <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.08)' }} />
+            <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
               For VR Headsets (Meta Quest Browser) or mobile devices: Copy the bookmarklet code below, save it as a browser bookmark, and click it on any website to map selectors in 3D Space!
             </Typography>
             {bookmarkletCode ? (
-              <Grid container spacing={2} sx={{ justifyContent: 'center' }}>
-                <Grid xs={12} sm={5} md={4}>
-                  <Button 
-                    fullWidth 
-                    variant="contained" 
-                    color="success" 
-                    href={bookmarkletCode} 
-                    style={{ textTransform: 'none', cursor: 'grab' }}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      navigator.clipboard.writeText(bookmarkletCode);
-                      setSnackbar({ open: true, message: 'Bookmarklet code copied! Dragging is not supported in all browsers, so paste it as a bookmark URL.', severity: 'success' });
-                    }}
-                  >
-                    🎯 Voyarr Lens VR
-                  </Button>
-                </Grid>
-                <Grid xs={12} sm={5} md={4}>
-                  <Button 
-                    fullWidth 
-                    variant="outlined" 
-                    color="success"
-                    onClick={() => {
-                      navigator.clipboard.writeText(bookmarkletCode);
-                      setSnackbar({ open: true, message: 'Bookmarklet code copied to clipboard!', severity: 'success' });
-                    }}
-                  >
-                    Copy Bookmarklet
-                  </Button>
-                </Grid>
-              </Grid>
+              <Box sx={{ display: 'flex', gap: 1.5, mt: 'auto', pt: 1, flexWrap: 'wrap', justifyContent: 'center' }}>
+                <Button 
+                  variant="contained" 
+                  color="primary" 
+                  href={bookmarkletCode} 
+                  sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 'bold', px: 2.5, height: 40 }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigator.clipboard.writeText(bookmarkletCode);
+                    setSnackbar({ open: true, message: 'Bookmarklet code copied! Dragging is not supported in all browsers, so paste it as a bookmark URL.', severity: 'success' });
+                  }}
+                >
+                  🎯 Voyarr Lens VR
+                </Button>
+                <Button 
+                  variant="outlined" 
+                  color="inherit"
+                  onClick={() => {
+                    navigator.clipboard.writeText(bookmarkletCode);
+                    setSnackbar({ open: true, message: 'Bookmarklet code copied to clipboard!', severity: 'success' });
+                  }}
+                  sx={{ borderRadius: '10px', textTransform: 'none', height: 40, color: 'text.secondary' }}
+                >
+                  Copy Bookmarklet
+                </Button>
+              </Box>
             ) : (
               <Typography variant="body2" color="error">
                 Failed to load bookmarklet code. Make sure your Voyarr server is fully updated and running.
@@ -963,75 +1116,432 @@ export default function Settings() {
         </Box>
       </Paper>
 
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" align="center" gutterBottom>1Password Connect Integration</Typography>
-        <Typography variant="body2" sx={{ mb: 2, textAlign: 'center' }} color="textSecondary">
-          Sync your Voyarr credentials with a 1Password Connect server.
-        </Typography>
-        <Divider sx={{ mb: 2 }} />
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <Box sx={{ display: 'flex', flexWrap: 'nowrap', gap: 3, justifyContent: 'center', width: '100%' }}>
-            <Box sx={{ flex: 1, maxWidth: 350, minWidth: 0 }}>
-              <TextField fullWidth label="1Password Connect Host" name="op_connect_host" value={settings.op_connect_host || ''} onChange={handleChange} helperText="e.g. http://localhost:8080" />
-            </Box>
-            <Box sx={{ flex: 1, maxWidth: 350, minWidth: 0 }}>
-              <TextField fullWidth type="password" label="1Password Connect Token" name="op_connect_token" value={settings.op_connect_token || ''} onChange={handleChange} />
-            </Box>
-            <Box sx={{ flex: 1, maxWidth: 350, minWidth: 0 }}>
-              <TextField fullWidth label="1Password Vault ID" name="op_vault_id" value={settings.op_vault_id || ''} onChange={handleChange} helperText="The ID of the vault to sync with." />
-            </Box>
-          </Box>
-          <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap', mt: 1 }}>
-            <Button variant="contained" color="primary" onClick={() => {
-              Promise.all([
-                apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'op_connect_host', value: String(settings.op_connect_host ?? '') }) }),
-                apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'op_connect_token', value: String(settings.op_connect_token ?? '') }) }),
-                apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'op_vault_id', value: String(settings.op_vault_id ?? '') }) })
-              ]).then(results => {
-                if (results.every(r => r.ok)) setSnackbar({ open: true, message: '1Password settings saved!', severity: 'success' })
-                else setSnackbar({ open: true, message: 'Some 1Password settings failed to save.', severity: 'warning' })
-              }).catch(() => setSnackbar({ open: true, message: 'Failed to save 1Password settings.', severity: 'error' }))
-            }}>Save 1Password Settings</Button>
-            <Button variant="outlined" color="primary" onClick={() => handleSyncManager('1password', 'push')}>Push to 1Password</Button>
-            <Button variant="outlined" color="secondary" onClick={() => handleSyncManager('1password', 'pull')}>Pull from 1Password</Button>
-          </Box>
+      {/* Combined Password Vault Integrations Card */}
+      <Paper 
+        sx={{ 
+          p: 3, 
+          mb: 3, 
+          borderRadius: '16px', 
+          background: 'rgba(15, 23, 42, 0.4)', 
+          backdropFilter: 'blur(12px)', 
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.25)'
+        }}
+      >
+        <Box sx={{ textAlign: 'center', mb: 2 }}>
+          <Typography variant="h6" sx={{ fontWeight: '700' }}>Password Vault Integrations</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            Securely sync Voyarr credentials with external password managers (1Password Connect or Bitwarden / Vaultwarden CLI server).
+          </Typography>
         </Box>
-      </Paper>
+        <Divider sx={{ mb: 3, borderColor: 'rgba(255, 255, 255, 0.08)' }} />
 
-    <Paper sx={{ p: 3, mb: 3 }}>
-      <Typography variant="h6" align="center" gutterBottom>Bitwarden Integration</Typography>
-      <Typography variant="body2" sx={{ mb: 2, textAlign: 'center' }} color="textSecondary">
-        Sync your Voyarr credentials with Bitwarden or Vaultwarden via the Bitwarden CLI REST server ('bw serve').
-      </Typography>
-      <Divider sx={{ mb: 2 }} />
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <Box sx={{ display: 'flex', flexWrap: 'nowrap', gap: 3, justifyContent: 'center', width: '100%' }}>
-          <Box sx={{ flex: 1, maxWidth: 350, minWidth: 0 }}>
-            <TextField fullWidth label="Bitwarden Serve Host" name="bw_connect_host" value={settings.bw_connect_host || ''} onChange={handleChange} helperText="e.g. http://localhost:8087" />
-          </Box>
-          <Box sx={{ flex: 1, maxWidth: 350, minWidth: 0 }}>
-            <TextField fullWidth type="password" label="Bitwarden Session Token" name="bw_session_token" value={settings.bw_session_token || ''} onChange={handleChange} helperText="The BW_SESSION token generated upon unlocking your vault." />
-          </Box>
-          <Box sx={{ flex: 1, maxWidth: 350, minWidth: 0 }}>
-            <TextField fullWidth label="Bitwarden Folder ID" name="bw_folder_id" value={settings.bw_folder_id || ''} onChange={handleChange} helperText="Optional: The ID of the folder to sync with." />
-          </Box>
-        </Box>
-        <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap', mt: 1 }}>
-          <Button variant="contained" color="primary" onClick={() => {
-            Promise.all([
-              apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'bw_connect_host', value: String(settings.bw_connect_host ?? '') }) }),
-              apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'bw_session_token', value: String(settings.bw_session_token ?? '') }) }),
-              apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'bw_folder_id', value: String(settings.bw_folder_id ?? '') }) })
-            ]).then(results => {
-              if (results.every(r => r.ok)) setSnackbar({ open: true, message: 'Bitwarden settings saved!', severity: 'success' })
-              else setSnackbar({ open: true, message: 'Some Bitwarden settings failed to save.', severity: 'warning' })
-            }).catch(() => setSnackbar({ open: true, message: 'Failed to save Bitwarden settings.', severity: 'error' }))
-          }}>Save Bitwarden Settings</Button>
-          <Button variant="outlined" color="primary" onClick={() => handleSyncManager('bitwarden', 'push')}>Push to Bitwarden</Button>
-          <Button variant="outlined" color="secondary" onClick={() => handleSyncManager('bitwarden', 'pull')}>Pull from Bitwarden</Button>
-        </Box>
-      </Box>
-    </Paper>
+        <Grid container spacing={3} justifyContent="center" sx={{ maxWidth: 1000, mx: 'auto' }}>
+          {/* 1Password Connect */}
+          <Grid item xs={12} md={6}>
+            <Box 
+              sx={{ 
+                p: 2.5, 
+                borderRadius: '14px', 
+                background: 'rgba(99, 102, 241, 0.04)', 
+                border: '1px solid rgba(99, 102, 241, 0.18)', 
+                display: 'flex', 
+                flexDirection: 'column', 
+                gap: 2, 
+                height: '100%' 
+              }}
+            >
+              <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: '#818cf8', display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Avatar src="https://www.google.com/s2/favicons?domain=1password.com&sz=128" alt="1Password" sx={{ width: 26, height: 26, borderRadius: '6px', bgcolor: 'transparent' }} /> 1Password Connect
+              </Typography>
+              
+              {/* 1Password Connect Host */}
+              <Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}>
+                  <Typography variant="caption" sx={{ fontWeight: '700', color: '#cbd5e1', ml: 0.5 }}>
+                    1Password Connect Host
+                  </Typography>
+                  <Tooltip title="The URL of your running 1Password Connect API server (e.g. http://localhost:8080). Deploy via 1Password Connect Docker or Kubernetes." arrow placement="top">
+                    <Chip 
+                      icon={<HelpIcon sx={{ fontSize: '14px !important', color: '#818cf8 !important' }} />} 
+                      label="Help" 
+                      size="small" 
+                      clickable
+                      sx={{ 
+                        height: 20, 
+                        fontSize: '0.68rem', 
+                        fontWeight: 'bold', 
+                        bgcolor: 'rgba(99, 102, 241, 0.15)', 
+                        color: '#a5b4fc', 
+                        border: '1px solid rgba(99, 102, 241, 0.35)',
+                        '&:hover': { bgcolor: 'rgba(99, 102, 241, 0.3)' }
+                      }} 
+                    />
+                  </Tooltip>
+                </Box>
+                <TextField 
+                  fullWidth 
+                  size="small" 
+                  name="op_connect_host" 
+                  placeholder="e.g. http://localhost:8080 or https://connect.mycompany.com"
+                  value={settings.op_connect_host || ''} 
+                  onChange={handleChange} 
+                  helperText="Deploy via 1Password Connect Docker or Kubernetes." 
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+                />
+              </Box>
+
+              {/* 1Password Connect Token */}
+              <Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}>
+                  <Typography variant="caption" sx={{ fontWeight: '700', color: '#cbd5e1', ml: 0.5 }}>
+                    1Password Connect Token
+                  </Typography>
+                  <Tooltip title="Your 1Password Connect API Access Token. Generate this in 1Password.com -> Developer Settings -> Connect Services -> Create Access Token." arrow placement="top">
+                    <Chip 
+                      icon={<HelpIcon sx={{ fontSize: '14px !important', color: '#818cf8 !important' }} />} 
+                      label="Help" 
+                      size="small" 
+                      clickable
+                      sx={{ 
+                        height: 20, 
+                        fontSize: '0.68rem', 
+                        fontWeight: 'bold', 
+                        bgcolor: 'rgba(99, 102, 241, 0.15)', 
+                        color: '#a5b4fc', 
+                        border: '1px solid rgba(99, 102, 241, 0.35)',
+                        '&:hover': { bgcolor: 'rgba(99, 102, 241, 0.3)' }
+                      }} 
+                    />
+                  </Tooltip>
+                </Box>
+                <TextField 
+                  fullWidth 
+                  size="small" 
+                  type="password" 
+                  name="op_connect_token" 
+                  placeholder="Generated API Access Token"
+                  value={settings.op_connect_token || ''} 
+                  onChange={handleChange} 
+                  helperText="Generate in 1Password.com -> Developer Settings"
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+                />
+              </Box>
+
+              {/* 1Password Vault ID */}
+              <Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}>
+                  <Typography variant="caption" sx={{ fontWeight: '700', color: '#cbd5e1', ml: 0.5 }}>
+                    1Password Vault ID
+                  </Typography>
+                  <Tooltip title="The 26-character unique ID of your 1Password vault. Search and select from the dropdown when host & token are valid, or paste manually." arrow placement="top">
+                    <Chip 
+                      icon={<HelpIcon sx={{ fontSize: '14px !important', color: '#818cf8 !important' }} />} 
+                      label="Help" 
+                      size="small" 
+                      clickable
+                      sx={{ 
+                        height: 20, 
+                        fontSize: '0.68rem', 
+                        fontWeight: 'bold', 
+                        bgcolor: 'rgba(99, 102, 241, 0.15)', 
+                        color: '#a5b4fc', 
+                        border: '1px solid rgba(99, 102, 241, 0.35)',
+                        '&:hover': { bgcolor: 'rgba(99, 102, 241, 0.3)' }
+                      }} 
+                    />
+                  </Tooltip>
+                </Box>
+                <Autocomplete
+                  freeSolo
+                  size="small"
+                  options={opVaults}
+                  getOptionLabel={(option) => typeof option === 'string' ? option : option.id || ''}
+                  value={settings.op_vault_id || ''}
+                  onChange={(event, newValue) => {
+                    const val = typeof newValue === 'object' && newValue !== null ? newValue.id : newValue
+                    handleChange({ target: { name: 'op_vault_id', value: val || '' } })
+                  }}
+                  onInputChange={(event, newInputValue) => {
+                    handleChange({ target: { name: 'op_vault_id', value: newInputValue || '' } })
+                  }}
+                  renderOption={(props, option) => {
+                    const { key, ...optionProps } = props
+                    return (
+                      <Box component="li" key={key || option.id} {...optionProps} sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                        <Typography variant="body2" sx={{ fontWeight: 'bold' }}>{option.name}</Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ ml: 1, fontFamily: 'monospace' }}>({option.id})</Typography>
+                      </Box>
+                    )
+                  }}
+                  renderInput={(params) => {
+                    const { InputProps, ...restParams } = params
+                    return (
+                      <TextField
+                        {...restParams}
+                        name="op_vault_id"
+                        placeholder="Select or paste 26-character Vault ID"
+                        helperText={opLoadingVaults ? "Loading account vaults..." : (opVaults.length > 0 ? `Select or type vault ID (${opVaults.length} vaults found)` : "The 26-character ID of vault to sync with.")}
+                        InputProps={{
+                          ...InputProps,
+                          endAdornment: (
+                            <InputAdornment position="end">
+                              {opLoadingVaults ? <CircularProgress color="inherit" size={16} sx={{ mr: 1 }} /> : null}
+                              {InputProps?.endAdornment}
+                            </InputAdornment>
+                          )
+                        }}
+                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+                      />
+                    )
+                  }}
+                />
+              </Box>
+
+              <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mt: 'auto', pt: 1, justifyContent: 'center' }}>
+                <Button 
+                  variant="contained" 
+                  color="primary" 
+                  size="small" 
+                  onClick={() => {
+                    Promise.all([
+                      apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'op_connect_host', value: String(settings.op_connect_host ?? '') }) }),
+                      apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'op_connect_token', value: String(settings.op_connect_token ?? '') }) }),
+                      apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'op_vault_id', value: String(settings.op_vault_id ?? '') }) })
+                    ]).then(results => {
+                      if (results.every(r => r.ok)) setSnackbar({ open: true, message: '1Password settings saved!', severity: 'success' })
+                      else setSnackbar({ open: true, message: 'Some 1Password settings failed to save.', severity: 'warning' })
+                    }).catch(() => setSnackbar({ open: true, message: 'Failed to save 1Password settings.', severity: 'error' }))
+                  }}
+                  sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 'bold', px: 2 }}
+                >
+                  Save 1Password
+                </Button>
+                <Button 
+                  variant="outlined" 
+                  color="primary" 
+                  size="small" 
+                  onClick={() => handleSyncManager('1password', 'push')}
+                  sx={{ borderRadius: '8px', textTransform: 'none' }}
+                >
+                  Push
+                </Button>
+                <Button 
+                  variant="outlined" 
+                  color="secondary" 
+                  size="small" 
+                  onClick={() => handleSyncManager('1password', 'pull')}
+                  sx={{ borderRadius: '8px', textTransform: 'none' }}
+                >
+                  Pull
+                </Button>
+              </Box>
+            </Box>
+          </Grid>
+
+          {/* Bitwarden / Vaultwarden */}
+          <Grid item xs={12} md={6}>
+            <Box 
+              sx={{ 
+                p: 2.5, 
+                borderRadius: '14px', 
+                background: 'rgba(16, 185, 129, 0.04)', 
+                border: '1px solid rgba(16, 185, 129, 0.18)', 
+                display: 'flex', 
+                flexDirection: 'column', 
+                gap: 2, 
+                height: '100%' 
+              }}
+            >
+              <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: '#34d399', display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Avatar src="https://www.google.com/s2/favicons?domain=bitwarden.com&sz=128" alt="Bitwarden" sx={{ width: 26, height: 26, borderRadius: '6px', bgcolor: 'transparent' }} /> Bitwarden / Vaultwarden
+              </Typography>
+              
+              {/* Bitwarden Serve Host */}
+              <Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}>
+                  <Typography variant="caption" sx={{ fontWeight: '700', color: '#cbd5e1', ml: 0.5 }}>
+                    Bitwarden Serve Host
+                  </Typography>
+                  <Tooltip title="The URL of your Bitwarden CLI REST server running 'bw serve' (e.g. http://localhost:8087)." arrow placement="top">
+                    <Chip 
+                      icon={<HelpIcon sx={{ fontSize: '14px !important', color: '#34d399 !important' }} />} 
+                      label="Help" 
+                      size="small" 
+                      clickable
+                      sx={{ 
+                        height: 20, 
+                        fontSize: '0.68rem', 
+                        fontWeight: 'bold', 
+                        bgcolor: 'rgba(16, 185, 129, 0.15)', 
+                        color: '#6ee7b7', 
+                        border: '1px solid rgba(16, 185, 129, 0.35)',
+                        '&:hover': { bgcolor: 'rgba(16, 185, 129, 0.3)' }
+                      }} 
+                    />
+                  </Tooltip>
+                </Box>
+                <TextField 
+                  fullWidth 
+                  size="small" 
+                  name="bw_connect_host" 
+                  placeholder="e.g. http://localhost:8087 ('bw serve')"
+                  value={settings.bw_connect_host || ''} 
+                  onChange={handleChange} 
+                  helperText="Bitwarden CLI REST server running 'bw serve'." 
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+                />
+              </Box>
+
+              {/* Bitwarden Session Token */}
+              <Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}>
+                  <Typography variant="caption" sx={{ fontWeight: '700', color: '#cbd5e1', ml: 0.5 }}>
+                    Bitwarden Session Token
+                  </Typography>
+                  <Tooltip title="The BW_SESSION environment token generated upon unlocking your vault via Bitwarden CLI ('bw unlock') or Vaultwarden API." arrow placement="top">
+                    <Chip 
+                      icon={<HelpIcon sx={{ fontSize: '14px !important', color: '#34d399 !important' }} />} 
+                      label="Help" 
+                      size="small" 
+                      clickable
+                      sx={{ 
+                        height: 20, 
+                        fontSize: '0.68rem', 
+                        fontWeight: 'bold', 
+                        bgcolor: 'rgba(16, 185, 129, 0.15)', 
+                        color: '#6ee7b7', 
+                        border: '1px solid rgba(16, 185, 129, 0.35)',
+                        '&:hover': { bgcolor: 'rgba(16, 185, 129, 0.3)' }
+                      }} 
+                    />
+                  </Tooltip>
+                </Box>
+                <TextField 
+                  fullWidth 
+                  size="small" 
+                  type="password" 
+                  name="bw_session_token" 
+                  placeholder="BW_SESSION token from 'bw unlock'"
+                  value={settings.bw_session_token || ''} 
+                  onChange={handleChange} 
+                  helperText="Session token from 'bw unlock'" 
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+                />
+              </Box>
+
+              {/* Bitwarden Folder ID */}
+              <Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}>
+                  <Typography variant="caption" sx={{ fontWeight: '700', color: '#cbd5e1', ml: 0.5 }}>
+                    Bitwarden Folder ID
+                  </Typography>
+                  <Tooltip title="Optional: The UUID of a specific folder in your Bitwarden vault. Search and select from dropdown when active, or paste UUID manually." arrow placement="top">
+                    <Chip 
+                      icon={<HelpIcon sx={{ fontSize: '14px !important', color: '#34d399 !important' }} />} 
+                      label="Help" 
+                      size="small" 
+                      clickable
+                      sx={{ 
+                        height: 20, 
+                        fontSize: '0.68rem', 
+                        fontWeight: 'bold', 
+                        bgcolor: 'rgba(16, 185, 129, 0.15)', 
+                        color: '#6ee7b7', 
+                        border: '1px solid rgba(16, 185, 129, 0.35)',
+                        '&:hover': { bgcolor: 'rgba(16, 185, 129, 0.3)' }
+                      }} 
+                    />
+                  </Tooltip>
+                </Box>
+                <Autocomplete
+                  freeSolo
+                  size="small"
+                  options={bwFolders}
+                  getOptionLabel={(option) => typeof option === 'string' ? option : option.id || ''}
+                  value={settings.bw_folder_id || ''}
+                  onChange={(event, newValue) => {
+                    const val = typeof newValue === 'object' && newValue !== null ? newValue.id : newValue
+                    handleChange({ target: { name: 'bw_folder_id', value: val || '' } })
+                  }}
+                  onInputChange={(event, newInputValue) => {
+                    handleChange({ target: { name: 'bw_folder_id', value: newInputValue || '' } })
+                  }}
+                  renderOption={(props, option) => {
+                    const { key, ...optionProps } = props
+                    return (
+                      <Box component="li" key={key || option.id} {...optionProps} sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                        <Typography variant="body2" sx={{ fontWeight: 'bold' }}>{option.name}</Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ ml: 1, fontFamily: 'monospace' }}>({option.id})</Typography>
+                      </Box>
+                    )
+                  }}
+                  renderInput={(params) => {
+                    const { InputProps, ...restParams } = params
+                    return (
+                      <TextField
+                        {...restParams}
+                        name="bw_folder_id"
+                        placeholder="Select or paste Folder UUID"
+                        helperText={bwLoadingFolders ? "Loading folders..." : (bwFolders.length > 0 ? `Select or type folder ID (${bwFolders.length} folders found)` : "Optional: The UUID of folder to sync with.")}
+                        InputProps={{
+                          ...InputProps,
+                          endAdornment: (
+                            <InputAdornment position="end">
+                              {bwLoadingFolders ? <CircularProgress color="inherit" size={16} sx={{ mr: 1 }} /> : null}
+                              {InputProps?.endAdornment}
+                            </InputAdornment>
+                          )
+                        }}
+                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+                      />
+                    )
+                  }}
+                />
+              </Box>
+
+              <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mt: 'auto', pt: 1, justifyContent: 'center' }}>
+                <Button 
+                  variant="contained" 
+                  color="primary" 
+                  size="small" 
+                  onClick={() => {
+                    Promise.all([
+                      apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'bw_connect_host', value: String(settings.bw_connect_host ?? '') }) }),
+                      apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'bw_session_token', value: String(settings.bw_session_token ?? '') }) }),
+                      apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'bw_folder_id', value: String(settings.bw_folder_id ?? '') }) })
+                    ]).then(results => {
+                      if (results.every(r => r.ok)) setSnackbar({ open: true, message: 'Bitwarden settings saved!', severity: 'success' })
+                      else setSnackbar({ open: true, message: 'Some Bitwarden settings failed to save.', severity: 'warning' })
+                    }).catch(() => setSnackbar({ open: true, message: 'Failed to save Bitwarden settings.', severity: 'error' }))
+                  }}
+                  sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 'bold', px: 2 }}
+                >
+                  Save Bitwarden
+                </Button>
+                <Button 
+                  variant="outlined" 
+                  color="primary" 
+                  size="small" 
+                  onClick={() => handleSyncManager('bitwarden', 'push')}
+                  sx={{ borderRadius: '8px', textTransform: 'none' }}
+                >
+                  Push
+                </Button>
+                <Button 
+                  variant="outlined" 
+                  color="secondary" 
+                  size="small" 
+                  onClick={() => handleSyncManager('bitwarden', 'pull')}
+                  sx={{ borderRadius: '8px', textTransform: 'none' }}
+                >
+                  Pull
+                </Button>
+              </Box>
+            </Box>
+          </Grid>
+        </Grid>
+      </Paper>
 
     <Paper elevation={2} sx={{ 
       p: 3, 
@@ -1482,6 +1992,11 @@ export default function Settings() {
           </Box>
         </Box>
       </Paper>
+      </>
+      )}
+
+      {settingsTab === 1 && <ExternalAPIs />}
+      {settingsTab === 2 && <DownloadRules />}
 
 
       {/* Mock SSO Simulated OAuth Dialog */}

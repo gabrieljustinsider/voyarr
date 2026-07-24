@@ -25,6 +25,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Box, CircularProgress, Alert, Typography, Button, ButtonGroup } from '@mui/material'
 import VrIcon from '@mui/icons-material/Visibility'
+import { getAuthHeaders } from '../api'
 
 const HLS_CDN   = 'https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js'
 const DASH_CDN  = 'https://cdn.dashjs.org/latest/dash.all.min.js'
@@ -52,18 +53,21 @@ function loadScript(src, globalKey) {
 /** Determine the playback strategy from the URL */
 function detectStrategy(src) {
   if (!src) return 'unsupported'
-  const url = src.split('?')[0].toLowerCase()
-  if (url.endsWith('.m3u8'))  return 'hls'
-  if (url.endsWith('.mpd'))   return 'dash'
-  if (url.startsWith('rtmp') || url.startsWith('rtsp')) return 'rtmp'
+  const cleanUrl = src.split('?')[0].toLowerCase()
+  const fullUrl = src.toLowerCase()
+
+  if (cleanUrl.endsWith('.m3u8') || fullUrl.includes('.m3u8') || fullUrl.includes('type=hls') || fullUrl.includes('hls=true'))  return 'hls'
+  if (cleanUrl.endsWith('.mpd') || fullUrl.includes('.mpd') || fullUrl.includes('type=dash'))   return 'dash'
+  if (cleanUrl.startsWith('rtmp') || cleanUrl.startsWith('rtsp')) return 'rtmp'
 
   const NATIVE_EXTS = [
     '.mp4', '.m4v', '.webm', '.ogv', '.ogg',
     '.mov', '.mkv', '.avi', '.wmv', '.flv', '.ts', '.m2ts', '.mts',
-    '.mpeg', '.mpg', '.3gp', '.3g2',
+    '.mpeg', '.mpg', '.3gp', '.3g2', '.vob', '.asf', '.rm', '.rmvb', '.divx',
     '.mp3', '.aac', '.m4a', '.wav', '.flac', '.opus', '.oga', '.weba',
+    '.aiff', '.aif', '.wma', '.alac', '.ape', '.mpc', '.amr'
   ]
-  if (NATIVE_EXTS.some(e => url.endsWith(e))) return 'native'
+  if (NATIVE_EXTS.some(e => cleanUrl.endsWith(e))) return 'native'
 
   // Unknown extension – try native and let the browser decide
   return 'native'
@@ -87,9 +91,14 @@ export default function SmartVideoPlayer({
   const animationFrameRef = useRef(null)
   const xrRendererRef = useRef(null)
 
+  const [activeSrc, setActiveSrc] = useState(src)
   const [status, setStatus]   = useState('loading') // 'loading' | 'ready' | 'error'
   const [errMsg, setErrMsg]   = useState('')
   const [strategy, setStrategy] = useState('')
+
+  useEffect(() => {
+    setActiveSrc(src)
+  }, [src])
   
   // WebXR UI states
   const [xrSupported, setXrSupported] = useState(false)
@@ -108,7 +117,7 @@ export default function SmartVideoPlayer({
 
   // 2. Playback logic
   useEffect(() => {
-    if (!src) return
+    if (!activeSrc) return
     let cancelled = false
 
     const video = videoRef.current
@@ -124,7 +133,7 @@ export default function SmartVideoPlayer({
     setStatus('loading')
     setErrMsg('')
 
-    const strat = detectStrategy(src)
+    const strat = detectStrategy(activeSrc)
     setStrategy(strat)
 
     const attach = async () => {
@@ -132,7 +141,7 @@ export default function SmartVideoPlayer({
         if (strat === 'hls') {
           // Safari has native HLS support
           if (video.canPlayType('application/vnd.apple.mpegurl')) {
-            video.src = src
+            video.src = activeSrc
             setStatus('ready')
             if (autoPlay) video.play().catch(() => {})
           } else {
@@ -148,9 +157,17 @@ export default function SmartVideoPlayer({
               lowLatencyMode: true,
               maxBufferLength: 30,
               backBufferLength: 10,
+              xhrSetup: (xhr) => {
+                const headers = getAuthHeaders()
+                if (headers['Authorization']) {
+                  xhr.setRequestHeader('Authorization', headers['Authorization'])
+                } else if (headers['X-Voyarr-Api-Key']) {
+                  xhr.setRequestHeader('X-Voyarr-Api-Key', headers['X-Voyarr-Api-Key'])
+                }
+              }
             })
             hlsRef.current = hls
-            hls.loadSource(src)
+            hls.loadSource(activeSrc)
             hls.attachMedia(video)
             hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
               if (cancelled) return
@@ -174,7 +191,7 @@ export default function SmartVideoPlayer({
           }
           const player = window.dashjs.MediaPlayer().create()
           dashRef.current = player
-          player.initialize(video, src, autoPlay)
+          player.initialize(video, activeSrc, autoPlay)
           player.on(window.dashjs.MediaPlayer.events.PLAYBACK_PLAYING, () => {
             if (!cancelled) setStatus('ready')
           })
@@ -191,7 +208,7 @@ export default function SmartVideoPlayer({
           setStatus('error')
         } else {
           // Native HTML5 – assign src and let the browser figure it out
-          video.src = src
+          video.src = activeSrc
           setStatus('ready')
           if (autoPlay) video.play().catch(() => {})
         }
@@ -209,7 +226,7 @@ export default function SmartVideoPlayer({
       if (hlsRef.current)  { hlsRef.current.destroy();  hlsRef.current = null }
       if (dashRef.current) { dashRef.current.reset();   dashRef.current = null }
     }
-  }, [src, autoPlay])
+  }, [activeSrc, autoPlay])
 
   // 3. WebXR setup and lifecycle
   useEffect(() => {
@@ -369,14 +386,35 @@ export default function SmartVideoPlayer({
     }
   }, [inXrMode, projectionMode, stereoMode])
 
-  const handleError = () => {
+  const handleError = async () => {
     const v = videoRef.current
     const code = v?.error?.code
+
+    if (activeSrc) {
+      try {
+        const resp = await fetch(activeSrc, { 
+          method: 'GET', 
+          headers: { ...getAuthHeaders(), Range: 'bytes=0-0' } 
+        })
+        if (resp.status === 401) {
+          setErrMsg('Session authentication token invalid or expired (HTTP 401). Please re-authenticate.')
+          setStatus('error')
+          return
+        } else if (resp.status === 404) {
+          setErrMsg('Video file or stream endpoint not found on server (HTTP 404).')
+          setStatus('error')
+          return
+        }
+      } catch {
+        // Ignore network probe failure
+      }
+    }
+
     const msgs = {
       1: 'Playback was aborted.',
-      2: 'Network error or unauthorized access while loading video.',
+      2: 'Network error while loading video. Check your connection or server status.',
       3: 'Video decode error — the file may be corrupted or use an unsupported codec.',
-      4: 'Unable to stream video. The authentication token in the request may be invalid or expired (HTTP 401), or the format is unsupported.',
+      4: 'Unable to stream video. Format/codec unsupported or authentication invalid.',
     }
     setErrMsg(msgs[code] || 'An unknown playback error occurred.')
     setStatus('error')
@@ -469,19 +507,32 @@ export default function SmartVideoPlayer({
             severity="error" 
             sx={{ borderRadius: '10px', display: 'flex', alignItems: 'center' }}
             action={
-              <Button 
-                color="inherit" 
-                size="small" 
-                variant="outlined"
-                onClick={() => {
-                  localStorage.removeItem('voyarr_jwt')
-                  localStorage.removeItem('voyarr_api_key')
-                  window.location.reload()
-                }}
-                sx={{ textTransform: 'none', fontWeight: 'bold', borderRadius: '8px' }}
-              >
-                Re-authenticate Session
-              </Button>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                {activeSrc && activeSrc.includes('/stream') && !activeSrc.includes('/transcode') && (
+                  <Button
+                    color="primary"
+                    size="small"
+                    variant="contained"
+                    onClick={() => setActiveSrc(activeSrc.replace('/stream', '/stream/transcode'))}
+                    sx={{ textTransform: 'none', fontWeight: 'bold', borderRadius: '8px' }}
+                  >
+                    Realtime FFmpeg Transcode
+                  </Button>
+                )}
+                <Button 
+                  color="inherit" 
+                  size="small" 
+                  variant="outlined"
+                  onClick={() => {
+                    localStorage.removeItem('voyarr_jwt')
+                    localStorage.removeItem('voyarr_api_key')
+                    window.location.reload()
+                  }}
+                  sx={{ textTransform: 'none', fontWeight: 'bold', borderRadius: '8px' }}
+                >
+                  Re-authenticate Session
+                </Button>
+              </Box>
             }
           >
             {errMsg || 'Playback failed. If your session expired after a backend restart, please re-authenticate.'}

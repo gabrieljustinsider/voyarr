@@ -3,9 +3,9 @@ import {
   Box, Typography, Card, CardContent, Grid, TextField, 
   Chip, FormControl, InputLabel, Select, MenuItem, Paper, CardMedia, Tooltip,
   Dialog, DialogTitle, DialogContent, IconButton, Button, DialogActions,
-  CircularProgress, Alert, Pagination, Checkbox, Slide, Autocomplete, createFilterOptions
+  CircularProgress, Alert, Pagination, Checkbox, Slide, Autocomplete, createFilterOptions, InputAdornment
 } from '@mui/material'
-import { X, PlayCircle, Settings, List, CloudUpload, Heart, Cast, Sparkles, Edit2, Plus, FolderOpen, FileUp, Trash2, Film, LayoutGrid, Clock, HardDrive, Filter, ArrowUpDown, SlidersHorizontal, Video, Layers } from 'lucide-react'
+import { X, PlayCircle, Settings, List, CloudUpload, Heart, Cast, Sparkles, Edit2, Plus, FolderOpen, FileUp, Trash2, Film, LayoutGrid, Clock, HardDrive, Filter, ArrowUpDown, SlidersHorizontal, Video, Layers, Search } from 'lucide-react'
 import ChapterManager from './ChapterManager'
 import SecondScreenRemote from './SecondScreenRemote'
 import SmartVideoPlayer from './SmartVideoPlayer'
@@ -17,9 +17,9 @@ export default function Library() {
   const [filters, setFilters] = useState(() => {
     try {
       const saved = localStorage.getItem('voyarr_library_filters')
-      return saved ? JSON.parse(saved) : { resolution: '', performer: '', tag: '', ohash: '' }
+      return saved ? JSON.parse(saved) : { search: '', resolution: '', performer: '', tag: '', ohash: '' }
     } catch {
-      return { resolution: '', performer: '', tag: '', ohash: '' }
+      return { search: '', resolution: '', performer: '', tag: '', ohash: '' }
     }
   })
   const [debouncedFilters, setDebouncedFilters] = useState(filters)
@@ -37,21 +37,66 @@ export default function Library() {
     return localStorage.getItem('voyarr_library_sort_by') || 'newest'
   })
 
+  // Save filters to localStorage whenever debouncedFilters updates
   useEffect(() => {
-    localStorage.setItem('voyarr_library_filters', JSON.stringify(filters))
+    try {
+      localStorage.setItem('voyarr_library_filters', JSON.stringify(debouncedFilters))
+    } catch {}
+  }, [debouncedFilters])
+
+  // Debounce filter changes by 300ms for fast dynamic live search
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedFilters(filters)
+    }, 300)
+    return () => clearTimeout(handler)
   }, [filters])
 
   useEffect(() => {
-    localStorage.setItem('voyarr_library_page', page.toString())
+    try {
+      localStorage.setItem('voyarr_library_page', page.toString())
+    } catch {}
   }, [page])
 
   useEffect(() => {
-    localStorage.setItem('voyarr_library_view_mode', viewMode)
+    try {
+      localStorage.setItem('voyarr_library_view_mode', viewMode)
+    } catch {}
   }, [viewMode])
 
   useEffect(() => {
-    localStorage.setItem('voyarr_library_sort_by', sortBy)
+    try {
+      localStorage.setItem('voyarr_library_sort_by', sortBy)
+    } catch {}
   }, [sortBy])
+
+  const fetchLibrary = useCallback(async () => {
+    try {
+      const params = new URLSearchParams()
+      if (debouncedFilters.search) params.append('search', debouncedFilters.search)
+      if (debouncedFilters.resolution) params.append('resolution', debouncedFilters.resolution)
+      if (debouncedFilters.performer) params.append('performer', debouncedFilters.performer)
+      if (debouncedFilters.tag) params.append('tag', debouncedFilters.tag)
+      if (debouncedFilters.ohash) params.append('ohash', debouncedFilters.ohash)
+      if (sortBy) params.append('sort_by', sortBy)
+      params.append('page', page)
+      params.append('limit', 50)
+
+      const res = await apiFetch(`/library?${params.toString()}`)
+      if (res.ok) {
+        const data = await res.json()
+        if (Array.isArray(data)) {
+          setEntries(data)
+        } else {
+          setEntries(data.items || [])
+          setTotalPages(data.total_pages || data.pages || 1)
+        }
+      }
+    } catch (e) {
+      console.error("Failed to fetch library entries:", e)
+    }
+  }, [debouncedFilters, page, sortBy])
+
   const [playingVideo, setPlayingVideo] = useState(null)
   const [managingChaptersFor, setManagingChaptersFor] = useState(null)
 
@@ -67,6 +112,68 @@ export default function Library() {
   const [castIsPlaying, setCastIsPlaying] = useState(false)
 
   const castTimerRef = useRef(null)
+
+  // Item Metadata Edit State
+  const [editingItemModalOpen, setEditingItemModalOpen] = useState(false)
+  const [itemEditForm, setItemEditForm] = useState(null)
+  const [itemEditLoading, setItemEditLoading] = useState(false)
+
+  const handleOpenItemEditModal = (entry) => {
+    setItemEditForm({
+      id: entry.id,
+      title: entry.title || '',
+      performers: Array.isArray(entry.performers) ? entry.performers : (entry.performers ? [entry.performers] : []),
+      tags: Array.isArray(entry.tags) ? entry.tags : (entry.tags ? [entry.tags] : []),
+      resolution: entry.resolution || '1080p',
+      studio_id: entry.studio_id || '',
+      ohash: entry.ohash || '',
+      phash: entry.phash || '',
+      site_id: entry.site_id || '',
+      file_path: entry.file_path || '',
+      has_metadata_match: !!entry.has_metadata_match,
+      raw_entry: entry
+    })
+    setEditingItemModalOpen(true)
+  }
+
+  const handleSaveItemMetadata = async () => {
+    if (!itemEditForm || !itemEditForm.id) return
+    setItemEditLoading(true)
+    try {
+      const payload = {
+        title: itemEditForm.title,
+        performers: itemEditForm.performers,
+        tags: itemEditForm.tags,
+        resolution: itemEditForm.resolution,
+        studio_id: itemEditForm.studio_id ? parseInt(itemEditForm.studio_id, 10) : null,
+        ohash: itemEditForm.ohash,
+        phash: itemEditForm.phash,
+        site_id: itemEditForm.site_id,
+        file_path: itemEditForm.file_path,
+        has_metadata_match: itemEditForm.has_metadata_match
+      }
+
+      const res = await apiFetch(`/library/${itemEditForm.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+
+      if (res.ok) {
+        setSnackbar({ open: true, message: `Successfully updated metadata for #${itemEditForm.id}`, severity: 'success' })
+        setEditingItemModalOpen(false)
+        fetchLibrary()
+      } else {
+        const err = await res.json()
+        setSnackbar({ open: true, message: err.detail || 'Failed to update metadata', severity: 'error' })
+      }
+    } catch (e) {
+      console.error(e)
+      setSnackbar({ open: true, message: 'Failed to update metadata', severity: 'error' })
+    } finally {
+      setItemEditLoading(false)
+    }
+  }
 
   // Scanner State
   const [scanDialogOpen, setScanDialogOpen] = useState(false)
@@ -169,31 +276,6 @@ export default function Library() {
       console.error(e)
     }
   }, [])
-
-  const fetchLibrary = useCallback(async () => {
-    try {
-      const params = new URLSearchParams()
-      if (debouncedFilters.resolution) params.append('resolution', debouncedFilters.resolution)
-      if (debouncedFilters.performer) params.append('performer', debouncedFilters.performer)
-      if (debouncedFilters.tag) params.append('tag', debouncedFilters.tag)
-      if (debouncedFilters.ohash) params.append('ohash', debouncedFilters.ohash)
-      params.append('page', page)
-      params.append('limit', 50)
-
-      const res = await apiFetch(`/library?${params.toString()}`)
-      if (res.ok) {
-        const data = await res.json()
-        if (Array.isArray(data)) {
-          setEntries(data)
-        } else {
-          setEntries(data.items || [])
-          setTotalPages(data.pages || 1)
-        }
-      }
-    } catch (e) {
-      console.error("Failed to fetch library entries:", e)
-    }
-  }, [debouncedFilters, page])
 
   const sortedEntries = useMemo(() => {
     if (!entries || !Array.isArray(entries)) return []
@@ -805,8 +887,31 @@ export default function Library() {
           
           {/* Left: Search & Filter Inputs */}
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, alignItems: 'center', flex: 1, width: { xs: '100%', md: 'auto' } }}>
-            <FormControl size="small" sx={{ minWidth: 130 }}>
-              <InputLabel sx={{ whiteSpace: 'nowrap', overflow: 'visible' }}>Resolution</InputLabel>
+            <TextField 
+              size="small" 
+              label="Search title or file name..." 
+              name="search" 
+              value={filters.search || ''} 
+              onChange={handleFilterChange} 
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Search size={18} style={{ color: 'rgba(255, 255, 255, 0.5)' }} />
+                  </InputAdornment>
+                ),
+                endAdornment: filters.search ? (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={() => setFilters(prev => ({ ...prev, search: '' }))}>
+                      <X size={14} />
+                    </IconButton>
+                  </InputAdornment>
+                ) : null
+              }}
+              sx={{ minWidth: 260, flex: 1, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }} 
+            />
+
+            <FormControl size="small" sx={{ minWidth: 140 }}>
+              <InputLabel sx={{ whiteSpace: 'nowrap' }}>Resolution</InputLabel>
               <Select name="resolution" value={filters.resolution} label="Resolution" onChange={handleFilterChange} sx={{ borderRadius: '10px' }}>
                 <MenuItem value=""><em>All Resolutions</em></MenuItem>
                 <MenuItem value="4K">4K UHD</MenuItem>
@@ -821,7 +926,7 @@ export default function Library() {
               name="performer" 
               value={filters.performer} 
               onChange={handleFilterChange} 
-              sx={{ minWidth: 150, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }} 
+              sx={{ minWidth: 140, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }} 
             />
             
             <TextField 
@@ -830,7 +935,7 @@ export default function Library() {
               name="tag" 
               value={filters.tag} 
               onChange={handleFilterChange} 
-              sx={{ minWidth: 130, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }} 
+              sx={{ minWidth: 120, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }} 
             />
 
             <TextField 
@@ -839,14 +944,14 @@ export default function Library() {
               name="ohash" 
               value={filters.ohash} 
               onChange={handleFilterChange} 
-              sx={{ minWidth: 140, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }} 
+              sx={{ minWidth: 150, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }} 
             />
 
-            {(filters.resolution || filters.performer || filters.tag || filters.ohash) && (
+            {(filters.search || filters.resolution || filters.performer || filters.tag || filters.ohash) && (
               <Button 
                 size="small" 
                 color="warning" 
-                onClick={() => setFilters({ resolution: '', performer: '', tag: '', ohash: '' })}
+                onClick={() => setFilters({ search: '', resolution: '', performer: '', tag: '', ohash: '' })}
                 sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 'bold' }}
               >
                 Clear Filters
@@ -1115,9 +1220,9 @@ export default function Library() {
                       Stream
                     </Button>
                     <Box sx={{ display: 'flex', gap: 0.5 }}>
-                      <Tooltip title="Manage Video Chapters">
-                        <IconButton size="small" onClick={() => setManagingChaptersFor(entry)} sx={{ color: '#94a3b8', '&:hover': { color: '#ffffff' } }}>
-                          <List size={16} />
+                      <Tooltip title="Edit Item Metadata & Settings">
+                        <IconButton size="small" onClick={() => handleOpenItemEditModal(entry)} sx={{ color: '#94a3b8', '&:hover': { color: '#818cf8' } }}>
+                          <Edit2 size={16} />
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="Delete Item">
@@ -1176,7 +1281,9 @@ export default function Library() {
                       <Box component="td" sx={{ textAlign: 'right' }}>
                         <IconButton size="small" onClick={() => setPlayingVideo(entry)} color="primary"><PlayCircle size={16} /></IconButton>
                         <IconButton size="small" onClick={() => handleToggleFavoriteScene(entry.id)} color={isFav ? "error" : "default"}><Heart size={16} fill={isFav ? "currentColor" : "none"} /></IconButton>
-                        <IconButton size="small" onClick={() => setManagingChaptersFor(entry)}><List size={16} /></IconButton>
+                        <Tooltip title="Edit Item Metadata & Settings">
+                          <IconButton size="small" onClick={() => handleOpenItemEditModal(entry)} sx={{ color: '#94a3b8', '&:hover': { color: '#818cf8' } }}><Edit2 size={16} /></IconButton>
+                        </Tooltip>
                         <IconButton size="small" color="error" onClick={() => handleDeleteEntry(entry)}><Trash2 size={16} /></IconButton>
                       </Box>
                     </Box>
@@ -1457,6 +1564,233 @@ export default function Library() {
         </DialogContent>
       </Dialog>
       <ChapterManager open={!!managingChaptersFor} onClose={() => setManagingChaptersFor(null)} libraryEntry={managingChaptersFor} />
+
+      {/* Comprehensive Single-Item Metadata Editor Dialog */}
+      <Dialog 
+        open={editingItemModalOpen} 
+        onClose={() => !itemEditLoading && setEditingItemModalOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '20px',
+            bgcolor: '#0f172a',
+            backgroundImage: 'radial-gradient(at 0% 0%, rgba(30, 41, 59, 0.5) 0, transparent 50%)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+          }
+        }}
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1, borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box sx={{ p: 1, borderRadius: '10px', bgcolor: 'rgba(99, 102, 241, 0.15)', color: '#818cf8', display: 'flex' }}>
+              <Edit2 size={20} />
+            </Box>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 'bold', lineHeight: 1.2 }}>
+                Edit Media Metadata
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Item ID #{itemEditForm?.id} • Read &amp; Edit All Item Properties
+              </Typography>
+            </Box>
+          </Box>
+          <IconButton onClick={() => setEditingItemModalOpen(false)} sx={{ color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } }}>
+            <X size={20} />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+          {itemEditForm && (
+            <>
+              {/* Title Field */}
+              <TextField
+                label="Media Title / Scene Name"
+                fullWidth
+                size="small"
+                value={itemEditForm.title}
+                onChange={e => setItemEditForm(prev => ({ ...prev, title: e.target.value }))}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+              />
+
+              {/* Performers Input (Autocomplete Chips) */}
+              <Autocomplete
+                multiple
+                freeSolo
+                options={[]}
+                value={itemEditForm.performers || []}
+                onChange={(e, newValue) => setItemEditForm(prev => ({ ...prev, performers: newValue }))}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => (
+                    <Chip size="small" key={option} label={option} {...getTagProps({ index })} sx={{ borderRadius: '6px', bgcolor: 'rgba(99, 102, 241, 0.2)', color: '#a5b4fc' }} />
+                  ))
+                }
+                renderInput={(params) => (
+                  <TextField {...params} size="small" label="Performers (Press Enter to add)" placeholder="Add performer..." sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }} />
+                )}
+              />
+
+              {/* Tags Input (Autocomplete Chips) */}
+              <Autocomplete
+                multiple
+                freeSolo
+                options={[]}
+                value={itemEditForm.tags || []}
+                onChange={(e, newValue) => setItemEditForm(prev => ({ ...prev, tags: newValue }))}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => (
+                    <Chip size="small" key={option} label={option} {...getTagProps({ index })} sx={{ borderRadius: '6px', bgcolor: 'rgba(56, 189, 248, 0.2)', color: '#7dd3fc' }} />
+                  ))
+                }
+                renderInput={(params) => (
+                  <TextField {...params} size="small" label="Tags & Categories (Press Enter to add)" placeholder="Add tag..." sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }} />
+                )}
+              />
+
+              <Grid container spacing={2}>
+                {/* Resolution Select */}
+                <Grid xs={12} sm={6}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Resolution</InputLabel>
+                    <Select
+                      value={itemEditForm.resolution}
+                      label="Resolution"
+                      onChange={e => setItemEditForm(prev => ({ ...prev, resolution: e.target.value }))}
+                      sx={{ borderRadius: '10px' }}
+                    >
+                      <MenuItem value="4K">4K UHD</MenuItem>
+                      <MenuItem value="1080p">1080p FHD</MenuItem>
+                      <MenuItem value="720p">720p HD</MenuItem>
+                      <MenuItem value="480p">480p SD</MenuItem>
+                      <MenuItem value="Unknown">Unknown</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                {/* Studio Select */}
+                <Grid xs={12} sm={6}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Studio</InputLabel>
+                    <Select
+                      value={itemEditForm.studio_id || ''}
+                      label="Studio"
+                      onChange={e => setItemEditForm(prev => ({ ...prev, studio_id: e.target.value }))}
+                      sx={{ borderRadius: '10px' }}
+                    >
+                      <MenuItem value=""><em>None / Unassigned</em></MenuItem>
+                      {studios.map(s => (
+                        <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+              </Grid>
+
+              {/* File Path Field */}
+              <TextField
+                label="Physical Media File Path"
+                fullWidth
+                size="small"
+                value={itemEditForm.file_path}
+                onChange={e => setItemEditForm(prev => ({ ...prev, file_path: e.target.value }))}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+              />
+
+              <Grid container spacing={2}>
+                {/* oHash Field */}
+                <Grid xs={12} sm={4}>
+                  <TextField
+                    label="oHash (Perceptual)"
+                    fullWidth
+                    size="small"
+                    value={itemEditForm.ohash || ''}
+                    onChange={e => setItemEditForm(prev => ({ ...prev, ohash: e.target.value }))}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+                  />
+                </Grid>
+                {/* pHash Field */}
+                <Grid xs={12} sm={4}>
+                  <TextField
+                    label="pHash"
+                    fullWidth
+                    size="small"
+                    value={itemEditForm.phash || ''}
+                    onChange={e => setItemEditForm(prev => ({ ...prev, phash: e.target.value }))}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+                  />
+                </Grid>
+                {/* Site ID Field */}
+                <Grid xs={12} sm={4}>
+                  <TextField
+                    label="Original Source Site ID"
+                    fullWidth
+                    size="small"
+                    value={itemEditForm.site_id || ''}
+                    onChange={e => setItemEditForm(prev => ({ ...prev, site_id: e.target.value }))}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+                  />
+                </Grid>
+              </Grid>
+
+              {/* Manage Chapters Quick Action Row */}
+              <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Video Chapters</Typography>
+                  <Typography variant="caption" color="text.secondary">Configure scene timestamps &amp; video markers</Typography>
+                </Box>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="info"
+                  startIcon={<List size={16} />}
+                  onClick={() => {
+                    setManagingChaptersFor(itemEditForm.raw_entry)
+                  }}
+                  sx={{ borderRadius: '8px', textTransform: 'none' }}
+                >
+                  Manage Chapters ({itemEditForm.raw_entry?.chapters?.length || 0})
+                </Button>
+              </Box>
+            </>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{ p: 2.5, pt: 1, borderTop: '1px solid rgba(255, 255, 255, 0.08)', justifyContent: 'space-between' }}>
+          <Button 
+            color="error" 
+            startIcon={<Trash2 size={16} />}
+            onClick={() => {
+              if (itemEditForm?.raw_entry) {
+                setEditingItemModalOpen(false)
+                handleDeleteEntry(itemEditForm.raw_entry)
+              }
+            }}
+            sx={{ borderRadius: '8px', textTransform: 'none' }}
+          >
+            Delete Item
+          </Button>
+
+          <Box sx={{ display: 'flex', gap: 1.5 }}>
+            <Button 
+              onClick={() => setEditingItemModalOpen(false)} 
+              disabled={itemEditLoading}
+              sx={{ borderRadius: '8px', textTransform: 'none' }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="contained" 
+              color="primary" 
+              onClick={handleSaveItemMetadata}
+              disabled={itemEditLoading}
+              startIcon={itemEditLoading ? <CircularProgress size={16} color="inherit" /> : null}
+              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 'bold' }}
+            >
+              {itemEditLoading ? 'Saving...' : 'Save Metadata Changes'}
+            </Button>
+          </Box>
+        </DialogActions>
+      </Dialog>
 
       {/* Performer Profile Dialog */}
       <Dialog 

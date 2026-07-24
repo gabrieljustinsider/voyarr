@@ -61,69 +61,74 @@ export default function PasswordChecklist({ password = '' }) {
   return (
     <Box
       sx={{
-        mt: 1.5,
-        mb: 1.5,
-        p: 2,
-        borderRadius: '12px',
-        backgroundColor: 'rgba(30, 41, 59, 0.4)', // sleek slate/dark glass background
-        border: '1px solid rgba(255, 255, 255, 0.05)',
-        backdropFilter: 'blur(10px)',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        p: 2.5,
+        borderRadius: '16px',
+        backgroundColor: 'rgba(30, 41, 59, 0.45)',
+        border: '1px solid rgba(255, 255, 255, 0.08)',
+        backdropFilter: 'blur(12px)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+        boxSizing: 'border-box',
         transition: 'all 0.3s ease'
       }}
     >
-      {/* Strength Label */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-        <Typography 
-          variant="caption" 
-          sx={{ 
-            color: 'rgba(255,255,255,0.6)', 
-            fontWeight: 500, 
-            fontFamily: "'Outfit', sans-serif" 
-          }}
-        >
-          Password Strength
-        </Typography>
-        <Typography 
-          variant="caption" 
-          sx={{ 
-            color: strengthColor, 
-            fontWeight: 700, 
-            fontFamily: "'Outfit', sans-serif",
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px',
-            transition: 'color 0.3s ease'
-          }}
-        >
-          {strengthLabel}
-        </Typography>
+      <Box>
+        {/* Strength Label & Header */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+          <Typography 
+            variant="caption" 
+            sx={{ 
+              color: 'rgba(255,255,255,0.7)', 
+              fontWeight: 600, 
+              fontSize: '0.8rem',
+              letterSpacing: '0.2px'
+            }}
+          >
+            Security Checklist
+          </Typography>
+          <Typography 
+            variant="caption" 
+            sx={{ 
+              color: strengthColor, 
+              fontWeight: 700, 
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+              transition: 'color 0.3s ease'
+            }}
+          >
+            {strengthLabel}
+          </Typography>
+        </Box>
+
+        {/* Segmented Progress Bars */}
+        {renderBars()}
       </Box>
 
-      {/* Segmented Progress Bars */}
-      {renderBars()}
-
-      {/* Checklist Grid */}
-      <Grid container spacing={1} sx={{ mt: 1 }}>
+      {/* Vertical Checklist Column */}
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25, mt: 1 }}>
         {criteria.map((item, index) => {
           const isMet = results[index]
           return (
-            <Grid xs={12} key={index} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              {/* Custom Animated SVG Icon */}
+            <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+              {/* Custom Animated Icon */}
               <Box
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  width: 18,
-                  height: 18,
+                  width: 20,
+                  height: 20,
                   borderRadius: '50%',
-                  backgroundColor: isMet ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                  border: `1px solid ${isMet ? '#10b981' : 'rgba(255, 255, 255, 0.1)'}`,
+                  backgroundColor: isMet ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.04)',
+                  border: `1px solid ${isMet ? '#10b981' : 'rgba(255, 255, 255, 0.12)'}`,
                   transition: 'all 0.3s ease',
                   flexShrink: 0
                 }}
               >
                 {isMet ? (
-                  // Elegant Checkmark SVG
                   <svg 
                     viewBox="0 0 24 24" 
                     fill="none" 
@@ -131,18 +136,17 @@ export default function PasswordChecklist({ password = '' }) {
                     strokeWidth="3.5" 
                     strokeLinecap="round" 
                     strokeLinejoin="round"
-                    style={{ width: '11px', height: '11px' }}
+                    style={{ width: '12px', height: '12px' }}
                   >
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
                 ) : (
-                  // Sleek unfilled dot
                   <Box 
                     sx={{ 
-                      width: 4, 
-                      height: 4, 
+                      width: 5, 
+                      height: 5, 
                       borderRadius: '50%', 
-                      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                      backgroundColor: 'rgba(255, 255, 255, 0.25)',
                       transition: 'all 0.3s ease'
                     }} 
                   />
@@ -153,20 +157,19 @@ export default function PasswordChecklist({ password = '' }) {
               <Typography
                 variant="caption"
                 sx={{
-                  color: isMet ? '#10b981' : 'rgba(255, 255, 255, 0.45)',
-                  textDecoration: isMet ? 'none' : 'none',
+                  color: isMet ? '#10b981' : 'rgba(255, 255, 255, 0.55)',
                   fontWeight: isMet ? 600 : 400,
-                  fontSize: '0.75rem',
-                  fontFamily: "'Outfit', sans-serif",
+                  fontSize: '0.78rem',
+                  lineHeight: 1.3,
                   transition: 'all 0.3s ease'
                 }}
               >
                 {item.label}
               </Typography>
-            </Grid>
+            </Box>
           )
         })}
-      </Grid>
+      </Box>
     </Box>
   )
 }

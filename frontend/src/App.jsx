@@ -1018,16 +1018,16 @@ function App() {
     transcode_queue: 'Transcode Queue',
     mass_rip: 'Mass Rip',
     subscriptions: 'Subscriptions',
-    download_rules: 'Rules & Lists',
+    download_rules: 'Settings',
     providers: 'Providers',
-    billers: 'Billers',
+    billers: 'Providers',
     studios: 'Studios',
     metadata_manager: 'Metadata',
-    duplicates: 'Duplicates',
-    scraper_tester: 'Scraper Tester',
+    duplicates: 'Metadata',
+    scraper_tester: 'Providers',
     user_management: 'User Management',
     p2p_sync: 'P2P Sync',
-    external_apis: 'External APIs',
+    external_apis: 'Settings',
     backup_manager: 'Backup',
     logs_viewer: 'Logs',
     system_status: 'System Status',
@@ -1039,24 +1039,11 @@ function App() {
     return Object.keys(tabIdMap).find(k => tabIdMap[k] === currentTabLabel) || 'dashboard'
   }, [tabIdMap, currentTabLabel])
 
-  // Save last selected tab to localStorage and update URL hash for page persistence & deep-linking
-  useEffect(() => {
-    if (currentTabLabel) {
-      if (uiConfig.rememberLastTab) {
-        localStorage.setItem('voyarr_last_tab', currentTabLabel)
-      }
-      if (currentTabId && window.location.hash !== `#${currentTabId}`) {
-        window.history.replaceState(null, '', `#${currentTabId}`)
-      }
-    }
-  }, [currentTabLabel, currentTabId, uiConfig.rememberLastTab])
-
-  // Restore last selected tab from URL hash (#library), query param (?tab=library), or localStorage
   const hasRestoredTab = useRef(false)
+
+  // Restore last selected tab from URL hash (#library), query param (?tab=library), or localStorage on initial mount
   useEffect(() => {
     if (!hasRestoredTab.current && visibleTabs.length > 0) {
-      hasRestoredTab.current = true
-
       // 1. Check URL hash (#tabId) or query param (?tab=tabId)
       const hashTab = window.location.hash.replace('#', '').toLowerCase()
       const urlParams = new URLSearchParams(window.location.search)
@@ -1068,6 +1055,7 @@ function App() {
         const targetIdx = visibleTabs.findIndex(t => t.label === targetLabel)
         if (targetIdx >= 0) {
           setTabValue(targetIdx)
+          hasRestoredTab.current = true
           return
         }
       }
@@ -1079,11 +1067,29 @@ function App() {
           const targetIdx = visibleTabs.findIndex(t => t.label === savedTab)
           if (targetIdx >= 0) {
             setTabValue(targetIdx)
+            hasRestoredTab.current = true
+            return
           }
         }
       }
+
+      hasRestoredTab.current = true
     }
   }, [uiConfig.rememberLastTab, visibleTabs, tabIdMap])
+
+  // Save selected tab to localStorage and update URL hash AFTER initial restoration completes
+  useEffect(() => {
+    if (!hasRestoredTab.current) return
+
+    if (currentTabLabel) {
+      if (uiConfig.rememberLastTab) {
+        localStorage.setItem('voyarr_last_tab', currentTabLabel)
+      }
+      if (currentTabId && window.location.hash !== `#${currentTabId}`) {
+        window.history.replaceState(null, '', `#${currentTabId}`)
+      }
+    }
+  }, [currentTabLabel, currentTabId, uiConfig.rememberLastTab])
 
   // Support browser back / forward button navigation
   useEffect(() => {

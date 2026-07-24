@@ -242,3 +242,58 @@ def test_universal_search():
     # Check that smart performer cross referencing returned matches
     assert "Eva Elfie" in of_matches[0]["cross_referenced_performers"]
 
+
+@patch("routers.external_api.requests.post")
+def test_theporndb_studio_and_site_endpoints(mock_post):
+    mock_response = MagicMock()
+    mock_response.json.return_value = {
+        "data": {
+            "searchStudios": {
+                "data": [{"id": "st1", "name": "Brazzers", "logo": "http://logo.com"}]
+            }
+        }
+    }
+    mock_response.raise_for_status.return_value = None
+    mock_post.return_value = mock_response
+
+    res = client.post(
+        "/external-api/theporndb/studio",
+        json={"name": "Brazzers"},
+        headers={"x-api-key": "testkey"}
+    )
+    assert res.status_code == 200
+    assert res.json()["results"][0]["name"] == "Brazzers"
+
+
+@patch("routers.external_api.requests.post")
+def test_stashdb_studio_and_performer_endpoints(mock_post):
+    mock_response = MagicMock()
+    mock_response.json.return_value = {
+        "data": {
+            "findStudios": {
+                "studios": [{"id": "st1", "name": "Vixen", "details": "High quality"}]
+            }
+        }
+    }
+    mock_response.raise_for_status.return_value = None
+    mock_post.return_value = mock_response
+
+    res = client.post(
+        "/external-api/stashdb/studio",
+        json={"name": "Vixen"},
+        headers={"x-api-key": "testkey"}
+    )
+    assert res.status_code == 200
+    assert res.json()["results"][0]["name"] == "Vixen"
+
+
+def test_universal_metadata_fetch():
+    res = client.post(
+        "/external-api/metadata/fetch",
+        json={"provider": "all", "entity_type": "studio", "name": "Evil Angel"}
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert "theporndb" in data
+    assert "stashdb" in data
+

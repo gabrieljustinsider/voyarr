@@ -1,15 +1,72 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { 
   Card, CardContent, Typography, Button, Grid, TextField, Box, 
-  Dialog, DialogTitle, DialogContent, DialogActions, IconButton, Chip, Alert
+  Dialog, DialogTitle, DialogContent, DialogActions, IconButton, Chip, Alert, Avatar
 } from '@mui/material'
 import { apiFetch } from '../api'
-import { Landmark, Plus, Edit3, Trash2, Globe, Mail, Phone } from 'lucide-react'
+import { Landmark, Plus, Edit3, Trash2, Globe, Mail, Phone, Heart } from 'lucide-react'
 import { MediaEntityCard } from './common'
 import { getFaviconFromUrl } from '../utils/logoHelpers'
 
+function BillerCardLogo({ biller }) {
+  const [imgError, setImgError] = useState(false)
+  const faviconUrl = getFaviconFromUrl(biller.url)
+
+  useEffect(() => {
+    setImgError(false)
+  }, [biller.url])
+
+  const initial = biller.name ? biller.name.charAt(0).toUpperCase() : '?'
+
+  if (faviconUrl && !imgError) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          p: 0.75,
+          borderRadius: '12px',
+          bgcolor: 'rgba(255, 255, 255, 0.12)',
+          backdropFilter: 'blur(8px)',
+          border: '1px solid rgba(255, 255, 255, 0.2)'
+        }}
+      >
+        <Box 
+          component="img" 
+          src={faviconUrl} 
+          alt={biller.name}
+          onError={() => setImgError(true)}
+          sx={{ 
+            width: 44, 
+            height: 44, 
+            objectFit: 'contain',
+            filter: 'drop-shadow(0px 0px 6px rgba(255, 255, 255, 0.65)) drop-shadow(0px 1px 3px rgba(0, 0, 0, 0.4))'
+          }} 
+        />
+      </Box>
+    )
+  }
+
+  return (
+    <Avatar
+      sx={{ 
+        width: 50, 
+        height: 50, 
+        bgcolor: 'secondary.main', 
+        color: 'secondary.contrastText',
+        fontSize: '1.5rem', 
+        fontWeight: 'bold'
+      }}
+    >
+      {initial}
+    </Avatar>
+  )
+}
+
 export default function BillerList() {
   const [billers, setBillers] = useState([])
+  const [favBillers, setFavBillers] = useState([])
   const [openBillerForm, setOpenBillerForm] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [billerFormId, setBillerFormId] = useState(null)
@@ -28,6 +85,11 @@ export default function BillerList() {
       if (response.ok) {
         setBillers(await response.json())
       }
+      const favRes = await apiFetch('/favorites')
+      if (favRes.ok) {
+        const favs = await favRes.json()
+        setFavBillers(favs.biller || [])
+      }
     } catch (error) {
       console.error('Failed to fetch billers:', error)
     }
@@ -36,6 +98,32 @@ export default function BillerList() {
   useEffect(() => {
     fetchBillers()
   }, [fetchBillers])
+
+  const handleToggleFavorite = async (billerId, billerName) => {
+    const stringId = String(billerId)
+    try {
+      const res = await apiFetch('/favorites/toggle', {
+        method: 'POST',
+        body: JSON.stringify({ item_type: 'biller', item_id: stringId })
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.favorited) {
+          setFavBillers(prev => [...prev, stringId])
+          window.dispatchEvent(new CustomEvent('show-toast', { 
+            detail: { message: `Favorited ${billerName}!`, severity: 'success' } 
+          }))
+        } else {
+          setFavBillers(prev => prev.filter(x => x !== stringId))
+          window.dispatchEvent(new CustomEvent('show-toast', { 
+            detail: { message: `Unfavorited ${billerName}.`, severity: 'info' } 
+          }))
+        }
+      }
+    } catch (e) {
+      console.error(e)
+    }
+  }
 
   const handleOpenCreate = () => {
     setEditMode(false)
@@ -148,55 +236,26 @@ export default function BillerList() {
 
       <Grid container spacing={3} sx={{ alignItems: 'stretch' }}>
         {billers.map(biller => {
-          const faviconUrl = getFaviconFromUrl(biller.url)
-
           return (
             <Grid size={{ xs: 12, sm: 6, md: 6, lg: 4 }} xs={12} sm={6} md={6} lg={4} key={biller.id} sx={{ display: 'flex', minWidth: 0 }}>
               <MediaEntityCard
-                mediaHeader={
-                  faviconUrl ? (
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        p: 0.75,
-                        borderRadius: '12px',
-                        bgcolor: 'rgba(255, 255, 255, 0.12)',
-                        backdropFilter: 'blur(8px)',
-                        border: '1px solid rgba(255, 255, 255, 0.2)'
-                      }}
-                    >
-                      <Box 
-                        component="img" 
-                        src={faviconUrl} 
-                        alt={biller.name} 
-                        sx={{ 
-                          width: 44, 
-                          height: 44, 
-                          objectFit: 'contain',
-                          filter: 'drop-shadow(0px 0px 6px rgba(255, 255, 255, 0.65)) drop-shadow(0px 1px 3px rgba(0, 0, 0, 0.4))'
-                        }} 
-                      />
-                    </Box>
-                  ) : (
-                    <Box sx={{ p: 1.5, borderRadius: '14px', background: 'rgba(236, 72, 153, 0.2)', color: '#ec4899', display: 'flex' }}>
-                      <Landmark size={36} />
-                    </Box>
-                  )
-                }
+                mediaHeader={<BillerCardLogo biller={biller} />}
                 topBadges={
                   <Chip label="Biller" size="small" sx={{ fontWeight: 'bold', fontSize: '0.65rem', height: 22, bgcolor: 'rgba(236, 72, 153, 0.2)', color: '#ec4899', border: '1px solid rgba(236, 72, 153, 0.4)' }} />
                 }
                 topActions={
-                  <Box sx={{ display: 'flex', gap: 0.5 }}>
-                    <IconButton size="small" sx={{ backgroundColor: 'rgba(0,0,0,0.5)', color: '#818cf8', '&:hover': { backgroundColor: 'rgba(0,0,0,0.7)' } }} onClick={() => handleOpenEdit(biller)}>
-                      <Edit3 size={16} />
-                    </IconButton>
-                    <IconButton size="small" sx={{ backgroundColor: 'rgba(0,0,0,0.5)', color: '#ef4444', '&:hover': { backgroundColor: 'rgba(0,0,0,0.7)' } }} onClick={() => handleDelete(biller.id)}>
-                      <Trash2 size={16} />
-                    </IconButton>
-                  </Box>
+                  <IconButton 
+                    size="small"
+                    sx={{ 
+                      backgroundColor: 'rgba(0,0,0,0.5)', 
+                      backdropFilter: 'blur(6px)',
+                      '&:hover': { backgroundColor: 'rgba(0,0,0,0.7)' } 
+                    }}
+                    onClick={() => handleToggleFavorite(biller.id, biller.name)}
+                    color={favBillers.includes(String(biller.id)) ? "error" : "default"}
+                  >
+                    {favBillers.includes(String(biller.id)) ? <Heart size={18} fill="currentColor" /> : <Heart size={18} />}
+                  </IconButton>
                 }
                 title={biller.name}
                 subtitle={
@@ -240,9 +299,14 @@ export default function BillerList() {
                   </Box>
                 }
                 footerActions={
-                  <Button size="small" variant="outlined" color="primary" onClick={() => handleOpenEdit(biller)}>
-                    Edit Biller
-                  </Button>
+                  <>
+                    <IconButton size="small" color="primary" onClick={() => handleOpenEdit(biller)}>
+                      <Edit3 size={16} />
+                    </IconButton>
+                    <IconButton size="small" color="error" onClick={() => handleDelete(biller.id)}>
+                      <Trash2 size={16} />
+                    </IconButton>
+                  </>
                 }
               />
             </Grid>

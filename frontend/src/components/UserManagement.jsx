@@ -363,9 +363,9 @@ export default function UserManagement() {
         </Typography>
         <Divider sx={{ mb: 2 }} />
         <form onSubmit={(e) => { e.preventDefault(); handleCreateUser(); }}>
-          <Grid container spacing={4} sx={{ alignItems: 'flex-start' }}>
-            <Grid xs={12} sm={6}>
-              <Stack spacing={2.5}>
+          <Grid container spacing={3} sx={{ alignItems: 'stretch', width: '100%', m: 0 }}>
+            <Grid xs={12} md={7} sx={{ pl: '0 !important', pt: '0 !important' }}>
+              <Stack spacing={2.5} sx={{ width: '100%', boxSizing: 'border-box' }}>
                 <TextField 
                   fullWidth 
                   size="small" 
@@ -374,18 +374,28 @@ export default function UserManagement() {
                   onChange={e => setNewUser({...newUser, username: e.target.value})} 
                   error={isUsernameTaken}
                   helperText={isUsernameTaken ? "Username already exists" : ""}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
                 />
-                <TextField fullWidth size="small" type="password" autoComplete="new-password" label="Password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} />
+                <TextField 
+                  fullWidth 
+                  size="small" 
+                  type="password" 
+                  autoComplete="new-password" 
+                  label="Password" 
+                  value={newUser.password} 
+                  onChange={e => setNewUser({...newUser, password: e.target.value})} 
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+                />
                 <FormControl fullWidth size="small">
                   <InputLabel>Role</InputLabel>
-                  <Select value={newUser.role} label="Role" onChange={e => setNewUser({...newUser, role: e.target.value})}>
+                  <Select value={newUser.role} label="Role" onChange={e => setNewUser({...newUser, role: e.target.value})} sx={{ borderRadius: '10px' }}>
                     <MenuItem value="admin">Admin</MenuItem>
                     <MenuItem value="user">User</MenuItem>
                   </Select>
                 </FormControl>
               </Stack>
             </Grid>
-            <Grid xs={12} sm={6}>
+            <Grid xs={12} md={5} sx={{ pt: { xs: 2, md: '0 !important' }, pr: '0 !important' }}>
               <PasswordChecklist password={newUser.password} />
             </Grid>
           </Grid>
@@ -1087,16 +1097,22 @@ export default function UserManagement() {
             <Typography sx={{ mb: 2, fontSize: '0.9rem', opacity: 0.8 }}>
               Set a new temporary or custom password for user <strong>{selectedUserForManage?.username}</strong>. The user will be required to input this password to authenticate next time.
             </Typography>
-            <TextField
-              fullWidth
-              type="password"
-              autoComplete="new-password"
-              label="New Password string"
-              value={adminResetPasswordNew}
-              onChange={e => setAdminResetPasswordNew(e.target.value)}
-              sx={{ mt: 1, '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
-            />
-            <PasswordChecklist password={adminResetPasswordNew} />
+            <Grid container spacing={3} sx={{ alignItems: 'stretch', mt: 0.5 }}>
+              <Grid xs={12} sm={7}>
+                <TextField
+                  fullWidth
+                  type="password"
+                  autoComplete="new-password"
+                  label="New Password string"
+                  value={adminResetPasswordNew}
+                  onChange={e => setAdminResetPasswordNew(e.target.value)}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+                />
+              </Grid>
+              <Grid xs={12} sm={5}>
+                <PasswordChecklist password={adminResetPasswordNew} />
+              </Grid>
+            </Grid>
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 3 }}>
             <Button onClick={() => setAdminResetPasswordOpen(false)} sx={{ textTransform: 'none' }}>Cancel</Button>

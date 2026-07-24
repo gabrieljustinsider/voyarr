@@ -1,20 +1,24 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { 
   Card, CardContent, CardActions, Typography, Button, Grid, TextField, Box, 
   LinearProgress, Dialog, DialogTitle, DialogContent, DialogActions, Tabs, Tab, 
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, 
   IconButton, Alert, Paper, FormControlLabel, Switch, Avatar,
-  Accordion, AccordionSummary, AccordionDetails, Menu, MenuItem, Checkbox, ListItemText, ListItemIcon, Autocomplete
+  Accordion, AccordionSummary, AccordionDetails, Menu, MenuItem, Checkbox, ListItemText, ListItemIcon, Autocomplete,
+  ToggleButton, ToggleButtonGroup, FormControl, InputLabel, Select
 } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import SettingsIcon from '@mui/icons-material/Settings'
-import { Globe } from 'lucide-react'
-import apiFetch, { getErrorMessage } from '../api'
+import { Globe, LayoutGrid, List as ListIcon, Edit2, Trash2, Link as LinkIcon, ArrowUpDown, Heart } from 'lucide-react'
 import { getSafeLogoUrl, getFaviconFromUrl } from '../utils/logoHelpers'
 import { MediaEntityCard } from './common'
+import BillerList from './BillerList'
+import CookiesManager from './CookiesManager'
+import ScraperTester from './ScraperTester'
+import { apiFetch } from '../api'
 
 function ProviderCardLogo({ provider }) {
   const [imgError, setImgError] = useState(false)
@@ -128,6 +132,79 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
   })
   const [providerLimitEnabled, setProviderLimitEnabled] = useState(false)
   const [isScraping, setIsScraping] = useState(false)
+  const [subTab, setSubTab] = useState(0)
+  const [viewMode, setViewMode] = useState('grid')
+  const [sortBy, setSortBy] = useState('name-asc')
+  const [favProviders, setFavProviders] = useState([])
+
+  const fetchFavProviders = useCallback(async () => {
+    try {
+      const res = await apiFetch('/favorites')
+      if (res.ok) {
+        const data = await res.json()
+        setFavProviders(data.provider || [])
+      }
+    } catch (e) {
+      console.error('Failed to fetch provider favorites:', e)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchFavProviders()
+  }, [fetchFavProviders])
+
+  const handleToggleFavorite = async (providerId, providerName) => {
+    const stringId = String(providerId)
+    try {
+      const res = await apiFetch('/favorites/toggle', {
+        method: 'POST',
+        body: JSON.stringify({ item_type: 'provider', item_id: stringId })
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.favorited) {
+          setFavProviders(prev => [...prev, stringId])
+          window.dispatchEvent(new CustomEvent('show-toast', { 
+            detail: { message: `Favorited ${providerName}!`, severity: 'success' } 
+          }))
+        } else {
+          setFavProviders(prev => prev.filter(x => x !== stringId))
+          window.dispatchEvent(new CustomEvent('show-toast', { 
+            detail: { message: `Unfavorited ${providerName}.`, severity: 'info' } 
+          }))
+        }
+      }
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const processedProviders = useMemo(() => {
+    let result = (providers || []).filter(p => {
+      if (!searchQuery) return true
+      const q = searchQuery.toLowerCase()
+      return (p.name && p.name.toLowerCase().includes(q)) || (p.base_url && p.base_url.toLowerCase().includes(q))
+    })
+
+    result.sort((a, b) => {
+      if (sortBy === 'name-asc') return (a.name || '').localeCompare(b.name || '')
+      if (sortBy === 'name-desc') return (b.name || '').localeCompare(a.name || '')
+      if (sortBy === 'limit-desc') {
+        const limitA = a.automatic_limits?.daily_downloads || 0
+        const limitB = b.automatic_limits?.daily_downloads || 0
+        return limitB - limitA
+      }
+      if (sortBy === 'sessions-desc') {
+        const countA = cookies.filter(c => c.provider_id === a.id).length
+        const countB = cookies.filter(c => c.provider_id === b.id).length
+        return countB - countA
+      }
+      if (sortBy === 'id-desc') return b.id - a.id
+      return 0
+    })
+
+    return result
+  }, [providers, searchQuery, sortBy, cookies])
 
   // Card Display Settings State
   const [cardPrefs, setCardPrefs] = useState({
@@ -780,197 +857,373 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
     <Box sx={{ maxWidth: 1400, mx: 'auto', width: '100%' }}>
       <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: 'center', gap: 2, mb: 3 }}>
         <Typography variant="h4" sx={{ fontWeight: 'bold', textAlign: { xs: 'center', sm: 'left' } }}>
-          Media Providers
+          Media Providers Hub
         </Typography>
         <Box sx={{ display: 'flex', gap: 2, width: { xs: '100%', sm: 'auto' }, flexDirection: { xs: 'column', sm: 'row' } }}>
-          <Button 
-            variant="outlined" 
-            color="primary" 
-            startIcon={<SettingsIcon />} 
-            onClick={(e) => setSettingsAnchorEl(e.currentTarget)}
-            sx={{ width: { xs: '100%', sm: 'auto' } }}
-          >
-            Display
-          </Button>
-          <Menu
-            anchorEl={settingsAnchorEl}
-            open={Boolean(settingsAnchorEl)}
-            onClose={() => setSettingsAnchorEl(null)}
-          >
-            <MenuItem onClick={() => handleToggleCardPref('showLogo')}>
-              <ListItemIcon>
-                <Checkbox checked={cardPrefs.showLogo} size="small" disableRipple />
-              </ListItemIcon>
-              <ListItemText primary="Show Logo" />
-            </MenuItem>
-            <MenuItem onClick={() => handleToggleCardPref('showBaseUrl')}>
-              <ListItemIcon>
-                <Checkbox checked={cardPrefs.showBaseUrl} size="small" disableRipple />
-              </ListItemIcon>
-              <ListItemText primary="Show Base URL" />
-            </MenuItem>
-            <MenuItem onClick={() => handleToggleCardPref('showDailyLimit')}>
-              <ListItemIcon>
-                <Checkbox checked={cardPrefs.showDailyLimit} size="small" disableRipple />
-              </ListItemIcon>
-              <ListItemText primary="Show Daily Limit" />
-            </MenuItem>
-            <MenuItem onClick={() => handleToggleCardPref('showActiveSessions')}>
-              <ListItemIcon>
-                <Checkbox checked={cardPrefs.showActiveSessions} size="small" disableRipple />
-              </ListItemIcon>
-              <ListItemText primary="Show Active Sessions" />
-            </MenuItem>
-          </Menu>
-          <Button 
-            variant="contained" 
-            color="secondary" 
-            startIcon={<AddIcon />} 
-            onClick={handleOpenCreateProvider}
-            sx={{ width: { xs: '100%', sm: 'auto' } }}
-          >
-            Create Provider
-          </Button>
+          {subTab === 0 && (
+            <>
+              <Button 
+                variant="outlined" 
+                color="primary" 
+                startIcon={<SettingsIcon />} 
+                onClick={(e) => setSettingsAnchorEl(e.currentTarget)}
+                sx={{ width: { xs: '100%', sm: 'auto' } }}
+              >
+                Display
+              </Button>
+              <Menu
+                anchorEl={settingsAnchorEl}
+                open={Boolean(settingsAnchorEl)}
+                onClose={() => setSettingsAnchorEl(null)}
+              >
+                <MenuItem onClick={() => handleToggleCardPref('showLogo')}>
+                  <ListItemIcon>
+                    <Checkbox checked={cardPrefs.showLogo} size="small" disableRipple />
+                  </ListItemIcon>
+                  <ListItemText primary="Show Logo" />
+                </MenuItem>
+                <MenuItem onClick={() => handleToggleCardPref('showBaseUrl')}>
+                  <ListItemIcon>
+                    <Checkbox checked={cardPrefs.showBaseUrl} size="small" disableRipple />
+                  </ListItemIcon>
+                  <ListItemText primary="Show Base URL" />
+                </MenuItem>
+                <MenuItem onClick={() => handleToggleCardPref('showDailyLimit')}>
+                  <ListItemIcon>
+                    <Checkbox checked={cardPrefs.showDailyLimit} size="small" disableRipple />
+                  </ListItemIcon>
+                  <ListItemText primary="Show Daily Limit" />
+                </MenuItem>
+                <MenuItem onClick={() => handleToggleCardPref('showActiveSessions')}>
+                  <ListItemIcon>
+                    <Checkbox checked={cardPrefs.showActiveSessions} size="small" disableRipple />
+                  </ListItemIcon>
+                  <ListItemText primary="Show Active Sessions" />
+                </MenuItem>
+              </Menu>
+              <Button 
+                variant="contained" 
+                color="secondary" 
+                startIcon={<AddIcon />} 
+                onClick={handleOpenCreateProvider}
+                sx={{ width: { xs: '100%', sm: 'auto' } }}
+              >
+                Create Provider
+              </Button>
+            </>
+          )}
         </Box>
       </Box>
 
-      {/* Purpose Banner */}
-      <Alert 
-        severity="info" 
-        icon={<Globe size={20} />} 
-        sx={{ 
-          mb: 3, 
-          borderRadius: '12px', 
-          bgcolor: 'rgba(14, 165, 233, 0.08)', 
-          color: '#38bdf8',
-          border: '1px solid rgba(14, 165, 233, 0.2)',
-          '& .MuiAlert-icon': { color: '#0284c7' } 
-        }}
-      >
-        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.25 }}>
-          📡 Media Download Providers & Hosts (Where Content is Downloaded From)
-        </Typography>
-        <Typography variant="caption" sx={{ display: 'block', opacity: 0.9, lineHeight: 1.4 }}>
-          Providers represent the streaming sites and download hosts where Voyarr scrapes and downloads media files (e.g. ManyVids, OnlyFans, Pornhub). Use Providers to manage login credentials, active session cookies, download quotas, and daily limits.
-        </Typography>
-      </Alert>
+      {/* Navigation Sub-Tabs */}
+      <Paper sx={{ mb: 3, borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)', bgcolor: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(12px)' }}>
+        <Tabs 
+          value={subTab} 
+          onChange={(e, val) => setSubTab(val)} 
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{ px: 2, '& .MuiTab-root': { fontWeight: 'bold', textTransform: 'none', minHeight: 48 } }}
+        >
+          <Tab label="Media Providers & Sites" />
+          <Tab label="Payment Billers & Gateways" />
+          <Tab label="Session Cookies & Auth" />
+          <Tab label="Scraper Tester" />
+        </Tabs>
+      </Paper>
 
-      <Box sx={{ mb: 3 }}>
-        <TextField
-          fullWidth
-          label="Search Providers"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          variant="outlined"
-        />
-      </Box>
-      <Grid container spacing={3} sx={{ alignItems: 'stretch' }}>
-        {providers.map(provider => {
-          const providerCookies = cookies.filter(c => c.provider_id === provider.id)
-          
-          return (
-            <Grid size={{ xs: 12, sm: 6, md: 6, lg: 4 }} xs={12} sm={6} md={6} lg={4} key={provider.id} sx={{ display: 'flex', minWidth: 0 }}>
-              <MediaEntityCard
-                mediaHeader={<ProviderCardLogo provider={provider} />}
-                topActions={
-                  <IconButton 
-                    size="small" 
-                    sx={{ backgroundColor: 'rgba(0,0,0,0.5)', color: '#ef4444', '&:hover': { backgroundColor: 'rgba(0,0,0,0.7)' } }}
-                    onClick={() => handleDeleteProvider(provider)}
+      {subTab === 0 && (
+        <>
+          {/* Purpose Banner */}
+          <Alert 
+            severity="info" 
+            icon={<Globe size={20} />} 
+            sx={{ 
+              mb: 3, 
+              borderRadius: '12px', 
+              bgcolor: 'rgba(14, 165, 233, 0.08)', 
+              color: '#38bdf8',
+              border: '1px solid rgba(14, 165, 233, 0.2)',
+              '& .MuiAlert-icon': { color: '#0284c7' } 
+            }}
+          >
+            <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.25 }}>
+              📡 Media Download Providers & Hosts (Where Content is Downloaded From)
+            </Typography>
+            <Typography variant="caption" sx={{ display: 'block', opacity: 0.9, lineHeight: 1.4 }}>
+              Providers represent the streaming sites and download hosts where Voyarr scrapes and downloads media files. Use Providers to manage login credentials, active session cookies, download quotas, and daily limits.
+            </Typography>
+          </Alert>
+
+          {/* Search, Sort, and View Controls */}
+          <Paper sx={{ p: 2, mb: 3, borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)', bgcolor: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(12px)' }}>
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, alignItems: 'center', justifyContent: 'space-between' }}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Search Providers"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by provider name or domain URL..."
+                sx={{ flex: 1, minWidth: { xs: '100%', md: 280 }, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+              />
+              <Box sx={{ display: 'flex', gap: 1.5, width: { xs: '100%', md: 'auto' }, alignItems: 'center' }}>
+                <FormControl size="small" sx={{ minWidth: 200, flex: { xs: 1, md: 'none' } }}>
+                  <InputLabel id="provider-sort-label">Sort Providers</InputLabel>
+                  <Select
+                    labelId="provider-sort-label"
+                    value={sortBy}
+                    label="Sort Providers"
+                    onChange={(e) => setSortBy(e.target.value)}
+                    sx={{ borderRadius: '10px' }}
                   >
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                }
-                title={provider.name}
-                subtitle={
-                  cardPrefs.showBaseUrl && provider.base_url && (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1.5, minWidth: 0, width: '100%' }}>
-                      <Typography 
-                        variant="caption" 
-                        component="a" 
-                        href={provider.base_url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        sx={{ 
-                          textDecoration: 'none', 
-                          color: '#818cf8', 
-                          fontWeight: '600', 
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                          minWidth: 0
-                        }}
-                      >
-                        {provider.base_url.replace(/^https?:\/\/(www\.)?/, '')}
-                      </Typography>
-                    </Box>
-                  )
-                }
-                bodySections={
-                  <>
-                    {provider.default_biller && (
-                      <Box sx={{ mb: 1.5 }}>
-                        <Chip
-                          label={`Biller: ${provider.default_biller.name}`}
-                          size="small"
-                          color="secondary"
-                          variant="outlined"
-                          sx={{ fontWeight: 'bold', border: '1px solid rgba(236, 72, 153, 0.4)', color: '#ec4899' }}
-                        />
-                      </Box>
-                    )}
-                    {cardPrefs.showDailyLimit && provider.automatic_limits && (
-                      <Typography variant="body2" sx={{ mb: 1.5, fontWeight: 'bold' }}>
-                        Daily Limit: {provider.automatic_limits.daily_downloads || 'Unlimited'}
-                      </Typography>
-                    )}
-                    {cardPrefs.showActiveSessions && providerCookies.length > 0 && (
-                      <Box sx={{ mb: 2, width: '100%' }}>
-                        <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold' }}>Active Session Quotas</Typography>
-                        {providerCookies.map(cookie => {
-                          const limit = cookie.download_limit || 0;
-                          const used = cookie.downloads_used || 0;
-                          const percentage = limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
-                          const isUnlimited = limit === 0;
+                    <MenuItem value="name-asc">Name (A-Z)</MenuItem>
+                    <MenuItem value="name-desc">Name (Z-A)</MenuItem>
+                    <MenuItem value="limit-desc">Daily Download Limit (High to Low)</MenuItem>
+                    <MenuItem value="sessions-desc">Active Sessions (Most First)</MenuItem>
+                    <MenuItem value="id-desc">Recently Added</MenuItem>
+                  </Select>
+                </FormControl>
 
-                          return (
-                            <Box key={cookie.id} sx={{ mb: 1 }}>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                                <Typography variant="caption" color="text.secondary">
-                                  {cookie.status === 'active' ? 'Active' : cookie.status === 'expired' ? 'Expired' : cookie.status}
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                  {isUnlimited ? `${used} / ∞` : `${used} / ${limit}`}
-                                </Typography>
-                              </Box>
-                              <LinearProgress 
-                                variant="determinate" 
-                                value={isUnlimited ? 100 : percentage} 
-                                color={isUnlimited ? 'primary' : percentage >= 90 ? 'error' : percentage >= 75 ? 'warning' : 'primary'}
-                                sx={{ height: 6, borderRadius: 3, ...(isUnlimited && { opacity: 0.5 }) }}
+                <ToggleButtonGroup
+                  value={viewMode}
+                  exclusive
+                  onChange={(e, val) => val && setViewMode(val)}
+                  size="small"
+                  sx={{ 
+                    bgcolor: 'rgba(255,255,255,0.05)', 
+                    borderRadius: '10px',
+                    p: 0.5,
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    '& .MuiToggleButton-root': {
+                      border: 'none',
+                      borderRadius: '8px',
+                      px: 1.5,
+                      py: 0.5,
+                      color: 'text.secondary',
+                      '&.Mui-selected': {
+                        bgcolor: 'primary.main',
+                        color: 'white',
+                        '&:hover': { bgcolor: 'primary.dark' }
+                      }
+                    }
+                  }}
+                >
+                  <ToggleButton value="grid">
+                    <LayoutGrid size={18} />
+                  </ToggleButton>
+                  <ToggleButton value="list">
+                    <ListIcon size={18} />
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+            </Box>
+          </Paper>
+
+          {/* Render Providers (Grid or List View) */}
+          {processedProviders.length === 0 ? (
+            <Paper sx={{ p: 4, textAlign: 'center', borderRadius: '16px', border: '1px dashed rgba(255,255,255,0.15)' }}>
+              <Globe size={40} style={{ opacity: 0.3, marginBottom: 12 }} />
+              <Typography variant="h6" color="text.secondary">No media providers found matching your search.</Typography>
+            </Paper>
+          ) : viewMode === 'grid' ? (
+            <Grid container spacing={3} sx={{ alignItems: 'stretch' }}>
+              {processedProviders.map(provider => {
+                const providerCookies = cookies.filter(c => c.provider_id === provider.id)
+
+                return (
+                  <Grid size={{ xs: 12, sm: 6, md: 6, lg: 4 }} xs={12} sm={6} md={6} lg={4} key={provider.id} sx={{ display: 'flex', minWidth: 0 }}>
+                    <MediaEntityCard
+                      mediaHeader={<ProviderCardLogo provider={provider} />}
+                      topBadges={
+                        <>
+                          {provider.default_biller && (
+                            <Chip 
+                              label={`Biller: ${provider.default_biller.name}`} 
+                              size="small" 
+                              variant="outlined"
+                              sx={{ fontWeight: 'bold', fontSize: '0.65rem', height: 22, border: '1px solid rgba(236, 72, 153, 0.4)', color: '#ec4899', bgcolor: 'rgba(236, 72, 153, 0.08)' }}
+                            />
+                          )}
+                        </>
+                      }
+                      topActions={
+                        <IconButton 
+                          size="small"
+                          sx={{ 
+                            backgroundColor: 'rgba(0,0,0,0.5)', 
+                            backdropFilter: 'blur(6px)',
+                            '&:hover': { backgroundColor: 'rgba(0,0,0,0.7)' } 
+                          }}
+                          onClick={() => handleToggleFavorite(provider.id, provider.name)}
+                          color={favProviders.includes(String(provider.id)) ? "error" : "default"}
+                        >
+                          {favProviders.includes(String(provider.id)) ? <Heart size={18} fill="currentColor" /> : <Heart size={18} />}
+                        </IconButton>
+                      }
+                      title={provider.name}
+                      subtitle={
+                        cardPrefs.showBaseUrl && provider.base_url && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1.5, minWidth: 0, width: '100%' }}>
+                            <LinkIcon size={14} style={{ color: '#818cf8', flexShrink: 0 }} />
+                            <Typography 
+                              variant="caption" 
+                              component="a" 
+                              href={provider.base_url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              sx={{ 
+                                textDecoration: 'none', 
+                                color: '#818cf8', 
+                                fontWeight: '600', 
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                minWidth: 0
+                              }}
+                            >
+                              {provider.base_url.replace(/^https?:\/\/(www\.)?/, '')}
+                            </Typography>
+                          </Box>
+                        )
+                      }
+                      description={provider.description || `Naming pattern: ${provider.naming_pattern || 'Default'}`}
+                      bodySections={
+                        <>
+                          {cardPrefs.showDailyLimit && provider.automatic_limits && (
+                            <Box sx={{ mb: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <Typography variant="caption" color="text.secondary">Daily Download Limit:</Typography>
+                              <Chip
+                                label={provider.automatic_limits.daily_downloads ? `${provider.automatic_limits.daily_downloads} / day` : 'Unlimited'}
+                                size="small"
+                                sx={{ fontWeight: 'bold', fontSize: '0.7rem', height: 22, bgcolor: 'rgba(14, 165, 233, 0.12)', color: '#38bdf8' }}
                               />
                             </Box>
-                          )
-                        })}
-                      </Box>
-                    )}
-                  </>
-                }
-                footerActions={
-                  <Button 
-                    size="small" 
-                    variant="contained" 
-                    color="primary" 
-                    onClick={() => handleOpenConfig(provider)}
-                  >
-                    Edit Provider
-                  </Button>
-                }
-              />
+                          )}
+                          {cardPrefs.showActiveSessions && providerCookies.length > 0 && (
+                            <Box sx={{ mb: 2, width: '100%' }}>
+                              <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold', fontSize: '0.8rem', color: '#a5b4fc' }}>Active Session Quotas</Typography>
+                              {providerCookies.map(cookie => {
+                                const limit = cookie.download_limit || 0;
+                                const used = cookie.downloads_used || 0;
+                                const percentage = limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
+                                const isUnlimited = limit === 0;
+
+                                return (
+                                  <Box key={cookie.id} sx={{ mb: 1 }}>
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                                      <Typography variant="caption" color="text.secondary">
+                                        {cookie.status === 'active' ? 'Active' : cookie.status === 'expired' ? 'Expired' : cookie.status}
+                                      </Typography>
+                                      <Typography variant="caption" color="text.secondary">
+                                        {isUnlimited ? `${used} / ∞` : `${used} / ${limit}`}
+                                      </Typography>
+                                    </Box>
+                                    <LinearProgress 
+                                      variant="determinate" 
+                                      value={isUnlimited ? 100 : percentage} 
+                                      color={isUnlimited ? 'primary' : percentage >= 90 ? 'error' : percentage >= 75 ? 'warning' : 'primary'}
+                                      sx={{ height: 6, borderRadius: 3, ...(isUnlimited && { opacity: 0.5 }) }}
+                                    />
+                                  </Box>
+                                )
+                              })}
+                            </Box>
+                          )}
+                        </>
+                      }
+                      footerActions={
+                        <>
+                          <IconButton size="small" color="primary" onClick={() => handleOpenConfig(provider)}>
+                            <Edit2 size={16} />
+                          </IconButton>
+                          <IconButton size="small" color="error" onClick={() => handleDeleteProvider(provider)}>
+                            <Trash2 size={16} />
+                          </IconButton>
+                        </>
+                      }
+                    />
+                  </Grid>
+                )
+              })}
             </Grid>
-          )
-        })}
-      </Grid>
+          ) : (
+            /* List View */
+            <TableContainer component={Paper} sx={{ borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)', bgcolor: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(12px)' }}>
+              <Table>
+                <TableHead sx={{ bgcolor: 'rgba(255,255,255,0.03)' }}>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Provider Name</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Base URL</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Default Biller</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Daily Limit</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Sessions</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {processedProviders.map(provider => {
+                    const providerCookies = cookies.filter(c => c.provider_id === provider.id)
+
+                    return (
+                      <TableRow key={provider.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <Box sx={{ width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <ProviderCardLogo provider={provider} />
+                            </Box>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>{provider.name}</Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          {provider.base_url ? (
+                            <Box component="a" href={provider.base_url} target="_blank" rel="noopener noreferrer" sx={{ color: '#818cf8', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 0.5, fontWeight: 500, fontSize: '0.85rem' }}>
+                              <LinkIcon size={14} /> {provider.base_url.replace(/^https?:\/\/(www\.)?/, '')}
+                            </Box>
+                          ) : '-'}
+                        </TableCell>
+                        <TableCell>
+                          {provider.default_biller ? (
+                            <Chip label={provider.default_biller.name} size="small" sx={{ fontWeight: 'bold', border: '1px solid rgba(236, 72, 153, 0.4)', color: '#ec4899', bgcolor: 'rgba(236, 72, 153, 0.08)' }} />
+                          ) : '-'}
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={provider.automatic_limits?.daily_downloads ? `${provider.automatic_limits.daily_downloads} / day` : 'Unlimited'}
+                            size="small"
+                            sx={{ fontWeight: 'bold', fontSize: '0.75rem', bgcolor: 'rgba(14, 165, 233, 0.12)', color: '#38bdf8' }}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={`${providerCookies.length} Active`} 
+                            size="small" 
+                            color={providerCookies.length > 0 ? "success" : "default"} 
+                            variant="outlined" 
+                          />
+                        </TableCell>
+                        <TableCell align="right">
+                          <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                            <IconButton size="small" color="primary" onClick={() => handleOpenConfig(provider)}>
+                              <Edit2 size={16} />
+                            </IconButton>
+                            <IconButton size="small" color="error" onClick={() => handleDeleteProvider(provider)}>
+                              <Trash2 size={16} />
+                            </IconButton>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </>
+      )}
+
+      {subTab === 1 && <BillerList />}
+      {subTab === 2 && <CookiesManager />}
+      {subTab === 3 && <ScraperTester />}
 
       {/* Unified Manage Auth & Session Modal */}
       <Dialog 

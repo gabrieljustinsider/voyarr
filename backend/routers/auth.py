@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Response, Header
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 import os
 import secrets
@@ -128,7 +129,7 @@ def register_user(user: UserCreate, request: Request, db: Session = Depends(get_
         # Force the first user to be an admin to prevent system lockouts
         user.role = "admin"
 
-    if db.query(User).filter(User.username == user.username).first():
+    if db.query(User).filter(func.lower(User.username) == user.username.lower()).first():
         raise HTTPException(status_code=400, detail="Username already registered")
 
     hashed_password = get_password_hash(user.password)
@@ -154,7 +155,7 @@ def register_user(user: UserCreate, request: Request, db: Session = Depends(get_
                 try:
                     payload = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
                     actor_username = str(payload.get("sub") or "Admin User")
-                    actor_user = db.query(User).filter(User.username == actor_username).first()
+                    actor_user = db.query(User).filter(func.lower(User.username) == actor_username.lower()).first()
                     if actor_user:
                         actor_id = str(actor_user.id)
                 except Exception:
@@ -196,7 +197,7 @@ def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ) -> dict[str, str]:
-    user = db.query(User).filter(User.username == form_data.username).first()
+    user = db.query(User).filter(func.lower(User.username) == form_data.username.lower()).first()
     if not user or not verify_password(form_data.password, str(user.password_hash)):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

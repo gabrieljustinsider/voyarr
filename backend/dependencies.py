@@ -106,7 +106,8 @@ def require_permission(module: str, required_level: str):
             raise HTTPException(status_code=403, detail="Forbidden")
 
         from models import User
-        user = db.query(User).filter(User.username == username).first()
+        from sqlalchemy import func
+        user = db.query(User).filter(func.lower(User.username) == username.lower()).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 

@@ -169,19 +169,19 @@ export default function LogsViewer() {
       {activeTab === 0 ? (
         <>
           <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'stretch', md: 'center' }, gap: 2, mb: 2 }}>
-            <Typography variant="h5">Console Logs</Typography>
+            <Typography variant="h5" sx={{ fontWeight: '800', letterSpacing: '-0.5px' }}>Console Stream</Typography>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="stretch" sx={{ width: { xs: '100%', md: 'auto' } }}>
-              <FormControl size="small" sx={{ flex: 1 }}>
-                <InputLabel>Source</InputLabel>
-                <Select value={logSource} label="Source" onChange={(e) => setLogSource(e.target.value)} sx={{ minWidth: 120 }}>
-                  <MenuItem value="celery">Celery</MenuItem>
-                  <MenuItem value="fastapi">FastAPI</MenuItem>
+              <FormControl size="small" sx={{ minWidth: 160 }}>
+                <InputLabel id="log-source-label">Log Source Engine</InputLabel>
+                <Select labelId="log-source-label" value={logSource} label="Log Source Engine" onChange={(e) => setLogSource(e.target.value)} sx={{ borderRadius: '10px' }}>
+                  <MenuItem value="celery">Celery Workers</MenuItem>
+                  <MenuItem value="fastapi">FastAPI Backend</MenuItem>
                 </Select>
               </FormControl>
               
-              <FormControl size="small" sx={{ flex: 1 }}>
-                <InputLabel>Level</InputLabel>
-                <Select value={logLevel} label="Level" onChange={(e) => setLogLevel(e.target.value)} sx={{ minWidth: 120 }}>
+              <FormControl size="small" sx={{ minWidth: 160 }}>
+                <InputLabel id="log-level-label">Filter Log Level</InputLabel>
+                <Select labelId="log-level-label" value={logLevel} label="Filter Log Level" onChange={(e) => setLogLevel(e.target.value)} sx={{ borderRadius: '10px' }}>
                   <MenuItem value="ALL">All Levels</MenuItem>
                   <MenuItem value="INFO">INFO</MenuItem>
                   <MenuItem value="WARNING">WARNING</MenuItem>
@@ -192,19 +192,26 @@ export default function LogsViewer() {
 
               <TextField
                 size="small"
-                label="Search Console Logs"
-                variant="outlined"
+                label="Search Log Feed"
+                placeholder="Type keyword..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                sx={{ flex: 2 }}
+                sx={{ flex: 2, minWidth: 220, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
               />
 
-              <Button variant="outlined" color="error" onClick={clearLogs} disabled={loading} sx={{ height: '40px', flex: 1 }}>
-                {loading ? <CircularProgress size={24} /> : 'Clear'}
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<TrashIcon />}
+                onClick={clearLogs}
+                disabled={loading}
+                sx={{ borderRadius: '10px', textTransform: 'none', height: 40 }}
+              >
+                Clear Feed
               </Button>
             </Stack>
           </Box>
-          <Paper sx={{ p: 2, backgroundColor: '#1e1e1e', color: '#00ff00', fontFamily: 'monospace', height: '65vh', overflowY: 'auto' }}>
+          <Paper sx={{ p: 2.5, backgroundColor: 'rgba(10, 15, 30, 0.95)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '16px', color: '#38bdf8', fontFamily: 'Fira Code, monospace', fontSize: '0.85rem', height: '65vh', overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
             {filteredLogs.length === 0 ? (
               <Typography>No console logs matching criteria.</Typography>
             ) : (

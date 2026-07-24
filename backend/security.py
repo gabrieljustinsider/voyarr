@@ -19,10 +19,21 @@ cipher = Fernet(key)
 # JWT & Password Hashing Configuration
 _secret_key = os.getenv("SECRET_KEY")
 if not _secret_key or _secret_key == "your_secret_key_here":  # nosec B105
-    print(
-        "WARNING: Using an ephemeral fallback SECRET_KEY. Sessions will invalidate on restart. Please set a secure SECRET_KEY in your .env file!"
-    )
-    _secret_key = secrets.token_urlsafe(32)
+    jwt_file = os.path.join(os.path.dirname(__file__), "data", ".jwt_secret")
+    if os.path.exists(jwt_file):
+        try:
+            with open(jwt_file, "r") as f:
+                _secret_key = f.read().strip()
+        except Exception:
+            _secret_key = None
+    if not _secret_key:
+        _secret_key = secrets.token_urlsafe(32)
+        try:
+            os.makedirs(os.path.dirname(jwt_file), exist_ok=True)
+            with open(jwt_file, "w") as f:
+                f.write(_secret_key)
+        except Exception:
+            pass
 JWT_SECRET: str = _secret_key
 ALGORITHM = "HS256"
 

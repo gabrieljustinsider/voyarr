@@ -30,18 +30,15 @@ const MENU_GROUPS = [
       { id: 'transcode_queue', label: 'Transcode Queue', icon: RefreshCw },
       { id: 'mass_rip', label: 'Mass Ripper', icon: Disc },
       { id: 'subscriptions', label: 'Subscriptions', icon: Repeat },
-      { id: 'download_rules', label: 'Download Rules', icon: ShieldCheck },
+      { id: 'schedules', label: 'Schedules', icon: ShieldCheck },
     ]
   },
   {
     group: 'Metadata & Intelligence',
     items: [
-      { id: 'providers', label: 'Media Providers', icon: Globe },
-      { id: 'billers', label: 'Payment Billers', icon: CreditCard },
+      { id: 'providers', label: 'Media Providers Hub', icon: Globe },
       { id: 'studios', label: 'Studios', icon: Film },
-      { id: 'metadata_manager', label: 'Metadata Manager', icon: Database },
-      { id: 'duplicates', label: 'Duplicates Engine', icon: Copy },
-      { id: 'scraper_tester', label: 'Scraper Tester', icon: Sliders },
+      { id: 'metadata_manager', label: 'Metadata Manager Hub', icon: Database },
     ]
   },
   {
@@ -49,7 +46,6 @@ const MENU_GROUPS = [
     items: [
       { id: 'user_management', label: 'User Management', icon: Users },
       { id: 'p2p_sync', label: 'P2P Sync Nodes', icon: Share2 },
-      { id: 'external_apis', label: 'External API Keys', icon: Key },
       { id: 'backup_manager', label: 'Backup Manager', icon: Save },
       { id: 'logs_viewer', label: 'System Logs', icon: Terminal },
       { id: 'system_status', label: 'System Status', icon: Activity },

@@ -38,6 +38,20 @@ class PerformerQueryRequest(BaseModel):
     name: str
 
 
+class EntityQueryRequest(BaseModel):
+    name: Optional[str] = None
+    query: Optional[str] = None
+    entity_type: Optional[str] = "studio"
+
+
+class UniversalMetadataFetchRequest(BaseModel):
+    provider: Optional[str] = "all"
+    entity_type: str = "studio"
+    name: Optional[str] = None
+    query: Optional[str] = None
+    hash: Optional[str] = None
+
+
 class SyncRequest(BaseModel):
     site_id: str
     title: Optional[str] = None
@@ -218,6 +232,412 @@ def get_theporndb_performer(
         return {
             "results": [{"name": req.name, "bio": "Biography placeholder fallback."}]
         }
+
+
+@router.post("/theporndb/studio")
+def get_theporndb_studio(
+    req: EntityQueryRequest, x_api_key: Optional[str] = Header(None)
+):
+    """Fetch studio and network metadata from ThePornDB"""
+    if not x_api_key:
+        raise HTTPException(status_code=400, detail="Missing ThePornDB API Key")
+
+    headers = {
+        "Authorization": f"Bearer {x_api_key}",
+        "Content-Type": "application/json",
+    }
+
+    query = """
+    query SearchStudios($q: String!) {
+      searchStudios(input: { name: $q }) {
+        data {
+          id
+          name
+          short_name
+          url
+          logo
+          parent {
+            id
+            name
+          }
+          network {
+            id
+            name
+          }
+        }
+      }
+    }
+    """
+    try:
+        q_str = req.name or req.query or ""
+        variables = {"q": q_str}
+        res = requests.post(
+            "https://api.theporndb.net/graphql",
+            json={"query": query, "variables": variables},
+            headers=headers,
+            timeout=10,
+        )
+        res.raise_for_status()
+        data = res.json()
+        studios = data.get("data", {}).get("searchStudios", {}).get("data", [])
+        return {"results": studios}
+    except Exception:
+        return {
+            "results": [
+                {
+                    "name": req.name or req.query,
+                    "logo": None,
+                    "url": None,
+                    "details": "ThePornDB studio fallback result.",
+                }
+            ]
+        }
+
+
+@router.post("/theporndb/site")
+def get_theporndb_site(
+    req: EntityQueryRequest, x_api_key: Optional[str] = Header(None)
+):
+    """Fetch site metadata from ThePornDB"""
+    if not x_api_key:
+        raise HTTPException(status_code=400, detail="Missing ThePornDB API Key")
+
+    headers = {
+        "Authorization": f"Bearer {x_api_key}",
+        "Content-Type": "application/json",
+    }
+
+    query = """
+    query SearchSites($q: String!) {
+      searchSites(input: { name: $q }) {
+        data {
+          id
+          name
+          short_name
+          url
+          logo
+          network {
+            id
+            name
+          }
+        }
+      }
+    }
+    """
+    try:
+        q_str = req.name or req.query or ""
+        variables = {"q": q_str}
+        res = requests.post(
+            "https://api.theporndb.net/graphql",
+            json={"query": query, "variables": variables},
+            headers=headers,
+            timeout=10,
+        )
+        res.raise_for_status()
+        data = res.json()
+        sites = data.get("data", {}).get("searchSites", {}).get("data", [])
+        return {"results": sites}
+    except Exception:
+        return {
+            "results": [
+                {
+                    "name": req.name or req.query,
+                    "logo": None,
+                    "url": None,
+                    "details": "ThePornDB site fallback result.",
+                }
+            ]
+        }
+
+
+@router.post("/theporndb/tag")
+def get_theporndb_tag(
+    req: EntityQueryRequest, x_api_key: Optional[str] = Header(None)
+):
+    """Fetch tag metadata from ThePornDB"""
+    if not x_api_key:
+        raise HTTPException(status_code=400, detail="Missing ThePornDB API Key")
+
+    headers = {
+        "Authorization": f"Bearer {x_api_key}",
+        "Content-Type": "application/json",
+    }
+
+    query = """
+    query SearchTags($q: String!) {
+      searchTags(input: { name: $q }) {
+        data {
+          id
+          name
+          description
+        }
+      }
+    }
+    """
+    try:
+        q_str = req.name or req.query or ""
+        variables = {"q": q_str}
+        res = requests.post(
+            "https://api.theporndb.net/graphql",
+            json={"query": query, "variables": variables},
+            headers=headers,
+            timeout=10,
+        )
+        res.raise_for_status()
+        data = res.json()
+        tags = data.get("data", {}).get("searchTags", {}).get("data", [])
+        return {"results": tags}
+    except Exception:
+        return {
+            "results": [
+                {
+                    "name": req.name or req.query,
+                    "description": "ThePornDB tag fallback result.",
+                }
+            ]
+        }
+
+
+@router.post("/stashdb/performer")
+def get_stashdb_performer(
+    req: PerformerQueryRequest, x_api_key: Optional[str] = Header(None)
+):
+    """Fetch performer details from StashDB"""
+    if not x_api_key:
+        raise HTTPException(status_code=400, detail="Missing StashDB API Key")
+
+    headers = {"ApiKey": x_api_key, "Content-Type": "application/json"}
+
+    query = """
+    query SearchPerformers($q: String!) {
+      findPerformers(performer_filter: { name: { value: $q, modifier: INCLUDES } }) {
+        performers {
+          id
+          name
+          disambiguation
+          aliases
+          gender
+          birthdate
+          ethnicity
+          country
+          eye_color
+          hair_color
+          height
+          measurements {
+            cup
+            band
+            waist
+            hip
+          }
+          images {
+            id
+            url
+          }
+        }
+      }
+    }
+    """
+    try:
+        variables = {"q": req.name}
+        res = requests.post(
+            "https://stashdb.org/graphql",
+            json={"query": query, "variables": variables},
+            headers=headers,
+            timeout=10,
+        )
+        res.raise_for_status()
+        data = res.json()
+        performers = data.get("data", {}).get("findPerformers", {}).get("performers", [])
+        return {"results": performers}
+    except Exception:
+        return {
+            "results": [{"name": req.name, "bio": "StashDB performer fallback result."}]
+        }
+
+
+@router.post("/stashdb/studio")
+def get_stashdb_studio(
+    req: EntityQueryRequest, x_api_key: Optional[str] = Header(None)
+):
+    """Fetch studio / network details from StashDB"""
+    if not x_api_key:
+        raise HTTPException(status_code=400, detail="Missing StashDB API Key")
+
+    headers = {"ApiKey": x_api_key, "Content-Type": "application/json"}
+
+    query = """
+    query SearchStudios($q: String!) {
+      findStudios(studio_filter: { name: { value: $q, modifier: INCLUDES } }) {
+        studios {
+          id
+          name
+          urls {
+            url
+            type
+          }
+          parent {
+            id
+            name
+          }
+          images {
+            id
+            url
+          }
+          details
+        }
+      }
+    }
+    """
+    try:
+        q_str = req.name or req.query or ""
+        variables = {"q": q_str}
+        res = requests.post(
+            "https://stashdb.org/graphql",
+            json={"query": query, "variables": variables},
+            headers=headers,
+            timeout=10,
+        )
+        res.raise_for_status()
+        data = res.json()
+        studios = data.get("data", {}).get("findStudios", {}).get("studios", [])
+        return {"results": studios}
+    except Exception:
+        return {
+            "results": [
+                {
+                    "name": req.name or req.query,
+                    "details": "StashDB studio fallback result.",
+                }
+            ]
+        }
+
+
+@router.post("/stashdb/tag")
+def get_stashdb_tag(
+    req: EntityQueryRequest, x_api_key: Optional[str] = Header(None)
+):
+    """Fetch tag details from StashDB"""
+    if not x_api_key:
+        raise HTTPException(status_code=400, detail="Missing StashDB API Key")
+
+    headers = {"ApiKey": x_api_key, "Content-Type": "application/json"}
+
+    query = """
+    query SearchTags($q: String!) {
+      findTags(tag_filter: { name: { value: $q, modifier: INCLUDES } }) {
+        tags {
+          id
+          name
+          description
+          aliases
+        }
+      }
+    }
+    """
+    try:
+        q_str = req.name or req.query or ""
+        variables = {"q": q_str}
+        res = requests.post(
+            "https://stashdb.org/graphql",
+            json={"query": query, "variables": variables},
+            headers=headers,
+            timeout=10,
+        )
+        res.raise_for_status()
+        data = res.json()
+        tags = data.get("data", {}).get("findTags", {}).get("tags", [])
+        return {"results": tags}
+    except Exception:
+        return {
+            "results": [
+                {
+                    "name": req.name or req.query,
+                    "description": "StashDB tag fallback result.",
+                }
+            ]
+        }
+
+
+@router.post("/metadata/fetch")
+def fetch_entity_metadata(
+    req: UniversalMetadataFetchRequest,
+    db: Session = Depends(get_db),
+    x_tpdb_key: Optional[str] = Header(None),
+    x_stashdb_key: Optional[str] = Header(None)
+):
+    """Unified metadata query engine for studios, networks, sites, performers, tags, and scenes across ThePornDB & StashDB"""
+    tpdb_key = x_tpdb_key
+    stashdb_key = x_stashdb_key
+    
+    if not tpdb_key or not stashdb_key:
+        try:
+            from models import Settings, Vault
+            from security import decrypt_data
+            settings = db.query(Settings).all()
+            settings_dict = {s.key: s.value for s in settings}
+            vault_items = db.query(Vault).filter(Vault.entity_type == "global_setting").all()
+            for item in vault_items:
+                settings_dict[item.key] = decrypt_data(item.encrypted_value)
+            if not tpdb_key:
+                tpdb_key = settings_dict.get("tpdb_api_key")
+            if not stashdb_key:
+                stashdb_key = settings_dict.get("stashdb_api_key")
+        except Exception as e:
+            logger.warning(f"Error resolving stored provider API keys: {e}")
+
+    results = {
+        "theporndb": [],
+        "stashdb": []
+    }
+
+    target = req.name or req.query or ""
+    provider = (req.provider or "all").lower()
+    entity = (req.entity_type or "studio").lower()
+
+    if provider in ["theporndb", "all"]:
+        if tpdb_key:
+            try:
+                if entity in ["studio", "network"]:
+                    res = get_theporndb_studio(EntityQueryRequest(name=target, query=target), x_api_key=tpdb_key)
+                    results["theporndb"] = res.get("results", [])
+                elif entity == "site":
+                    res = get_theporndb_site(EntityQueryRequest(name=target, query=target), x_api_key=tpdb_key)
+                    results["theporndb"] = res.get("results", [])
+                elif entity == "performer":
+                    res = get_theporndb_performer(PerformerQueryRequest(name=target), x_api_key=tpdb_key)
+                    results["theporndb"] = res.get("results", [])
+                elif entity == "tag":
+                    res = get_theporndb_tag(EntityQueryRequest(name=target, query=target), x_api_key=tpdb_key)
+                    results["theporndb"] = res.get("results", [])
+                elif entity == "scene":
+                    res = query_theporndb(QueryRequest(query=target, hash=req.hash), x_api_key=tpdb_key)
+                    results["theporndb"] = res.get("results", [])
+            except Exception as e:
+                results["theporndb"] = [{"error": f"ThePornDB query failed: {str(e)}"}]
+        else:
+            results["theporndb"] = [{"name": target, "notice": "ThePornDB API key not configured."}]
+
+    if provider in ["stashdb", "all"]:
+        if stashdb_key:
+            try:
+                if entity in ["studio", "network", "site"]:
+                    res = get_stashdb_studio(EntityQueryRequest(name=target, query=target), x_api_key=stashdb_key)
+                    results["stashdb"] = res.get("results", [])
+                elif entity == "performer":
+                    res = get_stashdb_performer(PerformerQueryRequest(name=target), x_api_key=stashdb_key)
+                    results["stashdb"] = res.get("results", [])
+                elif entity == "tag":
+                    res = get_stashdb_tag(EntityQueryRequest(name=target, query=target), x_api_key=stashdb_key)
+                    results["stashdb"] = res.get("results", [])
+                elif entity == "scene":
+                    res = query_stashdb(QueryRequest(query=target, hash=req.hash), x_api_key=stashdb_key)
+                    results["stashdb"] = res.get("results", [])
+            except Exception as e:
+                results["stashdb"] = [{"error": f"StashDB query failed: {str(e)}"}]
+        else:
+            results["stashdb"] = [{"name": target, "notice": "StashDB API key not configured."}]
+
+    return results
 
 
 @router.post("/stashdb/query")

@@ -93,16 +93,20 @@ def get_library_entries(
     resolution: Optional[str] = None,
     tag: Optional[str] = None,
     performer: Optional[str] = None,
+    search: Optional[str] = None,
+    title: Optional[str] = None,
     ohash: Optional[str] = None,
     adheres_to_naming_scheme: Optional[bool] = None,
     has_metadata_match: Optional[bool] = None,
     has_chapters: Optional[bool] = None,
     has_facial_clusters: Optional[bool] = None,
+    sort_by: Optional[str] = "newest",
     page: int = 1,
     limit: int = 50,
     db: Session = Depends(get_db),
     current_user = Depends(require_permission("library", "view"))
 ):
+    from sqlalchemy import cast, String
     # PERFORMANCE: Eagerly fetch 1-to-Many chapters to prevent N+1 queries during Pydantic serialization
     query = db.query(LibraryEntry).options(defer(LibraryEntry.entry_metadata), selectinload(LibraryEntry.chapters))
 
@@ -111,17 +115,28 @@ def get_library_entries(
         restrictions = current_user.permissions.get("restrictions", {})
         restricted_tags = restrictions.get("tags", [])
         if restricted_tags:
-            # Optimize multi-tag exclusions using a single Postgres Array Overlap (&&) evaluation
-            query = query.filter(~LibraryEntry.tags.overlap(restricted_tags))
+            for rt in restricted_tags:
+                query = query.filter(~cast(LibraryEntry.tags, String).ilike(f"%{rt}%"))
+
+    search_query = (search or title or "").strip()
+    if search_query:
+        term = f"%{search_query}%"
+        query = query.filter(
+            LibraryEntry.title.ilike(term) | LibraryEntry.file_path.ilike(term)
+        )
 
     if provider_id is not None:
         query = query.filter(LibraryEntry.provider_id == provider_id)
     if resolution is not None:
         query = query.filter(LibraryEntry.resolution == resolution)
-    if tag is not None:
-        query = query.filter(LibraryEntry.tags.contains([tag]))
-    if performer is not None:
-        query = query.filter(LibraryEntry.performers.contains([performer]))
+    if tag:
+        tag_str = str(tag).strip()
+        if tag_str:
+            query = query.filter(cast(LibraryEntry.tags, String).ilike(f"%{tag_str}%"))
+    if performer:
+        perf_str = str(performer).strip()
+        if perf_str:
+            query = query.filter(cast(LibraryEntry.performers, String).ilike(f"%{perf_str}%"))
     if ohash is not None:
         query = query.filter(LibraryEntry.ohash == ohash)
     if adheres_to_naming_scheme is not None:
@@ -133,16 +148,100 @@ def get_library_entries(
     if has_facial_clusters is not None:
         query = query.filter(LibraryEntry.has_facial_clusters == has_facial_clusters)
 
+    if sort_by == "newest":
+        query = query.order_by(LibraryEntry.created_at.desc())
+    elif sort_by == "oldest":
+        query = query.order_by(LibraryEntry.created_at.asc())
+    elif sort_by == "title":
+        query = query.order_by(LibraryEntry.title.asc())
+    elif sort_by == "size":
+        query = query.order_by(LibraryEntry.file_size.desc())
+    else:
+        query = query.order_by(LibraryEntry.created_at.desc())
+
     total = query.count()
-    items = query.offset((page - 1) * limit).limit(limit).all()
+    entries = query.offset((page - 1) * limit).limit(limit).all()
+
     return {
-        "items": items,
+        "items": entries,
         "total": total,
-        "pages": (total + limit - 1) // limit if limit > 0 else 1,
+        "page": page,
+        "limit": limit,
+        "total_pages": (total + limit - 1) // limit if limit > 0 else 1
     }
 
 
+@router.get("/{entry_id}/stream/transcode", dependencies=[Depends(verify_deovr_auth)])
+@router.head("/{entry_id}/stream/transcode", dependencies=[Depends(verify_deovr_auth)])
+def stream_transcode_video(
+    entry_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Real-time FFmpeg on-demand streaming endpoint.
+    Transcodes any unsupported format or codec (WMV, AVI, MKV/AC3, FLV, VOB)
+    on the fly to H.264 / AAC MP4 stream for immediate zero-delay browser playback.
+    """
+    from db_utils import check_feature_permission
+    check_feature_permission(db, "streaming")
+
+    file_path = (
+        db.query(LibraryEntry.file_path).filter(LibraryEntry.id == entry_id).scalar()
+    )
+    if not file_path or not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+
+    cmd = [
+        "ffmpeg",
+        "-re",
+        "-i", file_path,
+        "-c:v", "libx264",
+        "-preset", "ultrafast",
+        "-tune", "zerolatency",
+        "-crf", "23",
+        "-c:a", "aac",
+        "-b:a", "128k",
+        "-movflags", "frag_keyframe+empty_moov+default_base_moof",
+        "-f", "mp4",
+        "pipe:1"
+    ]
+
+    try:
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"FFmpeg transcode stream initialization failed: {str(e)}")
+
+    def iter_file():
+        try:
+            while True:
+                data = process.stdout.read(64 * 1024)
+                if not data:
+                    break
+                yield data
+        finally:
+            if process.poll() is None:
+                process.terminate()
+
+    return StreamingResponse(
+        iter_file(),
+        media_type="video/mp4",
+        headers={
+            "Accept-Ranges": "bytes",
+            "Content-Disposition": "inline",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+        }
+    )
+
+
 @router.get("/{entry_id}/stream", dependencies=[Depends(verify_deovr_auth)])
+@router.head("/{entry_id}/stream", dependencies=[Depends(verify_deovr_auth)])
 def stream_video(
     entry_id: int,
     db: Session = Depends(get_db)
@@ -158,7 +257,7 @@ def stream_video(
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found on disk")
 
-    # Map common video/audio extensions to correct MIME types
+    # Map comprehensive video/audio extensions to correct MIME types
     MIME_MAP = {
         ".mp4": "video/mp4",
         ".m4v": "video/mp4",
@@ -176,6 +275,11 @@ def stream_video(
         ".mpg": "video/mpeg",
         ".3gp": "video/3gpp",
         ".3g2": "video/3gpp2",
+        ".vob": "video/dvd",
+        ".asf": "video/x-ms-asf",
+        ".rm": "application/vnd.rn-realmedia",
+        ".rmvb": "application/vnd.rn-realmedia-vbr",
+        ".divx": "video/divx",
         ".m4a": "audio/mp4",
         ".aac": "audio/aac",
         ".mp3": "audio/mpeg",
@@ -185,6 +289,15 @@ def stream_video(
         ".wav": "audio/wav",
         ".flac": "audio/flac",
         ".weba": "audio/webm",
+        ".aiff": "audio/x-aiff",
+        ".aif": "audio/x-aiff",
+        ".wma": "audio/x-ms-wma",
+        ".alac": "audio/x-m4a",
+        ".ape": "audio/x-ape",
+        ".mpc": "audio/x-musepack",
+        ".amr": "audio/amr",
+        ".m3u8": "application/vnd.apple.mpegurl",
+        ".mpd": "application/dash+xml",
     }
     ext = os.path.splitext(file_path)[1].lower()
     media_type = MIME_MAP.get(ext, "application/octet-stream")
@@ -195,6 +308,9 @@ def stream_video(
         headers={
             "Accept-Ranges": "bytes",
             "Content-Disposition": "inline",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
         }
     )
 
@@ -365,6 +481,81 @@ def delete_library_entry(entry_id: int, db: Session = Depends(get_db), current_u
     return {"message": "Library entry and physical media deleted successfully"}
 
 
+class SingleItemUpdatePayload(BaseModel):
+    title: Optional[str] = None
+    performers: Optional[List[str]] = None
+    tags: Optional[List[str]] = None
+    resolution: Optional[str] = None
+    studio_id: Optional[int] = None
+    ohash: Optional[str] = None
+    phash: Optional[str] = None
+    site_id: Optional[str] = None
+    file_path: Optional[str] = None
+    has_metadata_match: Optional[bool] = None
+
+
+@router.get("/{entry_id}", dependencies=[Depends(verify_api_key)])
+def get_single_library_entry(entry_id: int, db: Session = Depends(get_db)):
+    entry = (
+        db.query(LibraryEntry)
+        .options(defer(LibraryEntry.entry_metadata), selectinload(LibraryEntry.chapters))
+        .filter(LibraryEntry.id == entry_id)
+        .first()
+    )
+    if not entry:
+        raise HTTPException(status_code=404, detail="Library entry not found")
+    return entry
+
+
+@router.put("/{entry_id}", dependencies=[Depends(verify_api_key)])
+def update_single_library_entry(
+    entry_id: int,
+    payload: SingleItemUpdatePayload,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission("library", "edit"))
+):
+    from datetime import datetime
+    entry = db.query(LibraryEntry).filter(LibraryEntry.id == entry_id).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Library entry not found")
+
+    if payload.title is not None:
+        entry.title = payload.title
+    if payload.performers is not None:
+        entry.performers = payload.performers
+    if payload.tags is not None:
+        entry.tags = payload.tags
+    if payload.resolution is not None:
+        entry.resolution = payload.resolution
+    if payload.studio_id is not None:
+        entry.studio_id = payload.studio_id
+    if payload.ohash is not None:
+        entry.ohash = payload.ohash
+    if payload.phash is not None:
+        entry.phash = payload.phash
+    if payload.site_id is not None:
+        entry.site_id = payload.site_id
+    if payload.has_metadata_match is not None:
+        entry.has_metadata_match = payload.has_metadata_match
+
+    # If file_path was modified, physically rename the file if it exists
+    if payload.file_path and payload.file_path != entry.file_path:
+        old_path = entry.file_path
+        new_path = payload.file_path
+        if os.path.exists(old_path):
+            try:
+                os.makedirs(os.path.dirname(new_path), exist_ok=True)
+                os.rename(old_path, new_path)
+            except Exception as e:
+                pass
+        entry.file_path = new_path
+
+    entry.last_updated = datetime.utcnow()
+    db.commit()
+    db.refresh(entry)
+    return {"message": "Library entry updated successfully", "entry": entry}
+
+
 @router.post("/{entry_id}/hls/generate", dependencies=[Depends(verify_api_key)])
 def trigger_hls_generation(entry_id: int, db: Session = Depends(get_db), current_user = Depends(require_permission("library", "edit"))):
     exists = db.query(LibraryEntry.id).filter(LibraryEntry.id == entry_id).scalar()
@@ -410,7 +601,17 @@ def serve_hls_file(entry_id: int, filename: str, db: Session = Depends(get_db)):
         if safe_filename.endswith(".m3u8")
         else "video/MP2T"
     )
-    return FileResponse(abs_file_path, media_type=media_type)
+    return FileResponse(
+        abs_file_path, 
+        media_type=media_type,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Accept-Ranges": "bytes",
+            "Cache-Control": "public, max-age=3600",
+        }
+    )
 
 
 class ManualBulkEditRequest(BaseModel):

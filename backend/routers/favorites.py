@@ -32,6 +32,8 @@ def toggle_favorite(
         "category",
         "tag",
         "studio",
+        "provider",
+        "biller",
     ]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -77,6 +79,8 @@ def get_favorites(
         "category": [],
         "tag": [],
         "studio": [],
+        "provider": [],
+        "biller": [],
     }
     try:
         favs = db.query(Favorite).filter(Favorite.user_id == current_user.id).all()

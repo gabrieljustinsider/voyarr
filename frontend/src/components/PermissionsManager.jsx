@@ -147,14 +147,15 @@ export default function PermissionsManager({ user, onSave }) {
 
       <Paper elevation={2} sx={{ p: 3, mb: 4, borderRadius: 2 }}>
         <Grid container spacing={3} sx={{ alignItems: 'center' }}>
-          <Grid xs={12} sm={6}>
-            <FormControl fullWidth>
-              <InputLabel>Target Profile</InputLabel>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth size="small">
+              <InputLabel id="target-profile-label">Target Profile</InputLabel>
               <Select
+                labelId="target-profile-label"
                 value={targetType}
                 label="Target Profile"
                 onChange={(e) => setTargetType(e.target.value)}
-                sx={{ borderRadius: 1 }}
+                sx={{ borderRadius: '10px' }}
               >
                 <MenuItem value="role_user">Global Role: Standard User</MenuItem>
                 <MenuItem value="role_moderator">Global Role: Moderator</MenuItem>
@@ -165,30 +166,30 @@ export default function PermissionsManager({ user, onSave }) {
         </Grid>
       </Paper>
 
-      <TableContainer component={Paper} elevation={2} sx={{ borderRadius: 2, mb: 4 }}>
+      <TableContainer component={Paper} sx={{ borderRadius: '16px', mb: 4, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255, 255, 255, 0.08)', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)' }}>
         <Table>
-          <TableHead sx={{ backgroundColor: 'action.hover' }}>
+          <TableHead sx={{ backgroundColor: 'rgba(255, 255, 255, 0.03)' }}>
             <TableRow>
-              <TableCell sx={{ fontWeight: 'bold' }}>Feature Module</TableCell>
-              <TableCell align="center" sx={{ fontWeight: 'bold' }}>Access Level</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', py: 2, pl: 3 }}>Feature Module</TableCell>
+              <TableCell align="center" sx={{ fontWeight: 'bold', py: 2, pr: 3 }}>Access Level</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {FEATURES.map((feature) => (
-              <TableRow key={feature.id} hover>
-                <TableCell>
+              <TableRow key={feature.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                <TableCell sx={{ pl: 3 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                     {feature.icon}
-                    <Typography variant="body2" sx={{ fontWeight: 500 }}>{feature.label}</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{feature.label}</Typography>
                   </Box>
                 </TableCell>
-                <TableCell align="center">
-                  <FormControl size="small" sx={{ minWidth: 150 }}>
+                <TableCell align="center" sx={{ pr: 3 }}>
+                  <FormControl size="small" sx={{ minWidth: 180 }}>
                     <Select
                       value={permissions[feature.id] || ACCESS_LEVELS.NONE}
                       onChange={(e) => handlePermissionChange(feature.id, e.target.value)}
                       sx={{ 
-                        borderRadius: '8px', 
+                        borderRadius: '10px', 
                         fontSize: '0.85rem'
                       }}
                     >
@@ -213,13 +214,13 @@ export default function PermissionsManager({ user, onSave }) {
       </TableContainer>
 
       {/* Advanced Controls Section */}
-      <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: '600', mt: 4, fontFamily: 'Outfit, sans-serif' }}>
-        Advanced Controls & Restrictions
+      <Typography variant="h6" gutterBottom sx={{ fontWeight: '700', mt: 4, letterSpacing: '-0.3px' }}>
+        Advanced Controls &amp; Content Restrictions
       </Typography>
-      <Paper elevation={2} sx={{ p: 3, borderRadius: 2, mb: 4 }}>
-        <Grid container spacing={4}>
-          <Grid xs={12} sm={6}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+      <Paper sx={{ p: 3, borderRadius: '16px', mb: 4, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255, 255, 255, 0.08)', boxShadow: '0 8px 32px rgba(0,0,0,0.25)' }}>
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={6}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
               <FormControlLabel
                 control={
                   <Switch
@@ -228,51 +229,49 @@ export default function PermissionsManager({ user, onSave }) {
                     disabled={permissions.ripping === ACCESS_LEVELS.NONE}
                   />
                 }
-                label="Enable Daily Quota"
-                sx={{ minWidth: '180px' }}
+                label="Enable Daily Download Quota"
               />
               <TextField
                 fullWidth
-                label="Daily Download Quota (Items)"
+                size="small"
+                label="Daily Download Quota Limit (Items)"
                 type="number"
-                helperText={dailyRipQuotaEnabled ? `Current usage today: ${user?.daily_rip_usage || 0} rips.` : "Quota limit is disabled (unlimited)."}
+                helperText={dailyRipQuotaEnabled ? `Current usage today: ${user?.daily_rip_usage || 0} downloads.` : "Quota limit is disabled (unlimited)."}
                 value={dailyRipQuotaEnabled ? dailyRipQuota : ''}
                 onChange={(e) => setDailyRipQuota(e.target.value)}
                 disabled={!dailyRipQuotaEnabled || permissions.ripping === ACCESS_LEVELS.NONE}
                 required={dailyRipQuotaEnabled}
-                inputProps={{ style: { textAlign: 'right' } }}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
               />
             </Box>
           </Grid>
-          <Grid xs={12} sm={6}>
+          <Grid item xs={12} md={6}>
             <TextField
               fullWidth
-              label="Restricted Tags (Comma Separated)"
-              helperText="Videos containing these tags will be entirely hidden from this user."
+              size="small"
+              label="Restricted Content Tags (Comma-Separated)"
+              helperText="Videos containing these tags will be hidden from this user profile."
               value={restrictedTags}
               onChange={(e) => setRestrictedTags(e.target.value)}
               placeholder="e.g. Extreme, VR, Private"
-              inputProps={{ style: { textAlign: 'right' } }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
             />
           </Grid>
         </Grid>
       </Paper>
 
-      <Alert severity="info" elevation={1} sx={{ mb: 3, borderRadius: 2 }}>
-        <strong>Note:</strong> Saving a specific user override instantly bypasses their global role defaults. Admins are exempt from system restrictions.
+      <Alert severity="info" sx={{ mb: 3, borderRadius: '12px', bgcolor: 'rgba(14, 165, 233, 0.08)', color: '#38bdf8', border: '1px solid rgba(14, 165, 233, 0.2)' }}>
+        <strong>Note:</strong> Saving a specific user override instantly takes priority over global role defaults. Administrators are exempt from user restrictions.
       </Alert>
 
       <Box display="flex" justifyContent="center" gap={2} sx={{ mt: 3 }}>
-        <Button variant="outlined" color="inherit">
-          Discard Changes
-        </Button>
         <Button 
           variant="contained" 
-          color="secondary" 
+          color="primary" 
           onClick={handleSave}
-          sx={{ px: 4 }}
+          sx={{ px: 4, height: 42, borderRadius: '10px', textTransform: 'none', fontWeight: 'bold' }}
         >
-          Save Permissions
+          Save Profile Permissions
         </Button>
       </Box>
     </Box>

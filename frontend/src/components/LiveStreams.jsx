@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { 
   Box, Typography, Grid, Card, CardContent, Button, TextField, Dialog, 
   DialogTitle, DialogContent, DialogActions, Chip, CircularProgress, 
-  Alert, IconButton, Paper, Tooltip, Menu, MenuItem, ListItemText, Checkbox
+  Alert, IconButton, Paper, Tooltip, Menu, MenuItem, ListItemText, Checkbox,
+  FormControl, InputLabel, Select
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
@@ -15,6 +16,7 @@ import KeyIcon from '@mui/icons-material/Key'
 import StreamIcon from '@mui/icons-material/Stream'
 import CloseIcon from '@mui/icons-material/Close'
 import VisibilityIcon from '@mui/icons-material/Visibility'
+import { Globe, Link as LinkIcon, Radio, Search } from 'lucide-react'
 import { apiFetch } from '../api'
 import SmartVideoPlayer from './SmartVideoPlayer'
 import UrlParseConfirmationModal from './UrlParseConfirmationModal'
@@ -59,6 +61,19 @@ export default function LiveStreams() {
   const [parsedMetadata, setParsedMetadata] = useState(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [urlParsingPermission, setUrlParsingPermission] = useState('edit')
+
+  // Search & Filter State
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+
+  const processedStreams = useMemo(() => {
+    return streams.filter(s => {
+      if (statusFilter !== 'all' && s.status !== statusFilter) return false
+      if (!searchQuery) return true
+      const q = searchQuery.toLowerCase()
+      return (s.name && s.name.toLowerCase().includes(q)) || (s.url && s.url.toLowerCase().includes(q))
+    })
+  }, [streams, searchQuery, statusFilter])
 
   // Admin Check
   const [isAdmin, setIsAdmin] = useState(false)
@@ -375,7 +390,7 @@ export default function LiveStreams() {
     <Box sx={{ maxWidth: 1400, mx: 'auto', width: '100%' }}>
       <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: 'center', gap: 2, mb: 3 }}>
         <Typography variant="h4" sx={{ fontWeight: '800', letterSpacing: '-0.5px', display: 'flex', alignItems: 'center', justifyContent: { xs: 'center', sm: 'flex-start' }, gap: 1.5, textAlign: { xs: 'center', sm: 'left' } }}>
-          <StreamIcon sx={{ fontSize: 36, color: 'error.main' }} />
+          <StreamIcon sx={{ fontSize: 36, color: 'error.main', filter: 'drop-shadow(0 0 8px rgba(239, 68, 68, 0.4))' }} />
           Live Stream Hub
         </Typography>
         <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, alignItems: 'center', width: { xs: '100%', sm: 'auto' } }}>
@@ -384,13 +399,19 @@ export default function LiveStreams() {
             color="inherit"
             startIcon={<VisibilityIcon />}
             onClick={(e) => setFieldsMenuAnchor(e.currentTarget)}
-            sx={{ whiteSpace: 'nowrap', flexShrink: 0, width: { xs: '100%', sm: 'auto' } }}
+            sx={{ whiteSpace: 'nowrap', flexShrink: 0, width: { xs: '100%', sm: 'auto' }, borderRadius: '10px', textTransform: 'none' }}
           >
             Display Options
           </Button>
           {isAdmin && (
-            <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenCreate} sx={{ width: { xs: '100%', sm: 'auto' } }}>
-              Monitor URL
+            <Button 
+              variant="contained" 
+              color="primary"
+              startIcon={<AddIcon />} 
+              onClick={handleOpenCreate} 
+              sx={{ width: { xs: '100%', sm: 'auto' }, borderRadius: '10px', textTransform: 'none', fontWeight: 'bold' }}
+            >
+              Monitor Live URL
             </Button>
           )}
         </Box>
@@ -416,24 +437,90 @@ export default function LiveStreams() {
           The Live Stream Hub tracks, previews, and records real-time HLS broadcasts, live webcams, and network streams. Automated recorders monitor active stream states and capture video feeds directly into your library.
         </Typography>
       </Alert>
-        <Menu
-          anchorEl={fieldsMenuAnchor}
-          open={Boolean(fieldsMenuAnchor)}
-          onClose={() => setFieldsMenuAnchor(null)}
-        >
-          <MenuItem onClick={() => setVisibleFields(prev => ({ ...prev, url: !prev.url }))}>
-            <Checkbox checked={visibleFields.url} size="small" />
-            <ListItemText primary="Stream URL" />
-          </MenuItem>
-          <MenuItem onClick={() => setVisibleFields(prev => ({ ...prev, statusChip: !prev.statusChip }))}>
-            <Checkbox checked={visibleFields.statusChip} size="small" />
-            <ListItemText primary="Status Badge" />
-          </MenuItem>
-          <MenuItem onClick={() => setVisibleFields(prev => ({ ...prev, captureStats: !prev.captureStats }))}>
-            <Checkbox checked={visibleFields.captureStats} size="small" />
-            <ListItemText primary="Capture Stats" />
-          </MenuItem>
-        </Menu>
+
+      {/* Summary KPI Stats Panel */}
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid item xs={6} sm={3}>
+          <Paper sx={{ p: 2, borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)', bgcolor: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(12px)' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold' }}>Monitored Streams</Typography>
+            <Typography variant="h5" sx={{ fontWeight: '800', mt: 0.5 }}>{streams.length}</Typography>
+          </Paper>
+        </Grid>
+        <Grid item xs={6} sm={3}>
+          <Paper sx={{ p: 2, borderRadius: '14px', border: '1px solid rgba(239, 68, 68, 0.2)', bgcolor: 'rgba(239, 68, 68, 0.06)', backdropFilter: 'blur(12px)' }}>
+            <Typography variant="caption" color="error.main" sx={{ fontWeight: 'bold' }}>Active Recordings</Typography>
+            <Typography variant="h5" color="error.main" sx={{ fontWeight: '800', mt: 0.5 }}>
+              {streams.filter(s => s.status === 'recording').length}
+            </Typography>
+          </Paper>
+        </Grid>
+        <Grid item xs={6} sm={3}>
+          <Paper sx={{ p: 2, borderRadius: '14px', border: '1px solid rgba(245, 158, 11, 0.2)', bgcolor: 'rgba(245, 158, 11, 0.06)', backdropFilter: 'blur(12px)' }}>
+            <Typography variant="caption" color="warning.main" sx={{ fontWeight: 'bold' }}>Paused Recorders</Typography>
+            <Typography variant="h5" color="warning.main" sx={{ fontWeight: '800', mt: 0.5 }}>
+              {streams.filter(s => s.status === 'paused').length}
+            </Typography>
+          </Paper>
+        </Grid>
+        <Grid item xs={6} sm={3}>
+          <Paper sx={{ p: 2, borderRadius: '14px', border: '1px solid rgba(14, 165, 233, 0.2)', bgcolor: 'rgba(14, 165, 233, 0.06)', backdropFilter: 'blur(12px)' }}>
+            <Typography variant="caption" color="#38bdf8" sx={{ fontWeight: 'bold' }}>Captured Storage</Typography>
+            <Typography variant="h5" sx={{ fontWeight: '800', mt: 0.5, color: '#38bdf8' }}>
+              {formatSize(streams.reduce((acc, s) => acc + (s.written_size || 0), 0))}
+            </Typography>
+          </Paper>
+        </Grid>
+      </Grid>
+
+      {/* Search & Filter Controls Toolbar */}
+      <Paper sx={{ p: 2, mb: 3, borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)', bgcolor: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(12px)' }}>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, alignItems: 'center', justifyContent: 'space-between' }}>
+          <TextField
+            fullWidth
+            size="small"
+            label="Search Live Streams"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by stream identifier or URL..."
+            sx={{ flex: 1, minWidth: { xs: '100%', md: 280 }, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+          />
+          <FormControl size="small" sx={{ minWidth: 200, width: { xs: '100%', md: 'auto' } }}>
+            <InputLabel id="stream-status-label">Filter Status</InputLabel>
+            <Select
+              labelId="stream-status-label"
+              value={statusFilter}
+              label="Filter Status"
+              onChange={(e) => setStatusFilter(e.target.value)}
+              sx={{ borderRadius: '10px' }}
+            >
+              <MenuItem value="all">All Statuses ({streams.length})</MenuItem>
+              <MenuItem value="recording">Recording ({streams.filter(s => s.status === 'recording').length})</MenuItem>
+              <MenuItem value="paused">Paused ({streams.filter(s => s.status === 'paused').length})</MenuItem>
+              <MenuItem value="idle">Idle ({streams.filter(s => s.status === 'idle').length})</MenuItem>
+              <MenuItem value="failed">Failed ({streams.filter(s => s.status === 'failed').length})</MenuItem>
+            </Select>
+          </FormControl>
+        </Box>
+      </Paper>
+
+      <Menu
+        anchorEl={fieldsMenuAnchor}
+        open={Boolean(fieldsMenuAnchor)}
+        onClose={() => setFieldsMenuAnchor(null)}
+      >
+        <MenuItem onClick={() => setVisibleFields(prev => ({ ...prev, url: !prev.url }))}>
+          <Checkbox checked={visibleFields.url} size="small" />
+          <ListItemText primary="Stream URL" />
+        </MenuItem>
+        <MenuItem onClick={() => setVisibleFields(prev => ({ ...prev, statusChip: !prev.statusChip }))}>
+          <Checkbox checked={visibleFields.statusChip} size="small" />
+          <ListItemText primary="Status Badge" />
+        </MenuItem>
+        <MenuItem onClick={() => setVisibleFields(prev => ({ ...prev, captureStats: !prev.captureStats }))}>
+          <Checkbox checked={visibleFields.captureStats} size="small" />
+          <ListItemText primary="Capture Stats" />
+        </MenuItem>
+      </Menu>
 
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
@@ -441,114 +528,146 @@ export default function LiveStreams() {
         </Box>
       ) : error ? (
         <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>
-      ) : streams.length === 0 ? (
+      ) : processedStreams.length === 0 ? (
         <Paper sx={{ p: 6, textAlign: 'center', background: 'rgba(255, 255, 255, 0.01)', border: '1px dashed rgba(255, 255, 255, 0.1)', borderRadius: '16px' }}>
-          <Typography color="textSecondary">No live streams registered. Click Monitor URL to get started!</Typography>
+          <StreamIcon sx={{ fontSize: 48, opacity: 0.3, mb: 1.5 }} />
+          <Typography variant="h6" color="text.secondary">No live streams found matching your criteria.</Typography>
         </Paper>
       ) : (
-        <Grid container spacing={3}>
-          {streams.map(stream => {
+        <Grid container spacing={3} sx={{ alignItems: 'stretch' }}>
+          {processedStreams.map(stream => {
             const isRecording = stream.status === 'recording'
+            const isPaused = stream.status === 'paused'
             const isFailed = stream.status === 'failed'
+
             return (
-              <Grid xs={12} md={6} lg={4} key={stream.id}>
+              <Grid size={{ xs: 12, md: 6, lg: 4 }} xs={12} md={6} lg={4} key={stream.id} sx={{ display: 'flex', minWidth: 0 }}>
                 <Card sx={{ 
-                  background: isRecording ? 'rgba(229, 9, 20, 0.03)' : 'rgba(255, 255, 255, 0.02)',
+                  width: '100%',
+                  background: isRecording ? 'rgba(239, 68, 68, 0.04)' : 'rgba(255, 255, 255, 0.02)',
                   backdropFilter: 'blur(10px)',
-                  border: isRecording ? '1px solid rgba(229, 9, 20, 0.3)' : '1px solid rgba(255, 255, 255, 0.05)',
+                  border: isRecording ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(255, 255, 255, 0.08)',
                   borderRadius: '16px',
-                  boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
-                  transition: 'transform 0.2s',
-                  '&:hover': { transform: 'scale(1.01)' }
+                  boxShadow: isRecording ? '0 8px 32px rgba(239, 68, 68, 0.15)' : '0 8px 32px rgba(0, 0, 0, 0.2)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  '&:hover': { transform: 'translateY(-3px)' }
                 }}>
-                  <CardContent>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                      <Typography variant="h5" sx={{ fontWeight: '700' }} noWrap title={stream.name}>
+                  <CardContent sx={{ flexGrow: 1, p: 2.5, display: 'flex', flexDirection: 'column' }}>
+                    {/* Top Status & Title Header */}
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5, gap: 1 }}>
+                      <Typography variant="h6" sx={{ fontWeight: '700', fontSize: '1.1rem' }} noWrap title={stream.name}>
                         {stream.name}
                       </Typography>
                       {visibleFields.statusChip && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          {stream.status === 'recording' ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                          {isRecording ? (
                             <Chip 
                               icon={<FiberManualRecordIcon color="error" sx={{ animation: 'pulse 1.5s infinite' }} />} 
-                              label="Recording" 
+                              label="RECORDING" 
                               color="error" 
                               size="small" 
-                              sx={{ fontWeight: 'bold', fontSize: '0.7rem' }}
+                              sx={{ fontWeight: 'bold', fontSize: '0.65rem', height: 22 }}
                             />
-                          ) : stream.status === 'paused' ? (
-                            <Chip label="Paused" color="warning" size="small" sx={{ fontWeight: 'bold', fontSize: '0.7rem' }} />
+                          ) : isPaused ? (
+                            <Chip label="PAUSED" color="warning" size="small" sx={{ fontWeight: 'bold', fontSize: '0.65rem', height: 22 }} />
                           ) : isFailed ? (
-                            <Chip label="Failed" color="warning" size="small" sx={{ fontWeight: 'bold', fontSize: '0.7rem' }} />
+                            <Chip label="FAILED" color="warning" size="small" sx={{ fontWeight: 'bold', fontSize: '0.65rem', height: 22 }} />
                           ) : (
-                            <Chip label="Idle" size="small" variant="outlined" sx={{ fontSize: '0.7rem' }} />
+                            <Chip label="IDLE" size="small" variant="outlined" sx={{ fontSize: '0.65rem', height: 22, color: 'text.secondary' }} />
                           )}
                         </Box>
                       )}
                     </Box>
 
-                    {visibleFields.url && (
-                      <Typography variant="caption" color="textSecondary" display="block" sx={{ mb: 2, wordBreak: 'break-all' }}>
-                        URL: {stream.url}
-                      </Typography>
+                    {/* Stream Domain URL Link */}
+                    {visibleFields.url && stream.url && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 2, minWidth: 0, width: '100%' }}>
+                        <LinkIcon size={14} style={{ color: '#818cf8', flexShrink: 0 }} />
+                        <Typography 
+                          variant="caption" 
+                          component="a" 
+                          href={stream.url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          sx={{ 
+                            textDecoration: 'none', 
+                            color: '#818cf8', 
+                            fontWeight: '600', 
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            minWidth: 0
+                          }}
+                        >
+                          {stream.url.replace(/^https?:\/\/(www\.)?/, '')}
+                        </Typography>
+                      </Box>
                     )}
 
-                    {visibleFields.captureStats && (stream.status === 'recording' || stream.status === 'paused') && (
-                      <Paper sx={{ p: 1.5, mb: 2, backgroundColor: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    {/* Real-time Capture Statistics Panel */}
+                    {visibleFields.captureStats && (isRecording || isPaused) && (
+                      <Paper sx={{ p: 1.5, mb: 2, borderRadius: '10px', backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)' }}>
                         <Grid container spacing={1}>
-                          <Grid xs={6}>
-                            <Typography variant="caption" color="textSecondary">Captured Size</Typography>
-                            <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>{formatSize(stream.written_size)}</Typography>
+                          <Grid item xs={6}>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.75rem' }}>Captured Data</Typography>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#38bdf8' }}>{formatSize(stream.written_size)}</Typography>
                           </Grid>
-                          <Grid xs={6}>
-                            <Typography variant="caption" color="textSecondary">Elapsed Time</Typography>
-                            <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: stream.status === 'paused' ? 'warning.main' : 'error.main' }}>{formatTime(stream.elapsed_seconds)}</Typography>
+                          <Grid item xs={6}>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.75rem' }}>Elapsed Time</Typography>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: isPaused ? 'warning.main' : 'error.main' }}>
+                              {formatTime(stream.elapsed_seconds)}
+                            </Typography>
                           </Grid>
                         </Grid>
                       </Paper>
                     )}
 
-                    <Box sx={{ display: 'flex', gap: 1, borderTop: '1px solid rgba(255,255,255,0.05)', pt: 2, mt: 1 }}>
-                      <Tooltip title="View Live Stream">
-                        <IconButton color="success" size="medium" onClick={() => handlePlayStream(stream)}>
-                          <PlayArrowIcon />
+                    <Box sx={{ flexGrow: 1 }} />
+
+                    {/* Controls & Actions Toolbar */}
+                    <Box sx={{ display: 'flex', gap: 0.75, alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.08)', pt: 2, mt: 1 }}>
+                      <Tooltip title="View Live Broadcast Stream">
+                        <IconButton size="small" color="success" onClick={() => handlePlayStream(stream)} sx={{ bgcolor: 'rgba(34, 197, 94, 0.1)', '&:hover': { bgcolor: 'rgba(34, 197, 94, 0.2)' } }}>
+                          <PlayArrowIcon size={18} />
                         </IconButton>
                       </Tooltip>
 
                       {isAdmin && (
                         <>
-                          {(stream.status === 'recording' || stream.status === 'paused') ? (
-                            <Box sx={{ display: 'inline-flex', gap: 1 }}>
-                              <Tooltip title="Stop Capture">
-                                <IconButton color="error" size="medium" onClick={() => handleStopRecord(stream.id)}>
-                                  <StopIcon />
+                          {(isRecording || isPaused) ? (
+                            <>
+                              <Tooltip title="Stop Recording Session">
+                                <IconButton size="small" color="error" onClick={() => handleStopRecord(stream.id)} sx={{ bgcolor: 'rgba(239, 68, 68, 0.1)', '&:hover': { bgcolor: 'rgba(239, 68, 68, 0.2)' } }}>
+                                  <StopIcon size={18} />
                                 </IconButton>
                               </Tooltip>
-                              {stream.status === 'recording' ? (
-                                <Tooltip title="Pause Capture">
-                                  <IconButton color="warning" size="medium" onClick={() => handlePauseRecord(stream.id)}>
-                                    <PauseIcon />
+                              {isRecording ? (
+                                <Tooltip title="Pause Recording">
+                                  <IconButton size="small" color="warning" onClick={() => handlePauseRecord(stream.id)} sx={{ bgcolor: 'rgba(245, 158, 11, 0.1)', '&:hover': { bgcolor: 'rgba(245, 158, 11, 0.2)' } }}>
+                                    <PauseIcon size={18} />
                                   </IconButton>
                                 </Tooltip>
                               ) : (
-                                <Tooltip title="Resume Capture">
-                                  <IconButton color="success" size="medium" onClick={() => handleResumeRecord(stream.id)}>
-                                    <PlayArrowIcon />
+                                <Tooltip title="Resume Recording">
+                                  <IconButton size="small" color="success" onClick={() => handleResumeRecord(stream.id)} sx={{ bgcolor: 'rgba(34, 197, 94, 0.1)', '&:hover': { bgcolor: 'rgba(34, 197, 94, 0.2)' } }}>
+                                    <PlayArrowIcon size={18} />
                                   </IconButton>
                                 </Tooltip>
                               )}
-                            </Box>
+                            </>
                           ) : (
-                            <Tooltip title="Start Capturing (Celery + streamlink)">
-                              <IconButton color="error" size="medium" onClick={() => handleStartRecord(stream.id)}>
-                                <FiberManualRecordIcon />
+                            <Tooltip title="Start Recording Stream (streamlink Engine)">
+                              <IconButton size="small" color="error" onClick={() => handleStartRecord(stream.id)} sx={{ bgcolor: 'rgba(239, 68, 68, 0.1)', '&:hover': { bgcolor: 'rgba(239, 68, 68, 0.2)' } }}>
+                                <FiberManualRecordIcon size={18} />
                               </IconButton>
                             </Tooltip>
                           )}
 
-                          <Tooltip title="Configure Vault Authorization Cookies/Headers">
-                            <IconButton color="primary" size="medium" onClick={() => handleOpenAuth(stream)}>
-                              <KeyIcon />
+                          <Tooltip title="Configure Secure Vault Auth Cookies & Headers">
+                            <IconButton size="small" color="primary" onClick={() => handleOpenAuth(stream)} sx={{ bgcolor: 'rgba(99, 102, 241, 0.1)', '&:hover': { bgcolor: 'rgba(99, 102, 241, 0.2)' } }}>
+                              <KeyIcon size={18} />
                             </IconButton>
                           </Tooltip>
 
@@ -572,83 +691,202 @@ export default function LiveStreams() {
       )}
 
       {/* Monitor Dialog */}
-      <Dialog open={open} onClose={() => !submitting && setOpen(false)} maxWidth="xs" fullWidth>
+      <Dialog 
+        open={open} 
+        onClose={() => !submitting && setOpen(false)} 
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '16px',
+            background: 'rgba(15, 23, 42, 0.95)',
+            backdropFilter: 'blur(16px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.5)'
+          }
+        }}
+      >
         <form onSubmit={handleSubmit}>
-          <DialogTitle>{editingId ? 'Edit Live Monitor' : 'Monitor New Live URL'}</DialogTitle>
-           <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+          <DialogTitle sx={{ m: 0, p: 2.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <StreamIcon color="primary" sx={{ fontSize: 28 }} />
+              <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                {editingId ? 'Edit Live Stream Monitor' : 'Monitor New Live URL'}
+              </Typography>
+            </Box>
+            <IconButton
+              aria-label="close"
+              onClick={() => !submitting && setOpen(false)}
+              sx={{ color: 'text.secondary', '&:hover': { color: 'white' } }}
+            >
+              <CloseIcon />
+            </IconButton>
+          </DialogTitle>
+
+          <DialogContent sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 3 }}>
             {urlParsingPermission !== 'no_access' && (
-              <Box sx={{ display: 'flex', gap: 1, mb: 1, p: 2, borderRadius: '10px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', alignItems: 'center' }}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder="Paste URL to parse live monitor metadata..."
-                  value={parseUrl}
-                  onChange={(e) => setParseUrl(e.target.value)}
-                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
-                />
-                <Button variant="outlined" color="secondary" onClick={handleParseUrl} disabled={parseLoading} sx={{ borderRadius: '8px', whiteSpace: 'nowrap', py: 1 }}>
-                  {parseLoading ? <CircularProgress size={18} /> : 'Parse'}
-                </Button>
+              <Box 
+                sx={{ 
+                  p: 2, 
+                  borderRadius: '12px', 
+                  background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.08))', 
+                  border: '1px solid rgba(99, 102, 241, 0.2)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 1.5
+                }}
+              >
+                <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#a5b4fc', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  ⚡ Auto-Fill Metadata via Live URL Scraper
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder="Paste Live Stream URL (e.g. Chaturbate, Stripchat, Jasmin, m3u8...)"
+                    value={parseUrl}
+                    onChange={(e) => setParseUrl(e.target.value)}
+                    sx={{ 
+                      '& .MuiOutlinedInput-root': { 
+                        borderRadius: '10px',
+                        bgcolor: 'rgba(0,0,0,0.3)'
+                      } 
+                    }}
+                  />
+                  <Button 
+                    variant="contained" 
+                    color="secondary" 
+                    onClick={handleParseUrl} 
+                    disabled={parseLoading || !parseUrl}
+                    sx={{ borderRadius: '10px', whiteSpace: 'nowrap', px: 2.5, height: 40, textTransform: 'none', fontWeight: 'bold' }}
+                  >
+                    {parseLoading ? <CircularProgress size={20} color="inherit" /> : 'Parse URL'}
+                  </Button>
+                </Box>
               </Box>
             )}
+
             <TextField
               required
               fullWidth
-              size="small"
               label="Stream Name / Identifier"
+              placeholder="e.g. Model / Performer Name or Channel Identifier"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              helperText="Give this live stream monitor a recognizable display name."
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
             />
+
             <TextField
               required
               fullWidth
-              size="small"
-              label="Live URL (e.g. Chaturbate, Jasmin, m3u8...)"
+              label="Live Stream URL / Streamlink Target"
+              placeholder="https://chaturbate.com/room_name/ or https://domain.com/live/index.m3u8"
               value={formData.url}
               onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+              helperText="Supports live webcam links (Chaturbate, Stripchat, Jasmin) or raw HLS (.m3u8) feeds."
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
             />
           </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setOpen(false)} disabled={submitting}>Cancel</Button>
-            <Button type="submit" variant="contained" disabled={submitting || !formData.name || !formData.url}>
-              {submitting ? <CircularProgress size={24} /> : 'Save'}
+
+          <DialogActions sx={{ px: 3, pb: 3, pt: 1, borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+            <Button 
+              onClick={() => setOpen(false)} 
+              disabled={submitting}
+              sx={{ borderRadius: '10px', textTransform: 'none', px: 2.5, color: 'text.secondary' }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              variant="contained" 
+              color="primary"
+              disabled={submitting || !formData.name || !formData.url}
+              sx={{ borderRadius: '10px', textTransform: 'none', px: 3, fontWeight: 'bold' }}
+            >
+              {submitting ? <CircularProgress size={22} color="inherit" /> : editingId ? 'Update Monitor' : 'Save Live Monitor'}
             </Button>
           </DialogActions>
         </form>
       </Dialog>
 
       {/* Auth Credentials Modal */}
-      <Dialog open={authOpen} onClose={() => !authLoading && setAuthOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Secure Credentials Vault: {selectedStreamName}</DialogTitle>
-        <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <Typography variant="body2" color="textSecondary">
-            Decrypt and feed cookies or custom authorization headers to <code>streamlink</code> at runtime to capture private, premium, or ticket-locked live streams. Decryption is performed in backend memory; keys are encrypted at rest.
-          </Typography>
+      <Dialog 
+        open={authOpen} 
+        onClose={() => !authLoading && setAuthOpen(false)} 
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '16px',
+            background: 'rgba(15, 23, 42, 0.95)',
+            backdropFilter: 'blur(16px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.5)'
+          }
+        }}
+      >
+        <DialogTitle sx={{ m: 0, p: 2.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <KeyIcon color="primary" sx={{ fontSize: 26 }} />
+            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+              Secure Credentials Vault: {selectedStreamName}
+            </Typography>
+          </Box>
+          <IconButton
+            aria-label="close"
+            onClick={() => !authLoading && setAuthOpen(false)}
+            sx={{ color: 'text.secondary', '&:hover': { color: 'white' } }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+          <Alert severity="info" sx={{ borderRadius: '10px', bgcolor: 'rgba(99, 102, 241, 0.08)', color: '#a5b4fc', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
+            <Typography variant="caption" sx={{ display: 'block', lineHeight: 1.4 }}>
+              Cookies and custom authorization headers are securely encrypted in backend storage and passed to <code>streamlink</code> at runtime to capture private or ticket-locked broadcasts.
+            </Typography>
+          </Alert>
+
           <TextField
             fullWidth
-            size="small"
-            label="Cookies String (Cookie Header value)"
+            label="Cookies String (Cookie Header Value)"
             placeholder="e.g. session=abc123xyz; login_token=uvw567"
             multiline
             rows={2}
             value={authData.cookies}
             onChange={(e) => setAuthData({ ...authData, cookies: e.target.value })}
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
           />
           <TextField
             fullWidth
-            size="small"
-            label="Authorization HTTP Headers (Semicolon-separated)"
+            label="Authorization HTTP Headers (Semicolon-Separated)"
             placeholder="e.g. X-Auth-Token=mytoken123; User-Agent=Custom"
             multiline
             rows={2}
             value={authData.headers}
             onChange={(e) => setAuthData({ ...authData, headers: e.target.value })}
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
           />
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setAuthOpen(false)} disabled={authLoading}>Cancel</Button>
-          <Button onClick={handleSaveAuth} variant="contained" color="secondary" disabled={authLoading}>
-            {authLoading ? <CircularProgress size={24} /> : 'Save Encrypted'}
+
+        <DialogActions sx={{ px: 3, pb: 3, pt: 1, borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+          <Button 
+            onClick={() => setAuthOpen(false)} 
+            disabled={authLoading}
+            sx={{ borderRadius: '10px', textTransform: 'none', px: 2.5, color: 'text.secondary' }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleSaveAuth} 
+            variant="contained" 
+            color="primary" 
+            disabled={authLoading}
+            sx={{ borderRadius: '10px', textTransform: 'none', px: 3, fontWeight: 'bold' }}
+          >
+            {authLoading ? <CircularProgress size={22} color="inherit" /> : 'Save Encrypted Vault Credentials'}
           </Button>
         </DialogActions>
       </Dialog>
