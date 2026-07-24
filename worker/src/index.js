@@ -6,10 +6,84 @@ const ASSET_MANIFEST = {
   "index.html": "index.html",
 };
 
+const PAIR_PAGE_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Voyarr — Pair Device</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0b0f19; color: #e2e8f0; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+.container { text-align: center; max-width: 420px; padding: 2rem; }
+h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; color: #a78bfa; }
+p { color: #94a3b8; font-size: 0.9rem; margin-bottom: 2rem; line-height: 1.5; }
+.code { font-size: 3.5rem; font-weight: 800; letter-spacing: 0.5rem; font-family: monospace; color: #fff; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 1.5rem; margin-bottom: 1rem; }
+.status { font-size: 0.85rem; color: #64748b; margin-bottom: 0.5rem; }
+.approved { color: #22c55e; font-weight: 700; font-size: 1.1rem; }
+.spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid rgba(255,255,255,0.1); border-top: 2px solid #a78bfa; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; vertical-align: middle; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.info { margin-top: 2rem; padding: 1rem; background: rgba(255,255,255,0.03); border-radius: 12px; font-size: 0.8rem; color: #64748b; line-height: 1.5; }
+.hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Voyarr</h1>
+  <p>Pair your VR headset or smart device<br>Enter this code on your desktop browser</p>
+  <div id="codeDisplay" class="code"><span class="spinner"></span> Loading...</div>
+  <div id="statusMessage" class="status"></div>
+  <div class="info">This code expires in 5 minutes. <br>Open <strong>Account Security</strong> in Voyarr on your computer and enter the code above.</div>
+</div>
+<script>
+(async function() {
+  const codeEl = document.getElementById('codeDisplay');
+  const statusEl = document.getElementById('statusMessage');
+
+  try {
+    const res = await fetch('/api/auth/pair/device/request', { method: 'POST' });
+    const data = await res.json();
+    codeEl.textContent = data.user_code;
+    statusEl.textContent = 'Waiting for approval...';
+
+    const poll = async () => {
+      try {
+        const p = await fetch('/api/auth/pair/device/poll', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ device_code: data.device_code })
+        });
+        const pdata = await p.json();
+        if (pdata.status === 'success') {
+          codeEl.className = 'code approved';
+          codeEl.textContent = 'PAIRED!';
+          statusEl.innerHTML = '<span class="approved">Device approved! You can close this page.</span>';
+          return;
+        }
+      } catch(e) {}
+      setTimeout(poll, 3000);
+    };
+    poll();
+  } catch(e) {
+    codeEl.textContent = 'Error';
+    statusEl.textContent = 'Failed to connect to server.';
+  }
+})();
+</script>
+</body>
+</html>`;
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname;
+
+    // Pairing page for VR headsets: serve standalone HTML (before DeoVR detection)
+    if (path === "/pair") {
+      return new Response(PAIR_PAGE_HTML, {
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+      });
+    }
 
     // DeoVR detection: proxy to backend if DeoVR user-agent or deovr=1 query param
     const userAgent = request.headers.get("user-agent") || "";
