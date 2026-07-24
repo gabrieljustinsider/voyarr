@@ -1,10 +1,10 @@
-/**
- * Error Classifier Utility for Voyarr.
- * Classifies raw errors into 3 user-friendly categories:
- * 1. local_dev: Local Dev Environment Limitation
- * 2. external_service: Unconnected Service / External Layer Offline
- * 3. app_bug: Fixable Application Bug (Fix Locally Now)
- */
+"""
+Error Classifier Utility for Voyarr.
+Classifies raw errors into 3 user-friendly categories:
+1. local_dev: Local Dev Environment Limitation
+2. external_service: Unconnected Service / External Layer Offline
+3. app_bug: Fixable Application Bug (Fix Locally Now)
+"""
 import re
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
@@ -96,5 +96,5 @@ def prune_error_logs(db: Session):
                 if oldest_ids:
                     db.query(ErrorLog).filter(ErrorLog.id.in_(oldest_ids)).delete(synchronize_session=False)
                     db.commit()
-    except Exception as e:
+    except Exception:
         db.rollback()

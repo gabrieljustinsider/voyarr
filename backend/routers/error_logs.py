@@ -5,7 +5,7 @@ from database import get_db
 from models import ErrorLog, Settings, User
 from dependencies import verify_api_key
 from routers.auth import get_current_user
-from utils.error_classifier import classify_error, prune_error_logs
+from error_classifier import classify_error, prune_error_logs
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/logs/errors", tags=["error_logs"])

@@ -135,7 +135,7 @@ async def global_exception_handler(request: Request, exc: Exception):
         import traceback
         from database import SessionLocal
         from models import ErrorLog
-        from utils.error_classifier import classify_error, prune_error_logs
+        from error_classifier import classify_error, prune_error_logs
 
         db = SessionLocal()
         tb = traceback.format_exc()
