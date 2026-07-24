@@ -112,7 +112,7 @@ export default function Library() {
   const [castIsPlaying, setCastIsPlaying] = useState(false)
 
   // Player settings ref and state
-  const playerRef = useRef(null)
+  const playerApi = useRef(null)
   const [playerSpeed, setPlayerSpeed] = useState(1)
   const [pipActive, setPipActive] = useState(false)
   const [copiedStream, setCopiedStream] = useState(false)
@@ -1444,7 +1444,7 @@ export default function Library() {
                 <Box sx={{ flexGrow: 1, backgroundColor: 'black', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                   {streamingEnabled ? (
                     <SmartVideoPlayer
-                      ref={playerRef}
+                      playerApi={playerApi}
                       key={playingVideo.id}
                       src={`${API_BASE}/library/${playingVideo.id}/stream?${getAuthQuery()}`}
                       onPlay={() => handleVideoPlay(playingVideo.id)}
@@ -1480,7 +1480,7 @@ export default function Library() {
                     <Box sx={{ display: 'flex', gap: 0.5, mb: 1.5, flexWrap: 'wrap' }}>
                       {[0.5, 0.75, 1, 1.25, 1.5, 2].map(rate => (
                         <Chip key={rate} label={`${rate}x`} size="small" clickable
-                          onClick={() => { setPlayerSpeed(rate); if (playerRef.current?.setPlaybackRate) playerRef.current.setPlaybackRate(rate); }}
+                          onClick={() => { setPlayerSpeed(rate); if (playerApi.current?.setPlaybackRate) playerApi.current.setPlaybackRate(rate); }}
                           sx={{ bgcolor: playerSpeed === rate ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.08)', color: 'white', fontWeight: playerSpeed === rate ? 'bold' : 'normal', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.7rem', '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' } }}
                         />
                       ))}
@@ -1491,7 +1491,7 @@ export default function Library() {
                       <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.75rem' }}>Picture-in-Picture</Typography>
                       <Button size="small" variant="outlined" onClick={async () => {
                         if (pipActive) { try { await document.exitPictureInPicture() } catch(e) {} setPipActive(false) }
-                        else if (playerRef.current?.requestPip) { try { await playerRef.current.requestPip(); setPipActive(true) } catch(e) {} }
+                        else if (playerApi.current?.requestPip) { try { await playerApi.current.requestPip(); setPipActive(true) } catch(e) {} }
                       }} sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.2)', fontSize: '0.65rem', textTransform: 'none', py: 0 }}>
                         {pipActive ? 'Exit' : 'PiP'}
                       </Button>

@@ -22,7 +22,7 @@
  *     Chrome/Edge on Windows support MKV/AVI natively.
  *     For truly unsupported containers (e.g. WMV on macOS), a codec warning is shown.
  */
-import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Box, CircularProgress, Alert, Typography, Button, ButtonGroup, IconButton, Popover, Slider, Chip, Divider } from '@mui/material'
 import VrIcon from '@mui/icons-material/Visibility'
 import SettingsIcon from '@mui/icons-material/Settings'
@@ -79,28 +79,34 @@ function detectStrategy(src) {
   return 'native'
 }
 
-const SmartVideoPlayer = forwardRef(({
+export default function SmartVideoPlayer({
   src,
   onPlay,
   style = {},
   autoPlay = true,
   controls = true,
   controlsList = 'nodownload',
-}, ref) => {
+  videoRef: externalVideoRef,
+  playerApi,
+}) {
   const videoRef  = useRef(null)
   const hlsRef    = useRef(null)
   const dashRef   = useRef(null)
 
-  useImperativeHandle(ref, () => ({
-    video: videoRef.current,
-    setPlaybackRate: (rate) => { if (videoRef.current) videoRef.current.playbackRate = rate },
-    requestPip: async () => { try { if (videoRef.current) await videoRef.current.requestPictureInPicture() } catch(e) {} },
-    exitPip: async () => { try { await document.exitPictureInPicture() } catch(e) {} },
-    projectionMode,
-    stereoMode,
-    setProjectionMode,
-    setStereoMode,
-  }), [videoRef.current, projectionMode, stereoMode])
+  useEffect(() => {
+    if (playerApi && videoRef.current) {
+      playerApi.current = {
+        video: videoRef.current,
+        setPlaybackRate: (rate) => { if (videoRef.current) videoRef.current.playbackRate = rate },
+        requestPip: async () => { try { if (videoRef.current) await videoRef.current.requestPictureInPicture() } catch(e) {} },
+        exitPip: async () => { try { await document.exitPictureInPicture() } catch(e) {} },
+        projectionMode,
+        stereoMode,
+        setProjectionMode,
+        setStereoMode,
+      }
+    }
+  })
   
   // WebXR refs & state
   const canvasContainerRef = useRef(null)
@@ -579,6 +585,4 @@ const SmartVideoPlayer = forwardRef(({
       />
     </Box>
   )
-})
-
-export default SmartVideoPlayer
+}
