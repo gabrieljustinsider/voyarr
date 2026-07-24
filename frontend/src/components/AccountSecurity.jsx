@@ -1510,11 +1510,46 @@ export default function AccountSecurity({ setSnackbar }) {
             <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: 'action.hover', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               <Box>
                 <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
-                  🔢 Pair New VR Headset (6-Digit Code)
+                  🥽 Pair New VR Headset (6-Digit Code)
                 </Typography>
-                <Typography variant="caption" color="text.secondary" paragraph>
-                  On your Meta Quest or Vision Pro headset, open <strong>voyarr.gabrieljustinsider.com/pair</strong>. A 6-digit code will appear. Enter it below:
-                </Typography>
+
+                <Box sx={{ mb: 2, pl: 1 }}>
+                  <Box sx={{ display: 'flex', gap: 1.5, mb: 1.5, alignItems: 'flex-start' }}>
+                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', minWidth: 20, mt: 0.3 }}>1</Typography>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>Open Voyarr on your headset</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        On your Meta Quest or Vision Pro, navigate to:<br/>
+                        <strong style={{ fontFamily: 'monospace', fontSize: '0.85rem', color: '#a78bfa' }}>voyarr.gabrieljustinsider.com/pair</strong>
+                      </Typography>
+                      <Button
+                        size="small"
+                        variant="text"
+                        sx={{ mt: 0.5, textTransform: 'none', fontSize: '0.75rem', p: 0, minWidth: 'auto' }}
+                        startIcon={<LinkIcon sx={{ fontSize: 14 }} />}
+                        onClick={() => {
+                          navigator.clipboard.writeText(`${window.location.origin}/pair`)
+                          setSnackbar({ open: true, message: 'Pairing URL copied! Send it to your headset browser.', severity: 'info' })
+                        }}
+                      >
+                        Copy pairing link
+                      </Button>
+                    </Box>
+                  </Box>
+                  <Box sx={{ display: 'flex', gap: 1.5, mb: 1.5, alignItems: 'flex-start' }}>
+                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', minWidth: 20, mt: 0.3 }}>2</Typography>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>Enter the 6-digit code shown on your headset</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        The code expires after 5 minutes. If it expires, refresh <strong style={{ fontFamily: 'monospace' }}>/pair</strong> on your headset.
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
+                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'primary.main', minWidth: 20, mt: 0.3 }}>3</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>Click <em>Approve</em> below</Typography>
+                  </Box>
+                </Box>
 
                 {vrApproveMsg && (
                   <Alert severity={vrApproveSeverity} sx={{ mb: 2 }} onClose={() => setVrApproveMsg('')}>
@@ -1546,35 +1581,50 @@ export default function AccountSecurity({ setSnackbar }) {
 
           {/* Card 2: DeoVR QR Code Feed Link */}
           <Grid xs={12} md={6}>
-            <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: 'action.hover', display: 'flex', alignItems: 'center', gap: 2.5, height: '100%' }}>
-              <Box sx={{ p: 1.5, bgcolor: '#ffffff', borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <QRCodeSVG
-                  value={`${window.location.origin}/deovr?token=${localStorage.getItem('voyarr_jwt') || ''}`}
-                  size={110}
-                  level="M"
-                />
+            <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: 'action.hover', display: 'flex', flexDirection: 'column', height: '100%' }}>
+              <Box sx={{ display: 'flex', gap: 2.5, alignItems: 'center', mb: 2 }}>
+                <Box sx={{ p: 1.5, bgcolor: '#ffffff', borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <QRCodeSVG
+                    value={`${window.location.origin}/deovr?token=${localStorage.getItem('voyarr_jwt') || ''}`}
+                    size={110}
+                    level="M"
+                  />
+                </Box>
+                <Box sx={{ flexGrow: 1 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+                    🎮 DeoVR Player Feed
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" paragraph sx={{ mb: 1 }}>
+                    DeoVR transforms your VR headset into a personal home theater for your Voyarr library. Browse and watch your collection in an immersive VR cinema.
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<LinkIcon fontSize="small" />}
+                      onClick={() => {
+                        const url = `${window.location.origin}/deovr?token=${localStorage.getItem('voyarr_jwt') || ''}`
+                        navigator.clipboard.writeText(url)
+                        setDeovrCopied(true)
+                        setTimeout(() => setDeovrCopied(false), 3000)
+                      }}
+                      sx={{ textTransform: 'none', borderRadius: '6px' }}
+                    >
+                      {deovrCopied ? 'Copied!' : 'Copy Feed URL'}
+                    </Button>
+                  </Box>
+                </Box>
               </Box>
-              <Box sx={{ flexGrow: 1 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.5 }}>
-                  📷 DeoVR QR Code Quick Scan
+              <Box sx={{ pl: 0.5, pt: 0.5, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5, fontWeight: 600, color: 'text.primary' }}>
+                  How to use:
                 </Typography>
-                <Typography variant="caption" color="text.secondary" paragraph>
-                  Scan this QR code with your headset camera or DeoVR app to load your library feed instantly.
+                <Typography variant="caption" color="text.secondary" component="div" sx={{ lineHeight: 1.6 }}>
+                  1. Install <strong>DeoVR</strong> from your headset's app store<br/>
+                  2. Open DeoVR and tap <strong>Settings</strong> → <strong>Custom URL</strong><br/>
+                  3. Scan the QR code above or paste the copied feed URL<br/>
+                  4. Your Voyarr library loads instantly — browse and play in VR
                 </Typography>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<LinkIcon fontSize="small" />}
-                  onClick={() => {
-                    const url = `${window.location.origin}/deovr?token=${localStorage.getItem('voyarr_jwt') || ''}`
-                    navigator.clipboard.writeText(url)
-                    setDeovrCopied(true)
-                    setTimeout(() => setDeovrCopied(false), 3000)
-                  }}
-                  sx={{ textTransform: 'none', borderRadius: '6px' }}
-                >
-                  {deovrCopied ? 'Copied DeoVR URL!' : 'Copy DeoVR Feed Link'}
-                </Button>
               </Box>
             </Box>
           </Grid>
