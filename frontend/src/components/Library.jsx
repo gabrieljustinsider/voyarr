@@ -901,6 +901,7 @@ export default function Library() {
           
           {/* Left: Search & Filter Inputs */}
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, alignItems: 'center', flex: 1, width: { xs: '100%', md: 'auto' } }}>
+            {/* Search — primary, always visible */}
             <TextField 
               size="small" 
               label="Search title or file name..." 
@@ -921,56 +922,38 @@ export default function Library() {
                   </InputAdornment>
                 ) : null
               }}
-              sx={{ minWidth: 260, flex: 1, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }} 
+              sx={{ minWidth: 260, maxWidth: 380, flex: 1, '& .MuiOutlinedInput-root': { borderRadius: '10px', bgcolor: 'rgba(255,255,255,0.04)' } }} 
             />
 
-            <FormControl size="small" sx={{ minWidth: 140 }}>
-              <InputLabel sx={{ whiteSpace: 'nowrap' }}>Resolution</InputLabel>
-              <Select name="resolution" value={filters.resolution} label="Resolution" onChange={handleFilterChange} sx={{ borderRadius: '10px' }}>
-                <MenuItem value=""><em>All Resolutions</em></MenuItem>
-                <MenuItem value="4K">4K UHD</MenuItem>
-                <MenuItem value="1080p">1080p FHD</MenuItem>
-                <MenuItem value="720p">720p HD</MenuItem>
-              </Select>
-            </FormControl>
+            {/* Filter chips group */}
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center', p: 0.75, borderRadius: '10px', bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <FormControl size="small" sx={{ minWidth: 120 }}>
+                <Select name="resolution" value={filters.resolution} onChange={handleFilterChange}
+                  displayEmpty sx={{ borderRadius: '8px', fontSize: '0.78rem', height: 32, '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.1)' } }}
+                  renderValue={(v) => v ? (v === '4K' ? '4K UHD' : v === '1080p' ? '1080p FHD' : v === '720p' ? '720p HD' : v) : 'Resolution'}>
+                  <MenuItem value=""><em>All Resolutions</em></MenuItem>
+                  <MenuItem value="4K">4K UHD</MenuItem>
+                  <MenuItem value="1080p">1080p FHD</MenuItem>
+                  <MenuItem value="720p">720p HD</MenuItem>
+                </Select>
+              </FormControl>
 
-            <TextField 
-              size="small" 
-              label="Performer" 
-              name="performer" 
-              value={filters.performer} 
-              onChange={handleFilterChange} 
-              sx={{ minWidth: 140, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }} 
-            />
-            
-            <TextField 
-              size="small" 
-              label="Tag" 
-              name="tag" 
-              value={filters.tag} 
-              onChange={handleFilterChange} 
-              sx={{ minWidth: 120, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }} 
-            />
+              <TextField size="small" placeholder="Performer" name="performer" value={filters.performer} onChange={handleFilterChange}
+                sx={{ minWidth: 110, maxWidth: 140, '& .MuiOutlinedInput-root': { borderRadius: '8px', fontSize: '0.78rem', height: 32 } }} />
 
-            <TextField 
-              size="small" 
-              label="Search ohash" 
-              name="ohash" 
-              value={filters.ohash} 
-              onChange={handleFilterChange} 
-              sx={{ minWidth: 150, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }} 
-            />
+              <TextField size="small" placeholder="Tag" name="tag" value={filters.tag} onChange={handleFilterChange}
+                sx={{ minWidth: 90, maxWidth: 120, '& .MuiOutlinedInput-root': { borderRadius: '8px', fontSize: '0.78rem', height: 32 } }} />
 
-            {(filters.search || filters.resolution || filters.performer || filters.tag || filters.ohash) && (
-              <Button 
-                size="small" 
-                color="warning" 
-                onClick={() => setFilters({ search: '', resolution: '', performer: '', tag: '', ohash: '' })}
-                sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 'bold' }}
-              >
-                Clear Filters
-              </Button>
-            )}
+              <TextField size="small" placeholder="ohash" name="ohash" value={filters.ohash} onChange={handleFilterChange}
+                sx={{ minWidth: 100, maxWidth: 140, '& .MuiOutlinedInput-root': { borderRadius: '8px', fontSize: '0.78rem', height: 32 } }} />
+
+              {(filters.search || filters.resolution || filters.performer || filters.tag || filters.ohash) && (
+                <Button size="small" color="warning" onClick={() => setFilters({ search: '', resolution: '', performer: '', tag: '', ohash: '' })}
+                  sx={{ borderRadius: '6px', textTransform: 'none', fontWeight: 'bold', fontSize: '0.7rem', minWidth: 'auto', px: 1, height: 28 }}>
+                  Clear
+                </Button>
+              )}
+            </Box>
           </Box>
 
           {/* Right: Per Page, Sort Dropdown & View Mode Switcher */}
