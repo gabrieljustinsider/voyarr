@@ -3,6 +3,7 @@ import {
   Box, Typography, Card, CardContent, Grid, Button, 
   Alert, CircularProgress, Chip, Divider
 } from '@mui/material'
+import { Copy } from 'lucide-react'
 import apiFetch from '../api'
 
 export default function Duplicates() {
@@ -47,6 +48,27 @@ export default function Duplicates() {
   return (
     <Box>
       <Typography variant="h4" gutterBottom>Duplicate Resolution</Typography>
+      
+      {/* Purpose Banner */}
+      <Alert 
+        severity="info" 
+        icon={<Copy size={20} />} 
+        sx={{ 
+          mb: 3, 
+          borderRadius: '12px', 
+          bgcolor: 'rgba(99, 102, 241, 0.08)', 
+          color: '#a5b4fc',
+          border: '1px solid rgba(99, 102, 241, 0.2)',
+          '& .MuiAlert-icon': { color: '#818cf8' } 
+        }}
+      >
+        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.25 }}>
+          🔍 Perceptual Hash Duplicate Video Finder
+        </Typography>
+        <Typography variant="caption" sx={{ display: 'block', opacity: 0.9, lineHeight: 1.4 }}>
+          Duplicates uses perceptual hashing (pHash) to analyze video frames and identify visually identical files across your library. Compare resolution, bitrate, and file size to merge or resolve conflicts easily.
+        </Typography>
+      </Alert>
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {duplicates.length === 0 && !loading && (
         <Alert severity="success">No unresolved duplicates found in the library!</Alert>
@@ -65,7 +87,7 @@ export default function Duplicates() {
             
             <Grid container spacing={3}>
               {[dupe.entry1, dupe.entry2].map((entry, idx) => (
-                <Grid item xs={12} md={6} key={entry.id}>
+                <Grid xs={12} md={6} key={entry.id}>
                   <Box sx={{ p: 2, border: '1px solid #333', borderRadius: 1 }}>
                     <Typography variant="subtitle1" noWrap title={entry.title}>
                       <strong>{entry.title}</strong>

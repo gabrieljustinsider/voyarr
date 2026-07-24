@@ -25,11 +25,61 @@ export default function HelpArea({ userRole }) {
         </Typography>
       </Paper>
 
+      <Paper sx={{ p: 3, mb: 4, borderRadius: '16px', background: 'rgba(255,255,255,0.03)' }}>
+        <Typography variant="h6" gutterBottom color="primary">
+          🗺️ Tab Directory &amp; Feature Overview
+        </Typography>
+        <Typography variant="body2" paragraph color="textSecondary">
+          Every tab in Voyarr serves a specialized operational purpose:
+        </Typography>
+        <Box component="ul" sx={{ pl: 2, m: 0, '& li': { mb: 1 } }}>
+          <li><strong>📊 Dashboard:</strong> Real-time operational telemetry, active download queues, server bandwidth, and storage health.</li>
+          <li><strong>🎬 Media Library:</strong> Stream, search, filter, and organize indexed video collections with resolution and tag filters.</li>
+          <li><strong>⚡ Mass Rip:</strong> Bulk video link extraction engine from target channels, playlists, and user profiles.</li>
+          <li><strong>⚙️ Transcode Queue:</strong> Hardware-accelerated video converter for web-compatible H.264/MP4 formats.</li>
+          <li><strong>📡 Live Streams:</strong> Monitor, preview, and record real-time HLS streams and webcam broadcasts.</li>
+          <li><strong>🎬 Studios:</strong> Production companies and network hierarchies for metadata tagging and library organization.</li>
+          <li><strong>📡 Providers:</strong> Download hosts and streaming sites for login credentials, cookie storage, and rate limits.</li>
+          <li><strong>💳 Billers:</strong> Subscription payment processors mapped to credit card statement descriptors.</li>
+          <li><strong>💎 Subscriptions:</strong> Track active memberships, free trial expirations, and monthly expenditure.</li>
+          <li><strong>⏱️ Schedules:</strong> Automated recurring background scraper and maintenance cron jobs.</li>
+          <li><strong>🔄 P2P Sync:</strong> Secure catalog replication and scraper recipe sharing between remote Voyarr nodes.</li>
+          <li><strong>🏷️ Metadata Manager:</strong> Scraper enrichment (TPDB, StashDB), URL parsing, and NFO file generators.</li>
+          <li><strong>🔍 Duplicates:</strong> Frame-by-frame perceptual hash (pHash) visual duplicate finder and conflict resolution.</li>
+          <li><strong>❤️ Favorites:</strong> Bookmarked collection of starred scenes, performers, studios, and custom tags.</li>
+          <li><strong>📈 Analytics:</strong> Playback statistics, peak bandwidth graphs, and downloadable CSV analytics reports.</li>
+          <li><strong>📋 System Logs:</strong> Live stdout/stderr console logs and categorized error diagnostic tools.</li>
+          <li><strong>⚙️ Settings:</strong> Vault integrations (1Password, Bitwarden), authentication policies, and API keys.</li>
+        </Box>
+      </Paper>
+
       <Typography variant="h5" gutterBottom sx={{ mt: 4, mb: 2 }}>
         Frequently Asked Questions
       </Typography>
 
       {/* ── Existing FAQs ─────────────────────────────────────────────── */}
+
+      <Accordion sx={ACCORDION_SX}>
+        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+          <Typography fontWeight="bold">What is the difference between Studios, Media Providers, and Subscription Billers?</Typography>
+        </AccordionSummary>
+        <AccordionDetails>
+          <Typography paragraph>
+            Voyarr maintains three distinct entity types to organize your media, downloads, and finances:
+          </Typography>
+          <Box component="ul" sx={{ pl: 2, m: 0 }}>
+            <li style={{ marginBottom: '8px' }}>
+              <strong>🎬 Production Studios &amp; Networks (Who Creates Content):</strong> Represents content producers, production houses, and broadcast networks (e.g. <em>Brazzers</em>, <em>MindGeek/Aylo</em>). Used for metadata tagging, library organization, and establishing parent/subsidiary network hierarchies.
+            </li>
+            <li style={{ marginBottom: '8px' }}>
+              <strong>📡 Media Providers (Where Content is Downloaded From):</strong> Represents streaming sites and download hosts (e.g. <em>ManyVids</em>, <em>OnlyFans</em>, <em>Pornhub</em>). Used to store login credentials, browser session cookies, scraper rules, and download rate limits.
+            </li>
+            <li>
+              <strong>💳 Subscription Billers (How Access is Paid For):</strong> Represents payment processing entities listed on bank/credit card statements (e.g. <em>CCBill</em>, <em>Probiller</em>, <em>Epoch</em>, <em>SegPay</em>). Used to map subscriptions to statement descriptors and track billing renewals.
+            </li>
+          </Box>
+        </AccordionDetails>
+      </Accordion>
 
       <Accordion sx={ACCORDION_SX}>
         <AccordionSummary expandIcon={<ExpandMoreIcon />}>

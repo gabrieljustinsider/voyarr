@@ -30,7 +30,8 @@ import {
   Divider,
   Autocomplete,
   TablePagination,
-  InputAdornment
+  InputAdornment,
+  Alert
 } from '@mui/material'
 import { 
   Trash2, 
@@ -484,11 +485,31 @@ export default function SubscriptionManager() {
         </Box>
       </Box>
 
+      {/* Purpose Banner */}
+      <Alert 
+        severity="info" 
+        icon={<CreditCard size={20} />} 
+        sx={{ 
+          borderRadius: '12px', 
+          bgcolor: 'rgba(168, 85, 247, 0.08)', 
+          color: '#c084fc',
+          border: '1px solid rgba(168, 85, 247, 0.2)',
+          '& .MuiAlert-icon': { color: '#a855f7' } 
+        }}
+      >
+        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.25 }}>
+          💎 Premium Subscriptions, Free Trials &amp; Membership Tracker
+        </Typography>
+        <Typography variant="caption" sx={{ display: 'block', opacity: 0.9, lineHeight: 1.4 }}>
+          The Subscription Manager tracks your active memberships, free trial expiry dates, membership tiers, and monthly expenditure. Link provider tiers and subscription billers to automate renewal tracking.
+        </Typography>
+      </Alert>
+
       {/* Main Grid Content */}
       <Grid container spacing={3} sx={{ justifyContent: 'center' }}>
         
         {/* Left Side: Subscriptions List & Email Parser */}
-        <Grid item xs={12} lg={7} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <Grid xs={12} lg={7} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           
           {/* Active Subscriptions Card */}
           <Paper sx={{ 
@@ -549,8 +570,8 @@ export default function SubscriptionManager() {
                       borderColor: 'rgba(255,255,255,0.05)',
                       '&:hover': { borderColor: 'rgba(255,255,255,0.12)' }
                     }}>
-                      <Grid container spacing={2} alignItems="center">
-                        <Grid item xs={12} sm={8}>
+                      <Grid container spacing={2} sx={{ alignItems: 'center' }}>
+                        <Grid xs={12} sm={8}>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                             <Box sx={{ 
                               width: 36, 
@@ -578,7 +599,7 @@ export default function SubscriptionManager() {
                             </Box>
                           </Box>
                         </Grid>
-                        <Grid item xs={12} sm={4} sx={{ display: 'flex', alignItems: 'center', justifyContent: { xs: 'flex-start', sm: 'flex-end' }, gap: 1.5 }}>
+                        <Grid xs={12} sm={4} sx={{ display: 'flex', alignItems: 'center', justifyContent: { xs: 'flex-start', sm: 'flex-end' }, gap: 1.5 }}>
                           <Box sx={{ textAlign: 'right' }}>
                             <Typography variant="subtitle2" fontWeight="black" color="text.primary">
                             ${sub.cost.toFixed(2)} {sub.charge_type === 'installments' ? '(Total)' : ''}
@@ -672,10 +693,10 @@ export default function SubscriptionManager() {
                   <Check size={16} /> Parsing Successful!
                 </Typography>
                 <Grid container spacing={1} sx={{ mb: 2 }}>
-                  <Grid item xs={6}><Typography variant="caption" color="textSecondary">Biller:</Typography> <Typography variant="body2" fontWeight="bold">{parseResult.biller || 'Not detected'}</Typography></Grid>
-                  <Grid item xs={6}><Typography variant="caption" color="textSecondary">Cycle:</Typography> <Typography variant="body2" fontWeight="bold" sx={{ textTransform: 'capitalize' }}>{parseResult.billing_cycle || 'monthly'}</Typography></Grid>
-                  <Grid item xs={6}><Typography variant="caption" color="textSecondary">Estimated Cost:</Typography> <Typography variant="body2" fontWeight="bold">${parseResult.cost?.toFixed(2) || '0.00'}</Typography></Grid>
-                  <Grid item xs={6}><Typography variant="caption" color="textSecondary">Is Trial:</Typography> <Typography variant="body2" fontWeight="bold">{parseResult.is_trial ? 'Yes' : 'No'}</Typography></Grid>
+                  <Grid xs={6}><Typography variant="caption" color="textSecondary">Biller:</Typography> <Typography variant="body2" fontWeight="bold">{parseResult.biller || 'Not detected'}</Typography></Grid>
+                  <Grid xs={6}><Typography variant="caption" color="textSecondary">Cycle:</Typography> <Typography variant="body2" fontWeight="bold" sx={{ textTransform: 'capitalize' }}>{parseResult.billing_cycle || 'monthly'}</Typography></Grid>
+                  <Grid xs={6}><Typography variant="caption" color="textSecondary">Estimated Cost:</Typography> <Typography variant="body2" fontWeight="bold">${parseResult.cost?.toFixed(2) || '0.00'}</Typography></Grid>
+                  <Grid xs={6}><Typography variant="caption" color="textSecondary">Is Trial:</Typography> <Typography variant="body2" fontWeight="bold">{parseResult.is_trial ? 'Yes' : 'No'}</Typography></Grid>
                 </Grid>
                 <Button variant="contained" color="primary" fullWidth onClick={handleApplyParsedResult}>
                   Apply to Form Below
@@ -687,7 +708,7 @@ export default function SubscriptionManager() {
         </Grid>
 
         {/* Right Side: Create/Edit Form & Tiers Management */}
-        <Grid item xs={12} lg={5} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <Grid xs={12} lg={5} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           
           {/* Create/Edit Form Card */}
           <Paper sx={{ 
@@ -726,18 +747,34 @@ export default function SubscriptionManager() {
               <Typography variant="overline" color="textSecondary" sx={{ display: 'block', fontWeight: 'bold', letterSpacing: 1, mb: 1, ml: 1 }}>Service Details</Typography>
               <Box sx={{ p: 2.5, borderRadius: '14px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)', mb: 3 }}>
                 <Grid container spacing={2}>
-                  <Grid item xs={12}>
+                  <Grid xs={12}>
                     <Autocomplete
                       options={providers}
                       getOptionLabel={(option) => option?.name || ''}
                       isOptionEqualToValue={(option, value) => option?.id === value?.id}
                       value={providers.find(p => p.id === subForm.provider_id) || null}
                       onChange={(e, newValue) => setSubForm({ ...subForm, provider_id: newValue ? newValue.id : '', tier_id: '' })}
-                      renderInput={(params) => <TextField {...params} label="Media Provider" size="small" required slotProps={{ input: { startAdornment: <InputAdornment position="start" sx={{ pl: 1 }}><Globe size={16} /></InputAdornment> } }} />}
+                      renderInput={(params) => (
+                        <TextField 
+                          {...params} 
+                          label="Media Provider" 
+                          size="small" 
+                          required 
+                          InputProps={{
+                            ...params.InputProps,
+                            startAdornment: (
+                              <>
+                                <InputAdornment position="start" sx={{ pl: 1 }}><Globe size={16} /></InputAdornment>
+                                {params.InputProps.startAdornment}
+                              </>
+                            )
+                          }}
+                        />
+                      )}
                       fullWidth
                     />
                   </Grid>
-                  <Grid item xs={12} sm={6}>
+                  <Grid xs={12} sm={6}>
                     <Autocomplete
                       options={tierOptions}
                       getOptionLabel={(option) => option?.name || ''}
@@ -745,18 +782,48 @@ export default function SubscriptionManager() {
                       value={tierOptions.find(t => t.id === subForm.tier_id) || tierOptions[0]}
                       onChange={(e, newValue) => setSubForm({ ...subForm, tier_id: newValue ? newValue.id : '' })}
                       disabled={!subForm.provider_id}
-                      renderInput={(params) => <TextField {...params} label="Subscription Tier" size="small" slotProps={{ input: { startAdornment: <InputAdornment position="start" sx={{ pl: 1 }}><Layers size={16} /></InputAdornment> } }} />}
+                      renderInput={(params) => (
+                        <TextField 
+                          {...params} 
+                          label="Subscription Tier" 
+                          size="small" 
+                          InputProps={{
+                            ...params.InputProps,
+                            startAdornment: (
+                              <>
+                                <InputAdornment position="start" sx={{ pl: 1 }}><Layers size={16} /></InputAdornment>
+                                {params.InputProps.startAdornment}
+                              </>
+                            )
+                          }}
+                        />
+                      )}
                       fullWidth
                     />
                   </Grid>
-                  <Grid item xs={12} sm={6}>
+                  <Grid xs={12} sm={6}>
                     <Autocomplete
                       options={STATUS_OPTIONS}
                       getOptionLabel={(option) => option?.label || ''}
                       isOptionEqualToValue={(option, value) => option?.value === value?.value}
                       value={STATUS_OPTIONS.find(o => o.value === subForm.status) || null}
                       onChange={(e, newValue) => setSubForm({ ...subForm, status: newValue ? newValue.value : 'active' })}
-                      renderInput={(params) => <TextField {...params} label="Status" size="small" slotProps={{ input: { startAdornment: <InputAdornment position="start" sx={{ pl: 1 }}><Activity size={16} /></InputAdornment> } }} />}
+                      renderInput={(params) => (
+                        <TextField 
+                          {...params} 
+                          label="Status" 
+                          size="small" 
+                          InputProps={{
+                            ...params.InputProps,
+                            startAdornment: (
+                              <>
+                                <InputAdornment position="start" sx={{ pl: 1 }}><Activity size={16} /></InputAdornment>
+                                {params.InputProps.startAdornment}
+                              </>
+                            )
+                          }}
+                        />
+                      )}
                       fullWidth
                     />
                   </Grid>
@@ -767,7 +834,7 @@ export default function SubscriptionManager() {
               <Typography variant="overline" color="textSecondary" sx={{ display: 'block', fontWeight: 'bold', letterSpacing: 1, mb: 1, ml: 1 }}>Billing & Cost</Typography>
               <Box sx={{ p: 2.5, borderRadius: '14px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)', mb: 3 }}>
                 <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
+                  <Grid xs={12} sm={6}>
                     <TextField
                       fullWidth
                       size="small"
@@ -779,31 +846,61 @@ export default function SubscriptionManager() {
                       slotProps={{ inputLabel: { shrink: true }, input: { startAdornment: <InputAdornment position="start"><DollarSign size={16} /></InputAdornment> } }}
                     />
                   </Grid>
-                  <Grid item xs={12} sm={6}>
+                  <Grid xs={12} sm={6}>
                     <Autocomplete
                       options={TIMEFRAME_OPTIONS}
                       getOptionLabel={(option) => option?.label || ''}
                       isOptionEqualToValue={(option, value) => option?.value === value?.value}
                       value={TIMEFRAME_OPTIONS.find(o => o.value === subForm.billing_cycle) || null}
                       onChange={(e, newValue) => setSubForm({ ...subForm, billing_cycle: newValue ? newValue.value : 'monthly' })}
-                      renderInput={(params) => <TextField {...params} label="Timeframe" size="small" slotProps={{ input: { startAdornment: <InputAdornment position="start" sx={{ pl: 1 }}><Clock size={16} /></InputAdornment> } }} />}
+                      renderInput={(params) => (
+                        <TextField 
+                          {...params} 
+                          label="Timeframe" 
+                          size="small" 
+                          InputProps={{
+                            ...params.InputProps,
+                            startAdornment: (
+                              <>
+                                <InputAdornment position="start" sx={{ pl: 1 }}><Clock size={16} /></InputAdornment>
+                                {params.InputProps.startAdornment}
+                              </>
+                            )
+                          }}
+                        />
+                      )}
                       fullWidth
                     />
                   </Grid>
-                  <Grid item xs={12}>
+                  <Grid xs={12}>
                     <Autocomplete
                       options={billers}
                       getOptionLabel={(option) => option?.name || ''}
                       isOptionEqualToValue={(option, value) => option?.id === value?.id}
                       value={billers.find(b => b.id === subForm.biller_id) || null}
                       onChange={(e, newValue) => setSubForm({ ...subForm, biller_id: newValue ? newValue.id : '' })}
-                      renderInput={(params) => <TextField {...params} label="Biller / Gateway" size="small" slotProps={{ input: { startAdornment: <InputAdornment position="start" sx={{ pl: 1 }}><CreditCard size={16} /></InputAdornment> } }} />}
+                      renderInput={(params) => (
+                        <TextField 
+                          {...params} 
+                          label="Biller / Gateway" 
+                          size="small" 
+                          InputProps={{
+                            ...params.InputProps,
+                            startAdornment: (
+                              <>
+                                <InputAdornment position="start" sx={{ pl: 1 }}><CreditCard size={16} /></InputAdornment>
+                                {params.InputProps.startAdornment}
+                              </>
+                            )
+                          }}
+                        />
+                      )}
                       fullWidth
                     />
                   </Grid>
                   {['3_months', '6_months', 'yearly'].includes(subForm.billing_cycle) && (
                     <>
-                      <Grid item xs={12} sm={6}>
+                      <Grid xs={12} sm={6}>
                         <Autocomplete
                           options={CHARGE_TYPE_OPTIONS}
                           getOptionLabel={(option) => option?.label || ''}
@@ -815,7 +912,7 @@ export default function SubscriptionManager() {
                         />
                       </Grid>
                       {subForm.charge_type === 'installments' && (
-                        <Grid item xs={12} sm={6}>
+                        <Grid xs={12} sm={6}>
                           <Autocomplete
                             options={INSTALLMENT_FREQ_OPTIONS}
                             getOptionLabel={(option) => option?.label || ''}
@@ -835,8 +932,8 @@ export default function SubscriptionManager() {
               {/* Group 3: Lifecycle & Trial */}
               <Typography variant="overline" color="textSecondary" sx={{ display: 'block', fontWeight: 'bold', letterSpacing: 1, mb: 1, ml: 1 }}>Lifecycle & Trial</Typography>
               <Box sx={{ p: 2.5, borderRadius: '14px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                <Grid container spacing={2} alignItems="center">
-                  <Grid item xs={12} sm={6}>
+                <Grid container spacing={2} sx={{ alignItems: 'center' }}>
+                  <Grid xs={12} sm={6}>
                     <TextField
                       fullWidth
                       size="small"
@@ -847,7 +944,7 @@ export default function SubscriptionManager() {
                       onChange={e => setSubForm({ ...subForm, start_date: e.target.value })}
                     />
                   </Grid>
-                  <Grid item xs={12} sm={6}>
+                  <Grid xs={12} sm={6}>
                     <TextField
                       fullWidth
                       size="small"
@@ -859,17 +956,17 @@ export default function SubscriptionManager() {
                     />
                   </Grid>
 
-                  <Grid item xs={12} sx={{ mt: 1, mb: 1 }}>
+                  <Grid xs={12} sx={{ mt: 1, mb: 1 }}>
                     <Divider sx={{ borderColor: 'rgba(255,255,255,0.05)' }} />
                   </Grid>
 
-                  <Grid item xs={12} sm={4} sx={{ display: 'flex', justifyContent: { xs: 'flex-start', sm: 'center' } }}>
+                  <Grid xs={12} sm={4} sx={{ display: 'flex', justifyContent: { xs: 'flex-start', sm: 'center' } }}>
                     <FormControlLabel
                       control={<Switch checked={subForm.is_trial} onChange={e => setSubForm({ ...subForm, is_trial: e.target.checked })} color="secondary" />}
                       label={<Typography variant="body2" fontWeight="bold">Free Trial?</Typography>}
                     />
                   </Grid>
-                  <Grid item xs={12} sm={4}>
+                  <Grid xs={12} sm={4}>
                     <TextField
                       fullWidth
                       size="small"
@@ -881,7 +978,7 @@ export default function SubscriptionManager() {
                       onChange={e => setSubForm({ ...subForm, trial_start: e.target.value })}
                     />
                   </Grid>
-                  <Grid item xs={12} sm={4}>
+                  <Grid xs={12} sm={4}>
                     <TextField
                       fullWidth
                       size="small"
@@ -941,7 +1038,7 @@ export default function SubscriptionManager() {
 
             <form onSubmit={handleSaveTier} style={{ position: 'relative', zIndex: 1 }}>
               <Grid container spacing={2} sx={{ mb: 3 }}>
-                <Grid item xs={12}>
+                <Grid xs={12}>
                   <Autocomplete
                     options={providers}
                     getOptionLabel={(option) => option?.name || ''}
@@ -952,7 +1049,7 @@ export default function SubscriptionManager() {
                     fullWidth
                   />
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid xs={12} sm={6}>
                   <TextField 
                     fullWidth
                     size="small" 
@@ -963,7 +1060,7 @@ export default function SubscriptionManager() {
                     onChange={e => setNewTier({...newTier, name: e.target.value})}
                   />
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid xs={12} sm={6}>
                   <TextField 
                     fullWidth
                     size="small" 
@@ -975,7 +1072,7 @@ export default function SubscriptionManager() {
                     onChange={e => setNewTier({...newTier, price: parseFloat(e.target.value) || 0})}
                   />
                 </Grid>
-                <Grid item xs={12} sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+                <Grid xs={12} sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
                   <Button 
                     type="submit" 
                     variant="contained" 

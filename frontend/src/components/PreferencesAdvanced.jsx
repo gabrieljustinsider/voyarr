@@ -116,12 +116,12 @@ export default function PreferencesAdvanced() {
 
         {selectedProvider && (
           <Grid container spacing={3}>
-            <Grid item xs={12}>
+            <Grid xs={12}>
               <Typography variant="h6">Path & Naming Rules</Typography>
               <Divider sx={{ my: 1 }} />
             </Grid>
             
-            <Grid item xs={12} md={6}>
+            <Grid xs={12} md={6}>
               <PathPicker
                 value={prefs.custom_base_path}
                 onChange={(val) => setPrefs(prev => ({ ...prev, custom_base_path: val }))}
@@ -131,7 +131,7 @@ export default function PreferencesAdvanced() {
               />
             </Grid>
             
-            <Grid item xs={12} md={6}>
+            <Grid xs={12} md={6}>
               <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
                 <TextField fullWidth label="Naming Pattern" name="naming_pattern" value={prefs.naming_pattern} onChange={handleChange} />
                 <Button variant="outlined" onClick={handleValidatePattern} disabled={validating || !prefs.naming_pattern} sx={{ mt: 1 }}>
@@ -155,12 +155,12 @@ export default function PreferencesAdvanced() {
               )}
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid xs={12}>
               <Typography variant="h6" sx={{ mt: 2 }}>Download Behavior</Typography>
               <Divider sx={{ my: 1 }} />
             </Grid>
 
-            <Grid item xs={12} md={4}>
+            <Grid xs={12} md={4}>
               <FormControl fullWidth>
                 <InputLabel>Preferred Resolution</InputLabel>
                 <Select name="preferred_resolution" value={prefs.preferred_resolution} label="Preferred Resolution" onChange={handleChange}>
@@ -171,7 +171,7 @@ export default function PreferencesAdvanced() {
               </FormControl>
             </Grid>
 
-            <Grid item xs={12} md={4}>
+            <Grid xs={12} md={4}>
               <FormControl fullWidth>
                 <InputLabel>Duplicate Handling</InputLabel>
                 <Select name="duplicate_handling" value={prefs.duplicate_handling} label="Duplicate Handling" onChange={handleChange}>
@@ -182,18 +182,18 @@ export default function PreferencesAdvanced() {
               </FormControl>
             </Grid>
 
-            <Grid item xs={12} md={4}>
+            <Grid xs={12} md={4}>
               <TextField fullWidth type="number" label="Max Retries" name="max_retries" value={prefs.max_retries} onChange={handleChange} helperText="Auto-retry limit for failed downloads" />
             </Grid>
 
-            <Grid item xs={12} md={4}>
+            <Grid xs={12} md={4}>
               <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                 <FormControlLabel control={<Switch checked={prefs.append_metadata} onChange={handleChange} name="append_metadata" />} label="Append Metadata to File" />
                 <FormControlLabel control={<Switch checked={prefs.auto_tag_files} onChange={handleChange} name="auto_tag_files" />} label="Auto-tag files in Library" />
               </Box>
             </Grid>
 
-            <Grid item xs={12} sx={{ mt: 2 }}>
+            <Grid xs={12} sx={{ mt: 2 }}>
               <Button variant="contained" color="primary" onClick={handleSave} size="large">Save Preferences</Button>
             </Grid>
           </Grid>

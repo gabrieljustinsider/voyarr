@@ -128,8 +128,8 @@ export default function UrlParseConfirmationModal({
                 Title
               </Typography>
             </Box>
-            <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} md={5.5}>
+            <Grid container spacing={2} sx={{ alignItems: 'center' }}>
+              <Grid xs={12} md={5.5}>
                 <Card sx={{ bgcolor: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.15)', height: '100%' }}>
                   <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
                     <Typography variant="caption" color="textSecondary" display="block">Current Value</Typography>
@@ -139,10 +139,10 @@ export default function UrlParseConfirmationModal({
                   </CardContent>
                 </Card>
               </Grid>
-              <Grid item xs={12} md={1} sx={{ display: 'flex', justifyContent: 'center' }}>
+              <Grid xs={12} md={1} sx={{ display: 'flex', justifyContent: 'center' }}>
                 <CompareArrowsIcon sx={{ opacity: 0.3, transform: { xs: 'rotate(90deg)', md: 'none' } }} />
               </Grid>
-              <Grid item xs={12} md={5.5}>
+              <Grid xs={12} md={5.5}>
                 <TextField
                   fullWidth
                   size="small"
@@ -170,8 +170,8 @@ export default function UrlParseConfirmationModal({
                 Studio
               </Typography>
             </Box>
-            <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} md={5.5}>
+            <Grid container spacing={2} sx={{ alignItems: 'center' }}>
+              <Grid xs={12} md={5.5}>
                 <Card sx={{ bgcolor: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.15)', height: '100%' }}>
                   <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
                     <Typography variant="caption" color="textSecondary" display="block">Current Value</Typography>
@@ -181,10 +181,10 @@ export default function UrlParseConfirmationModal({
                   </CardContent>
                 </Card>
               </Grid>
-              <Grid item xs={12} md={1} sx={{ display: 'flex', justifyContent: 'center' }}>
+              <Grid xs={12} md={1} sx={{ display: 'flex', justifyContent: 'center' }}>
                 <CompareArrowsIcon sx={{ opacity: 0.3, transform: { xs: 'rotate(90deg)', md: 'none' } }} />
               </Grid>
-              <Grid item xs={12} md={5.5}>
+              <Grid xs={12} md={5.5}>
                 <TextField
                   fullWidth
                   size="small"
@@ -212,8 +212,8 @@ export default function UrlParseConfirmationModal({
                 Performers
               </Typography>
             </Box>
-            <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} md={5.5}>
+            <Grid container spacing={2} sx={{ alignItems: 'center' }}>
+              <Grid xs={12} md={5.5}>
                 <Card sx={{ bgcolor: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.15)', height: '100%' }}>
                   <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
                     <Typography variant="caption" color="textSecondary" display="block">Current Value</Typography>
@@ -227,10 +227,10 @@ export default function UrlParseConfirmationModal({
                   </CardContent>
                 </Card>
               </Grid>
-              <Grid item xs={12} md={1} sx={{ display: 'flex', justifyContent: 'center' }}>
+              <Grid xs={12} md={1} sx={{ display: 'flex', justifyContent: 'center' }}>
                 <CompareArrowsIcon sx={{ opacity: 0.3, transform: { xs: 'rotate(90deg)', md: 'none' } }} />
               </Grid>
-              <Grid item xs={12} md={5.5}>
+              <Grid xs={12} md={5.5}>
                 <Autocomplete
                   multiple
                   freeSolo
@@ -240,9 +240,10 @@ export default function UrlParseConfirmationModal({
                   value={performers}
                   onChange={(event, newValue) => setPerformers(newValue)}
                   renderTags={(value, getTagProps) =>
-                    value.map((option, index) => (
-                      <Chip size="small" label={option} {...getTagProps({ index })} />
-                    ))
+                    value.map((option, index) => {
+                      const { key, ...tagProps } = getTagProps({ index })
+                      return <Chip key={key || option} size="small" label={option} {...tagProps} />
+                    })
                   }
                   renderInput={(params) => (
                     <TextField {...params} placeholder="Add Performers" sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }} />
@@ -267,8 +268,8 @@ export default function UrlParseConfirmationModal({
                 Tags
               </Typography>
             </Box>
-            <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} md={5.5}>
+            <Grid container spacing={2} sx={{ alignItems: 'center' }}>
+              <Grid xs={12} md={5.5}>
                 <Card sx={{ bgcolor: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.15)', height: '100%' }}>
                   <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
                     <Typography variant="caption" color="textSecondary" display="block">Current Value</Typography>
@@ -282,10 +283,10 @@ export default function UrlParseConfirmationModal({
                   </CardContent>
                 </Card>
               </Grid>
-              <Grid item xs={12} md={1} sx={{ display: 'flex', justifyContent: 'center' }}>
+              <Grid xs={12} md={1} sx={{ display: 'flex', justifyContent: 'center' }}>
                 <CompareArrowsIcon sx={{ opacity: 0.3, transform: { xs: 'rotate(90deg)', md: 'none' } }} />
               </Grid>
-              <Grid item xs={12} md={5.5}>
+              <Grid xs={12} md={5.5}>
                 <Autocomplete
                   multiple
                   freeSolo
@@ -295,9 +296,10 @@ export default function UrlParseConfirmationModal({
                   value={tags}
                   onChange={(event, newValue) => setTags(newValue)}
                   renderTags={(value, getTagProps) =>
-                    value.map((option, index) => (
-                      <Chip size="small" label={option} {...getTagProps({ index })} />
-                    ))
+                    value.map((option, index) => {
+                      const { key, ...tagProps } = getTagProps({ index })
+                      return <Chip key={key || option} size="small" label={option} {...tagProps} />
+                    })
                   }
                   renderInput={(params) => (
                     <TextField {...params} placeholder="Add Tags" sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }} />
@@ -323,7 +325,7 @@ export default function UrlParseConfirmationModal({
               </Typography>
             </Box>
             <Grid container spacing={2}>
-              <Grid item xs={12} md={5.5}>
+              <Grid xs={12} md={5.5}>
                 <Card sx={{ bgcolor: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.15)', height: '100%' }}>
                   <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
                     <Typography variant="caption" color="textSecondary" display="block">Current Value</Typography>
@@ -333,10 +335,10 @@ export default function UrlParseConfirmationModal({
                   </CardContent>
                 </Card>
               </Grid>
-              <Grid item xs={12} md={1} sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              <Grid xs={12} md={1} sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                 <CompareArrowsIcon sx={{ opacity: 0.3, transform: { xs: 'rotate(90deg)', md: 'none' } }} />
               </Grid>
-              <Grid item xs={12} md={5.5}>
+              <Grid xs={12} md={5.5}>
                 <TextField
                   fullWidth
                   multiline

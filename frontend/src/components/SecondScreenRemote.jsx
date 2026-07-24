@@ -176,7 +176,7 @@ export default function SecondScreenRemote({ video, castDevice, onStopCasting, o
 
       <Grid container spacing={4}>
         {/* Playback Controls & Pleasure metrics */}
-        <Grid item xs={12} md={7} sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
+        <Grid xs={12} md={7} sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
           {/* Main Controls Card */}
           <Paper sx={{ p: 4, borderRadius: '20px', background: 'rgba(255, 255, 255, 0.01)', border: '1px solid rgba(255,255,255,0.03)' }}>
             <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3 }} color="textSecondary">MEDIA CONTROLLER</Typography>
@@ -269,7 +269,7 @@ export default function SecondScreenRemote({ video, castDevice, onStopCasting, o
         </Grid>
 
         {/* Media Metadata & Giant Climax O-Meter */}
-        <Grid item xs={12} md={5} sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
+        <Grid xs={12} md={5} sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
           {/* O-Meter/Pleasure Tracker */}
           <Paper sx={{ 
             p: 4, 

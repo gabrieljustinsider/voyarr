@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { 
   Card, CardContent, Typography, Button, Grid, TextField, Box, 
-  Dialog, DialogTitle, DialogContent, DialogActions, IconButton, Chip
+  Dialog, DialogTitle, DialogContent, DialogActions, IconButton, Chip, Alert
 } from '@mui/material'
 import { apiFetch } from '../api'
-import { Landmark, Plus, Edit3, Trash2 } from 'lucide-react'
+import { Landmark, Plus, Edit3, Trash2, Globe, Mail, Phone } from 'lucide-react'
+import { MediaEntityCard } from './common'
+import { getFaviconFromUrl } from '../utils/logoHelpers'
 
 export default function BillerList() {
   const [billers, setBillers] = useState([])
@@ -123,38 +125,129 @@ export default function BillerList() {
         </Button>
       </Box>
 
-      <Grid container spacing={3} alignItems="stretch">
-        {billers.map(biller => (
-          <Grid item xs={12} sm={6} md={4} lg={3} key={biller.id} sx={{ display: 'flex' }}>
-            <Card sx={{ 
-              height: '100%', 
-              width: '100%',
-              display: 'flex', 
-              flexDirection: 'column', 
-              borderRadius: '20px', 
-              boxShadow: '0 8px 32px rgba(0,0,0,0.2)', 
-              background: 'linear-gradient(145deg, rgba(30,30,40,0.6) 0%, rgba(15,15,25,0.9) 100%)', 
-              border: '1px solid rgba(236, 72, 153, 0.2)',
-              position: 'relative',
-              overflow: 'hidden'
-            }}>
-              <Box sx={{ position: 'absolute', top: -30, right: -30, width: 100, height: 100, background: 'radial-gradient(circle, rgba(236, 72, 153, 0.1) 0%, rgba(0,0,0,0) 70%)', borderRadius: '50%', pointerEvents: 'none' }} />
-              <CardContent sx={{ flexGrow: 1, position: 'relative', zIndex: 1 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                  <Typography variant="h5" component="div" sx={{ fontWeight: 'bold' }}>{biller.name}</Typography>
+      {/* Purpose Banner */}
+      <Alert 
+        severity="info" 
+        icon={<Landmark size={20} />} 
+        sx={{ 
+          mb: 3, 
+          borderRadius: '12px', 
+          bgcolor: 'rgba(236, 72, 153, 0.08)', 
+          color: '#f472b6',
+          border: '1px solid rgba(236, 72, 153, 0.2)',
+          '& .MuiAlert-icon': { color: '#ec4899' } 
+        }}
+      >
+        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.25 }}>
+          💳 Subscription Billers & Payment Processors (How Access is Paid For)
+        </Typography>
+        <Typography variant="caption" sx={{ display: 'block', opacity: 0.9, lineHeight: 1.4 }}>
+          Billers represent the payment processing entities listed on bank/credit card statements (e.g. CCBill, Probiller, Epoch, SegPay). Use Billers to map paid site access to statement descriptors and track subscription renewals.
+        </Typography>
+      </Alert>
+
+      <Grid container spacing={3} sx={{ alignItems: 'stretch' }}>
+        {billers.map(biller => {
+          const faviconUrl = getFaviconFromUrl(biller.url)
+
+          return (
+            <Grid size={{ xs: 12, sm: 6, md: 6, lg: 4 }} xs={12} sm={6} md={6} lg={4} key={biller.id} sx={{ display: 'flex', minWidth: 0 }}>
+              <MediaEntityCard
+                mediaHeader={
+                  faviconUrl ? (
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        p: 0.75,
+                        borderRadius: '12px',
+                        bgcolor: 'rgba(255, 255, 255, 0.12)',
+                        backdropFilter: 'blur(8px)',
+                        border: '1px solid rgba(255, 255, 255, 0.2)'
+                      }}
+                    >
+                      <Box 
+                        component="img" 
+                        src={faviconUrl} 
+                        alt={biller.name} 
+                        sx={{ 
+                          width: 44, 
+                          height: 44, 
+                          objectFit: 'contain',
+                          filter: 'drop-shadow(0px 0px 6px rgba(255, 255, 255, 0.65)) drop-shadow(0px 1px 3px rgba(0, 0, 0, 0.4))'
+                        }} 
+                      />
+                    </Box>
+                  ) : (
+                    <Box sx={{ p: 1.5, borderRadius: '14px', background: 'rgba(236, 72, 153, 0.2)', color: '#ec4899', display: 'flex' }}>
+                      <Landmark size={36} />
+                    </Box>
+                  )
+                }
+                topBadges={
+                  <Chip label="Biller" size="small" sx={{ fontWeight: 'bold', fontSize: '0.65rem', height: 22, bgcolor: 'rgba(236, 72, 153, 0.2)', color: '#ec4899', border: '1px solid rgba(236, 72, 153, 0.4)' }} />
+                }
+                topActions={
                   <Box sx={{ display: 'flex', gap: 0.5 }}>
-                    <IconButton size="small" color="primary" onClick={() => handleOpenEdit(biller)}><Edit3 size={18} /></IconButton>
-                    <IconButton size="small" color="error" onClick={() => handleDelete(biller.id)}><Trash2 size={18} /></IconButton>
+                    <IconButton size="small" sx={{ backgroundColor: 'rgba(0,0,0,0.5)', color: '#818cf8', '&:hover': { backgroundColor: 'rgba(0,0,0,0.7)' } }} onClick={() => handleOpenEdit(biller)}>
+                      <Edit3 size={16} />
+                    </IconButton>
+                    <IconButton size="small" sx={{ backgroundColor: 'rgba(0,0,0,0.5)', color: '#ef4444', '&:hover': { backgroundColor: 'rgba(0,0,0,0.7)' } }} onClick={() => handleDelete(biller.id)}>
+                      <Trash2 size={16} />
+                    </IconButton>
                   </Box>
-                </Box>
-                {biller.url && <Typography variant="body2" color="text.secondary" gutterBottom>{biller.url}</Typography>}
-                {biller.support_email && <Typography variant="caption" display="block">Email: {biller.support_email}</Typography>}
-                {biller.support_phone && <Typography variant="caption" display="block">Phone: {biller.support_phone}</Typography>}
-                {biller.description && <Typography variant="body2" sx={{ mt: 1, opacity: 0.8 }}>{biller.description}</Typography>}
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
+                }
+                title={biller.name}
+                subtitle={
+                  biller.url && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1.5, minWidth: 0, width: '100%' }}>
+                      <Globe size={14} style={{ color: '#818cf8', flexShrink: 0 }} />
+                      <Typography 
+                        variant="caption" 
+                        component="a" 
+                        href={biller.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        sx={{ 
+                          textDecoration: 'none', 
+                          color: '#818cf8', 
+                          fontWeight: '600', 
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          minWidth: 0
+                        }}
+                      >
+                        {biller.url.replace(/^https?:\/\/(www\.)?/, '')}
+                      </Typography>
+                    </Box>
+                  )
+                }
+                description={biller.description}
+                bodySections={
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, mb: 2 }}>
+                    {biller.support_email && (
+                      <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.75, color: 'text.secondary' }}>
+                        <Mail size={13} style={{ color: '#ec4899' }} /> {biller.support_email}
+                      </Typography>
+                    )}
+                    {biller.support_phone && (
+                      <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.75, color: 'text.secondary' }}>
+                        <Phone size={13} style={{ color: '#ec4899' }} /> {biller.support_phone}
+                      </Typography>
+                    )}
+                  </Box>
+                }
+                footerActions={
+                  <Button size="small" variant="outlined" color="primary" onClick={() => handleOpenEdit(biller)}>
+                    Edit Biller
+                  </Button>
+                }
+              />
+            </Grid>
+          )
+        })}
       </Grid>
 
       <Dialog 
@@ -183,10 +276,10 @@ export default function BillerList() {
             <TextField fullWidth label="Biller Name" required value={billerForm.name} onChange={(e) => setBillerForm({ ...billerForm, name: e.target.value })} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }} />
             <TextField fullWidth label="Website URL" placeholder="https://ccbill.com" value={billerForm.url} onChange={(e) => setBillerForm({ ...billerForm, url: e.target.value })} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }} />
             <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
+              <Grid xs={12} sm={6}>
                 <TextField fullWidth label="Support Email" type="email" value={billerForm.support_email} onChange={(e) => setBillerForm({ ...billerForm, support_email: e.target.value })} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }} />
               </Grid>
-              <Grid item xs={12} sm={6}>
+              <Grid xs={12} sm={6}>
                 <TextField fullWidth label="Support Phone" value={billerForm.support_phone} onChange={(e) => setBillerForm({ ...billerForm, support_phone: e.target.value })} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }} />
               </Grid>
             </Grid>

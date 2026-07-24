@@ -198,25 +198,25 @@ export default function UniversalSearch() {
 
           <Typography variant="subtitle2" sx={{ mb: 1 }}>Enabled Subscription Search Indices:</Typography>
           <Grid container spacing={2}>
-            <Grid item xs={6} sm={3}>
+            <Grid xs={6} sm={3}>
               <FormControlLabel
                 control={<Switch checked={onlyfansEnabled} onChange={(e) => handleTogglePlatform('onlyfans', e.target.checked)} />}
                 label="OnlyFans"
               />
             </Grid>
-            <Grid item xs={6} sm={3}>
+            <Grid xs={6} sm={3}>
               <FormControlLabel
                 control={<Switch checked={fanslyEnabled} onChange={(e) => handleTogglePlatform('fansly', e.target.checked)} />}
                 label="Fansly"
               />
             </Grid>
-            <Grid item xs={6} sm={3}>
+            <Grid xs={6} sm={3}>
               <FormControlLabel
                 control={<Switch checked={patreonEnabled} onChange={(e) => handleTogglePlatform('patreon', e.target.checked)} />}
                 label="Patreon"
               />
             </Grid>
-            <Grid item xs={6} sm={3}>
+            <Grid xs={6} sm={3}>
               <FormControlLabel
                 control={<Switch checked={loyalfansEnabled} onChange={(e) => handleTogglePlatform('loyalfans', e.target.checked)} />}
                 label="LoyalFans"

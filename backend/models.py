@@ -57,6 +57,20 @@ class AdminLog(Base):
     admin = relationship("User")
 
 
+class ErrorLog(Base):
+    __tablename__ = "error_logs"
+
+    id = Column(Integer, primary_key=True)
+    category = Column(String(50), nullable=False, index=True)  # 'local_dev', 'external_service', 'app_bug'
+    category_label = Column(String(100), nullable=False)
+    message = Column(Text, nullable=False)
+    user_friendly_explanation = Column(Text, nullable=False)
+    source = Column(String(50), default="frontend", index=True)  # 'frontend' or 'backend'
+    stack_trace = Column(Text, nullable=True)
+    path = Column(String(500), nullable=True)
+    timestamp = Column(TIMESTAMP, default=func.current_timestamp(), index=True)
+
+
 
 class Provider(Base):
     __tablename__ = "providers"

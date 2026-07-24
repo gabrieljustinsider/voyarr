@@ -164,9 +164,31 @@ export default function Analytics() {
         Analytics Dashboard
       </Typography>
 
+      {/* Purpose Banner */}
+      <Alert 
+        severity="info" 
+        icon={<AssessmentIcon fontSize="small" color="primary" />} 
+        sx={{ 
+          mb: 3, 
+          width: '100%',
+          borderRadius: '12px', 
+          bgcolor: 'rgba(99, 102, 241, 0.08)', 
+          color: '#a5b4fc',
+          border: '1px solid rgba(99, 102, 241, 0.2)',
+          '& .MuiAlert-icon': { color: '#818cf8' } 
+        }}
+      >
+        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.25 }}>
+          📈 Bandwidth, Storage &amp; Playback Telemetry Analytics
+        </Typography>
+        <Typography variant="caption" sx={{ display: 'block', opacity: 0.9, lineHeight: 1.4 }}>
+          Analytics provides aggregated usage statistics—tracking video watch counts, peak bandwidth consumption, top studios/performers, Stash API synchronizations, and downloadable CSV report exports.
+        </Typography>
+      </Alert>
+
       {/* Grid of Key Metrics Cards */}
       <Grid container spacing={3} sx={{ mb: 4, justifyContent: 'center', maxWidth: 1200 }}>
-        <Grid item xs={12} sm={4} sx={{ display: 'flex', justifyContent: 'center' }}>
+        <Grid xs={12} sm={4} sx={{ display: 'flex', justifyContent: 'center' }}>
           <Card sx={{ 
             background: 'linear-gradient(135deg, rgba(25, 118, 210, 0.1) 0%, rgba(0, 0, 0, 0.3) 100%)',
             border: '1px solid rgba(25, 118, 210, 0.2)',
@@ -183,7 +205,7 @@ export default function Analytics() {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={4} sx={{ display: 'flex', justifyContent: 'center' }}>
+        <Grid xs={12} sm={4} sx={{ display: 'flex', justifyContent: 'center' }}>
           <Card sx={{ 
             background: 'linear-gradient(135deg, rgba(0, 230, 118, 0.1) 0%, rgba(0, 0, 0, 0.3) 100%)',
             border: '1px solid rgba(0, 230, 118, 0.2)',
@@ -200,7 +222,7 @@ export default function Analytics() {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={4} sx={{ display: 'flex', justifyContent: 'center' }}>
+        <Grid xs={12} sm={4} sx={{ display: 'flex', justifyContent: 'center' }}>
           <Card sx={{ 
             background: 'linear-gradient(135deg, rgba(229, 9, 20, 0.1) 0%, rgba(0, 0, 0, 0.3) 100%)',
             border: '1px solid rgba(229, 9, 20, 0.2)',
@@ -222,7 +244,7 @@ export default function Analytics() {
       {/* Main Charts & Top Tables */}
       <Grid container spacing={4} sx={{ mb: 4, justifyContent: 'center', maxWidth: 1200 }}>
         {/* Watch History Timeline */}
-        <Grid item xs={12} md={8} sx={{ display: 'flex', justifyContent: 'center' }}>
+        <Grid xs={12} md={8} sx={{ display: 'flex', justifyContent: 'center' }}>
           <Paper sx={{ p: 3, borderRadius: '16px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.05)', height: '100%', width: '100%', mx: 'auto' }}>
             <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3, textAlign: 'center' }}>Watch Activity (Last 14 Days)</Typography>
             {activity_timeline?.length === 0 ? (
@@ -254,7 +276,7 @@ export default function Analytics() {
         </Grid>
 
         {/* Top Lists Column */}
-        <Grid item xs={12} md={4} sx={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'center' }}>
+        <Grid xs={12} md={4} sx={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'center' }}>
           {/* Top Performers Card */}
           <Paper sx={{ p: 3, borderRadius: '16px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.05)', width: '100%', maxWidth: 400, mx: 'auto' }}>
             <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2, textAlign: 'center' }}>Top Favorited Performers</Typography>

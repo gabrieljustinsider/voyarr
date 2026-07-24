@@ -144,6 +144,26 @@ export default function ScheduleManager() {
     <Box sx={{ maxWidth: 1400, mx: 'auto', width: '100%' }}>
       <Typography variant="h5" gutterBottom>Schedule Engine (Site Ripping)</Typography>
       
+      {/* Purpose Banner */}
+      <Alert 
+        severity="info" 
+        sx={{ 
+          mb: 3, 
+          borderRadius: '12px', 
+          bgcolor: 'rgba(14, 165, 233, 0.08)', 
+          color: '#38bdf8',
+          border: '1px solid rgba(14, 165, 233, 0.2)',
+          '& .MuiAlert-icon': { color: '#0284c7' } 
+        }}
+      >
+        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.25 }}>
+          ⏱️ Automated Task Scheduler &amp; Recurring Cron Jobs
+        </Typography>
+        <Typography variant="caption" sx={{ display: 'block', opacity: 0.9, lineHeight: 1.4 }}>
+          The Schedule Engine runs recurring background jobs for automated channel scraping, metadata synchronization, database maintenance, and routine media backups at custom Cron intervals.
+        </Typography>
+      </Alert>
+      
       <Paper sx={{ p: 2, mb: 4, mx: 'auto', width: '100%' }}>
         <Typography variant="h6" gutterBottom>Create New Schedule</Typography>
         {!scrapingEnabled && (
@@ -153,7 +173,7 @@ export default function ScheduleManager() {
         )}
         <form onSubmit={handleSubmit}>
           <Grid container spacing={2}>
-            <Grid item xs={12}>
+            <Grid xs={12}>
               <TextField 
                 fullWidth size="small" name="name" label="Schedule Name" 
                 slotProps={{ inputLabel: { shrink: true } }}
@@ -161,7 +181,7 @@ export default function ScheduleManager() {
                 disabled={!scrapingEnabled}
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid xs={12}>
               <Autocomplete
                 options={providers}
                 getOptionLabel={(option) => option.name}
@@ -172,7 +192,7 @@ export default function ScheduleManager() {
                 fullWidth
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid xs={12}>
               <Autocomplete
                 options={[
                   {value: 'metadata_and_download', label: 'Rip Metadata & Download'},
@@ -191,7 +211,7 @@ export default function ScheduleManager() {
                 fullWidth
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid xs={12}>
               <TextField 
                 fullWidth size="small" name="cron_expression" label="Cron Expression" 
                 slotProps={{ inputLabel: { shrink: true } }}
@@ -200,7 +220,7 @@ export default function ScheduleManager() {
                 disabled={!scrapingEnabled}
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid xs={12}>
               <TextField 
                 fullWidth size="small" name="target_url" label="Target URL (Channel/Playlist/Index)" 
                 slotProps={{ inputLabel: { shrink: true } }}
@@ -208,13 +228,13 @@ export default function ScheduleManager() {
                 disabled={!scrapingEnabled}
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid xs={12}>
               <FormControlLabel
                 control={<Switch checked={formData.is_active} onChange={handleChange} name="is_active" disabled={!scrapingEnabled} />}
                 label="Active"
               />
             </Grid>
-            <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+            <Grid xs={12} sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
               <Button variant="contained" type="submit" disabled={!scrapingEnabled} sx={{ minWidth: 200, height: 40, fontWeight: 600 }}>
                 Create Schedule
               </Button>

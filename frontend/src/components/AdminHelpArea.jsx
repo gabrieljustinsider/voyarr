@@ -14,6 +14,20 @@ export default function AdminHelpArea() {
 
       <Paper sx={{ p: 3, mb: 4, borderRadius: '16px', background: 'rgba(255,255,255,0.03)' }}>
         <Typography variant="h6" gutterBottom color="primary">
+          Entity Architectural Distinctions (Studios vs. Providers vs. Billers)
+        </Typography>
+        <Typography variant="body1" paragraph>
+          Voyarr strictly decouples content creation, host scraping, and billing processing into three specialized entities:
+        </Typography>
+        <ul>
+          <li><strong>Studios &amp; Networks:</strong> Represents production companies and brand networks (e.g., Brazzers, MindGeek/Aylo). Manages metadata tagging, library organization, and parent/subsidiary network relationships.</li>
+          <li><strong>Media Providers:</strong> Represents streaming sites and host targets (e.g., ManyVids, OnlyFans, Pornhub). Manages authentication credentials, browser session cookies, scraper rules, download quotas, and daily limits.</li>
+          <li><strong>Subscription Billers:</strong> Represents payment processors listed on credit card statements (e.g., CCBill, Probiller, SegPay). Maps subscriptions to financial statement descriptors and tracks renewal dates.</li>
+        </ul>
+      </Paper>
+
+      <Paper sx={{ p: 3, mb: 4, borderRadius: '16px', background: 'rgba(255,255,255,0.03)' }}>
+        <Typography variant="h6" gutterBottom color="primary">
           Internal File Storage &amp; Write Paths
         </Typography>
         <Typography variant="body1" paragraph>

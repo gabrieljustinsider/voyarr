@@ -210,7 +210,7 @@ export default function Settings() {
     showStudios: true,
     showAnalytics: true,
     showLive: true,
-    rememberLastTab: false
+    rememberLastTab: true
   })
   const [isTvMode, setIsTvMode] = useState(false)
 
@@ -228,7 +228,7 @@ export default function Settings() {
               showStudios: data.ui_config.showStudios !== false,
               showAnalytics: data.ui_config.showAnalytics !== false,
               showLive: data.ui_config.showLive !== false,
-              rememberLastTab: !!data.ui_config.rememberLastTab
+              rememberLastTab: data.ui_config.rememberLastTab !== false
             })
             setIsTvMode(data.ui_config.isTvMode || false)
           }
@@ -711,6 +711,26 @@ export default function Settings() {
 
   return (
     <Box sx={{ maxWidth: 1400, mx: 'auto', width: '100%' }}>
+      {/* Purpose Banner */}
+      <Alert 
+        severity="info" 
+        icon={<TuneIcon fontSize="small" color="primary" />} 
+        sx={{ 
+          mb: 3, 
+          borderRadius: '12px', 
+          bgcolor: 'rgba(99, 102, 241, 0.08)', 
+          color: '#a5b4fc',
+          border: '1px solid rgba(99, 102, 241, 0.2)',
+          '& .MuiAlert-icon': { color: '#818cf8' } 
+        }}
+      >
+        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.25 }}>
+          ⚙️ System Settings &amp; Global Preference Controls
+        </Typography>
+        <Typography variant="caption" sx={{ display: 'block', opacity: 0.9, lineHeight: 1.4 }}>
+          The Settings console manages media root paths, 1Password / Bitwarden vault integrations, global authentication policies (Passkeys, SSO, OAuth), role-based feature toggles, error log retention, and external API keys.
+        </Typography>
+      </Alert>
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" align="center" gutterBottom>Storage &amp; Directory Paths</Typography>
         <Typography variant="body2" sx={{ mb: 2, textAlign: 'center' }} color="textSecondary">
@@ -744,17 +764,6 @@ export default function Settings() {
                 }}
                 label="Download Destination Path"
                 helperText="Target directory for new downloads"
-                mode="folder"
-              />
-
-              <PathPicker
-                value={settings.library_folder || ''}
-                onChange={(val) => {
-                  setSettings(prev => ({ ...prev, library_folder: val }));
-                  handleSave('library_folder', val);
-                }}
-                label="Library Folder Path"
-                helperText="Root directory for sorted media library"
                 mode="folder"
               />
 
@@ -915,7 +924,7 @@ export default function Settings() {
             </Typography>
             {bookmarkletCode ? (
               <Grid container spacing={2} sx={{ justifyContent: 'center' }}>
-                <Grid item xs={12} sm={5} md={4}>
+                <Grid xs={12} sm={5} md={4}>
                   <Button 
                     fullWidth 
                     variant="contained" 
@@ -931,7 +940,7 @@ export default function Settings() {
                     🎯 Voyarr Lens VR
                   </Button>
                 </Grid>
-                <Grid item xs={12} sm={5} md={4}>
+                <Grid xs={12} sm={5} md={4}>
                   <Button 
                     fullWidth 
                     variant="outlined" 
@@ -1089,7 +1098,7 @@ export default function Settings() {
           </Typography>
 
           <Grid container spacing={2} sx={{ mb: 2, justifyContent: 'center' }}>
-            <Grid item xs={12} md={4}>
+            <Grid xs={12} md={4}>
               <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
                 <FormControlLabel
                   control={<Switch checked={settings.passkeys_enabled === 'true'} onChange={e => handleToggleSetting('passkeys_enabled', e.target.checked)} color="secondary" />}
@@ -1100,7 +1109,7 @@ export default function Settings() {
                 </Typography>
               </Paper>
             </Grid>
-            <Grid item xs={12} md={4}>
+            <Grid xs={12} md={4}>
               <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
                 <FormControlLabel
                   control={<Switch checked={settings.sso_enabled === 'true'} onChange={e => handleToggleSetting('sso_enabled', e.target.checked)} color="primary" />}
@@ -1111,7 +1120,7 @@ export default function Settings() {
                 </Typography>
               </Paper>
             </Grid>
-            <Grid item xs={12} md={4}>
+            <Grid xs={12} md={4}>
               <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
                 <FormControlLabel
                   control={<Switch checked={settings.oidc_enabled === 'true'} onChange={e => handleToggleSetting('oidc_enabled', e.target.checked)} color="primary" />}
@@ -1123,6 +1132,86 @@ export default function Settings() {
               </Paper>
             </Grid>
           </Grid>
+
+          {/* System Error Log Retention Settings */}
+          <Box sx={{
+            p: 3, mb: 3, borderRadius: '12px', width: '100%', maxWidth: '600px',
+            background: 'rgba(255, 255, 255, 0.02)',
+            border: '1px solid rgba(255, 255, 255, 0.08)'
+          }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#ec4899', mb: 2 }}>
+              🛡️ System Error Log Retention & Cleanup
+            </Typography>
+            
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+              <Grid container spacing={2}>
+                <Grid xs={12} sm={6}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel id="error-log-entries-label">Auto-Clear After X Entries</InputLabel>
+                    <Select
+                      labelId="error-log-entries-label"
+                      label="Auto-Clear After X Entries"
+                      value={settings.error_log_max_entries || '1000'}
+                      onChange={e => {
+                        setSettings(prev => ({ ...prev, error_log_max_entries: e.target.value }));
+                        handleSave('error_log_max_entries', e.target.value);
+                      }}
+                    >
+                      <MenuItem value="100">Keep Last 100 Entries</MenuItem>
+                      <MenuItem value="500">Keep Last 500 Entries</MenuItem>
+                      <MenuItem value="1000">Keep Last 1,000 Entries</MenuItem>
+                      <MenuItem value="5000">Keep Last 5,000 Entries</MenuItem>
+                      <MenuItem value="0">Never (Keep All Log Entries)</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                <Grid xs={12} sm={6}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel id="error-log-days-label">Auto-Clear After X Days</InputLabel>
+                    <Select
+                      labelId="error-log-days-label"
+                      label="Auto-Clear After X Days"
+                      value={settings.error_log_max_days || '30'}
+                      onChange={e => {
+                        setSettings(prev => ({ ...prev, error_log_max_days: e.target.value }));
+                        handleSave('error_log_max_days', e.target.value);
+                      }}
+                    >
+                      <MenuItem value="1">Clear Errors Older Than 1 Day</MenuItem>
+                      <MenuItem value="7">Clear Errors Older Than 7 Days</MenuItem>
+                      <MenuItem value="30">Clear Errors Older Than 30 Days</MenuItem>
+                      <MenuItem value="90">Clear Errors Older Than 90 Days</MenuItem>
+                      <MenuItem value="0">Never (Keep Errors Indefinitely)</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+              </Grid>
+
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pt: 1, borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
+                <Typography variant="caption" color="textSecondary">
+                  Manually purge all logged system errors from database:
+                </Typography>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="error"
+                  onClick={async () => {
+                    try {
+                      const res = await apiFetch('/logs/errors', { method: 'DELETE' });
+                      if (res.ok) {
+                        setSnackbar({ open: true, message: 'All system error logs cleared immediately!', severity: 'success' });
+                      }
+                    } catch (e) {
+                      setSnackbar({ open: true, message: 'Failed to clear system error logs.', severity: 'error' });
+                    }
+                  }}
+                >
+                  Clear Errors Immediately
+                </Button>
+              </Box>
+            </Box>
+          </Box>
 
           {/* Passkeys Configuration Section */}
           {settings.passkeys_enabled === 'true' && (

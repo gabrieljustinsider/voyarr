@@ -168,7 +168,7 @@ export default function NotificationSettings() {
 
       <Grid container spacing={3}>
         {/* Personal Preferences Card */}
-        <Grid item xs={12}>
+        <Grid xs={12}>
           <Card sx={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.05)' }}>
             <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
               <Typography variant="h6" sx={{ fontWeight: '700' }}>Your Notification Channels</Typography>
@@ -244,7 +244,7 @@ export default function NotificationSettings() {
 
         {/* Discord Automation Rules (Admin Only) */}
         {isAdmin && (
-          <Grid item xs={12}>
+          <Grid xs={12}>
             <Card sx={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.05)' }}>
               <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <Typography variant="h6" sx={{ fontWeight: '700' }}>Admin Broadcast Webhooks & Rules</Typography>

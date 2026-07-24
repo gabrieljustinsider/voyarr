@@ -28,8 +28,14 @@ else:
         pool_size=20,
         max_overflow=10,
         pool_timeout=30,
-        pool_recycle=1800,
-        pool_pre_ping=True
+        pool_recycle=120,
+        pool_pre_ping=True,
+        connect_args={
+            "keepalives": 1,
+            "keepalives_idle": 30,
+            "keepalives_interval": 10,
+            "keepalives_count": 5
+        } if not DATABASE_URL.startswith("sqlite") else {}
     )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

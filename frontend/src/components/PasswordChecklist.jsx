@@ -106,7 +106,7 @@ export default function PasswordChecklist({ password = '' }) {
         {criteria.map((item, index) => {
           const isMet = results[index]
           return (
-            <Grid item xs={12} key={index} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Grid xs={12} key={index} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               {/* Custom Animated SVG Icon */}
               <Box
                 sx={{

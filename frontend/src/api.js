@@ -97,4 +97,21 @@ export const getErrorMessage = async (response, defaultMsg = 'An error occurred'
   }
 }
 
+export const logErrorToSystem = async (message, stackTrace = '', path = '', statusCode = 500) => {
+  try {
+    await apiFetch('/logs/errors', {
+      method: 'POST',
+      body: JSON.stringify({
+        message: typeof message === 'string' ? message : JSON.stringify(message),
+        stack_trace: stackTrace || '',
+        source: 'frontend',
+        path: path || window.location.pathname,
+        status_code: statusCode
+      })
+    })
+  } catch (e) {
+    // Avoid recursive error logging loops
+  }
+}
+
 export default apiFetch

@@ -374,9 +374,9 @@ export default function SmartVideoPlayer({
     const code = v?.error?.code
     const msgs = {
       1: 'Playback was aborted.',
-      2: 'Network error while loading video.',
+      2: 'Network error or unauthorized access while loading video.',
       3: 'Video decode error — the file may be corrupted or use an unsupported codec.',
-      4: 'Video format or codec is not supported by this browser.',
+      4: 'Unable to stream video. The authentication token in the request may be invalid or expired (HTTP 401), or the format is unsupported.',
     }
     setErrMsg(msgs[code] || 'An unknown playback error occurred.')
     setStatus('error')
@@ -465,8 +465,26 @@ export default function SmartVideoPlayer({
 
       {status === 'error' && (
         <Box sx={{ p: 3 }}>
-          <Alert severity="error" sx={{ borderRadius: '10px' }}>
-            {errMsg || 'Playback failed.'}
+          <Alert 
+            severity="error" 
+            sx={{ borderRadius: '10px', display: 'flex', alignItems: 'center' }}
+            action={
+              <Button 
+                color="inherit" 
+                size="small" 
+                variant="outlined"
+                onClick={() => {
+                  localStorage.removeItem('voyarr_jwt')
+                  localStorage.removeItem('voyarr_api_key')
+                  window.location.reload()
+                }}
+                sx={{ textTransform: 'none', fontWeight: 'bold', borderRadius: '8px' }}
+              >
+                Re-authenticate Session
+              </Button>
+            }
+          >
+            {errMsg || 'Playback failed. If your session expired after a backend restart, please re-authenticate.'}
           </Alert>
         </Box>
       )}

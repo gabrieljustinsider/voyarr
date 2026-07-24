@@ -742,7 +742,7 @@ export default function AccountSecurity({ setSnackbar }) {
 
           <Grid container spacing={3}>
             {/* Display Name */}
-            <Grid item xs={12} sm={6}>
+            <Grid xs={12} sm={6}>
               <TextField
                 fullWidth
                 size="small"
@@ -755,7 +755,7 @@ export default function AccountSecurity({ setSnackbar }) {
             </Grid>
             
             {/* Language / Locale */}
-            <Grid item xs={12} sm={6}>
+            <Grid xs={12} sm={6}>
               <FormControl fullWidth size="small" sx={uniformInputStyle}>
                 <InputLabel id="user-locale-label">Language / Locale</InputLabel>
                 <Select
@@ -774,7 +774,7 @@ export default function AccountSecurity({ setSnackbar }) {
             </Grid>
 
             {/* Date Format */}
-            <Grid item xs={12} sm={6}>
+            <Grid xs={12} sm={6}>
               <FormControl fullWidth size="small" sx={uniformInputStyle}>
                 <InputLabel id="user-date-label">Date Format</InputLabel>
                 <Select
@@ -791,7 +791,7 @@ export default function AccountSecurity({ setSnackbar }) {
             </Grid>
 
             {/* Time Format */}
-            <Grid item xs={12} sm={6}>
+            <Grid xs={12} sm={6}>
               <FormControl fullWidth size="small" sx={uniformInputStyle}>
                 <InputLabel id="user-time-label">Time Format</InputLabel>
                 <Select
@@ -807,7 +807,7 @@ export default function AccountSecurity({ setSnackbar }) {
             </Grid>
 
             {/* Timezone */}
-            <Grid item xs={12}>
+            <Grid xs={12}>
               <FormControl fullWidth size="small" sx={uniformInputStyle}>
                 <InputLabel id="user-timezone-label">Timezone</InputLabel>
                 <Select
@@ -827,7 +827,7 @@ export default function AccountSecurity({ setSnackbar }) {
             </Grid>
 
             {/* Save Button */}
-            <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+            <Grid xs={12} sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
               <Button 
                 type="submit" 
                 variant="contained" 
@@ -850,7 +850,7 @@ export default function AccountSecurity({ setSnackbar }) {
         </Box>
         <form onSubmit={handleChangePassword}>
           <Grid container spacing={2}>
-            <Grid item xs={12}>
+            <Grid xs={12}>
               <TextField
                 fullWidth
                 size="small"
@@ -862,7 +862,7 @@ export default function AccountSecurity({ setSnackbar }) {
                 required
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid xs={12} sm={6}>
               <TextField
                 fullWidth
                 size="small"
@@ -874,7 +874,7 @@ export default function AccountSecurity({ setSnackbar }) {
                 required
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid xs={12} sm={6}>
               <TextField
                 fullWidth
                 size="small"
@@ -887,11 +887,11 @@ export default function AccountSecurity({ setSnackbar }) {
               />
             </Grid>
             {newPassword && (
-              <Grid item xs={12}>
+              <Grid xs={12}>
                 <PasswordChecklist password={newPassword} />
               </Grid>
             )}
-            <Grid item xs={12} sx={{ mt: 1, display: 'flex', justifyContent: 'center' }}>
+            <Grid xs={12} sx={{ mt: 1, display: 'flex', justifyContent: 'center' }}>
               <Button 
                 type="submit" 
                 variant="contained" 
@@ -969,7 +969,7 @@ export default function AccountSecurity({ setSnackbar }) {
                 {passkeys.map(pk => {
                   const brand = pk.aaguid_info || { name: 'Generic Security Key', provider: 'Unknown Platform', icon: 'key', description: 'Standard WebAuthn authenticating device.' };
                   return (
-                    <Grid item xs={12} md={6} key={pk.id}>
+                    <Grid xs={12} md={6} key={pk.id}>
                       <Paper elevation={1} sx={{ 
                         p: 2, 
                         borderRadius: 2,
@@ -1109,46 +1109,46 @@ export default function AccountSecurity({ setSnackbar }) {
                         <Divider sx={{ my: 1.5, opacity: 0.1 }} />
                         
                         <Grid container spacing={1.5}>
-                          <Grid item xs={6}>
+                          <Grid xs={6}>
                             <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }} color="textSecondary">Registered IP</Typography>
                             <Typography variant="body2" sx={{ fontWeight: '500', fontFamily: 'monospace' }}>
                               {pk.ip_address || '127.0.0.1'}
                             </Typography>
                           </Grid>
-                          <Grid item xs={6}>
+                          <Grid xs={6}>
                             <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }} color="textSecondary">Location</Typography>
                             <Typography variant="body2" sx={{ fontWeight: '500', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
                               {pk.location || 'Local Host (Development)'}
                             </Typography>
                           </Grid>
                           
-                          <Grid item xs={6}>
+                          <Grid xs={6}>
                             <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }} color="textSecondary">Relying Party / Domain</Typography>
                             <Typography variant="body2" sx={{ fontWeight: '500', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={pk.rp_id || 'voyarr.local'}>
                               {pk.rp_id || 'voyarr.local'}
                             </Typography>
                           </Grid>
-                          <Grid item xs={6}>
+                          <Grid xs={6}>
                             <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }} color="textSecondary">Sign Count</Typography>
                             <Typography variant="body2" sx={{ fontWeight: '500' }}>
                               {pk.sign_count || 0}
                             </Typography>
                           </Grid>
                           
-                          <Grid item xs={6}>
+                          <Grid xs={6}>
                             <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }} color="textSecondary">Created</Typography>
                             <Typography variant="body2" sx={{ fontWeight: '500' }}>
                               {new Date(pk.created_at).toLocaleDateString()}
                             </Typography>
                           </Grid>
-                          <Grid item xs={6}>
+                          <Grid xs={6}>
                             <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }} color="textSecondary">Last Used</Typography>
                             <Typography variant="body2" sx={{ fontWeight: '500' }}>
                               {pk.last_used_at ? new Date(pk.last_used_at).toLocaleDateString() : 'Never'}
                             </Typography>
                           </Grid>
                           
-                          <Grid item xs={12} sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap' }}>
+                          <Grid xs={12} sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap' }}>
                             {pk.backup_eligible && (
                               <Box sx={{ 
                                 px: 1.2, 
@@ -1364,7 +1364,7 @@ export default function AccountSecurity({ setSnackbar }) {
           ) : (
             <Grid container spacing={2}>
               {pairings.map(pairing => (
-                <Grid item xs={12} md={6} key={pairing.id}>
+                <Grid xs={12} md={6} key={pairing.id}>
                   <Paper elevation={1} sx={{
                     p: 2,
                     borderRadius: 2,
@@ -1452,13 +1452,13 @@ export default function AccountSecurity({ setSnackbar }) {
                     </Box>
 
                     <Grid container spacing={1.5}>
-                      <Grid item xs={6}>
+                      <Grid xs={6}>
                         <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }} color="textSecondary">Created</Typography>
                         <Typography variant="body2" sx={{ fontWeight: '500' }}>
                           {new Date(pairing.created_at).toLocaleDateString()}
                         </Typography>
                       </Grid>
-                      <Grid item xs={6}>
+                      <Grid xs={6}>
                         <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }} color="textSecondary">Last Active</Typography>
                         <Typography variant="body2" sx={{ fontWeight: '500' }}>
                           {pairing.last_used ? new Date(pairing.last_used).toLocaleDateString() : 'Never'}
@@ -1489,7 +1489,7 @@ export default function AccountSecurity({ setSnackbar }) {
 
         <Grid container spacing={3}>
           {/* Card 1: 6-Digit VR Device Pairing Approval */}
-          <Grid item xs={12} md={6}>
+          <Grid xs={12} md={6}>
             <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: 'action.hover', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               <Box>
                 <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
@@ -1528,7 +1528,7 @@ export default function AccountSecurity({ setSnackbar }) {
           </Grid>
 
           {/* Card 2: DeoVR QR Code Feed Link */}
-          <Grid item xs={12} md={6}>
+          <Grid xs={12} md={6}>
             <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: 'action.hover', display: 'flex', alignItems: 'center', gap: 2.5, height: '100%' }}>
               <Box sx={{ p: 1.5, bgcolor: '#ffffff', borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <QRCodeSVG

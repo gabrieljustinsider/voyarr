@@ -25,7 +25,7 @@ def scan_library_task(directory: Optional[str], provider_id: Optional[int] = Non
                     naming_pattern="{title}",
                     separator="_",
                     space_replacement="_",
-                    logo_url="https://logo.clearbit.com/voyarr.local",
+                    logo_url="https://www.google.com/s2/favicons?domain=voyarr.local&sz=128",
                     automatic_limits={"daily_downloads": 0},
                     supported_methods=["cookies", "direct", "api"]
                 )

@@ -18,9 +18,15 @@ def verify_deovr_auth(
     api_key: str | None = Query(None),
     db: Session = Depends(get_db)
 ):
-    """Verify DeoVR / stream request authentication via query parameters or custom headers."""
-    auth_token = token or api_key or request.query_params.get("token") or request.query_params.get("api_key")
+    """Verify DeoVR / stream request authentication via query parameters, cookies, or headers."""
+    from jose import jwt, JWTError
+    from security import JWT_SECRET, ALGORITHM
+
+    auth_token = token or api_key or request.query_params.get("token") or request.query_params.get("api_key") or request.cookies.get("access_token")
     if auth_token:
+        if auth_token.startswith("Bearer "):
+            auth_token = auth_token.split(" ")[1]
+
         master_key = os.getenv("MASTER_KEY", "")
         if master_key and secrets.compare_digest(auth_token, master_key):
             return True
@@ -31,12 +37,10 @@ def verify_deovr_auth(
 
         # Check JWT token validation using system JWT_SECRET
         try:
-            import jwt
-            from security import JWT_SECRET
-            payload = jwt.decode(auth_token, JWT_SECRET, algorithms=["HS256"])
-            if payload and "sub" in payload:
+            payload = jwt.decode(auth_token, JWT_SECRET, algorithms=[ALGORITHM])
+            if payload and ("sub" in payload or "user" in payload):
                 return True
-        except Exception:
+        except (JWTError, Exception):
             pass
 
         raise HTTPException(status_code=401, detail="Invalid auth token provided in URL")
@@ -47,12 +51,10 @@ def verify_deovr_auth(
         if master_key and secrets.compare_digest(header_key, master_key):
             return True
         try:
-            import jwt
-            from security import JWT_SECRET
-            payload = jwt.decode(header_key, JWT_SECRET, algorithms=["HS256"])
-            if payload and "sub" in payload:
+            payload = jwt.decode(header_key, JWT_SECRET, algorithms=[ALGORITHM])
+            if payload and ("sub" in payload or "user" in payload):
                 return True
-        except Exception:
+        except (JWTError, Exception):
             pass
 
     raise HTTPException(status_code=401, detail="Unauthorized. Provide ?token= or ?api_key= in URL.")

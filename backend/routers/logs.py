@@ -23,11 +23,13 @@ def _get_log_file(source: str):
     primary_root = get_primary_root()
     path = os.path.join(primary_root, "logs", log_name)
 
-    # Inline sanitization for CodeQL path injection tracking
-    abs_path = os.path.abspath(path)
-    if not (abs_path.startswith("/media") or abs_path.startswith("/downloads") or abs_path.startswith("/mnt") or abs_path.startswith("/app") or abs_path.startswith("/tmp")):
-        raise HTTPException(status_code=403, detail="Forbidden log file path prefix")
-    return abs_path
+    # Ensure log directory and log file exist
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    if not os.path.exists(path):
+        with open(path, "w") as f:
+            f.write(f"--- Initialized {log_name} log stream ---\n")
+
+    return os.path.abspath(path)
 
 
 @router.websocket("/ws")

@@ -393,7 +393,7 @@ export default function PathPicker({
             error={!!validationError}
             size="small"
             onBlur={() => { if (inputValue !== value) onChange(inputValue) }}
-            slotProps={{ input: {
+            InputProps={{
               ...params.InputProps,
               startAdornment: (
                 <React.Fragment>
@@ -409,7 +409,7 @@ export default function PathPicker({
                   {params.InputProps?.endAdornment}
                 </React.Fragment>
               )
-            }}}
+            }}
           />
         )}
       />
@@ -741,7 +741,7 @@ export default function PathPicker({
           ) : (
             <Grid container spacing={1.5} sx={{ maxHeight: 340, overflowY: 'auto', pr: 0.5 }}>
               {filteredFolders.map(folder => (
-                <Grid item xs={6} sm={4} md={3} key={folder.path}>
+                <Grid xs={6} sm={4} md={3} key={folder.path}>
                   <Card variant="outlined" sx={{ backgroundColor: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)', cursor: 'pointer' }}>
                     <CardActionArea onClick={() => loadDirectory(folder.path)} sx={{ p: 1.5, textAlign: 'center' }}>
                       <FolderIcon sx={{ fontSize: 40, color: 'var(--accent, #6366f1)', mb: 0.5 }} />

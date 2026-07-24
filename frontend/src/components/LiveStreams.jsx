@@ -394,6 +394,28 @@ export default function LiveStreams() {
             </Button>
           )}
         </Box>
+      </Box>
+
+      {/* Purpose Banner */}
+      <Alert 
+        severity="info" 
+        icon={<StreamIcon fontSize="small" />} 
+        sx={{ 
+          mb: 3, 
+          borderRadius: '12px', 
+          bgcolor: 'rgba(239, 68, 68, 0.08)', 
+          color: '#f87171',
+          border: '1px solid rgba(239, 68, 68, 0.2)',
+          '& .MuiAlert-icon': { color: '#ef4444' } 
+        }}
+      >
+        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.25 }}>
+          📡 Live Stream Recording &amp; DVR Monitor
+        </Typography>
+        <Typography variant="caption" sx={{ display: 'block', opacity: 0.9, lineHeight: 1.4 }}>
+          The Live Stream Hub tracks, previews, and records real-time HLS broadcasts, live webcams, and network streams. Automated recorders monitor active stream states and capture video feeds directly into your library.
+        </Typography>
+      </Alert>
         <Menu
           anchorEl={fieldsMenuAnchor}
           open={Boolean(fieldsMenuAnchor)}
@@ -412,7 +434,6 @@ export default function LiveStreams() {
             <ListItemText primary="Capture Stats" />
           </MenuItem>
         </Menu>
-      </Box>
 
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
@@ -430,7 +451,7 @@ export default function LiveStreams() {
             const isRecording = stream.status === 'recording'
             const isFailed = stream.status === 'failed'
             return (
-              <Grid item xs={12} md={6} lg={4} key={stream.id}>
+              <Grid xs={12} md={6} lg={4} key={stream.id}>
                 <Card sx={{ 
                   background: isRecording ? 'rgba(229, 9, 20, 0.03)' : 'rgba(255, 255, 255, 0.02)',
                   backdropFilter: 'blur(10px)',
@@ -475,11 +496,11 @@ export default function LiveStreams() {
                     {visibleFields.captureStats && (stream.status === 'recording' || stream.status === 'paused') && (
                       <Paper sx={{ p: 1.5, mb: 2, backgroundColor: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)' }}>
                         <Grid container spacing={1}>
-                          <Grid item xs={6}>
+                          <Grid xs={6}>
                             <Typography variant="caption" color="textSecondary">Captured Size</Typography>
                             <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>{formatSize(stream.written_size)}</Typography>
                           </Grid>
-                          <Grid item xs={6}>
+                          <Grid xs={6}>
                             <Typography variant="caption" color="textSecondary">Elapsed Time</Typography>
                             <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: stream.status === 'paused' ? 'warning.main' : 'error.main' }}>{formatTime(stream.elapsed_seconds)}</Typography>
                           </Grid>

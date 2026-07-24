@@ -1,6 +1,7 @@
 import React from 'react';
-import { Box, Typography, Button, Paper } from '@mui/material';
+import { Box, Typography, Button, Paper, Chip } from '@mui/material';
 import AlertTriangleIcon from '@mui/icons-material/WarningAmber';
+import { logErrorToSystem } from './api';
 
 export class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -15,6 +16,14 @@ export class ErrorBoundary extends React.Component {
   componentDidCatch(error, errorInfo) {
     console.error('Uncaught component error in Voyarr UI:', error, errorInfo);
     this.setState({ errorInfo });
+
+    // Send error to system error log
+    logErrorToSystem(
+      error?.message || 'Uncaught rendering error',
+      (error?.stack || '') + '\n' + (errorInfo?.componentStack || ''),
+      window.location.pathname,
+      500
+    );
 
     // Automatically recover from stale asset chunk hashes after new deployments
     const isChunkError = /Failed to fetch dynamically imported module|Loading chunk|Failed to load resource|net::ERR_ABORTED/i.test(

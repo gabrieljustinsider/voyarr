@@ -153,7 +153,7 @@ export default function RequestManager({ userRole }) {
 
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {/* User Submission Form */}
-        <Grid item xs={12} md={4}>
+        <Grid xs={12} md={4}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>Submit Media Request</Typography>
@@ -191,7 +191,7 @@ export default function RequestManager({ userRole }) {
         </Grid>
 
         {/* Requests Status & Approval Dashboard */}
-        <Grid item xs={12} md={8}>
+        <Grid xs={12} md={8}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>

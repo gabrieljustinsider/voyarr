@@ -4,7 +4,7 @@ import {
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   IconButton, Dialog, DialogTitle, DialogContent, DialogActions,
   Select, MenuItem, FormControl, InputLabel, Card, CardContent,
-  CardActions, Chip, CircularProgress, Collapse, Checkbox, ListItemText, OutlinedInput
+  CardActions, Chip, CircularProgress, Collapse, Checkbox, ListItemText, OutlinedInput, Alert
 } from '@mui/material'
 import { Trash2, RefreshCw, Plus, Edit2, Wifi, History, CheckCircle, TriangleAlert, Hourglass, ChevronDown, ChevronUp } from 'lucide-react'
 import { apiFetch } from '../api'
@@ -278,8 +278,8 @@ export default function P2PSync() {
         border: '1px solid rgba(255,255,255,0.04)',
         backdropFilter: 'blur(10px)'
       }}>
-        <Grid container justifyContent="space-between" alignItems="center">
-          <Grid item>
+        <Grid container sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <Grid>
             <Typography variant="h4" fontWeight="800" sx={{ letterSpacing: '-1px' }} gutterBottom>
               P2P Synchronization Console
             </Typography>
@@ -287,7 +287,7 @@ export default function P2PSync() {
               Securely share scraper recipes and reconcile media catalog lists with trusted Voyarr nodes.
             </Typography>
           </Grid>
-          <Grid item>
+          <Grid>
             <Button
               variant="contained"
               startIcon={<Plus size={20} />}
@@ -305,6 +305,27 @@ export default function P2PSync() {
           </Grid>
         </Grid>
       </Box>
+
+      {/* Purpose Banner */}
+      <Alert 
+        severity="info" 
+        icon={<Wifi size={20} />} 
+        sx={{ 
+          mb: 3, 
+          borderRadius: '12px', 
+          bgcolor: 'rgba(0, 240, 255, 0.08)', 
+          color: '#38bdf8',
+          border: '1px solid rgba(0, 240, 255, 0.2)',
+          '& .MuiAlert-icon': { color: '#00f0ff' } 
+        }}
+      >
+        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.25 }}>
+          🔄 Peer-to-Peer Catalog Sync &amp; Instance Replication
+        </Typography>
+        <Typography variant="caption" sx={{ display: 'block', opacity: 0.9, lineHeight: 1.4 }}>
+          P2P Sync allows multiple isolated Voyarr nodes to securely exchange scraper recipes, reconcile library metadata, and mirror provider configurations over encrypted peer-to-peer tokens.
+        </Typography>
+      </Alert>
 
       {/* Nodes list dashboard */}
       <Typography variant="h5" fontWeight="700" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -338,7 +359,7 @@ export default function P2PSync() {
       ) : (
         <Grid container spacing={3} sx={{ mb: 5 }}>
           {nodes.map(node => (
-            <Grid item xs={12} key={node.id}>
+            <Grid xs={12} key={node.id}>
               <Card sx={{
                 background: 'rgba(30, 30, 30, 0.4)',
                 backdropFilter: 'blur(20px)',
@@ -353,8 +374,8 @@ export default function P2PSync() {
                 }
               }}>
                 <CardContent>
-                  <Grid container spacing={2} alignItems="center">
-                    <Grid item xs={12} sm={4}>
+                  <Grid container spacing={2} sx={{ alignItems: 'center' }}>
+                    <Grid xs={12} sm={4}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                         <Typography variant="h6" fontWeight="700">{node.name}</Typography>
                         <Chip
@@ -369,27 +390,27 @@ export default function P2PSync() {
                       </Typography>
                     </Grid>
 
-                    <Grid item xs={12} sm={5}>
+                    <Grid xs={12} sm={5}>
                       <Grid container spacing={1}>
-                        <Grid item xs={6}>
+                        <Grid xs={6}>
                           <Typography variant="caption" color="text.secondary" display="block">Recipe Sync Mode</Typography>
                           <Typography variant="body2" fontWeight="500">
                             {node.recipe_sync_mode === 'auto_merge' ? 'Auto-Merge Selectors' : 'Hold for Review'}
                           </Typography>
                         </Grid>
-                        <Grid item xs={6}>
+                        <Grid xs={6}>
                           <Typography variant="caption" color="text.secondary" display="block">Sync Scope</Typography>
                           <Typography variant="body2" fontWeight="500">
                             {node.library_scope === 'all_entries' ? 'All Catalog Data' : `Restricted (${node.allowed_providers?.length || 0} providers)`}
                           </Typography>
                         </Grid>
-                        <Grid item xs={6} sx={{ mt: 1 }}>
+                        <Grid xs={6} sx={{ mt: 1 }}>
                           <Typography variant="caption" color="text.secondary" display="block">Sync Schedule</Typography>
                           <Typography variant="body2" fontWeight="500" sx={{ textTransform: 'capitalize' }}>
                             {node.sync_schedule}
                           </Typography>
                         </Grid>
-                        <Grid item xs={6} sx={{ mt: 1 }}>
+                        <Grid xs={6} sx={{ mt: 1 }}>
                           <Typography variant="caption" color="text.secondary" display="block">Last Synced</Typography>
                           <Typography variant="body2" fontWeight="500">
                             {node.last_sync_at ? new Date(node.last_sync_at).toLocaleString() : 'Never'}
@@ -398,7 +419,7 @@ export default function P2PSync() {
                       </Grid>
                     </Grid>
 
-                    <Grid item xs={12} sm={3} sx={{ display: 'flex', justifyContent: { xs: 'flex-start', sm: 'flex-end' }, gap: 1 }}>
+                    <Grid xs={12} sm={3} sx={{ display: 'flex', justifyContent: { xs: 'flex-start', sm: 'flex-end' }, gap: 1 }}>
                       <IconButton color="primary" onClick={() => handleTestConnection(node.id)} disabled={testingNodes[node.id]} title="Verify connection">
                         {testingNodes[node.id] ? <CircularProgress size={20} /> : <Wifi size={20} />}
                       </IconButton>
@@ -513,7 +534,7 @@ export default function P2PSync() {
       ) : (
         <Grid container spacing={3}>
           {proposedRecipes.map((peerBlock, blockIdx) => (
-            <Grid item xs={12} key={blockIdx}>
+            <Grid xs={12} key={blockIdx}>
               <Paper sx={{
                 p: 3,
                 borderRadius: '20px',
@@ -591,7 +612,7 @@ export default function P2PSync() {
         </DialogTitle>
         <DialogContent dividers>
           <Grid container spacing={3}>
-            <Grid item xs={12} sm={6}>
+            <Grid xs={12} sm={6}>
               <TextField
                 fullWidth
                 required
@@ -601,7 +622,7 @@ export default function P2PSync() {
                 onChange={e => setFormName(e.target.value)}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid xs={12} sm={6}>
               <TextField
                 fullWidth
                 required
@@ -613,7 +634,7 @@ export default function P2PSync() {
               />
             </Grid>
 
-            <Grid item xs={12} sm={6}>
+            <Grid xs={12} sm={6}>
               <TextField
                 fullWidth
                 required
@@ -624,7 +645,7 @@ export default function P2PSync() {
                 onChange={e => setFormOutboundKey(e.target.value)}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid xs={12} sm={6}>
               <TextField
                 fullWidth
                 required
@@ -636,12 +657,12 @@ export default function P2PSync() {
               />
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid xs={12}>
               <Divider sx={{ my: 1 }} />
               <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 2 }}>Configurable Behaviors</Typography>
             </Grid>
 
-            <Grid item xs={12} sm={4}>
+            <Grid xs={12} sm={4}>
               <FormControl fullWidth>
                 <InputLabel>Recipe Sync Mode</InputLabel>
                 <Select
@@ -655,7 +676,7 @@ export default function P2PSync() {
               </FormControl>
             </Grid>
 
-            <Grid item xs={12} sm={4}>
+            <Grid xs={12} sm={4}>
               <FormControl fullWidth>
                 <InputLabel>Sync Schedule</InputLabel>
                 <Select
@@ -677,7 +698,7 @@ export default function P2PSync() {
               </Typography>
             </Grid>
 
-            <Grid item xs={12} sm={4}>
+            <Grid xs={12} sm={4}>
               <FormControl fullWidth>
                 <InputLabel>Library Sync Scope</InputLabel>
                 <Select
@@ -692,7 +713,7 @@ export default function P2PSync() {
             </Grid>
 
             {formScope === 'specific_providers' && (
-              <Grid item xs={12}>
+              <Grid xs={12}>
                 <FormControl fullWidth>
                   <InputLabel>Allowed Providers</InputLabel>
                   <Select

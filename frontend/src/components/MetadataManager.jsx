@@ -5,6 +5,7 @@ import {
   Chip, CircularProgress, FormControl, InputLabel, Select, MenuItem
 } from '@mui/material'
 import { apiFetch } from '../api'
+import { Tag } from 'lucide-react'
 import UrlParseConfirmationModal from './UrlParseConfirmationModal'
 
 export default function MetadataManager() {
@@ -214,6 +215,27 @@ export default function MetadataManager() {
       <Typography variant="h4" gutterBottom>
         Metadata Management
       </Typography>
+
+      {/* Purpose Banner */}
+      <Alert 
+        severity="info" 
+        icon={<Tag size={20} />} 
+        sx={{ 
+          mb: 3, 
+          borderRadius: '12px', 
+          bgcolor: 'rgba(99, 102, 241, 0.08)', 
+          color: '#a5b4fc',
+          border: '1px solid rgba(99, 102, 241, 0.2)',
+          '& .MuiAlert-icon': { color: '#818cf8' } 
+        }}
+      >
+        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.25 }}>
+          🏷️ Metadata Enrichment &amp; File Tagging Manager
+        </Typography>
+        <Typography variant="caption" sx={{ display: 'block', opacity: 0.9, lineHeight: 1.4 }}>
+          The Metadata Manager fetches external scraper data (TPDB, StashDB), parses page URLs, enriches video titles, updates performer profiles, tags categories, and formats NFO files.
+        </Typography>
+      </Alert>
 
       {/* Fetch Metadata */}
       <Card sx={{ mb: 3 }}>

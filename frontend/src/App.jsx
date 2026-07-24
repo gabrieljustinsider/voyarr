@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { 
   CssBaseline, AppBar, Toolbar, Typography, Container, Tabs, Tab, Box, 
@@ -187,14 +187,7 @@ function App() {
   const [credentials, setCredentials] = useState({ username: '', password: '', dailyLimit: '' })
   const [queue, setQueue] = useState([])
   const [tabValue, setTabValue] = useState(0)
-  const [layoutMode, setLayoutMode] = useState(() => localStorage.getItem('voyarr_layout_mode') || 'classic')
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
-
-  const handleToggleLayoutMode = () => {
-    const nextMode = layoutMode === 'classic' ? 'modern' : 'classic'
-    setLayoutMode(nextMode)
-    localStorage.setItem('voyarr_layout_mode', nextMode)
-  }
   const [searchQuery, setSearchQuery] = useState('')
   const [confirmModal, setConfirmModal] = useState({ open: false, message: '', onConfirm: null, onCancel: null })
   const [promptModal, setPromptModal] = useState({ open: false, message: '', value: '', onConfirm: null, onCancel: null })
@@ -242,7 +235,7 @@ function App() {
     showStudios: true,
     showAnalytics: true,
     showLive: true,
-    rememberLastTab: false
+    rememberLastTab: true
   })
   const [isTvMode, setIsTvMode] = useState(false)
   const [prefDialogOpen, setPrefDialogOpen] = useState(false)
@@ -255,7 +248,7 @@ function App() {
     showStudios: true,
     showAnalytics: true,
     showLive: true,
-    rememberLastTab: false
+    rememberLastTab: true
   })
   const [tempTvMode, setTempTvMode] = useState(false)
   const [customThemeSettings, setCustomThemeSettings] = useState({
@@ -284,7 +277,7 @@ function App() {
             showStudios: data.ui_config.showStudios !== false,
             showAnalytics: data.ui_config.showAnalytics !== false,
             showLive: data.ui_config.showLive !== false,
-            rememberLastTab: !!data.ui_config.rememberLastTab
+            rememberLastTab: data.ui_config.rememberLastTab !== false
           })
           setIsTvMode(data.ui_config.isTvMode || false)
           if (data.ui_config.customTheme) {
@@ -1024,9 +1017,11 @@ function App() {
     }
   }, [currentTabLabel, uiConfig.rememberLastTab])
 
-  // Restore last selected tab from localStorage once on initial load if preference enabled
+  // Restore last selected tab from localStorage once when visibleTabs finishes initializing
+  const hasRestoredTab = useRef(false)
   useEffect(() => {
-    if (uiConfig.rememberLastTab && visibleTabs.length > 0) {
+    if (!hasRestoredTab.current && uiConfig.rememberLastTab && visibleTabs.length > 0) {
+      hasRestoredTab.current = true
       const savedTab = localStorage.getItem('voyarr_last_tab')
       if (savedTab) {
         const targetIdx = visibleTabs.findIndex(t => t.label === savedTab)
@@ -1035,8 +1030,7 @@ function App() {
         }
       }
     }
-    // Only run when preferences first finish loading (uiConfig.rememberLastTab changes) or initial tabs load
-  }, [uiConfig.rememberLastTab])
+  }, [uiConfig.rememberLastTab, visibleTabs])
 
   if (!isLoggedIn) {
     return (
@@ -1078,717 +1072,335 @@ function App() {
 
   const currentTabId = Object.keys(tabIdMap).find(k => tabIdMap[k] === currentTabLabel) || 'dashboard'
 
-  if (layoutMode === 'modern') {
-    return (
-      <ErrorBoundary title="Voyarr Interface Error">
-        <ThemeProvider theme={currentMuiTheme}>
-          <CssBaseline />
-          <DevLayoutShell
-            currentTab={currentTabId}
-            onSelectTab={(tabId) => {
-              const targetLabel = tabIdMap[tabId] || 'Dashboard'
-              const idx = visibleTabs.findIndex(t => t.label === targetLabel)
-              if (idx >= 0) setTabValue(idx)
-            }}
-            layoutMode={layoutMode}
-            onToggleLayoutMode={handleToggleLayoutMode}
-            onLogout={handleLogout}
-            onOpenSettings={() => {
-              setPrefTab(0)
-              handleOpenPrefDialog()
-            }}
-            activeDownloadsCount={queue.filter(q => q.status === 'downloading' || q.status === 'queued').length}
-            user={{ username: userName }}
-          >
-            <ErrorBoundary title="Tab Rendering Error">
-              <Suspense fallback={
-                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
-                  <CircularProgress />
-                </Box>
-              }>
-                <AnimatePresence mode="wait">
-                  <motion.div 
-                    key={tabValue}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.25, ease: "easeOut" }}
-                  >
-                    {visibleTabs[tabValue >= visibleTabs.length ? 0 : tabValue]?.component}
-                  </motion.div>
-                </AnimatePresence>
-              </Suspense>
-            </ErrorBoundary>
-          </DevLayoutShell>
-        </ThemeProvider>
-      </ErrorBoundary>
-    )
-  }
-
   return (
     <ErrorBoundary title="Voyarr Interface Error">
       <ThemeProvider theme={currentMuiTheme}>
         <CssBaseline />
-      <AppBar position="static" elevation={0} sx={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-        <Toolbar>
-          <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Box 
-              component="img" 
-              src="/app_icon.png" 
-              alt="Voyarr Logo" 
-              sx={{ 
-                height: 32, 
-                width: 32, 
-                borderRadius: '8px', 
-                boxShadow: '0 2px 8px rgba(99, 102, 241, 0.3)',
-                transition: 'transform 0.3s ease',
-                '&:hover': {
-                  transform: 'rotate(15deg) scale(1.1)'
-                }
-              }} 
-            />
-            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-              <Typography
-                variant="h6"
-                component="div"
-                sx={{
-                  fontFamily: "'Outfit', sans-serif",
-                  fontWeight: 900,
-                  letterSpacing: '1.5px',
-                  background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                }}
-              >
-                VOYARR
-              </Typography>
-              <Typography
-                variant="caption"
-                sx={{
-                  fontFamily: "'Outfit', sans-serif",
-                  fontWeight: 500,
-                  letterSpacing: '1.5px',
-                  color: 'rgba(148, 163, 184, 0.6)',
-                  fontSize: '0.65rem',
-                  textTransform: 'uppercase',
-                }}
-              >
-                Media Manager
-              </Typography>
-            </Box>
-            <Chip
-              label={`v${__APP_VERSION__}`}
-              size="small"
-              sx={{
-                height: 20,
-                fontSize: '0.6rem',
-                fontWeight: 700,
-                fontFamily: "'Outfit', sans-serif",
-                background: 'rgba(99, 102, 241, 0.12)',
-                color: '#a78bfa',
-                border: '1px solid rgba(139, 92, 246, 0.25)',
-              }}
-            />
-            <Button
-              variant="outlined"
-              color="secondary"
-              size="small"
-              onClick={handleToggleLayoutMode}
-              sx={{
-                ml: 2,
-                borderRadius: 3,
-                textTransform: 'none',
-                fontWeight: 'bold',
-                fontSize: '0.75rem',
-                borderColor: 'rgba(236, 72, 153, 0.5)',
-                color: '#f48fb1',
-                '&:hover': {
-                  borderColor: '#ec4899',
-                  bgcolor: 'rgba(236, 72, 153, 0.1)'
-                }
-              }}
-            >
-              ✨ Preview Modern Layout (Dev)
-            </Button>
-          </Box>
-
-          {/* Interactive Notification Bell */}
-          <IconButton color="inherit" onClick={(e) => setNotificationAnchorEl(e.currentTarget)} title="Notifications" sx={{ mr: 1.5 }}>
-            <Badge badgeContent={notifications.filter(n => !n.read).length} color="secondary">
-              <Bell size={24} />
-            </Badge>
-          </IconButton>
-
-          {/* User Profile Avatar Dropdown Menu */}
-          <IconButton onClick={(e) => setUserMenuAnchorEl(e.currentTarget)} sx={{ p: 0 }}>
-            <Avatar 
-              sx={{ 
-                bgcolor: 'primary.main', 
-                color: 'background.default', 
-                fontWeight: 'bold', 
-                fontSize: '0.9rem',
-                width: 36, 
-                height: 36,
-                border: '2px solid rgba(255,255,255,0.2)'
-              }}
-            >
-              {initials}
-            </Avatar>
-          </IconButton>
-
-          {/* Notifications Popover */}
-          <Popover
-            open={Boolean(notificationAnchorEl)}
-            anchorEl={notificationAnchorEl}
-            onClose={() => {
-              setNotificationAnchorEl(null)
-              const unreadIds = notifications.filter(n => !n.read).map(n => n.id)
-              if (unreadIds.length > 0) {
-                apiFetch('/notifications/read', {
-                  method: 'POST',
-                  body: JSON.stringify({ notification_ids: unreadIds })
-                }).catch(err => console.error("Failed to mark notifications as read:", err))
-              }
-              setNotifications(prev => prev.map(n => ({ ...n, read: true })))
-            }}
-            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-            PaperProps={{
-              sx: {
-                width: 320,
-                maxHeight: 400,
-                borderRadius: '16px',
-                background: 'rgba(30, 30, 40, 0.95)',
-                backdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                overflowY: 'auto',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.5)'
-              }
-            }}
-          >
-            <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-              <Typography variant="subtitle1" fontWeight="bold">Notifications</Typography>
-              {notifications.length > 0 && (
-                <Button 
-                  size="small" 
-                  onClick={() => setNotifications([])} 
-                  sx={{ textTransform: 'none', fontSize: '0.75rem', p: 0, minWidth: 0 }}
-                >
-                  Clear all
-                </Button>
-              )}
-            </Box>
-            <List disablePadding>
-              {notifications.length === 0 ? (
-                <ListItem sx={{ py: 3, justifyContent: 'center' }}>
-                  <Typography variant="body2" color="text.secondary">No new notifications</Typography>
-                </ListItem>
-              ) : (
-                notifications.map((n) => (
-                  <ListItem key={n.id} divider sx={{ py: 1.5, px: 2, borderColor: 'rgba(255,255,255,0.05)' }}>
-                    <ListItemText
-                      primary={
-                        <Typography variant="subtitle2" fontWeight="bold" color="primary.main">
-                          {n.title}
-                        </Typography>
-                      }
-                      secondary={
-                        <Box sx={{ mt: 0.5 }}>
-                          <Typography variant="body2" color="text.primary" sx={{ wordBreak: 'break-word' }}>
-                            {n.message}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                            {new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                          </Typography>
-                        </Box>
-                      }
-                    />
-                  </ListItem>
-                ))
-              )}
-            </List>
-          </Popover>
-
-          {/* User Menu Dropdown */}
-          <Menu
-            anchorEl={userMenuAnchorEl}
-            open={Boolean(userMenuAnchorEl)}
-            onClose={() => setUserMenuAnchorEl(null)}
-            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-            PaperProps={{
-              sx: {
-                width: 220,
-                borderRadius: '16px',
-                background: 'rgba(30, 30, 40, 0.95)',
-                backdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.5)'
-              }
-            }}
-          >
-            <Box sx={{ px: 2.5, py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-              <Typography variant="subtitle2" fontWeight="bold">{userName}</Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>Role: {userRole}</Typography>
-            </Box>
-            <MenuItem 
-              onClick={() => {
-                setUserMenuAnchorEl(null)
-                setPrefTab(0)
-                handleOpenPrefDialog()
-              }}
-              sx={{ py: 1.25, px: 2.5, display: 'flex', gap: 1.5 }}
-            >
-          <SlidersHorizontal size={20} />
-              <Typography variant="body2">User Settings</Typography>
-            </MenuItem>
-            <MenuItem 
-              onClick={() => {
-                setUserMenuAnchorEl(null)
-                setHelpModalOpen(true)
-              }}
-              sx={{ py: 1.25, px: 2.5, display: 'flex', gap: 1.5 }}
-            >
-          <CircleHelp size={20} />
-              <Typography variant="body2">Help & Docs</Typography>
-            </MenuItem>
-            <Divider sx={{ my: 0.5, borderColor: 'rgba(255,255,255,0.08)' }} />
-            <MenuItem 
-              onClick={() => {
-                setUserMenuAnchorEl(null)
-                handleLogout()
-              }}
-              sx={{ py: 1.25, px: 2.5, color: 'error.main', display: 'flex', gap: 1.5 }}
-            >
-          <LogOut size={20} />
-              <Typography variant="body2">Sign Out</Typography>
-            </MenuItem>
-          </Menu>
-        </Toolbar>
-      </AppBar>
-      <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
-        <Paper sx={{ 
-          p: 2.5, 
-          borderRadius: '20px',
-          background: 'rgba(255,255,255,0.01)',
-          backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255,255,255,0.05)'
-        }}>
-          <Tabs 
-            value={categories.findIndex(c => c.id === activeCategory.id)} 
-            onChange={(e, newValue) => {
-              const targetCat = categories[newValue];
-              const firstSub = visibleTabs.find(t => targetCat.tabs.includes(t.label));
-              if (firstSub) {
-                const globalIdx = visibleTabs.findIndex(vt => vt.label === firstSub.label);
-                setTabValue(globalIdx >= 0 ? globalIdx : 0);
-              }
-            }} 
-            aria-label="voyarr categories" 
-            variant="scrollable" 
-            scrollButtons="auto"
-            sx={{
-              borderBottom: '1px solid rgba(255,255,255,0.06)',
-              mb: 2.5,
-              '& .MuiTabs-indicator': {
-                height: '3px',
-                borderRadius: '3px',
-                background: 'linear-gradient(90deg, #6366f1 0%, #a855f7 100%)'
-              }
-            }}
-          >
-            {categories.map((cat) => {
-              const hasVisibleSubTabs = visibleTabs.some(t => cat.tabs.includes(t.label));
-              if (!hasVisibleSubTabs) return null;
-              return (
-                <Tab 
-                  key={cat.id} 
-                  label={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>{cat.icon}</Box>
-                      <Typography component="span" sx={{ fontWeight: 800, fontSize: '0.85rem', letterSpacing: '0.5px' }}>{cat.label}</Typography>
-                    </Box>
-                  } 
-                  sx={{ 
-                    py: 1.5,
-                    minHeight: 48,
-                    color: 'rgba(255,255,255,0.5)',
-                    transition: 'all 0.3s ease',
-                    '&.Mui-selected': {
-                      color: '#ffffff',
-                      textShadow: '0 0 10px rgba(168, 85, 247, 0.4)'
-                    },
-                    '&:hover': {
-                      color: '#ffffff',
-                      background: 'rgba(255,255,255,0.02)'
-                    }
-                  }} 
-                />
-              );
-            })}
-          </Tabs>
-
-          {/* Sub-tabs list styled as modern premium chips */}
-          <Box sx={{ 
-            display: 'flex', 
-            flexWrap: 'wrap', 
-            gap: 1, 
-            mb: 3.5, 
-            p: 1.25, 
-            borderRadius: '14px', 
-            background: 'rgba(0,0,0,0.15)', 
-            border: '1px solid rgba(255,255,255,0.03)' 
-          }}>
-            {activeCategorySubTabs.map((t) => {
-              const isSelected = t.label === currentTabLabel;
-              return (
-                <Chip
-                  key={t.label}
-                  label={t.label}
-                  onClick={() => {
-                    const globalIdx = visibleTabs.findIndex(vt => vt.label === t.label);
-                    setTabValue(globalIdx >= 0 ? globalIdx : 0);
-                  }}
-                  sx={{
-                    fontWeight: isSelected ? 800 : 600,
-                    fontSize: '0.78rem',
-                    px: 1,
-                    height: 32,
-                    background: isSelected 
-                      ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(168, 85, 247, 0.15) 100%)' 
-                      : 'transparent',
-                    color: isSelected ? '#c084fc' : 'rgba(255,255,255,0.55)',
-                    border: isSelected 
-                      ? '1px solid rgba(168, 85, 247, 0.35)' 
-                      : '1px solid rgba(255,255,255,0.06)',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                    '&:hover': {
-                      background: isSelected 
-                        ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.22) 0%, rgba(168, 85, 247, 0.22) 100%)' 
-                        : 'rgba(255,255,255,0.05)',
-                      color: '#ffffff',
-                      border: isSelected ? '1px solid rgba(168, 85, 247, 0.45)' : '1px solid rgba(255,255,255,0.12)'
-                    }
-                  }}
-                />
-              );
-            })}
-          </Box>
-
-          <Box sx={{ mt: 1 }}>
-            <ErrorBoundary title="Tab Rendering Error">
-              <Suspense fallback={
-                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
-                  <CircularProgress />
-                </Box>
-              }>
-                <AnimatePresence mode="wait">
-                  <motion.div 
-                    key={tabValue}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.25, ease: "easeOut" }}
-                  >
-                    {visibleTabs[tabValue >= visibleTabs.length ? 0 : tabValue]?.component}
-                  </motion.div>
-                </AnimatePresence>
-              </Suspense>
-            </ErrorBoundary>
-          </Box>
-        </Paper>
-      </Container>
-
-      <Dialog 
-        open={prefDialogOpen} 
-        onClose={() => {
-          if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
-            document.activeElement.blur()
-          }
-          setPrefDialogOpen(false)
-        }} 
-        disableRestoreFocus 
-        maxWidth={prefTab === 1 ? "md" : "xs"} 
-        fullWidth
-      >
-        <DialogTitle sx={{ fontWeight: 'bold' }}>User Settings</DialogTitle>
-        <Box sx={{ px: 3 }}>
-          <Tabs value={prefTab} onChange={(e, val) => setPrefTab(val)} sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
-            <Tab label="Appearance & Tabs" sx={{ textTransform: 'none' }} />
-            <Tab label="Account Security" sx={{ textTransform: 'none' }} />
-          </Tabs>
-        </Box>
-        <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, minHeight: prefTab === 1 ? 400 : 'auto' }}>
-          {prefTab === 0 ? (
-            <>
-              {/* Theme Selector */}
-              <FormControl fullWidth size="small">
-                <InputLabel>Visual Theme Palette</InputLabel>
-                <Select
-                  value={tempTheme}
-                  label="Visual Theme Palette"
-                  onChange={(e) => setTempTheme(e.target.value)}
-                >
-                <MenuItem value="light">Glassmorphic Light Mode</MenuItem>
-                <MenuItem value="dark">Glassmorphic Dark Mode</MenuItem>
-                <MenuItem value="material_light">Standard Material Light</MenuItem>
-                <MenuItem value="material_dark">Standard Material Dark</MenuItem>
-                <MenuItem value="tailwind_light">Tailwind Modern Light</MenuItem>
-                <MenuItem value="tailwind_dark">Tailwind Modern Dark</MenuItem>
-                  <MenuItem value="midnight_cyber">Midnight Cyber (Cyan/Neon)</MenuItem>
-                  <MenuItem value="sunset_rose">Sunset Rose (Peach/Warm Plums)</MenuItem>
-                  <MenuItem value="emerald_obsidian">Emerald Obsidian (Emerald/Deep dark)</MenuItem>
-                  <MenuItem value="ocean_glass">Ocean Glassmorphism (Ocean/Translucent)</MenuItem>
-                  <MenuItem value="crimson_obsidian">Crimson Obsidian (High contrast Red/Black)</MenuItem>
-                  <MenuItem value="custom">Custom Theme</MenuItem>
-                </Select>
-              </FormControl>
-
-              {tempTheme === 'custom' && (
-                <Box sx={{ mt: 1, p: 2, border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', bgcolor: 'background.paper' }}>
-                  <Typography variant="subtitle2" gutterBottom>Custom Theme Settings</Typography>
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} sm={3}>
-                      <FormControl fullWidth size="small">
-                        <InputLabel>Mode</InputLabel>
-                        <Select
-                          value={tempCustomThemeSettings.mode}
-                          label="Mode"
-                          onChange={(e) => setTempCustomThemeSettings({...tempCustomThemeSettings, mode: e.target.value})}
-                        >
-                          <MenuItem value="light">Light</MenuItem>
-                          <MenuItem value="dark">Dark</MenuItem>
-                        </Select>
-                      </FormControl>
-                    </Grid>
-                    <Grid item xs={12} sm={3}>
-                      <FormControl fullWidth size="small">
-                        <InputLabel>Style</InputLabel>
-                        <Select
-                          value={tempCustomThemeSettings.isMaterial ? 'true' : 'false'}
-                          label="Style"
-                          onChange={(e) => setTempCustomThemeSettings({...tempCustomThemeSettings, isMaterial: e.target.value === 'true'})}
-                        >
-                          <MenuItem value="false">Glassmorphic</MenuItem>
-                          <MenuItem value="true">Flat Material</MenuItem>
-                        </Select>
-                      </FormControl>
-                    </Grid>
-                    <Grid item xs={12} sm={3}>
-                      <TextField fullWidth size="small" label="Primary Color" type="color"
-                        value={tempCustomThemeSettings.primary} slotProps={{ inputLabel: { shrink: true } }}
-                        onChange={(e) => setTempCustomThemeSettings({...tempCustomThemeSettings, primary: e.target.value})}
-                        sx={{ '& input': { padding: '4px 8px', height: '32px', cursor: 'pointer' } }} />
-                    </Grid>
-                    <Grid item xs={12} sm={3}>
-                      <TextField fullWidth size="small" label="Secondary Color" type="color"
-                        value={tempCustomThemeSettings.secondary} slotProps={{ inputLabel: { shrink: true } }}
-                        onChange={(e) => setTempCustomThemeSettings({...tempCustomThemeSettings, secondary: e.target.value})}
-                        sx={{ '& input': { padding: '4px 8px', height: '32px', cursor: 'pointer' } }} />
-                    </Grid>
-                  </Grid>
-                </Box>
-              )}
-
-              {/* TV Breakpoints toggle */}
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={tempTvMode}
-                    onChange={(e) => setTempTvMode(e.target.checked)}
-                  />
-                }
-                label="Optimized Smart TV Layout (Widescreen targets)"
-              />
-
-              <Divider sx={{ my: 1 }} />
-              
-              <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Conditional Feature Tabs</Typography>
-              
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={tempUiConfig.showFavorites}
-                      onChange={(e) => setTempUiConfig({ ...tempUiConfig, showFavorites: e.target.checked })}
-                    />
-                  }
-                  label="Enable Favorites Hub"
-                />
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={tempUiConfig.showStudios}
-                      onChange={(e) => setTempUiConfig({ ...tempUiConfig, showStudios: e.target.checked })}
-                    />
-                  }
-                  label="Enable Studios Profiles"
-                />
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={tempUiConfig.showLive}
-                      onChange={(e) => setTempUiConfig({ ...tempUiConfig, showLive: e.target.checked })}
-                    />
-                  }
-                  label="Enable Live Streams capture"
-                />
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={tempUiConfig.showAnalytics}
-                      onChange={(e) => setTempUiConfig({ ...tempUiConfig, showAnalytics: e.target.checked })}
-                    />
-                  }
-                  label="Enable Analytics dashboard"
-                />
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={tempUiConfig.rememberLastTab || false}
-                      onChange={(e) => setTempUiConfig({ ...tempUiConfig, rememberLastTab: e.target.checked })}
-                    />
-                  }
-                  label="Remember Last Selected Tab"
-                />
-              </Box>
-            </>
-          ) : (
+        <DevLayoutShell
+          currentTab={currentTabId}
+          onSelectTab={(tabId) => {
+            const targetLabel = tabIdMap[tabId] || 'Dashboard'
+            const idx = visibleTabs.findIndex(t => t.label === targetLabel)
+            if (idx >= 0) setTabValue(idx)
+          }}
+          onLogout={handleLogout}
+          onOpenSettings={() => {
+            setPrefTab(0)
+            handleOpenPrefDialog()
+          }}
+          activeDownloadsCount={queue.filter(q => q.status === 'downloading' || q.status === 'queued').length}
+          user={{ username: userName }}
+        >
+          <ErrorBoundary title="Tab Rendering Error">
             <Suspense fallback={
-              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
                 <CircularProgress />
               </Box>
             }>
-              <AccountSecurity setSnackbar={setSnackbar} />
+              <AnimatePresence mode="wait">
+                <motion.div 
+                  key={tabValue}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.25, ease: "easeOut" }}
+                >
+                  {visibleTabs[tabValue >= visibleTabs.length ? 0 : tabValue]?.component}
+                </motion.div>
+              </AnimatePresence>
             </Suspense>
-          )}
-        </DialogContent>
-        <DialogActions>
-          {prefTab === 0 ? (
-            <>
-              <Button onClick={() => setPrefDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleSavePrefDialog} variant="contained" color="primary">
-                Apply & Save
-              </Button>
-            </>
-          ) : (
-            <Button onClick={() => setPrefDialogOpen(false)} variant="contained">Close</Button>
-          )}
-        </DialogActions>
-      </Dialog>
+          </ErrorBoundary>
+        </DevLayoutShell>
 
-      <Snackbar 
-        open={snackbar.open} 
-        autoHideDuration={6000} 
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-      >
-        <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: '100%' }}>
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
+        <Dialog 
+          open={prefDialogOpen} 
+          onClose={() => {
+            if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+              document.activeElement.blur()
+            }
+            setPrefDialogOpen(false)
+          }} 
+          disableRestoreFocus 
+          maxWidth={prefTab === 1 ? "md" : "xs"} 
+          fullWidth
+        >
+          <DialogTitle sx={{ fontWeight: 'bold' }}>User Settings</DialogTitle>
+          <Box sx={{ px: 3 }}>
+            <Tabs value={prefTab} onChange={(e, val) => setPrefTab(val)} sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+              <Tab label="Appearance & Tabs" sx={{ textTransform: 'none' }} />
+              <Tab label="Account Security" sx={{ textTransform: 'none' }} />
+            </Tabs>
+          </Box>
+          <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, minHeight: prefTab === 1 ? 400 : 'auto' }}>
+            {prefTab === 0 ? (
+              <>
+                {/* Theme Selector */}
+                <FormControl fullWidth size="small">
+                  <InputLabel>Visual Theme Palette</InputLabel>
+                  <Select
+                    value={tempTheme}
+                    label="Visual Theme Palette"
+                    onChange={(e) => setTempTheme(e.target.value)}
+                  >
+                  <MenuItem value="light">Glassmorphic Light Mode</MenuItem>
+                  <MenuItem value="dark">Glassmorphic Dark Mode</MenuItem>
+                  <MenuItem value="material_light">Standard Material Light</MenuItem>
+                  <MenuItem value="material_dark">Standard Material Dark</MenuItem>
+                  <MenuItem value="tailwind_light">Tailwind Modern Light</MenuItem>
+                  <MenuItem value="tailwind_dark">Tailwind Modern Dark</MenuItem>
+                    <MenuItem value="midnight_cyber">Midnight Cyber (Cyan/Neon)</MenuItem>
+                    <MenuItem value="sunset_rose">Sunset Rose (Peach/Warm Plums)</MenuItem>
+                    <MenuItem value="emerald_obsidian">Emerald Obsidian (Emerald/Deep dark)</MenuItem>
+                    <MenuItem value="ocean_glass">Ocean Glassmorphism (Ocean/Translucent)</MenuItem>
+                    <MenuItem value="crimson_obsidian">Crimson Obsidian (High contrast Red/Black)</MenuItem>
+                    <MenuItem value="custom">Custom Theme</MenuItem>
+                  </Select>
+                </FormControl>
 
-      <Dialog 
-        open={confirmModal.open} 
-        onClose={() => { 
-          if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
-            document.activeElement.blur()
-          }
-          confirmModal.onCancel?.()
-          setConfirmModal({ ...confirmModal, open: false }) 
-        }} 
-        disableRestoreFocus 
-        maxWidth="xs" 
-        fullWidth
-      >
-        <DialogTitle>Confirmation Required</DialogTitle>
-        <DialogContent dividers>
-          <Typography>{confirmModal.message}</Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => { confirmModal.onCancel?.(); setConfirmModal({ ...confirmModal, open: false }) }}>
-            Cancel
-          </Button>
-          <Button color="error" variant="contained" onClick={() => { confirmModal.onConfirm?.(); setConfirmModal({ ...confirmModal, open: false }) }}>
-            Confirm
-          </Button>
-        </DialogActions>
-      </Dialog>
+                {tempTheme === 'custom' && (
+                  <Box sx={{ mt: 1, p: 2, border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', bgcolor: 'background.paper' }}>
+                    <Typography variant="subtitle2" gutterBottom>Custom Theme Settings</Typography>
+                    <Grid container spacing={2}>
+                      <Grid xs={12} sm={3}>
+                        <FormControl fullWidth size="small">
+                          <InputLabel>Mode</InputLabel>
+                          <Select
+                            value={tempCustomThemeSettings.mode}
+                            label="Mode"
+                            onChange={(e) => setTempCustomThemeSettings({...tempCustomThemeSettings, mode: e.target.value})}
+                          >
+                            <MenuItem value="light">Light</MenuItem>
+                            <MenuItem value="dark">Dark</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                      <Grid xs={12} sm={3}>
+                        <FormControl fullWidth size="small">
+                          <InputLabel>Style</InputLabel>
+                          <Select
+                            value={tempCustomThemeSettings.isMaterial ? 'true' : 'false'}
+                            label="Style"
+                            onChange={(e) => setTempCustomThemeSettings({...tempCustomThemeSettings, isMaterial: e.target.value === 'true'})}
+                          >
+                            <MenuItem value="false">Glassmorphic</MenuItem>
+                            <MenuItem value="true">Flat Material</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                      <Grid xs={12} sm={3}>
+                        <TextField fullWidth size="small" label="Primary Color" type="color"
+                          value={tempCustomThemeSettings.primary} slotProps={{ inputLabel: { shrink: true } }}
+                          onChange={(e) => setTempCustomThemeSettings({...tempCustomThemeSettings, primary: e.target.value})}
+                          sx={{ '& input': { padding: '4px 8px', height: '32px', cursor: 'pointer' } }} />
+                      </Grid>
+                      <Grid xs={12} sm={3}>
+                        <TextField fullWidth size="small" label="Secondary Color" type="color"
+                          value={tempCustomThemeSettings.secondary} slotProps={{ inputLabel: { shrink: true } }}
+                          onChange={(e) => setTempCustomThemeSettings({...tempCustomThemeSettings, secondary: e.target.value})}
+                          sx={{ '& input': { padding: '4px 8px', height: '32px', cursor: 'pointer' } }} />
+                      </Grid>
+                    </Grid>
+                  </Box>
+                )}
 
-      <Dialog 
-        open={promptModal.open} 
-        onClose={() => { 
-          if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
-            document.activeElement.blur()
-          }
-          promptModal.onCancel?.()
-          setPromptModal({ ...promptModal, open: false }) 
-        }} 
-        disableRestoreFocus 
-        maxWidth="xs" 
-        fullWidth
-      >
-        <DialogTitle>Input Required</DialogTitle>
-        <DialogContent dividers>
-          <Typography sx={{ mb: 2 }}>{promptModal.message}</Typography>
-          <TextField
-            autoFocus
-            margin="dense"
-            label={promptModal.message}
-            fullWidth
-            variant="outlined"
-            value={promptModal.value}
-            onChange={(e) => setPromptModal({ ...promptModal, value: e.target.value })}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                promptModal.onConfirm?.(promptModal.value);
-                setPromptModal({ ...promptModal, open: false });
-              }
-            }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => { promptModal.onCancel?.(); setPromptModal({ ...promptModal, open: false }) }}>
-            Cancel
-          </Button>
-          <Button variant="contained" color="primary" onClick={() => { promptModal.onConfirm?.(promptModal.value); setPromptModal({ ...promptModal, open: false }) }}>
-            Confirm
-          </Button>
-        </DialogActions>
-      </Dialog>
+                {/* TV Breakpoints toggle */}
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={tempTvMode}
+                      onChange={(e) => setTempTvMode(e.target.checked)}
+                    />
+                  }
+                  label="Optimized Smart TV Layout (Widescreen targets)"
+                />
 
-      {/* Help Dialog Modal */}
-      <Dialog 
-        open={helpModalOpen} 
-        onClose={() => {
-          if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
-            document.activeElement.blur()
-          }
-          setHelpModalOpen(false)
-        }}
-        disableRestoreFocus
-        maxWidth="md"
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: '20px',
-            background: 'rgba(30, 30, 40, 0.95)',
-            backdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255,255,255,0.08)'
-          }
-        }}
-      >
-        <DialogTitle sx={{ fontWeight: 'bold' }}>Voyarr Help & Documentation</DialogTitle>
-        <DialogContent dividers sx={{ borderColor: 'rgba(255,255,255,0.08)' }}>
-          <Suspense fallback={<CircularProgress />}>
-            <HelpArea userRole={userRole} />
-          </Suspense>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setHelpModalOpen(false)} variant="contained">Close</Button>
-        </DialogActions>
-      </Dialog>
-    </ThemeProvider>
+                <Divider sx={{ my: 1 }} />
+                
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Conditional Feature Tabs</Typography>
+                
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={tempUiConfig.showFavorites}
+                        onChange={(e) => setTempUiConfig({ ...tempUiConfig, showFavorites: e.target.checked })}
+                      />
+                    }
+                    label="Enable Favorites Hub"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={tempUiConfig.showStudios}
+                        onChange={(e) => setTempUiConfig({ ...tempUiConfig, showStudios: e.target.checked })}
+                      />
+                    }
+                    label="Enable Studios Profiles"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={tempUiConfig.showLive}
+                        onChange={(e) => setTempUiConfig({ ...tempUiConfig, showLive: e.target.checked })}
+                      />
+                    }
+                    label="Enable Live Streams capture"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={tempUiConfig.showAnalytics}
+                        onChange={(e) => setTempUiConfig({ ...tempUiConfig, showAnalytics: e.target.checked })}
+                      />
+                    }
+                    label="Enable Analytics dashboard"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={tempUiConfig.rememberLastTab || false}
+                        onChange={(e) => setTempUiConfig({ ...tempUiConfig, rememberLastTab: e.target.checked })}
+                      />
+                    }
+                    label="Remember Last Selected Tab"
+                  />
+                </Box>
+              </>
+            ) : (
+              <Suspense fallback={
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                  <CircularProgress />
+                </Box>
+              }>
+                <AccountSecurity setSnackbar={setSnackbar} />
+              </Suspense>
+            )}
+          </DialogContent>
+          <DialogActions>
+            {prefTab === 0 ? (
+              <>
+                <Button onClick={() => setPrefDialogOpen(false)}>Cancel</Button>
+                <Button onClick={handleSavePrefDialog} variant="contained" color="primary">
+                  Apply & Save
+                </Button>
+              </>
+            ) : (
+              <Button onClick={() => setPrefDialogOpen(false)} variant="contained">Close</Button>
+            )}
+          </DialogActions>
+        </Dialog>
+
+        <Snackbar 
+          open={snackbar.open} 
+          autoHideDuration={6000} 
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+        >
+          <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: '100%' }}>
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+
+        <Dialog 
+          open={confirmModal.open} 
+          onClose={() => { 
+            if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+              document.activeElement.blur()
+            }
+            confirmModal.onCancel?.()
+            setConfirmModal({ ...confirmModal, open: false }) 
+          }} 
+          disableRestoreFocus 
+          maxWidth="xs" 
+          fullWidth
+        >
+          <DialogTitle>Confirmation Required</DialogTitle>
+          <DialogContent dividers>
+            <Typography>{confirmModal.message}</Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => { confirmModal.onCancel?.(); setConfirmModal({ ...confirmModal, open: false }) }}>
+              Cancel
+            </Button>
+            <Button color="error" variant="contained" onClick={() => { confirmModal.onConfirm?.(); setConfirmModal({ ...confirmModal, open: false }) }}>
+              Confirm
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog 
+          open={promptModal.open} 
+          onClose={() => { 
+            if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+              document.activeElement.blur()
+            }
+            promptModal.onCancel?.()
+            setPromptModal({ ...promptModal, open: false }) 
+          }} 
+          disableRestoreFocus 
+          maxWidth="xs" 
+          fullWidth
+        >
+          <DialogTitle>Input Required</DialogTitle>
+          <DialogContent dividers>
+            <Typography sx={{ mb: 2 }}>{promptModal.message}</Typography>
+            <TextField
+              autoFocus
+              margin="dense"
+              label={promptModal.message}
+              fullWidth
+              variant="outlined"
+              value={promptModal.value}
+              onChange={(e) => setPromptModal({ ...promptModal, value: e.target.value })}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  promptModal.onConfirm?.(promptModal.value);
+                  setPromptModal({ ...promptModal, open: false });
+                }
+              }}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => { promptModal.onCancel?.(); setPromptModal({ ...promptModal, open: false }) }}>
+              Cancel
+            </Button>
+            <Button variant="contained" color="primary" onClick={() => { promptModal.onConfirm?.(promptModal.value); setPromptModal({ ...promptModal, open: false }) }}>
+              Confirm
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Help Dialog Modal */}
+        <Dialog 
+          open={helpModalOpen} 
+          onClose={() => {
+            if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+              document.activeElement.blur()
+            }
+            setHelpModalOpen(false)
+          }}
+          disableRestoreFocus
+          maxWidth="md"
+          fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: '20px',
+              background: 'rgba(30, 30, 40, 0.95)',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255,255,255,0.08)'
+            }
+          }}
+        >
+          <DialogTitle sx={{ fontWeight: 'bold' }}>Voyarr Help & Documentation</DialogTitle>
+          <DialogContent dividers sx={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+            <Suspense fallback={<CircularProgress />}>
+              <HelpArea userRole={userRole} />
+            </Suspense>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setHelpModalOpen(false)} variant="contained">Close</Button>
+          </DialogActions>
+        </Dialog>
+      </ThemeProvider>
     </ErrorBoundary>
   )
 }

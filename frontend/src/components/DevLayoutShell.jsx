@@ -91,28 +91,8 @@ export default function DevLayoutShell({
             />
           </Box>
 
-          {/* Right Action Icons & Layout Switcher */}
+          {/* Right Action Icons */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            {/* Dev Environment Preview Toggle Switcher */}
-            <Tooltip title="Switch back to Classic layout mode">
-              <Button
-                variant="outlined"
-                color="secondary"
-                size="small"
-                startIcon={<Sparkles size={16} />}
-                onClick={onToggleLayoutMode}
-                sx={{
-                  borderRadius: 3,
-                  fontWeight: 'bold',
-                  textTransform: 'none',
-                  border: '1px solid rgba(236, 72, 153, 0.5)',
-                  boxShadow: '0 0 12px rgba(236, 72, 153, 0.3)'
-                }}
-              >
-                Modern (Dev On)
-              </Button>
-            </Tooltip>
-
             {/* Active Downloads Indicator */}
             {activeDownloadsCount > 0 && (
               <Tooltip title={`${activeDownloadsCount} active downloads running`}>
@@ -151,9 +131,6 @@ export default function DevLayoutShell({
               </MenuItem>
               <MenuItem onClick={() => { setUserMenuAnchor(null); onOpenSettings(); }}>
                 Preferences & Theme
-              </MenuItem>
-              <MenuItem onClick={() => { setUserMenuAnchor(null); onToggleLayoutMode(); }}>
-                Switch to Classic Layout
               </MenuItem>
               <MenuItem onClick={() => { setUserMenuAnchor(null); onLogout(); }} sx={{ color: 'error.main' }}>
                 <LogOut size={16} style={{ marginRight: 8 }} />

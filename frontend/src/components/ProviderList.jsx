@@ -12,6 +12,67 @@ import EditIcon from '@mui/icons-material/Edit'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import SettingsIcon from '@mui/icons-material/Settings'
 import apiFetch, { getErrorMessage } from '../api'
+import { getSafeLogoUrl, getFaviconFromUrl } from '../utils/logoHelpers'
+import { MediaEntityCard } from './common'
+
+function ProviderCardLogo({ provider }) {
+  const [imgError, setImgError] = useState(false)
+  const primarySrc = getSafeLogoUrl(provider.logo_url || provider.favicon_url) || getFaviconFromUrl(provider.base_url)
+
+  useEffect(() => {
+    setImgError(false)
+  }, [provider.logo_url, provider.favicon_url, provider.base_url])
+
+  const initial = provider.name ? provider.name.charAt(0).toUpperCase() : '?'
+
+  if (primarySrc && !imgError) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          p: 0.75,
+          borderRadius: '12px',
+          bgcolor: 'rgba(255, 255, 255, 0.12)',
+          backdropFilter: 'blur(8px)',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          maxWidth: '85%',
+          maxHeight: '85%'
+        }}
+      >
+        <Box
+          component="img"
+          src={primarySrc}
+          alt={provider.name}
+          onError={() => setImgError(true)}
+          sx={{
+            maxWidth: '100%',
+            maxHeight: 70,
+            objectFit: 'contain',
+            display: 'block',
+            filter: 'drop-shadow(0px 0px 6px rgba(255, 255, 255, 0.65)) drop-shadow(0px 1px 3px rgba(0, 0, 0, 0.4))'
+          }}
+        />
+      </Box>
+    )
+  }
+
+  return (
+    <Avatar
+      sx={{ 
+        width: 60, 
+        height: 60, 
+        bgcolor: 'primary.main', 
+        color: 'primary.contrastText',
+        fontSize: '1.75rem', 
+        fontWeight: 'bold'
+      }}
+    >
+      {initial}
+    </Avatar>
+  )
+}
 
 export default function ProviderList({ providers, searchQuery, setSearchQuery, onRefreshProviders }) {
   const [cookies, setCookies] = useState([])
@@ -551,7 +612,7 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
             <Avatar
               src={providerForm.logo_url || providerForm.favicon_url}
               alt="Logo preview"
-              imgProps={{ style: { objectFit: 'contain', padding: '2px' } }}
+              slotProps={{ img: { style: { objectFit: 'contain', padding: '2px' } } }}
               onClick={() => {
                 setLogoEditorImageSrc(providerForm.logo_url || providerForm.favicon_url)
                 setLogoScale(100)
@@ -771,6 +832,28 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
           </Button>
         </Box>
       </Box>
+
+      {/* Purpose Banner */}
+      <Alert 
+        severity="info" 
+        icon={<Globe size={20} />} 
+        sx={{ 
+          mb: 3, 
+          borderRadius: '12px', 
+          bgcolor: 'rgba(14, 165, 233, 0.08)', 
+          color: '#38bdf8',
+          border: '1px solid rgba(14, 165, 233, 0.2)',
+          '& .MuiAlert-icon': { color: '#0284c7' } 
+        }}
+      >
+        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.25 }}>
+          📡 Media Download Providers & Hosts (Where Content is Downloaded From)
+        </Typography>
+        <Typography variant="caption" sx={{ display: 'block', opacity: 0.9, lineHeight: 1.4 }}>
+          Providers represent the streaming sites and download hosts where Voyarr scrapes and downloads media files (e.g. ManyVids, OnlyFans, Pornhub). Use Providers to manage login credentials, active session cookies, download quotas, and daily limits.
+        </Typography>
+      </Alert>
+
       <Box sx={{ mb: 3 }}>
         <TextField
           fullWidth
@@ -780,133 +863,99 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
           variant="outlined"
         />
       </Box>
-      <Grid container spacing={3} alignItems="stretch">
+      <Grid container spacing={3} sx={{ alignItems: 'stretch' }}>
         {providers.map(provider => {
           const providerCookies = cookies.filter(c => c.provider_id === provider.id)
           
           return (
-            <Grid item xs={12} sm={6} md={4} lg={3} key={provider.id} sx={{ display: 'flex' }}>
-              <Card sx={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-                <IconButton 
-                  size="small" 
-                  color="error" 
-                  onClick={() => handleDeleteProvider(provider)}
-                  sx={{ position: 'absolute', top: 8, right: 8 }}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-                <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexGrow: 1, textAlign: 'center', pt: 4 }}>
-                  {cardPrefs.showLogo && (
-                    provider.fit_logo_to_card ? (
-                      <Box
-                        sx={{
-                          width: '100%',
-                          height: 100,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          bgcolor: provider.transparent_logo_bg ? 'transparent' : 'primary.main',
-                          borderRadius: 2,
-                          mb: 2,
-                          overflow: 'hidden',
-                          p: 1,
-                          ...(provider.transparent_logo_bg && {
-                            border: '1px solid rgba(255, 255, 255, 0.12)'
-                          })
-                        }}
-                      >
-                        {(provider.logo_url || provider.favicon_url) ? (
-                          <img
-                            src={provider.logo_url || provider.favicon_url}
-                            alt={provider.name}
-                            style={{
-                              maxWidth: '100%',
-                              maxHeight: '100%',
-                              objectFit: 'contain'
-                            }}
-                          />
-                        ) : (
-                          <Typography variant="h4" sx={{ fontWeight: 'bold', color: provider.transparent_logo_bg ? 'text.primary' : 'primary.contrastText' }}>
-                            {provider.name ? provider.name.charAt(0).toUpperCase() : '?'}
-                          </Typography>
-                        )}
-                      </Box>
-                    ) : (
-                      <Avatar
-                        src={provider.logo_url || provider.favicon_url || ''}
-                        alt={provider.name}
-                        imgProps={{ style: { objectFit: 'contain', padding: '4px' } }}
+            <Grid size={{ xs: 12, sm: 6, md: 6, lg: 4 }} xs={12} sm={6} md={6} lg={4} key={provider.id} sx={{ display: 'flex', minWidth: 0 }}>
+              <MediaEntityCard
+                mediaHeader={<ProviderCardLogo provider={provider} />}
+                topActions={
+                  <IconButton 
+                    size="small" 
+                    sx={{ backgroundColor: 'rgba(0,0,0,0.5)', color: '#ef4444', '&:hover': { backgroundColor: 'rgba(0,0,0,0.7)' } }}
+                    onClick={() => handleDeleteProvider(provider)}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                }
+                title={provider.name}
+                subtitle={
+                  cardPrefs.showBaseUrl && provider.base_url && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1.5, minWidth: 0, width: '100%' }}>
+                      <Typography 
+                        variant="caption" 
+                        component="a" 
+                        href={provider.base_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
                         sx={{ 
-                          width: 80, 
-                          height: 80, 
-                          bgcolor: provider.transparent_logo_bg ? 'transparent' : 'primary.main', 
-                          color: provider.transparent_logo_bg ? 'text.primary' : 'primary.contrastText',
-                          fontSize: '2rem', 
-                          fontWeight: 'bold', 
-                          mb: 2,
-                          ...(provider.transparent_logo_bg && {
-                            border: '1px solid rgba(255, 255, 255, 0.12)'
-                          })
+                          textDecoration: 'none', 
+                          color: '#818cf8', 
+                          fontWeight: '600', 
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          minWidth: 0
                         }}
                       >
-                        {provider.name ? provider.name.charAt(0).toUpperCase() : '?'}
-                      </Avatar>
-                    )
-                  )}
-                  <Typography variant="h5" component="div" sx={{ fontWeight: 'bold', mb: 1 }}>
-                    {provider.name}
-                  </Typography>
-                  {cardPrefs.showBaseUrl && (
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                      {provider.base_url}
-                    </Typography>
-                  )}
-                  {provider.default_biller && (
-                    <Chip
-                      label={`Biller: ${provider.default_biller.name}`}
-                      size="small"
-                      color="secondary"
-                      variant="outlined"
-                      sx={{ mt: 0.5, mb: 1, fontWeight: 'bold', border: '1px solid rgba(236, 72, 153, 0.4)', color: '#ec4899' }}
-                    />
-                  )}
-                  {cardPrefs.showDailyLimit && provider.automatic_limits && (
-                    <Typography variant="body2" sx={{ mt: 1, fontWeight: 'bold' }}>
-                      Daily Limit: {provider.automatic_limits.daily_downloads || 'Unlimited'}
-                    </Typography>
-                  )}
-                  {cardPrefs.showActiveSessions && providerCookies.length > 0 && (
-                    <Box sx={{ mt: 3, width: '100%' }}>
-                      <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold' }}>Active Session Quotas</Typography>
-                      {providerCookies.map(cookie => {
-                        const limit = cookie.download_limit || 0;
-                        const used = cookie.downloads_used || 0;
-                        const percentage = limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
-                        const isUnlimited = limit === 0;
-
-                        return (
-                          <Box key={cookie.id} sx={{ mb: 1 }}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                              <Typography variant="caption" color="text.secondary">
-                                {cookie.status === 'active' ? 'Active' : cookie.status === 'expired' ? 'Expired' : cookie.status}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                {isUnlimited ? `${used} / ∞` : `${used} / ${limit}`}
-                              </Typography>
-                            </Box>
-                            <LinearProgress 
-                              variant="determinate" 
-                              value={isUnlimited ? 100 : percentage} 
-                              color={isUnlimited ? 'primary' : percentage >= 90 ? 'error' : percentage >= 75 ? 'warning' : 'primary'}
-                              sx={{ height: 6, borderRadius: 3, ...(isUnlimited && { opacity: 0.5 }) }}
-                            />
-                          </Box>
-                        )
-                      })}
+                        {provider.base_url.replace(/^https?:\/\/(www\.)?/, '')}
+                      </Typography>
                     </Box>
-                  )}
-                </CardContent>
-                <CardActions sx={{ justifyContent: 'center', pb: 3 }}>
+                  )
+                }
+                bodySections={
+                  <>
+                    {provider.default_biller && (
+                      <Box sx={{ mb: 1.5 }}>
+                        <Chip
+                          label={`Biller: ${provider.default_biller.name}`}
+                          size="small"
+                          color="secondary"
+                          variant="outlined"
+                          sx={{ fontWeight: 'bold', border: '1px solid rgba(236, 72, 153, 0.4)', color: '#ec4899' }}
+                        />
+                      </Box>
+                    )}
+                    {cardPrefs.showDailyLimit && provider.automatic_limits && (
+                      <Typography variant="body2" sx={{ mb: 1.5, fontWeight: 'bold' }}>
+                        Daily Limit: {provider.automatic_limits.daily_downloads || 'Unlimited'}
+                      </Typography>
+                    )}
+                    {cardPrefs.showActiveSessions && providerCookies.length > 0 && (
+                      <Box sx={{ mb: 2, width: '100%' }}>
+                        <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold' }}>Active Session Quotas</Typography>
+                        {providerCookies.map(cookie => {
+                          const limit = cookie.download_limit || 0;
+                          const used = cookie.downloads_used || 0;
+                          const percentage = limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
+                          const isUnlimited = limit === 0;
+
+                          return (
+                            <Box key={cookie.id} sx={{ mb: 1 }}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                                <Typography variant="caption" color="text.secondary">
+                                  {cookie.status === 'active' ? 'Active' : cookie.status === 'expired' ? 'Expired' : cookie.status}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  {isUnlimited ? `${used} / ∞` : `${used} / ${limit}`}
+                                </Typography>
+                              </Box>
+                              <LinearProgress 
+                                variant="determinate" 
+                                value={isUnlimited ? 100 : percentage} 
+                                color={isUnlimited ? 'primary' : percentage >= 90 ? 'error' : percentage >= 75 ? 'warning' : 'primary'}
+                                sx={{ height: 6, borderRadius: 3, ...(isUnlimited && { opacity: 0.5 }) }}
+                              />
+                            </Box>
+                          )
+                        })}
+                      </Box>
+                    )}
+                  </>
+                }
+                footerActions={
                   <Button 
                     size="small" 
                     variant="contained" 
@@ -915,8 +964,8 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
                   >
                     Edit Provider
                   </Button>
-                </CardActions>
-              </Card>
+                }
+              />
             </Grid>
           )
         })}
@@ -939,7 +988,7 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
           <Avatar
             src={activeProvider?.logo_url || activeProvider?.favicon_url || ''}
             alt={activeProvider?.name}
-            imgProps={{ style: { objectFit: 'contain', padding: '2px' } }}
+            slotProps={{ img: { style: { objectFit: 'contain', padding: '2px' } } }}
             sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: '0.9rem' }}
           >
             {activeProvider?.name ? activeProvider.name.charAt(0).toUpperCase() : '?'}
@@ -1096,7 +1145,7 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
       <Dialog open={openLogoEditor} onClose={() => setOpenLogoEditor(false)} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ fontWeight: 'bold' }}>Logo Crop & Pad Editor</DialogTitle>
         <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-          <Typography variant="body2" color="text.secondary" textAlign="center">
+          <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
             Drag the image to center/pan, and use the controls below to resize and pad your logo into a perfect square.
           </Typography>
           <Box sx={{ position: 'relative', width: 300, height: 300, bgcolor: 'action.hover', borderRadius: 2, overflow: 'hidden' }}>

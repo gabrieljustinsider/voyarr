@@ -42,6 +42,7 @@ from routers import (
     sso,
     oidc,
     scraper,
+    error_logs,
     deovr,
     subscriptions,
     billers,
@@ -52,6 +53,21 @@ from routers import (
 
 # Database initialization with retry logic for container environments
 import logging
+from utils import get_primary_root
+
+try:
+    log_dir = os.path.join(get_primary_root(), "logs")
+    os.makedirs(log_dir, exist_ok=True)
+    fastapi_log_file = os.path.join(log_dir, "fastapi.log")
+    file_handler = logging.FileHandler(fastapi_log_file)
+    file_handler.setFormatter(logging.Formatter("[%(asctime)s] %(levelname)s in %(module)s: %(message)s"))
+    root_log = logging.getLogger()
+    root_log.setLevel(logging.INFO)
+    if not any(isinstance(h, logging.FileHandler) and getattr(h, 'baseFilename', '') == os.path.abspath(fastapi_log_file) for h in root_log.handlers):
+        root_log.addHandler(file_handler)
+except Exception as log_init_err:
+    print(f"Warning: Failed to setup file logger: {log_init_err}")
+
 logger = logging.getLogger(__name__)
 
 @asynccontextmanager
@@ -115,6 +131,33 @@ from fastapi.responses import JSONResponse
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     logger.error(f"Unhandled server error at {request.url.path}: {exc}", exc_info=True)
+    try:
+        import traceback
+        from database import SessionLocal
+        from models import ErrorLog
+        from utils.error_classifier import classify_error, prune_error_logs
+
+        db = SessionLocal()
+        tb = traceback.format_exc()
+        msg = str(exc) or "Unhandled server error"
+        classification = classify_error(msg, tb, 500)
+
+        error_entry = ErrorLog(
+            category=classification["category"],
+            category_label=classification["category_label"],
+            message=msg,
+            user_friendly_explanation=classification["user_friendly_explanation"],
+            source="backend",
+            stack_trace=tb,
+            path=request.url.path,
+        )
+        db.add(error_entry)
+        db.commit()
+        prune_error_logs(db)
+        db.close()
+    except Exception as log_err:
+        logger.warning(f"Could not persist error log entry to DB: {log_err}")
+
     response = JSONResponse(
         status_code=500,
         content={"detail": f"Internal Server Error: {str(exc)}"}
@@ -229,6 +272,7 @@ app.include_router(passkeys.router)
 app.include_router(sso.router)
 app.include_router(oidc.router)
 app.include_router(scraper.router)
+app.include_router(error_logs.router)
 app.include_router(scraper.parse_router)
 app.include_router(scanner.router)
 app.include_router(deovr.router)

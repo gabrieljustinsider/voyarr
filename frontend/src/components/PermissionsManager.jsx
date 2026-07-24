@@ -146,8 +146,8 @@ export default function PermissionsManager({ user, onSave }) {
       </Typography>
 
       <Paper elevation={2} sx={{ p: 3, mb: 4, borderRadius: 2 }}>
-        <Grid container spacing={3} alignItems="center">
-          <Grid item xs={12} sm={6}>
+        <Grid container spacing={3} sx={{ alignItems: 'center' }}>
+          <Grid xs={12} sm={6}>
             <FormControl fullWidth>
               <InputLabel>Target Profile</InputLabel>
               <Select
@@ -218,7 +218,7 @@ export default function PermissionsManager({ user, onSave }) {
       </Typography>
       <Paper elevation={2} sx={{ p: 3, borderRadius: 2, mb: 4 }}>
         <Grid container spacing={4}>
-          <Grid item xs={12} sm={6}>
+          <Grid xs={12} sm={6}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <FormControlLabel
                 control={
@@ -244,7 +244,7 @@ export default function PermissionsManager({ user, onSave }) {
               />
             </Box>
           </Grid>
-          <Grid item xs={12} sm={6}>
+          <Grid xs={12} sm={6}>
             <TextField
               fullWidth
               label="Restricted Tags (Comma Separated)"

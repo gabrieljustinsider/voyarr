@@ -383,7 +383,7 @@ export default function DownloadRules() {
           <TextField fullWidth label="Rule Name" value={currentRule.name} onChange={e => setCurrentRule({...currentRule, name: e.target.value})} margin="normal" />
           
           <Grid container spacing={2}>
-            <Grid item xs={6}>
+            <Grid xs={6}>
               <FormControl fullWidth margin="normal">
                 <InputLabel>Scope</InputLabel>
                 <Select value={currentRule.scope} onChange={e => setCurrentRule({...currentRule, scope: e.target.value})} label="Scope">
@@ -393,7 +393,7 @@ export default function DownloadRules() {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={6}>
+            <Grid xs={6}>
               <FormControl fullWidth margin="normal">
                 <InputLabel>Action</InputLabel>
                 <Select value={currentRule.action} onChange={e => setCurrentRule({...currentRule, action: e.target.value})} label="Action">

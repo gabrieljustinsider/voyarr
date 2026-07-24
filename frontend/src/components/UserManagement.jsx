@@ -364,7 +364,7 @@ export default function UserManagement() {
         <Divider sx={{ mb: 2 }} />
         <form onSubmit={(e) => { e.preventDefault(); handleCreateUser(); }}>
           <Grid container spacing={4} sx={{ alignItems: 'flex-start' }}>
-            <Grid item xs={12} sm={6}>
+            <Grid xs={12} sm={6}>
               <Stack spacing={2.5}>
                 <TextField 
                   fullWidth 
@@ -385,7 +385,7 @@ export default function UserManagement() {
                 </FormControl>
               </Stack>
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid xs={12} sm={6}>
               <PasswordChecklist password={newUser.password} />
             </Grid>
           </Grid>
@@ -599,11 +599,11 @@ export default function UserManagement() {
                 <TabPanel value={manageUserTab} index={0}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2, fontFamily: 'Outfit, sans-serif' }}>User Profile Overview</Typography>
                   <Grid container spacing={2} sx={{ mb: 3 }}>
-                    <Grid item xs={6}>
+                    <Grid xs={6}>
                       <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Username</Typography>
                       <Typography variant="body1" sx={{ fontWeight: 600 }}>{selectedUserForManage.username}</Typography>
                     </Grid>
-                    <Grid item xs={6}>
+                    <Grid xs={6}>
                       <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Assigned System Role</Typography>
                       <Chip
                         size="small"
@@ -612,15 +612,15 @@ export default function UserManagement() {
                         sx={{ fontWeight: 'bold', textTransform: 'uppercase', mt: 0.5 }}
                       />
                     </Grid>
-                    <Grid item xs={6}>
+                    <Grid xs={6}>
                       <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Account Created</Typography>
                       <Typography variant="body2">{selectedUserForManage.created_at ? new Date(selectedUserForManage.created_at).toLocaleString() : 'N/A'}</Typography>
                     </Grid>
-                    <Grid item xs={6}>
+                    <Grid xs={6}>
                       <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>Last Activity / Sign In</Typography>
                       <Typography variant="body2">{selectedUserForManage.last_login_at ? new Date(selectedUserForManage.last_login_at).toLocaleString() : 'Never'}</Typography>
                     </Grid>
-                    <Grid item xs={12}>
+                    <Grid xs={12}>
                       <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 0.5 }}>Daily Rip Quota Usage</Typography>
                       {(() => {
                         const quota = selectedUserForManage.permissions?.quotas?.dailyRips || 0;
@@ -968,8 +968,8 @@ export default function UserManagement() {
                       Consolidate viewing history, favorites, video stats, WebAuthn passkeys, and linked social SSO accounts from <strong>{selectedUserForManage.username}</strong> into a target user account. The source account will be safely deleted after the migration completes.
                     </Typography>
 
-                    <Grid container spacing={2} alignItems="center">
-                      <Grid item xs={12}>
+                    <Grid container spacing={2} sx={{ alignItems: 'center' }}>
+                      <Grid xs={12}>
                         <FormControl fullWidth size="small">
                           <InputLabel>Select Target Account</InputLabel>
                           <Select 
@@ -987,7 +987,7 @@ export default function UserManagement() {
                           </Select>
                         </FormControl>
                       </Grid>
-                      <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+                      <Grid xs={12} sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
                         <Button 
                           variant="contained" 
                           color="warning" 

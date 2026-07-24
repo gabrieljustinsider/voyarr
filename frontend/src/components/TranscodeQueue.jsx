@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { 
   Box, Typography, Paper, Table, TableBody, TableCell, TableContainer, 
   TableHead, TableRow, LinearProgress, IconButton, Chip, Tooltip, Card, 
-  CardContent 
+  CardContent, Alert
 } from '@mui/material'
 import PauseIcon from '@mui/icons-material/Pause'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
@@ -124,13 +124,30 @@ export default function TranscodeQueue() {
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box>
             <Typography variant="h6" sx={{ fontWeight: '800', display: 'flex', alignItems: 'center', gap: 1 }}>
-              <StorageIcon color="primary" /> Transcoding queue
-            </Typography>
-            <Typography variant="caption" sx={{ opacity: 0.6 }}>
-              Track active, pending, and completed h265 and AV1 transcode processes.
+              <StorageIcon color="primary" /> Transcoding Queue
             </Typography>
           </Box>
         </Box>
+
+        {/* Purpose Banner */}
+        <Alert 
+          severity="info" 
+          icon={<StorageIcon fontSize="small" />} 
+          sx={{ 
+            borderRadius: '12px', 
+            bgcolor: 'rgba(14, 165, 233, 0.08)', 
+            color: '#38bdf8',
+            border: '1px solid rgba(14, 165, 233, 0.2)',
+            '& .MuiAlert-icon': { color: '#0284c7' } 
+          }}
+        >
+          <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.25 }}>
+            ⚙️ Hardware Transcoding &amp; Codec Optimization
+          </Typography>
+          <Typography variant="caption" sx={{ display: 'block', opacity: 0.9, lineHeight: 1.4 }}>
+            The Transcoding Queue optimizes downloaded video files into web-compatible formats (H.264/MP4, HEVC, AV1). This ensures universal stream playback across mobile devices and browsers without buffering or missing codec errors.
+          </Typography>
+        </Alert>
 
         {(jobs || []).length === 0 ? (
           <Box sx={{ p: 4, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>

@@ -841,7 +841,7 @@ export default function Login() {
               <Box sx={{ maxHeight: '55vh', overflowY: 'auto', pr: 1, mr: -1, mb: 1 }}>
                 <Grid container spacing={2}>
                   {/* Top Row: Display Name & Website Override */}
-                  <Grid item xs={12} md={6}>
+                  <Grid xs={12} md={6}>
                     <TextField
                       fullWidth
                       label="Display Name"
@@ -852,7 +852,7 @@ export default function Login() {
                     />
                   </Grid>
 
-                  <Grid item xs={12} md={6}>
+                  <Grid xs={12} md={6}>
                     <TextField
                       fullWidth
                       label="Website Address Override"
@@ -865,7 +865,7 @@ export default function Login() {
                   </Grid>
 
                   {/* Left Column (Remaining Fields) */}
-                  <Grid item xs={12} md={6} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <Grid xs={12} md={6} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <FormControl fullWidth>
                       <InputLabel id="attachment-label">Allowed Sign-In Devices</InputLabel>
                       <Select
@@ -900,7 +900,7 @@ export default function Login() {
                   </Grid>
 
                   {/* Right Column (Remaining Fields) */}
-                  <Grid item xs={12} md={6} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <Grid xs={12} md={6} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <FormControl fullWidth>
                       <InputLabel id="verification-label">Require Fingerprint/Face Verification</InputLabel>
                       <Select
@@ -1082,7 +1082,7 @@ export default function Login() {
         {/* SSO fast access badges grid */}
         {authConfig.sso_enabled && (
         <Grid container spacing={2} sx={{ mb: authConfig.oidc_enabled ? 2 : 0 }}>
-          <Grid item xs={4}>
+          <Grid xs={4}>
             <Button 
               fullWidth 
               variant="outlined" 
@@ -1101,7 +1101,7 @@ export default function Login() {
               <GoogleSvg />
             </Button>
           </Grid>
-          <Grid item xs={4}>
+          <Grid xs={4}>
             <Button 
               fullWidth 
               variant="outlined" 
@@ -1120,7 +1120,7 @@ export default function Login() {
               <GitHubSvg />
             </Button>
           </Grid>
-          <Grid item xs={4}>
+          <Grid xs={4}>
             <Button 
               fullWidth 
               variant="outlined" 

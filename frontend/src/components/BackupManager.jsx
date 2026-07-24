@@ -359,7 +359,7 @@ else:
       
       <Grid container spacing={3}>
         {/* Left Side: Export Controls */}
-        <Grid item xs={12} md={6}>
+        <Grid xs={12} md={6}>
           <Paper sx={{ p: 3, height: '100%', boxSizing: 'border-box' }}>
             <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>Export Data</Typography>
             <Divider sx={{ mb: 2 }} />
@@ -373,7 +373,7 @@ else:
               </Button>
               <Grid container spacing={1}>
                 {tables.map(table => (
-                  <Grid item xs={12} sm={6} key={table}>
+                  <Grid xs={12} sm={6} key={table}>
                     <FormControlLabel
                       control={<Checkbox checked={selectedTables.includes(table)} onChange={() => handleToggleTable(table)} size="small" />}
                       label={<Typography variant="body2">{table}</Typography>}
@@ -429,7 +429,7 @@ else:
         </Grid>
 
         {/* Right Side: Local Backups Browser */}
-        <Grid item xs={12} md={6}>
+        <Grid xs={12} md={6}>
           <Paper sx={{ p: 3, height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
             <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 1 }}>
               <StorageIcon sx={{ color: 'var(--accent)' }} /> Server-Side Backups
@@ -489,13 +489,13 @@ else:
         </Grid>
 
         {/* Restore Section (Unified for Uploaded & Local) */}
-        <Grid item xs={12}>
+        <Grid xs={12}>
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>Restore & Verify Backup</Typography>
             <Divider sx={{ mb: 2 }} />
             
             <Grid container spacing={3}>
-              <Grid item xs={12} md={4}>
+              <Grid xs={12} md={4}>
                 <Typography variant="body2" sx={{ mb: 2 }} color="textSecondary">
                   Select a backup file by uploading it from your computer or choosing from the server list above.
                 </Typography>
@@ -559,7 +559,7 @@ else:
                 )}
               </Grid>
 
-              <Grid item xs={12} md={8}>
+              <Grid xs={12} md={8}>
                 {verifyData ? (
                   <Box>
                     <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold' }}>
@@ -567,7 +567,7 @@ else:
                     </Typography>
                     
                     <Grid container spacing={2} sx={{ mb: 2 }}>
-                      <Grid item xs={12} sm={6}>
+                      <Grid xs={12} sm={6}>
                         <Paper variant="outlined" sx={{ p: 2, backgroundColor: 'rgba(255,255,255,0.01)' }}>
                           <Typography variant="caption" color="textSecondary">Backup Type</Typography>
                           <Typography variant="body1" sx={{ fontWeight: 'bold', textTransform: 'capitalize' }}>
@@ -575,7 +575,7 @@ else:
                           </Typography>
                         </Paper>
                       </Grid>
-                      <Grid item xs={12} sm={6}>
+                      <Grid xs={12} sm={6}>
                         <Paper variant="outlined" sx={{ p: 2, backgroundColor: 'rgba(255,255,255,0.01)' }}>
                           <Typography variant="caption" color="textSecondary">Encryption Mode</Typography>
                           <Typography variant="body1" sx={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -588,7 +588,7 @@ else:
                         </Paper>
                       </Grid>
 
-                      <Grid item xs={12}>
+                      <Grid xs={12}>
                         <Paper variant="outlined" sx={{ p: 2, backgroundColor: 'rgba(255,255,255,0.01)' }}>
                           <Typography variant="caption" color="textSecondary">SHA-256 Checksum</Typography>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
@@ -604,7 +604,7 @@ else:
                         </Paper>
                       </Grid>
 
-                      <Grid item xs={12}>
+                      <Grid xs={12}>
                         <Paper variant="outlined" sx={{ p: 2, backgroundColor: 'rgba(255,255,255,0.01)' }}>
                           <Typography variant="caption" color="textSecondary">Signature Integrity Status</Typography>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>

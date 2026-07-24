@@ -223,7 +223,7 @@ export default function SystemStatus() {
           </Card>
 
           <Grid container spacing={3}>
-            <Grid item xs={12} md={6} lg={4}>
+            <Grid xs={12} md={6} lg={4}>
               <Card sx={{ height: '100%' }}>
                 <CardContent>
                   <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>System Environment</Typography>
@@ -242,7 +242,7 @@ export default function SystemStatus() {
                   </Box>
 
                   <Grid container spacing={2} sx={{ mb: 2 }}>
-                    <Grid item xs={6}>
+                    <Grid xs={6}>
                       <Typography variant="body2" sx={{ fontWeight: 'bold' }} color="textSecondary">Host OS</Typography>
                       <Typography variant="body1" sx={{ mb: 2 }}>{status?.environment?.os || 'Linux Container'}</Typography>
                       
@@ -252,7 +252,7 @@ export default function SystemStatus() {
                       </Typography>
                     </Grid>
                     
-                    <Grid item xs={6}>
+                    <Grid xs={6}>
                       <Typography variant="body2" sx={{ fontWeight: 'bold' }} color="textSecondary">App Version (Backend)</Typography>
                       <Typography variant="body1" sx={{ mb: 2 }}>{status?.environment?.app_version ? `v${status.environment.app_version}` : `v${__APP_VERSION__}`}</Typography>
 
@@ -336,7 +336,7 @@ export default function SystemStatus() {
               </Card>
             </Grid>
 
-            <Grid item xs={12} md={6} lg={4}>
+            <Grid xs={12} md={6} lg={4}>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <Card>
                   <CardContent>
@@ -461,7 +461,7 @@ export default function SystemStatus() {
               </Box>
             </Grid>
 
-            <Grid item xs={12} lg={4}>
+            <Grid xs={12} lg={4}>
               <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', width: '100%' }}>
                 <Box sx={{ flex: { xs: '1 1 100%', lg: '1 1 calc(50% - 12px)' }, minWidth: 0 }}>
                   <Card sx={{ height: '100%' }}>

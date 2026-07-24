@@ -100,6 +100,27 @@ export default function Favorites() {
         </Button>
       </Box>
 
+      {/* Purpose Banner */}
+      <Alert 
+        severity="info" 
+        icon={<FavoriteIcon fontSize="small" color="error" />} 
+        sx={{ 
+          mb: 3, 
+          borderRadius: '12px', 
+          bgcolor: 'rgba(239, 68, 68, 0.08)', 
+          color: '#f87171',
+          border: '1px solid rgba(239, 68, 68, 0.2)',
+          '& .MuiAlert-icon': { color: '#ef4444' } 
+        }}
+      >
+        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.25 }}>
+          ❤️ Bookmarked Favorites &amp; Preferred Content
+        </Typography>
+        <Typography variant="caption" sx={{ display: 'block', opacity: 0.9, lineHeight: 1.4 }}>
+          The Favorites Hub organizes all your starred media scenes, videos, performers, categories, tags, and production studios in one dedicated bookmark collection for instant access.
+        </Typography>
+      </Alert>
+
       <Paper sx={{ 
         p: 0.5, 
         mb: 3, 
@@ -149,14 +170,14 @@ export default function Favorites() {
           </Typography>
         </Paper>
       ) : (
-        <Grid container spacing={3} alignItems="stretch">
+        <Grid container spacing={3} sx={{ alignItems: 'stretch' }}>
           {currentItems.map(item => {
             let displayName = item;
             if (currentType === 'studio') {
               displayName = studiosMap[item] || `Studio ID: ${item}`;
             }
             return (
-            <Grid item xs={12} sm={6} md={4} lg={3} key={item} sx={{ display: 'flex' }}>
+            <Grid xs={12} sm={6} md={4} lg={3} key={item} sx={{ display: 'flex' }}>
               <Card sx={{ 
                 height: '100%', 
                 width: '100%',

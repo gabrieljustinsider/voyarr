@@ -43,9 +43,9 @@ def seed_default_studios(session: Session):
     
     # 1. Seed Network Parents first
     networks = [
-        ("Vixen Media Group", "https://www.vixen.com", "https://logo.clearbit.com/vixen.com", "Premier erotic art & glamour production group", ["glamour", "hd", "4k", "network"], True),
-        ("Aylo / MindGeek", "https://www.aylo.com", "https://logo.clearbit.com/aylo.com", "Global adult entertainment technology & media conglomerate", ["network", "commercial", "gonzo"], True),
-        ("Gamma Entertainment", "https://www.gammae.com", "https://logo.clearbit.com/gammae.com", "Multinational adult entertainment production house", ["network", "hd", "cinematic"], True),
+        ("Vixen Media Group", "https://www.vixen.com", "https://www.google.com/s2/favicons?domain=vixen.com&sz=128", "Premier erotic art & glamour production group", ["glamour", "hd", "4k", "network"], True),
+        ("Aylo / MindGeek", "https://www.aylo.com", "https://www.google.com/s2/favicons?domain=aylo.com&sz=128", "Global adult entertainment technology & media conglomerate", ["network", "commercial", "gonzo"], True),
+        ("Gamma Entertainment", "https://www.gammae.com", "https://www.google.com/s2/favicons?domain=gammae.com&sz=128", "Multinational adult entertainment production house", ["network", "hd", "cinematic"], True),
     ]
 
     network_map = {}
@@ -59,31 +59,31 @@ def seed_default_studios(session: Session):
 
     # 2. Seed Studios
     child_studios = [
-        ("Vixen", "Vixen Media Group", "https://www.vixen.com", "https://logo.clearbit.com/vixen.com", "High-end glamour erotic cinema", ["glamour", "erotic", "4k"]),
-        ("Tushy", "Vixen Media Group", "https://www.tushy.com", "https://logo.clearbit.com/tushy.com", "Cinematic anal romance & glamour", ["anal", "glamour", "4k"]),
-        ("Blacked", "Vixen Media Group", "https://www.blacked.com", "https://logo.clearbit.com/blacked.com", "Premium interracial erotic production", ["interracial", "glamour", "4k"]),
-        ("Deeper", "Vixen Media Group", "https://www.deeper.com", "https://logo.clearbit.com/deeper.com", "Passionate cinematic romance", ["cinematic", "passion", "4k"]),
-        ("Slayed", "Vixen Media Group", "https://www.slayed.com", "https://logo.clearbit.com/slayed.com", "All-female glamour & erotic cinema", ["all-girl", "glamour", "4k"]),
-        ("Brazzers", "Aylo / MindGeek", "https://www.brazzers.com", "https://logo.clearbit.com/brazzers.com", "Iconic hardcore pop-culture gonzo studio", ["parody", "gonzo", "big-budget"]),
-        ("Reality Kings", "Aylo / MindGeek", "https://www.realitykings.com", "https://logo.clearbit.com/realitykings.com", "Reality & gonzo adult series network", ["gonzo", "reality", "glamour"]),
-        ("Digital Playground", "Aylo / MindGeek", "https://www.digitalplayground.com", "https://logo.clearbit.com/digitalplayground.com", "Blockbuster narrative feature films", ["blockbuster", "narrative", "feature"]),
-        ("Mofos", "Aylo / MindGeek", "https://www.mofos.com", "https://logo.clearbit.com/mofos.com", "Amateur & reality gonzo series", ["reality", "gonzo", "amateur"]),
-        ("Twistys", "Aylo / MindGeek", "https://www.twistys.com", "https://logo.clearbit.com/twistys.com", "Glamour solo & softcore aesthetic studio", ["solo", "glamour", "softcore"]),
-        ("Pure Taboo", "Gamma Entertainment", "https://www.puretaboo.com", "https://logo.clearbit.com/puretaboo.com", "Dark dramatic narrative series", ["drama", "taboo", "cinematic"]),
-        ("Passion HD", "Gamma Entertainment", "https://www.passionhd.com", "https://logo.clearbit.com/passionhd.com", "High-definition erotic romance", ["erotic", "glamour", "hd"]),
-        ("Evil Angel", None, "https://www.evilangel.com", "https://logo.clearbit.com/evilangel.com", "Director-driven hardcore gonzo pioneer", ["gonzo", "anal", "hardcore"]),
-        ("Jules Jordan Video", None, "https://www.julesjordan.com", "https://logo.clearbit.com/julesjordan.com", "High-end hardcore gonzo powerhouse", ["gonzo", "hardcore", "high-end"]),
-        ("Naughty America", None, "https://www.naughtyamerica.com", "https://logo.clearbit.com/naughtyamerica.com", "Fantasy POV & virtual reality studio", ["fantasy", "pov", "vr"]),
-        ("BangBros", None, "https://bangbros.com", "https://logo.clearbit.com/bangbros.com", "Florida-based reality gonzo pioneer", ["gonzo", "reality", "florida"]),
-        ("Wicked Pictures", None, "https://www.wicked.com", "https://logo.clearbit.com/wicked.com", "Couples romance & narrative cinema", ["feature", "couples", "romance"]),
-        ("Elegant Angel", None, "https://www.elegantangel.com", "https://logo.clearbit.com/elegantangel.com", "Hardcore gonzo & all-girl specialty studio", ["gonzo", "all-girl", "anal"]),
-        ("Kink.com", None, "https://www.kink.com", "https://logo.clearbit.com/kink.com", "Alternative BDSM, fetish, and bondage studio", ["bdsm", "bondage", "fetish"]),
-        ("Girlfriends Films", None, "https://www.girlfriendsfilms.com", "https://logo.clearbit.com/girlfriendsfilms.com", "Lesbian romance & narrative cinema", ["all-girl", "lesbian", "romance"]),
-        ("TeamSkeet", None, "https://www.teamskeet.com", "https://logo.clearbit.com/teamskeet.com", "Comedy & youth gonzo series", ["teen", "comedy", "gonzo"]),
-        ("Fake Taxi", None, "https://www.faketaxi.com", "https://logo.clearbit.com/faketaxi.com", "UK reality POV series", ["reality", "pov", "uk"]),
-        ("Bel Ami", None, "https://www.belamionline.com", "https://logo.clearbit.com/belamionline.com", "European gay erotica studio", ["gay", "erotic", "europe"]),
-        ("Men.com", None, "https://www.men.com", "https://logo.clearbit.com/men.com", "Premier gay gonzo production studio", ["gay", "gonzo", "hd"]),
-        ("Sean Cody", None, "https://www.seancody.com", "https://logo.clearbit.com/seancody.com", "Solo & bareback gay production studio", ["gay", "bareback", "solo"])
+        ("Vixen", "Vixen Media Group", "https://www.vixen.com", "https://www.google.com/s2/favicons?domain=vixen.com&sz=128", "High-end glamour erotic cinema", ["glamour", "erotic", "4k"]),
+        ("Tushy", "Vixen Media Group", "https://www.tushy.com", "https://www.google.com/s2/favicons?domain=tushy.com&sz=128", "Cinematic anal romance & glamour", ["anal", "glamour", "4k"]),
+        ("Blacked", "Vixen Media Group", "https://www.blacked.com", "https://www.google.com/s2/favicons?domain=blacked.com&sz=128", "Premium interracial erotic production", ["interracial", "glamour", "4k"]),
+        ("Deeper", "Vixen Media Group", "https://www.deeper.com", "https://www.google.com/s2/favicons?domain=deeper.com&sz=128", "Passionate cinematic romance", ["cinematic", "passion", "4k"]),
+        ("Slayed", "Vixen Media Group", "https://www.slayed.com", "https://www.google.com/s2/favicons?domain=slayed.com&sz=128", "All-female glamour & erotic cinema", ["all-girl", "glamour", "4k"]),
+        ("Brazzers", "Aylo / MindGeek", "https://www.brazzers.com", "https://www.google.com/s2/favicons?domain=brazzers.com&sz=128", "Iconic hardcore pop-culture gonzo studio", ["parody", "gonzo", "big-budget"]),
+        ("Reality Kings", "Aylo / MindGeek", "https://www.realitykings.com", "https://www.google.com/s2/favicons?domain=realitykings.com&sz=128", "Reality & gonzo adult series network", ["gonzo", "reality", "glamour"]),
+        ("Digital Playground", "Aylo / MindGeek", "https://www.digitalplayground.com", "https://www.google.com/s2/favicons?domain=digitalplayground.com&sz=128", "Blockbuster narrative feature films", ["blockbuster", "narrative", "feature"]),
+        ("Mofos", "Aylo / MindGeek", "https://www.mofos.com", "https://www.google.com/s2/favicons?domain=mofos.com&sz=128", "Amateur & reality gonzo series", ["reality", "gonzo", "amateur"]),
+        ("Twistys", "Aylo / MindGeek", "https://www.twistys.com", "https://www.google.com/s2/favicons?domain=twistys.com&sz=128", "Glamour solo & softcore aesthetic studio", ["solo", "glamour", "softcore"]),
+        ("Pure Taboo", "Gamma Entertainment", "https://www.puretaboo.com", "https://www.google.com/s2/favicons?domain=puretaboo.com&sz=128", "Dark dramatic narrative series", ["drama", "taboo", "cinematic"]),
+        ("Passion HD", "Gamma Entertainment", "https://www.passionhd.com", "https://www.google.com/s2/favicons?domain=passionhd.com&sz=128", "High-definition erotic romance", ["erotic", "glamour", "hd"]),
+        ("Evil Angel", None, "https://www.evilangel.com", "https://www.google.com/s2/favicons?domain=evilangel.com&sz=128", "Director-driven hardcore gonzo pioneer", ["gonzo", "anal", "hardcore"]),
+        ("Jules Jordan Video", None, "https://www.julesjordan.com", "https://www.google.com/s2/favicons?domain=julesjordan.com&sz=128", "High-end hardcore gonzo powerhouse", ["gonzo", "hardcore", "high-end"]),
+        ("Naughty America", None, "https://www.naughtyamerica.com", "https://www.google.com/s2/favicons?domain=naughtyamerica.com&sz=128", "Fantasy POV & virtual reality studio", ["fantasy", "pov", "vr"]),
+        ("BangBros", None, "https://bangbros.com", "https://www.google.com/s2/favicons?domain=bangbros.com&sz=128", "Florida-based reality gonzo pioneer", ["gonzo", "reality", "florida"]),
+        ("Wicked Pictures", None, "https://www.wicked.com", "https://www.google.com/s2/favicons?domain=wicked.com&sz=128", "Couples romance & narrative cinema", ["feature", "couples", "romance"]),
+        ("Elegant Angel", None, "https://www.elegantangel.com", "https://www.google.com/s2/favicons?domain=elegantangel.com&sz=128", "Hardcore gonzo & all-girl specialty studio", ["gonzo", "all-girl", "anal"]),
+        ("Kink.com", None, "https://www.kink.com", "https://www.google.com/s2/favicons?domain=kink.com&sz=128", "Alternative BDSM, fetish, and bondage studio", ["bdsm", "bondage", "fetish"]),
+        ("Girlfriends Films", None, "https://www.girlfriendsfilms.com", "https://www.google.com/s2/favicons?domain=girlfriendsfilms.com&sz=128", "Lesbian romance & narrative cinema", ["all-girl", "lesbian", "romance"]),
+        ("TeamSkeet", None, "https://www.teamskeet.com", "https://www.google.com/s2/favicons?domain=teamskeet.com&sz=128", "Comedy & youth gonzo series", ["teen", "comedy", "gonzo"]),
+        ("Fake Taxi", None, "https://www.faketaxi.com", "https://www.google.com/s2/favicons?domain=faketaxi.com&sz=128", "UK reality POV series", ["reality", "pov", "uk"]),
+        ("Bel Ami", None, "https://www.belamionline.com", "https://www.google.com/s2/favicons?domain=belamionline.com&sz=128", "European gay erotica studio", ["gay", "erotic", "europe"]),
+        ("Men.com", None, "https://www.men.com", "https://www.google.com/s2/favicons?domain=men.com&sz=128", "Premier gay gonzo production studio", ["gay", "gonzo", "hd"]),
+        ("Sean Cody", None, "https://www.seancody.com", "https://www.google.com/s2/favicons?domain=seancody.com&sz=128", "Solo & bareback gay production studio", ["gay", "bareback", "solo"])
     ]
 
     for name, parent_name, url, logo, desc, tags in child_studios:

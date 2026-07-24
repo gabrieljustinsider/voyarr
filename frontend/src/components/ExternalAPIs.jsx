@@ -510,11 +510,11 @@ export default function ExternalAPIs() {
           </Typography>
           <Divider sx={{ mb: 2 }} />
           
-          <Grid container spacing={2} alignItems="center" sx={{ mb: 3 }}>
-            <Grid item xs={12} md={9}>
+          <Grid container spacing={2} sx={{ mb: 3, alignItems: 'center' }}>
+            <Grid xs={12} md={9}>
               <TextField fullWidth size="small" label="New Key Name (e.g. 'Stash Webhook')" value={newKeyName} onChange={e => setNewKeyName(e.target.value)} />
             </Grid>
-            <Grid item xs={12} md={3}>
+            <Grid xs={12} md={3}>
               <Button fullWidth variant="contained" onClick={handleCreateApiKey} disabled={!newKeyName}>Generate Key</Button>
             </Grid>
           </Grid>

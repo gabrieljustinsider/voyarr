@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { 
   Box, Typography, Card, CardContent, Grid, TextField, 
   Chip, FormControl, InputLabel, Select, MenuItem, Paper, CardMedia, Tooltip,
   Dialog, DialogTitle, DialogContent, IconButton, Button, DialogActions,
   CircularProgress, Alert, Pagination, Checkbox, Slide, Autocomplete, createFilterOptions
 } from '@mui/material'
-import { X, PlayCircle, Settings, List, CloudUpload, Heart, Cast, Sparkles, Edit2, Plus, FolderOpen, FileUp, Trash2 } from 'lucide-react'
+import { X, PlayCircle, Settings, List, CloudUpload, Heart, Cast, Sparkles, Edit2, Plus, FolderOpen, FileUp, Trash2, Film, LayoutGrid, Clock, HardDrive, Filter, ArrowUpDown, SlidersHorizontal, Video, Layers } from 'lucide-react'
 import ChapterManager from './ChapterManager'
 import SecondScreenRemote from './SecondScreenRemote'
 import SmartVideoPlayer from './SmartVideoPlayer'
@@ -23,6 +23,8 @@ export default function Library() {
   const [debouncedFilters, setDebouncedFilters] = useState(filters)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
+  const [viewMode, setViewMode] = useState('grid') // 'grid' | 'list'
+  const [sortBy, setSortBy] = useState('newest') // 'newest' | 'title' | 'size' | 'resolution'
   const [playingVideo, setPlayingVideo] = useState(null)
   const [managingChaptersFor, setManagingChaptersFor] = useState(null)
 
@@ -165,6 +167,21 @@ export default function Library() {
       console.error("Failed to fetch library entries:", e)
     }
   }, [debouncedFilters, page])
+
+  const sortedEntries = useMemo(() => {
+    if (!entries || !Array.isArray(entries)) return []
+    const list = [...entries]
+    if (sortBy === 'title') {
+      return list.sort((a, b) => (a.title || '').localeCompare(b.title || ''))
+    }
+    if (sortBy === 'size') {
+      return list.sort((a, b) => (b.file_size || 0) - (a.file_size || 0))
+    }
+    if (sortBy === 'resolution') {
+      return list.sort((a, b) => (b.resolution || '').localeCompare(a.resolution || ''))
+    }
+    return list.sort((a, b) => (b.id || 0) - (a.id || 0))
+  }, [entries, sortBy])
 
   useEffect(() => {
     fetchLibrary()
@@ -710,6 +727,27 @@ export default function Library() {
         </Box>
       </Box>
 
+      {/* Purpose Banner */}
+      <Alert 
+        severity="info" 
+        icon={<Film size={20} />} 
+        sx={{ 
+          mb: 3, 
+          borderRadius: '12px', 
+          bgcolor: 'rgba(99, 102, 241, 0.08)', 
+          color: '#a5b4fc',
+          border: '1px solid rgba(99, 102, 241, 0.2)',
+          '& .MuiAlert-icon': { color: '#818cf8' } 
+        }}
+      >
+        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.25 }}>
+          🎬 Media Library &amp; Video Content Explorer
+        </Typography>
+        <Typography variant="caption" sx={{ display: 'block', opacity: 0.9, lineHeight: 1.4 }}>
+          The Media Library serves as your primary repository for streaming, searching, and managing all downloaded or imported video files. Filter content by resolution, performers, studio, and tags, or trigger AI auto-tagging and media imports.
+        </Typography>
+      </Alert>
+
       {/* Direct File Picker (Bypasses metadata modal) */}
       {directPickerOpen && (
         <PathPicker
@@ -723,126 +761,477 @@ export default function Library() {
         />
       )}
 
-      {/* Filters Bar */}
-      <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
-        <Paper sx={{ p: 2, width: 'fit-content' }}>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, justifyContent: 'center', alignItems: 'center' }}>
-            <FormControl size="small" sx={{ minWidth: 120 }}>
+      {/* Modernized Filters & Controls Bar */}
+      <Paper 
+        elevation={0}
+        sx={{ 
+          p: 2.5, 
+          mb: 3.5, 
+          borderRadius: '16px', 
+          background: 'rgba(255, 255, 255, 0.03)', 
+          backdropFilter: 'blur(16px)', 
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)'
+        }}
+      >
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, alignItems: 'center', justifyContent: 'space-between' }}>
+          
+          {/* Left: Search & Filter Inputs */}
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, alignItems: 'center', flex: 1, width: { xs: '100%', md: 'auto' } }}>
+            <FormControl size="small" sx={{ minWidth: 130 }}>
               <InputLabel sx={{ whiteSpace: 'nowrap', overflow: 'visible' }}>Resolution</InputLabel>
-              <Select name="resolution" value={filters.resolution} label="Resolution" onChange={handleFilterChange}>
-                <MenuItem value=""><em>All</em></MenuItem>
-                <MenuItem value="4K">4K</MenuItem>
-                <MenuItem value="1080p">1080p</MenuItem>
-                <MenuItem value="720p">720p</MenuItem>
+              <Select name="resolution" value={filters.resolution} label="Resolution" onChange={handleFilterChange} sx={{ borderRadius: '10px' }}>
+                <MenuItem value=""><em>All Resolutions</em></MenuItem>
+                <MenuItem value="4K">4K UHD</MenuItem>
+                <MenuItem value="1080p">1080p FHD</MenuItem>
+                <MenuItem value="720p">720p HD</MenuItem>
               </Select>
             </FormControl>
-            <TextField size="small" label="Filter by Performer" name="performer" value={filters.performer} onChange={handleFilterChange} />
-            <TextField size="small" label="Filter by Tag" name="tag" value={filters.tag} onChange={handleFilterChange} />
-            <TextField size="small" label="Search by ohash" name="ohash" value={filters.ohash} onChange={handleFilterChange} />
-          </Box>
-        </Paper>
-      </Box>
 
-      {/* Media Grid */}
-      {entries.length === 0 ? (
-        <Typography color="textSecondary">No media found matching your criteria.</Typography>
-      ) : (
-        <Grid container spacing={3}>
-          {entries.map(entry => {
+            <TextField 
+              size="small" 
+              label="Performer" 
+              name="performer" 
+              value={filters.performer} 
+              onChange={handleFilterChange} 
+              sx={{ minWidth: 150, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }} 
+            />
+            
+            <TextField 
+              size="small" 
+              label="Tag" 
+              name="tag" 
+              value={filters.tag} 
+              onChange={handleFilterChange} 
+              sx={{ minWidth: 130, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }} 
+            />
+
+            <TextField 
+              size="small" 
+              label="Search ohash" 
+              name="ohash" 
+              value={filters.ohash} 
+              onChange={handleFilterChange} 
+              sx={{ minWidth: 140, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }} 
+            />
+
+            {(filters.resolution || filters.performer || filters.tag || filters.ohash) && (
+              <Button 
+                size="small" 
+                color="warning" 
+                onClick={() => setFilters({ resolution: '', performer: '', tag: '', ohash: '' })}
+                sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 'bold' }}
+              >
+                Clear Filters
+              </Button>
+            )}
+          </Box>
+
+          {/* Right: Sort Dropdown & View Mode Switcher */}
+          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', width: { xs: '100%', md: 'auto' }, justifyContent: 'flex-end' }}>
+            <FormControl size="small" sx={{ minWidth: 160 }}>
+              <InputLabel>Sort By</InputLabel>
+              <Select value={sortBy} label="Sort By" onChange={e => setSortBy(e.target.value)} sx={{ borderRadius: '10px' }}>
+                <MenuItem value="newest">Newest Added</MenuItem>
+                <MenuItem value="title">Title (A-Z)</MenuItem>
+                <MenuItem value="size">File Size (Largest)</MenuItem>
+                <MenuItem value="resolution">Resolution</MenuItem>
+              </Select>
+            </FormControl>
+
+            <Box sx={{ display: 'flex', bgcolor: 'rgba(255,255,255,0.06)', p: 0.5, borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <Tooltip title="Grid View">
+                <IconButton 
+                  size="small" 
+                  onClick={() => setViewMode('grid')} 
+                  color={viewMode === 'grid' ? 'primary' : 'default'}
+                  sx={{ borderRadius: '8px', bgcolor: viewMode === 'grid' ? 'rgba(99, 102, 241, 0.2)' : 'transparent' }}
+                >
+                  <LayoutGrid size={18} />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="List View">
+                <IconButton 
+                  size="small" 
+                  onClick={() => setViewMode('list')} 
+                  color={viewMode === 'list' ? 'primary' : 'default'}
+                  sx={{ borderRadius: '8px', bgcolor: viewMode === 'list' ? 'rgba(99, 102, 241, 0.2)' : 'transparent' }}
+                >
+                  <List size={18} />
+                </IconButton>
+              </Tooltip>
+            </Box>
+          </Box>
+        </Box>
+      </Paper>
+
+      {/* Media Content Rendering */}
+      {sortedEntries.length === 0 ? (
+        <Paper sx={{ p: 6, textAlign: 'center', background: 'rgba(255, 255, 255, 0.01)', borderRadius: '16px', border: '1px dashed rgba(255, 255, 255, 0.1)' }}>
+          <Film size={48} style={{ opacity: 0.3, marginBottom: '16px' }} />
+          <Typography variant="h6" color="textSecondary" gutterBottom>No media items found</Typography>
+          <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
+            Try adjusting your search filters or click 'Import Media' to add content to your library.
+          </Typography>
+          <Button variant="contained" color="primary" startIcon={<FileUp size={18} />} onClick={() => setDirectPickerOpen(true)}>
+            Import Media
+          </Button>
+        </Paper>
+      ) : viewMode === 'grid' ? (
+        /* Grid View Mode */
+        <Grid container spacing={3} sx={{ alignItems: 'stretch' }}>
+          {sortedEntries.map(entry => {
             const isFav = favScenes.includes(String(entry.id))
+            const isSelected = selectedEntries.has(entry.id)
+            const is4K = entry.resolution === '4K' || entry.resolution === '2160p'
+            
             return (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={entry.id}>
+              <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={entry.id}>
                 <Card sx={{ 
                   height: '100%', 
                   display: 'flex', 
                   flexDirection: 'column', 
                   position: 'relative',
-                  outline: selectedEntries.has(entry.id) ? '2px solid #90caf9' : 'none',
-                  boxShadow: selectedEntries.has(entry.id) ? '0 0 15px rgba(144, 202, 249, 0.4)' : 'none',
-                  transition: 'outline 0.15s, box-shadow 0.15s'
+                  borderRadius: '16px',
+                  outline: isSelected ? '2px solid #6366f1' : '1px solid rgba(255, 255, 255, 0.08)',
+                  boxShadow: isSelected ? '0 0 20px rgba(99, 102, 241, 0.4)' : '0 8px 24px rgba(0,0,0,0.3)',
+                  transition: 'all 0.25s ease-in-out',
+                  overflow: 'hidden',
+                  background: 'linear-gradient(145deg, rgba(30,30,45,0.7) 0%, rgba(15,15,25,0.9) 100%)',
+                  '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: '0 12px 32px rgba(0,0,0,0.5)',
+                    border: '1px solid rgba(99, 102, 241, 0.3)'
+                  }
                 }}>
                   
-                  {/* Selection Checkbox */}
-                  <Checkbox 
-                    checked={selectedEntries.has(entry.id)}
-                    onChange={() => handleToggleSelect(entry.id)}
-                    sx={{
-                      position: 'absolute',
-                      top: 8,
-                      left: 8,
-                      zIndex: 5,
-                      color: 'rgba(255,255,255,0.7)',
-                      '&.Mui-checked': {
-                        color: 'primary.main',
-                      },
-                      backgroundColor: 'rgba(0,0,0,0.5)',
-                      borderRadius: 1,
-                      p: 0.5,
-                      '&:hover': { backgroundColor: 'rgba(0,0,0,0.7)' }
-                    }}
-                  />
-                  
-                  {/* Heart Icon Toggle inside Card */}
-                  <IconButton 
-                    onClick={() => handleToggleFavoriteScene(entry.id)}
-                    color={isFav ? "error" : "default"}
-                    sx={{
-                      position: 'absolute',
-                      top: 8,
-                      right: 8,
-                      zIndex: 5,
-                      backgroundColor: 'rgba(0,0,0,0.5)',
-                      '&:hover': { backgroundColor: 'rgba(0,0,0,0.7)' }
-                    }}
-                  >
-                {isFav ? <Heart size={24} fill="currentColor" /> : <Heart size={24} />}
-                  </IconButton>
-
-                  <CardMedia
+                  {/* Media Thumbnail Container */}
+                  <Box 
                     sx={{ 
-                      height: 160, 
-                      backgroundColor: '#1a1a1a', 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'center',
-                      cursor: 'pointer',
+                      height: 180, 
+                      width: '100%',
                       position: 'relative',
-                      '&:hover .play-icon': { opacity: 1, transform: 'scale(1.1)' }
+                      overflow: 'hidden',
+                      cursor: 'pointer',
+                      background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      '&:hover .play-overlay': { opacity: 1, transform: 'scale(1)' },
+                      '&:hover .thumb-bg': { transform: 'scale(1.06)' }
                     }}
                     onClick={() => setPlayingVideo(entry)}
                   >
-                <PlayCircle className="play-icon" size={64} color="white" style={{ position: 'absolute', opacity: 0.7, transition: '0.2s' }} />
-                    <Typography variant="caption" color="textSecondary">No Thumbnail</Typography>
-                  </CardMedia>
-                  <CardContent sx={{ flexGrow: 1 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <Typography variant="h6" noWrap title={entry.title} sx={{ flex: 1, mr: 1 }}>{entry.title}</Typography>
-                      <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
-                        <Tooltip title="Manage Chapters">
-                          <IconButton size="small" onClick={() => setManagingChaptersFor(entry)}>
-                            <List size={18} />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Remove Item from Library">
-                          <IconButton size="small" color="error" onClick={() => handleDeleteEntry(entry)}>
-                            <Trash2 size={18} />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
+                    {/* Dark Vignette Gradient */}
+                    <Box sx={{
+                      position: 'absolute',
+                      inset: 0,
+                      zIndex: 1,
+                      background: 'linear-gradient(to top, rgba(15, 23, 42, 0.95) 0%, rgba(15, 23, 42, 0.2) 60%, transparent 100%)',
+                      pointerEvents: 'none'
+                    }} />
+
+                    {/* Top Left: Checkbox & Resolution Pill */}
+                    <Box sx={{ position: 'absolute', top: 10, left: 10, zIndex: 5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Checkbox 
+                        checked={isSelected}
+                        onChange={(e) => { e.stopPropagation(); handleToggleSelect(entry.id); }}
+                        onClick={(e) => e.stopPropagation()}
+                        size="small"
+                        sx={{
+                          color: 'rgba(255,255,255,0.7)',
+                          '&.Mui-checked': { color: '#818cf8' },
+                          bgcolor: 'rgba(15, 23, 42, 0.75)',
+                          backdropFilter: 'blur(8px)',
+                          borderRadius: '8px',
+                          p: 0.5,
+                          border: '1px solid rgba(255,255,255,0.15)',
+                          '&:hover': { bgcolor: 'rgba(15, 23, 42, 0.9)' }
+                        }}
+                      />
+                      {entry.resolution && (
+                        <Chip 
+                          label={entry.resolution} 
+                          size="small" 
+                          sx={{ 
+                            height: 22,
+                            fontSize: '0.68rem',
+                            fontWeight: 'bold',
+                            borderRadius: '6px',
+                            color: '#ffffff',
+                            background: is4K ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' : 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                            boxShadow: is4K ? '0 2px 8px rgba(245, 158, 11, 0.4)' : '0 2px 8px rgba(2, 132, 199, 0.3)'
+                          }} 
+                        />
+                      )}
                     </Box>
-                    <Typography variant="body2" color="textSecondary" gutterBottom>
-                      {entry.resolution} • {entry.file_size ? (entry.file_size / (1024*1024)).toFixed(1) + ' MB' : 'Unknown Size'}
+
+                    {/* Top Right: Heart & Duration Pill */}
+                    <Box sx={{ position: 'absolute', top: 10, right: 10, zIndex: 5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                      {entry.duration && (
+                        <Chip 
+                          label={`${Math.floor(entry.duration / 60)}:${(entry.duration % 60).toString().padStart(2, '0')}`} 
+                          size="small"
+                          sx={{ 
+                            height: 22,
+                            fontSize: '0.68rem',
+                            fontWeight: 'bold',
+                            borderRadius: '6px',
+                            bgcolor: 'rgba(15, 23, 42, 0.75)',
+                            backdropFilter: 'blur(8px)',
+                            color: '#e2e8f0',
+                            border: '1px solid rgba(255,255,255,0.15)'
+                          }}
+                        />
+                      )}
+                      <IconButton 
+                        onClick={(e) => { e.stopPropagation(); handleToggleFavoriteScene(entry.id); }}
+                        size="small"
+                        sx={{
+                          bgcolor: 'rgba(15, 23, 42, 0.75)',
+                          backdropFilter: 'blur(8px)',
+                          border: '1px solid rgba(255,255,255,0.15)',
+                          color: isFav ? '#ef4444' : '#94a3b8',
+                          '&:hover': { bgcolor: 'rgba(15, 23, 42, 0.95)', color: '#ef4444' }
+                        }}
+                      >
+                        {isFav ? <Heart size={16} fill="currentColor" /> : <Heart size={16} />}
+                      </IconButton>
+                    </Box>
+
+                    {/* Play Button Glowing Trigger Overlay */}
+                    <Box 
+                      className="play-overlay" 
+                      sx={{ 
+                        position: 'relative',
+                        zIndex: 3, 
+                        opacity: 0.85, 
+                        transform: 'scale(0.9)',
+                        transition: 'all 0.25s ease-in-out',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 60,
+                        height: 60,
+                        borderRadius: '50%',
+                        background: 'radial-gradient(circle, rgba(99, 102, 241, 0.5) 0%, rgba(99, 102, 241, 0) 70%)'
+                      }}
+                    >
+                      <PlayCircle size={52} color="#ffffff" style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))' }} />
+                    </Box>
+
+                    {/* Poster Placeholder Icon */}
+                    <Box className="thumb-bg" sx={{ position: 'absolute', opacity: 0.15, transition: 'transform 0.4s ease' }}>
+                      <Video size={100} color="#cbd5e1" />
+                    </Box>
+                  </Box>
+
+                  {/* Card Content Details */}
+                  <CardContent sx={{ flexGrow: 1, p: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    <Typography 
+                      variant="subtitle1" 
+                      noWrap 
+                      title={entry.title} 
+                      sx={{ fontWeight: '700', letterSpacing: '-0.3px', color: '#f8fafc', fontSize: '0.95rem' }}
+                    >
+                      {entry.title || `Media Item #${entry.id}`}
                     </Typography>
-                    {entry.ohash && (
-                      <Typography variant="caption" color="textSecondary" display="block" gutterBottom>ohash: {entry.ohash}</Typography>
+
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <span>{entry.file_size ? (entry.file_size / (1024 * 1024)).toFixed(1) + ' MB' : 'Unknown Size'}</span>
+                      {entry.ohash && <span>• ohash: {entry.ohash.substring(0, 10)}...</span>}
+                    </Typography>
+
+                    {/* Performers List Chips */}
+                    {entry.performers && entry.performers.length > 0 && (
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+                        {entry.performers.slice(0, 3).map(p => (
+                          <Chip 
+                            key={p} 
+                            label={p} 
+                            size="small" 
+                            onClick={(e) => { e.stopPropagation(); setFilters(prev => ({ ...prev, performer: p })); }}
+                            sx={{ 
+                              height: 20, 
+                              fontSize: '0.68rem', 
+                              bgcolor: 'rgba(99, 102, 241, 0.12)', 
+                              color: '#a5b4fc', 
+                              border: '1px solid rgba(99, 102, 241, 0.2)',
+                              cursor: 'pointer',
+                              '&:hover': { bgcolor: 'rgba(99, 102, 241, 0.25)' }
+                            }} 
+                          />
+                        ))}
+                        {entry.performers.length > 3 && (
+                          <Chip label={`+${entry.performers.length - 3}`} size="small" sx={{ height: 20, fontSize: '0.65rem', opacity: 0.6 }} />
+                        )}
+                      </Box>
                     )}
-                    <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>{entry.performers?.slice(0, 3).map(p => <Chip key={p} label={p} size="small" />)}</Box>
                   </CardContent>
+
+                  {/* Card Footer Actions Row */}
+                  <Box sx={{ 
+                    p: 1.5, 
+                    pt: 1, 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between', 
+                    borderTop: '1px solid rgba(255,255,255,0.05)',
+                    bgcolor: 'rgba(0,0,0,0.15)'
+                  }}>
+                    <Button 
+                      size="small" 
+                      startIcon={<PlayCircle size={14} />} 
+                      onClick={() => setPlayingVideo(entry)}
+                      sx={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#818cf8', textTransform: 'none' }}
+                    >
+                      Stream
+                    </Button>
+                    <Box sx={{ display: 'flex', gap: 0.5 }}>
+                      <Tooltip title="Manage Video Chapters">
+                        <IconButton size="small" onClick={() => setManagingChaptersFor(entry)} sx={{ color: '#94a3b8', '&:hover': { color: '#ffffff' } }}>
+                          <List size={16} />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Delete Item">
+                        <IconButton size="small" color="error" onClick={() => handleDeleteEntry(entry)} sx={{ opacity: 0.7, '&:hover': { opacity: 1 } }}>
+                          <Trash2 size={16} />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  </Box>
                 </Card>
               </Grid>
             )
           })}
         </Grid>
+      ) : (
+        /* Compact List View Mode */
+        <Paper sx={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(15, 23, 42, 0.4)' }}>
+          <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Showing {sortedEntries.length} Items</Typography>
+          </Box>
+          <Box sx={{ overflowX: 'auto' }}>
+            <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', '& th, & td': { p: 1.5, borderBottom: '1px solid rgba(255,255,255,0.05)' } }}>
+              <Box component="thead" sx={{ bgcolor: 'rgba(255,255,255,0.02)', color: 'text.secondary', fontSize: '0.8rem', fontWeight: 'bold' }}>
+                <Box component="tr">
+                  <Box component="th" sx={{ width: 40 }}></Box>
+                  <Box component="th">Title</Box>
+                  <Box component="th">Resolution</Box>
+                  <Box component="th">Performers</Box>
+                  <Box component="th">Size</Box>
+                  <Box component="th" sx={{ textAlign: 'right' }}>Actions</Box>
+                </Box>
+              </Box>
+              <Box component="tbody" sx={{ fontSize: '0.875rem' }}>
+                {sortedEntries.map(entry => {
+                  const isFav = favScenes.includes(String(entry.id))
+                  const isSelected = selectedEntries.has(entry.id)
+                  return (
+                    <Box component="tr" key={entry.id} sx={{ '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' } }}>
+                      <Box component="td">
+                        <Checkbox size="small" checked={isSelected} onChange={() => handleToggleSelect(entry.id)} />
+                      </Box>
+                      <Box component="td">
+                        <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#f8fafc', cursor: 'pointer' }} onClick={() => setPlayingVideo(entry)}>
+                          {entry.title}
+                        </Typography>
+                      </Box>
+                      <Box component="td">
+                        <Chip label={entry.resolution || 'Unknown'} size="small" sx={{ height: 20, fontSize: '0.7rem' }} />
+                      </Box>
+                      <Box component="td">
+                        {entry.performers?.join(', ') || '—'}
+                      </Box>
+                      <Box component="td" sx={{ color: 'text.secondary', fontSize: '0.8rem' }}>
+                        {entry.file_size ? (entry.file_size / (1024 * 1024)).toFixed(1) + ' MB' : '—'}
+                      </Box>
+                      <Box component="td" sx={{ textAlign: 'right' }}>
+                        <IconButton size="small" onClick={() => setPlayingVideo(entry)} color="primary"><PlayCircle size={16} /></IconButton>
+                        <IconButton size="small" onClick={() => handleToggleFavoriteScene(entry.id)} color={isFav ? "error" : "default"}><Heart size={16} fill={isFav ? "currentColor" : "none"} /></IconButton>
+                        <IconButton size="small" onClick={() => setManagingChaptersFor(entry)}><List size={16} /></IconButton>
+                        <IconButton size="small" color="error" onClick={() => handleDeleteEntry(entry)}><Trash2 size={16} /></IconButton>
+                      </Box>
+                    </Box>
+                  )
+                })}
+              </Box>
+            </Box>
+          </Box>
+        </Paper>
+      )}
+
+      {/* Floating Sticky Bulk Action Bar */}
+      {selectedEntries.size > 0 && (
+        <Paper
+          elevation={12}
+          sx={{
+            position: 'fixed',
+            bottom: 24,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 1000,
+            p: 1.5,
+            px: 3,
+            borderRadius: '20px',
+            bgcolor: 'rgba(15, 23, 42, 0.9)',
+            backdropFilter: 'blur(16px)',
+            border: '1px solid rgba(99, 102, 241, 0.4)',
+            boxShadow: '0 12px 40px rgba(0, 0, 0, 0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2
+          }}
+        >
+          <Chip 
+            label={`${selectedEntries.size} Selected`} 
+            color="primary" 
+            size="small" 
+            sx={{ fontWeight: 'bold', borderRadius: '10px' }} 
+          />
+          
+          <Button 
+            size="small" 
+            variant="contained" 
+            color="secondary" 
+            startIcon={<Sparkles size={16} />} 
+            onClick={handleBulkAI}
+            sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 'bold' }}
+          >
+            AI Tag Selected
+          </Button>
+
+          <Button 
+            size="small" 
+            variant="outlined" 
+            color="info" 
+            startIcon={<Edit2 size={16} />} 
+            onClick={() => setBulkEditOpen(true)}
+            sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 'bold' }}
+          >
+            Bulk Edit
+          </Button>
+
+          <Button 
+            size="small" 
+            variant="outlined" 
+            color="error" 
+            startIcon={<Trash2 size={16} />} 
+            onClick={handleBulkDelete}
+            sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 'bold' }}
+          >
+            Remove Selected
+          </Button>
+
+          <Button 
+            size="small" 
+            color="inherit" 
+            onClick={handleClearSelection}
+            sx={{ borderRadius: '10px', textTransform: 'none', opacity: 0.7 }}
+          >
+            Clear Selection
+          </Button>
+        </Paper>
       )}
 
       {totalPages > 1 && (
@@ -887,8 +1276,8 @@ export default function Library() {
 
       {/* Video Player Modal / Second Screen Remote Overlay */}
       <Dialog open={Boolean(playingVideo)} onClose={handleClosePlayer} maxWidth="lg" fullWidth>
-        <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="h6" noWrap sx={{ pr: 2 }}>{playingVideo?.title}</Typography>
+        <DialogTitle component="div" sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h6" component="div" noWrap sx={{ pr: 2 }}>{playingVideo?.title}</Typography>
           <IconButton onClick={handleClosePlayer} size="small">
           <X size={20} />
           </IconButton>
@@ -1078,7 +1467,7 @@ export default function Library() {
           ) : performerDetails ? (
             <Grid container spacing={4}>
               {/* Left Column: Avatar & Quick Info */}
-              <Grid item xs={12} md={4} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <Grid xs={12} md={4} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                 <Box 
                   component="img"
                   src={performerDetails.image || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&h=300&fit=crop&q=80"}
@@ -1105,15 +1494,15 @@ export default function Library() {
                     Physical Details
                   </Typography>
                   <Grid container spacing={1}>
-                    <Grid item xs={6}>
+                    <Grid xs={6}>
                       <Typography variant="caption" color="textSecondary">Gender</Typography>
                       <Typography variant="body2" sx={{ fontWeight: '500' }}>{performerDetails.gender || 'N/A'}</Typography>
                     </Grid>
-                    <Grid item xs={6}>
+                    <Grid xs={6}>
                       <Typography variant="caption" color="textSecondary">Cup Size</Typography>
                       <Typography variant="body2" sx={{ fontWeight: '500' }}>{performerDetails.cup_size || 'N/A'}</Typography>
                     </Grid>
-                    <Grid item xs={12} sx={{ mt: 1 }}>
+                    <Grid xs={12} sx={{ mt: 1 }}>
                       <Typography variant="caption" color="textSecondary">Measurements</Typography>
                       <Typography variant="body2" sx={{ fontWeight: '500' }}>{performerDetails.measurements || 'N/A'}</Typography>
                     </Grid>
@@ -1122,7 +1511,7 @@ export default function Library() {
               </Grid>
 
               {/* Right Column: Bio & Aliases */}
-              <Grid item xs={12} md={8} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <Grid xs={12} md={8} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 {performerDetails.aliases && performerDetails.aliases.length > 0 && (
                   <Box>
                     <Typography variant="subtitle2" sx={{ color: 'warning.main', fontWeight: '600', mb: 1 }}>
@@ -1540,16 +1929,19 @@ export default function Library() {
                 return filtered
               }}
               renderTags={(value, getTagProps) =>
-                value.map((option, index) => (
-                  <Chip
-                    size="small"
-                    variant="outlined"
-                    label={option}
-                    {...getTagProps({ index })}
-                    key={option}
-                    sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.2)' }}
-                  />
-                ))
+                value.map((option, index) => {
+                  const { key, ...tagProps } = getTagProps({ index })
+                  return (
+                    <Chip
+                      key={key || option}
+                      size="small"
+                      variant="outlined"
+                      label={option}
+                      {...tagProps}
+                      sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.2)' }}
+                    />
+                  )
+                })
               }
               renderInput={(params) => (
                 <TextField
@@ -1582,16 +1974,19 @@ export default function Library() {
                 return filtered
               }}
               renderTags={(value, getTagProps) =>
-                value.map((option, index) => (
-                  <Chip
-                    size="small"
-                    variant="outlined"
-                    label={option}
-                    {...getTagProps({ index })}
-                    key={option}
-                    sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.2)' }}
-                  />
-                ))
+                value.map((option, index) => {
+                  const { key, ...tagProps } = getTagProps({ index })
+                  return (
+                    <Chip
+                      key={key || option}
+                      size="small"
+                      variant="outlined"
+                      label={option}
+                      {...tagProps}
+                      sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.2)' }}
+                    />
+                  )
+                })
               }
               renderInput={(params) => (
                 <TextField

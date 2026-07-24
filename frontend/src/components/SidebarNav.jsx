@@ -73,6 +73,7 @@ export default function SidebarNav({ currentTab, onSelectTab, isCollapsed, onTog
         zIndex: 1200,
         display: 'flex',
         flexDirection: 'column',
+        flexShrink: 0,
         backdropFilter: 'blur(16px)',
         bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(18, 19, 26, 0.85)' : 'rgba(255, 255, 255, 0.85)',
         borderRight: '1px solid',

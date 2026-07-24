@@ -5,7 +5,7 @@ import {
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   IconButton, Tooltip, LinearProgress, Chip
 } from '@mui/material'
-import { Play, Pause, Square, Trash2, RefreshCw, ExternalLink } from 'lucide-react'
+import { Play, Pause, Square, Trash2, RefreshCw, ExternalLink, Zap } from 'lucide-react'
 import { apiFetch } from '../api'
 
 export default function MassRip() {
@@ -139,6 +139,27 @@ export default function MassRip() {
     <Box sx={{ maxWidth: 1400, mx: 'auto', width: '100%' }}>
       <Typography variant="h4" gutterBottom sx={{ fontWeight: 700 }}>Mass Rip Workflow</Typography>
       
+      {/* Purpose Banner */}
+      <Alert 
+        severity="info" 
+        icon={<Zap size={20} />} 
+        sx={{ 
+          mb: 3, 
+          borderRadius: '12px', 
+          bgcolor: 'rgba(236, 72, 153, 0.08)', 
+          color: '#f472b6',
+          border: '1px solid rgba(236, 72, 153, 0.2)',
+          '& .MuiAlert-icon': { color: '#ec4899' } 
+        }}
+      >
+        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.25 }}>
+          ⚡ Automated Mass Rip Scraper Engine
+        </Typography>
+        <Typography variant="caption" sx={{ display: 'block', opacity: 0.9, lineHeight: 1.4 }}>
+          Mass Rip automates bulk URL extractions from channels, profiles, or playlists. Provide a target URL to let Voyarr scrape all media links, evaluate them against your active Download Rules, and queue matches automatically.
+        </Typography>
+      </Alert>
+      
       <Paper sx={{ p: 3, mb: 3, borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)', backgroundImage: 'linear-gradient(rgba(255,255,255,0.01), rgba(255,255,255,0))' }}>
         {!rippingEnabled && (
           <Alert severity="warning" sx={{ mb: 3, borderRadius: '8px' }}>
@@ -149,8 +170,8 @@ export default function MassRip() {
           Provide a channel or playlist URL. Voyarr will scrape all contained video URLs and process them sequentially through your active global and provider-specific Download Rules, queueing matched videos automatically.
         </Typography>
         
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} md="auto" sx={{ minWidth: 260 }}>
+        <Grid container spacing={2} sx={{ alignItems: 'center' }}>
+          <Grid xs={12} md="auto" sx={{ minWidth: 260 }}>
             <FormControl fullWidth size="small" disabled={!rippingEnabled}>
               <InputLabel>Provider Ruleset</InputLabel>
               <Select value={providerId} label="Provider Ruleset" onChange={e => setProviderId(e.target.value)}>
@@ -158,7 +179,7 @@ export default function MassRip() {
               </Select>
             </FormControl>
           </Grid>
-          <Grid item xs={12} md>
+          <Grid xs={12} md={true}>
             <TextField 
               fullWidth 
               size="small" 
@@ -168,7 +189,7 @@ export default function MassRip() {
               disabled={!rippingEnabled} 
             />
           </Grid>
-          <Grid item xs={12} md="auto">
+          <Grid xs={12} md="auto">
             <Button 
               variant="contained" 
               onClick={handleMassRip} 
