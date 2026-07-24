@@ -37,6 +37,10 @@ export default function Library() {
   const [sortBy, setSortBy] = useState(() => {
     return localStorage.getItem('voyarr_library_sort_by') || 'newest'
   })
+  const [perPage, setPerPage] = useState(() => {
+    try { return parseInt(localStorage.getItem('voyarr_library_per_page') || '20', 10) || 20 }
+    catch { return 20 }
+  })
 
   // Save filters to localStorage whenever debouncedFilters updates
   useEffect(() => {
@@ -66,6 +70,10 @@ export default function Library() {
   }, [viewMode])
 
   useEffect(() => {
+    localStorage.setItem('voyarr_library_per_page', String(perPage))
+  }, [perPage])
+
+  useEffect(() => {
     try {
       localStorage.setItem('voyarr_library_sort_by', sortBy)
     } catch {}
@@ -81,7 +89,7 @@ export default function Library() {
       if (debouncedFilters.ohash) params.append('ohash', debouncedFilters.ohash)
       if (sortBy) params.append('sort_by', sortBy)
       params.append('page', page)
-      params.append('limit', 50)
+      params.append('limit', perPage)
 
       const res = await apiFetch(`/library?${params.toString()}`)
       if (res.ok) {
@@ -96,7 +104,7 @@ export default function Library() {
     } catch (e) {
       console.error("Failed to fetch library entries:", e)
     }
-  }, [debouncedFilters, page, sortBy])
+  }, [debouncedFilters, page, sortBy, perPage])
 
   const [playingVideo, setPlayingVideo] = useState(null)
   const [managingChaptersFor, setManagingChaptersFor] = useState(null)
@@ -965,8 +973,16 @@ export default function Library() {
             )}
           </Box>
 
-          {/* Right: Sort Dropdown & View Mode Switcher */}
+          {/* Right: Per Page, Sort Dropdown & View Mode Switcher */}
           <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', width: { xs: '100%', md: 'auto' }, justifyContent: 'flex-end' }}>
+            <FormControl size="small" sx={{ minWidth: 80 }}>
+              <Select value={perPage} onChange={e => { setPerPage(e.target.value); setPage(1) }} sx={{ borderRadius: '10px', fontSize: '0.8rem' }}>
+                <MenuItem value={10}>10</MenuItem>
+                <MenuItem value={20}>20</MenuItem>
+                <MenuItem value={50}>50</MenuItem>
+                <MenuItem value={100}>100</MenuItem>
+              </Select>
+            </FormControl>
             <FormControl size="small" sx={{ minWidth: 160 }}>
               <InputLabel>Sort By</InputLabel>
               <Select value={sortBy} label="Sort By" onChange={e => setSortBy(e.target.value)} sx={{ borderRadius: '10px' }}>
