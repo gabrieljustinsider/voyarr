@@ -98,23 +98,41 @@ export default function SidebarNav({ currentTab, onSelectTab, isCollapsed, onTog
                 }
               }} 
             />
-            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-              <Typography
-                variant="h6"
-                component="div"
-                sx={{
-                  fontFamily: "'Outfit', sans-serif",
-                  fontWeight: 900,
-                  letterSpacing: '1.5px',
-                  background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  lineHeight: 1.1
-                }}
-              >
-                VOYARR
-              </Typography>
-            </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                <Typography
+                  variant="h6"
+                  component="div"
+                  sx={{
+                    fontFamily: "'Outfit', sans-serif",
+                    fontWeight: 900,
+                    letterSpacing: '1.5px',
+                    background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    lineHeight: 1.1
+                  }}
+                >
+                  VOYARR
+                </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontFamily: "'Outfit', sans-serif",
+                    fontWeight: 700,
+                    fontSize: '0.6rem',
+                    color: '#a78bfa',
+                    bgcolor: 'rgba(139, 92, 246, 0.12)',
+                    border: '1px solid rgba(139, 92, 246, 0.25)',
+                    borderRadius: '6px',
+                    px: 0.6,
+                    py: 0.15,
+                    lineHeight: 1.3,
+                    letterSpacing: '0.3px',
+                  }}
+                >
+                  v{__APP_VERSION__}
+                </Typography>
+              </Box>
           </Box>
         )}
         {isCollapsed && (
