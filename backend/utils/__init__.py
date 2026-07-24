@@ -11,7 +11,6 @@ from typing import Any, List
 
 def get_version() -> str:
     """Dynamically pull the version from the VERSION file, falling back to package.json."""
-    # Prioritize reading the VERSION file directly
     version_paths = [
         os.path.join(os.path.dirname(__file__), "VERSION"),
         os.path.join(os.path.dirname(__file__), "..", "VERSION"),
@@ -27,7 +26,6 @@ def get_version() -> str:
             except Exception:
                 pass
 
-    # Fallback to package.json if VERSION file is missing
     paths_to_check = [
         os.path.join(os.path.dirname(__file__), "package.json"),
         os.path.join(os.path.dirname(__file__), "..", "package.json"),
@@ -62,7 +60,6 @@ def get_media_roots() -> List[str]:
     if not db_paths:
         db_paths = os.getenv("CONTAINER_MEDIA_PATHS", "/media/storage")
 
-    # Split by comma, strip whitespace, remove empty entries, and normalize paths
     paths = [p.strip() for p in db_paths.split(",") if p.strip()]
     normalized_roots: List[str] = []
     for p in paths:
@@ -102,7 +99,6 @@ def initialize_network_settings():
         user_agent: str | None = None
 
         with get_db_session() as db:
-            # Query standard settings
             settings_keys = ["global_proxy_enabled", "global_user_agent"]
             db_settings = (
                 db.query(Settings).filter(Settings.key.in_(settings_keys)).all()
@@ -113,7 +109,6 @@ def initialize_network_settings():
                 elif s.key == "global_user_agent":
                     user_agent = str(s.value) if s.value is not None else None
 
-            # Query secure settings from Vault
             db_vault = (
                 db.query(Vault)
                 .filter(
@@ -129,7 +124,6 @@ def initialize_network_settings():
                     print(f"Error decrypting global_proxy_url: {ex}")
                     proxy_url = None
 
-            # Fallback to standard settings if proxy_url not found in vault (in case of legacy/unencrypted storage)
             if not proxy_url:
                 db_proxy_url_setting = (
                     db.query(Settings)
@@ -139,7 +133,6 @@ def initialize_network_settings():
                 if db_proxy_url_setting and db_proxy_url_setting.value is not None:
                     proxy_url = str(db_proxy_url_setting.value)
 
-        # Apply proxy environments dynamically
         if proxy_enabled and proxy_url:
             os.environ["HTTP_PROXY"] = str(proxy_url)
             os.environ["HTTPS_PROXY"] = str(proxy_url)
@@ -147,14 +140,12 @@ def initialize_network_settings():
             os.environ["GLOBAL_PROXY_URL"] = str(proxy_url)
             os.environ["GLOBAL_PROXY_ENABLED"] = "true"
         else:
-            # Purge dynamic variables from environment safely
             os.environ.pop("HTTP_PROXY", None)
             os.environ.pop("HTTPS_PROXY", None)
             os.environ.pop("ALL_PROXY", None)
             os.environ.pop("GLOBAL_PROXY_URL", None)
             os.environ.pop("GLOBAL_PROXY_ENABLED", None)
 
-        # Apply global User-Agent environment dynamically
         if user_agent is not None:
             os.environ["DEFAULT_USER_AGENT"] = str(user_agent)
         else:
@@ -187,7 +178,6 @@ def validate_url_ssrf(url_str: str):
                         else ip_str_or_obj
                     )
 
-                    # Unwrap IPv4-mapped IPv6 addresses to correctly evaluate their underlying IPv4 properties
                     if isinstance(ip_obj, ipaddress.IPv6Address) and ip_obj.ipv4_mapped:
                         ip_obj = ip_obj.ipv4_mapped
 
@@ -211,7 +201,6 @@ def validate_url_ssrf(url_str: str):
             except ValueError:
                 pass
 
-            # Resolve hostname to catch custom domains pointing to internal IPs
             try:
                 addr_info = socket.getaddrinfo(hostname, None)
                 for addr in addr_info:
@@ -235,7 +224,6 @@ def validate_path(path: str, allowed_roots: List[str] = None) -> str:
     """
     Normalizes a path, resolves realpath (following symlinks),
     and validates that it resides within the allowed_roots directory list.
-    If allowed_roots is None, it defaults to get_media_roots() + standard application paths.
     """
     if not path:
         raise HTTPException(status_code=400, detail="Invalid path: path cannot be empty.")
@@ -245,26 +233,21 @@ def validate_path(path: str, allowed_roots: List[str] = None) -> str:
     if allowed_roots is None:
         allowed_roots = get_media_roots()
         import tempfile
-        # Add standard container storage, temp directories, config, backups
         for standard_dir in ["/tmp", "/media", "/app/config", "/app/backups", "/downloads", "/mnt", tempfile.gettempdir()]:
             real_std = os.path.realpath(os.path.abspath(standard_dir))
             if real_std not in allowed_roots:
                 allowed_roots.append(real_std)
 
-    # Check if the resolved path starts with any of the allowed roots
     is_safe = False
     for root in allowed_roots:
         real_root = os.path.realpath(os.path.abspath(root))
-        # Exact match or prefix match with trailing directory separator to prevent matching /media/storage2 vs /media/storage
         if abs_path == real_root or abs_path.startswith(real_root + os.sep):
             is_safe = True
             break
 
     if not is_safe:
-        # Also check forbidden prefixes strictly
         raise HTTPException(status_code=403, detail="Access denied: Path is outside allowed directories.")
 
-    # Prevent access to sensitive system directories explicitly
     forbidden_prefixes = ["/etc", "/proc", "/sys", "/root", "/var/run", "/boot", "/dev"]
     for fp in forbidden_prefixes:
         real_fp = os.path.realpath(os.path.abspath(fp))
@@ -288,15 +271,12 @@ def sanitize_tainted_path(path: str) -> str:
     if not parts or parts[0] != "/":
         return "/"
     
-    # Verify allowed safe root directory prefix
     allowed_roots = {"media", "downloads", "mnt", "app", "tmp", "var", "private", "Users", "home", "storage", "volume1", "volume2"}
     if len(parts) > 1 and parts[1] not in allowed_roots:
         return "/"
 
-    # Reconstruct pure path from verified clean individual string literals
     safe_parts = ["/" + str(parts[1])] if len(parts) > 1 else ["/"]
     for part in parts[2:]:
-        # Remove any non-printable or dangerous null control characters
         clean_part = "".join(c for c in part if c.isprintable() and c not in "\x00\r\n")
         safe_parts.append(clean_part)
     
