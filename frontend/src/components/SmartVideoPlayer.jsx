@@ -23,8 +23,14 @@
  *     For truly unsupported containers (e.g. WMV on macOS), a codec warning is shown.
  */
 import { useEffect, useRef, useState } from 'react'
-import { Box, CircularProgress, Alert, Typography, Button, ButtonGroup } from '@mui/material'
+import { Box, CircularProgress, Alert, Typography, Button, ButtonGroup, IconButton, Popover, Slider, Chip, Divider } from '@mui/material'
 import VrIcon from '@mui/icons-material/Visibility'
+import SettingsIcon from '@mui/icons-material/Settings'
+import SpeedIcon from '@mui/icons-material/Speed'
+import PictureInPictureIcon from '@mui/icons-material/PictureInPicture'
+import InfoIcon from '@mui/icons-material/Info'
+import CastIcon from '@mui/icons-material/Cast'
+import CloseIcon from '@mui/icons-material/Close'
 import { getAuthHeaders } from '../api'
 
 const HLS_CDN   = 'https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js'
@@ -105,6 +111,12 @@ export default function SmartVideoPlayer({
   const [inXrMode, setInXrMode] = useState(false)
   const [projectionMode, setProjectionMode] = useState('flat') // 'flat' | '180' | '360'
   const [stereoMode, setStereoMode] = useState('mono') // 'mono' | 'sbs' (Side-by-Side)
+
+  // Settings menu state
+  const [settingsAnchor, setSettingsAnchor] = useState(null)
+  const [playbackRate, setPlaybackRate] = useState(1)
+  const [pipActive, setPipActive] = useState(false)
+  const [copiedStream, setCopiedStream] = useState(false)
 
   // 1. Check for WebXR support on mount or source change
   useEffect(() => {
@@ -424,62 +436,145 @@ export default function SmartVideoPlayer({
     setInXrMode(!inXrMode)
   }
 
+  const handleSpeedChange = (rate) => {
+    setPlaybackRate(rate)
+    if (videoRef.current) {
+      videoRef.current.playbackRate = rate
+    }
+  }
+
+  const handleTogglePip = async () => {
+    try {
+      if (document.pictureInPictureElement) {
+        await document.exitPictureInPicture()
+        setPipActive(false)
+      } else if (videoRef.current) {
+        await videoRef.current.requestPictureInPicture()
+        setPipActive(true)
+      }
+    } catch (err) {
+      console.error('PiP failed:', err)
+    }
+  }
+
   return (
     <Box sx={{ position: 'relative', width: '100%', backgroundColor: 'black', ...style }}>
-      {/* Dynamic Overlay Options for Projection Mode Selection */}
+      {/* Settings Menu Button (top-right gear icon) */}
       {status === 'ready' && !inXrMode && (
-        <Box sx={{
-          position: 'absolute', top: 10, right: 10, zIndex: 10,
-          display: 'flex', flexDirection: 'column', gap: 1,
-          backgroundColor: 'rgba(0,0,0,0.6)', p: 1, borderRadius: '8px',
-          border: '1px solid rgba(255,255,255,0.1)'
-        }}>
-          {xrSupported && (
-            <Button
-              variant="contained"
-              color="secondary"
-              startIcon={<VrIcon />}
-              onClick={handleToggleXR}
+        <>
+          <Box sx={{ position: 'absolute', top: 10, right: 10, zIndex: 10, display: 'flex', gap: 0.5 }}>
+            {xrSupported && (
+              <Button
+                variant="contained"
+                color="secondary"
+                startIcon={<VrIcon />}
+                onClick={handleToggleXR}
+                size="small"
+                sx={{ textTransform: 'none', fontWeight: 'bold', fontSize: '0.75rem', backdropFilter: 'blur(8px)', backgroundColor: 'rgba(156,39,176,0.7)' }}
+              >
+                Enter VR
+              </Button>
+            )}
+            <IconButton
               size="small"
-              fullWidth
-              sx={{ textTransform: 'none', fontWeight: 'bold' }}
+              onClick={(e) => setSettingsAnchor(e.currentTarget)}
+              sx={{ color: 'white', backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', '&:hover': { backgroundColor: 'rgba(255,255,255,0.2)' } }}
             >
-              Enter Immersive VR
+              <SettingsIcon fontSize="small" />
+            </IconButton>
+          </Box>
+
+          {/* Settings Popover */}
+          <Popover
+            open={Boolean(settingsAnchor)}
+            anchorEl={settingsAnchor}
+            onClose={() => setSettingsAnchor(null)}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+            PaperProps={{ sx: { backgroundColor: 'rgba(15,23,42,0.95)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', minWidth: 260, maxWidth: 320, color: 'white', p: 1.5 } }}
+          >
+            {/* VR Section */}
+            <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '0.6rem', mb: 1, display: 'block' }}>VR & Projection</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', minWidth: 70 }}>Projection</Typography>
+              <ButtonGroup size="small" variant="outlined" color="inherit">
+                {['flat', '180', '360'].map(m => (
+                  <Button key={m} onClick={() => setProjectionMode(m)}
+                    sx={{ bgcolor: projectionMode === m ? 'rgba(99,102,241,0.3)' : 'transparent', color: 'white', borderColor: 'rgba(255,255,255,0.2)', fontSize: '0.7rem', py: 0 }}
+                  >{m === 'flat' ? 'Flat' : `${m}°`}</Button>
+                ))}
+              </ButtonGroup>
+            </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', minWidth: 70 }}>Stereo</Typography>
+              <ButtonGroup size="small" variant="outlined" color="inherit">
+                {['mono', 'sbs'].map(m => (
+                  <Button key={m} onClick={() => setStereoMode(m)}
+                    sx={{ bgcolor: stereoMode === m ? 'rgba(99,102,241,0.3)' : 'transparent', color: 'white', borderColor: 'rgba(255,255,255,0.2)', fontSize: '0.7rem', py: 0 }}
+                  >{m === 'mono' ? 'Mono' : 'Stereo SBS'}</Button>
+                ))}
+              </ButtonGroup>
+            </Box>
+
+            <Divider sx={{ borderColor: 'rgba(255,255,255,0.08)', my: 1 }} />
+
+            {/* Playback Speed */}
+            <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '0.6rem', mb: 1, display: 'block' }}>
+              <SpeedIcon sx={{ fontSize: 12, verticalAlign: 'middle', mr: 0.5 }} /> Speed
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 0.5, mb: 1.5, flexWrap: 'wrap' }}>
+              {[0.5, 0.75, 1, 1.25, 1.5, 2].map(rate => (
+                <Chip key={rate} label={`${rate}x`} size="small" clickable
+                  onClick={() => handleSpeedChange(rate)}
+                  sx={{ bgcolor: playbackRate === rate ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.08)', color: 'white', fontWeight: playbackRate === rate ? 'bold' : 'normal', border: '1px solid rgba(255,255,255,0.1)', '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' } }}
+                />
+              ))}
+            </Box>
+
+            <Divider sx={{ borderColor: 'rgba(255,255,255,0.08)', my: 1 }} />
+
+            {/* Picture-in-Picture */}
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <PictureInPictureIcon sx={{ fontSize: 16, color: 'rgba(255,255,255,0.5)' }} />
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>Picture-in-Picture</Typography>
+              </Box>
+              <Button size="small" variant="outlined" onClick={handleTogglePip}
+                sx={{ color: pipActive ? '#22c55e' : 'white', borderColor: 'rgba(255,255,255,0.2)', fontSize: '0.7rem', textTransform: 'none' }}
+              >{pipActive ? 'Exit PiP' : 'Enter PiP'}</Button>
+            </Box>
+
+            <Divider sx={{ borderColor: 'rgba(255,255,255,0.08)', my: 1 }} />
+
+            {/* Cast / Copy Stream Link */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+              <CastIcon sx={{ fontSize: 16, color: 'rgba(255,255,255,0.5)' }} />
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>Cast to TV</Typography>
+            </Box>
+            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', display: 'block', mb: 1, fontSize: '0.65rem', lineHeight: 1.4 }}>
+              Use your browser's built-in Cast menu (Chrome: ⋮ → Cast) or AirPlay (Safari) to stream to your TV. Alternatively, copy the stream URL to play in an external player.
+            </Typography>
+            <Button size="small" variant="outlined" fullWidth onClick={() => {
+              navigator.clipboard.writeText(activeSrc || src || '')
+              setCopiedStream(true)
+              setTimeout(() => setCopiedStream(false), 2000)
+            }} sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.2)', fontSize: '0.7rem', textTransform: 'none' }}>
+              {copiedStream ? 'Copied!' : 'Copy Stream URL'}
             </Button>
-          )}
 
-          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', fontWeight: 'bold' }}>
-            Projection:
-          </Typography>
-          <ButtonGroup size="small" variant="outlined" color="inherit">
-            <Button 
-              onClick={() => setProjectionMode('flat')} 
-              sx={{ bgcolor: projectionMode === 'flat' ? 'rgba(255,255,255,0.2)' : 'transparent', color: 'white', borderColor: 'rgba(255,255,255,0.3)' }}
-            >Flat</Button>
-            <Button 
-              onClick={() => setProjectionMode('180')} 
-              sx={{ bgcolor: projectionMode === '180' ? 'rgba(255,255,255,0.2)' : 'transparent', color: 'white', borderColor: 'rgba(255,255,255,0.3)' }}
-            >180°</Button>
-            <Button 
-              onClick={() => setProjectionMode('360')} 
-              sx={{ bgcolor: projectionMode === '360' ? 'rgba(255,255,255,0.2)' : 'transparent', color: 'white', borderColor: 'rgba(255,255,255,0.3)' }}
-            >360°</Button>
-          </ButtonGroup>
+            <Divider sx={{ borderColor: 'rgba(255,255,255,0.08)', my: 1 }} />
 
-          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', fontWeight: 'bold', mt: 0.5 }}>
-            Stereoscopy:
-          </Typography>
-          <ButtonGroup size="small" variant="outlined" color="inherit">
-            <Button 
-              onClick={() => setStereoMode('mono')} 
-              sx={{ bgcolor: stereoMode === 'mono' ? 'rgba(255,255,255,0.2)' : 'transparent', color: 'white', borderColor: 'rgba(255,255,255,0.3)' }}
-            >Mono</Button>
-            <Button 
-              onClick={() => setStereoMode('sbs')} 
-              sx={{ bgcolor: stereoMode === 'sbs' ? 'rgba(255,255,255,0.2)' : 'transparent', color: 'white', borderColor: 'rgba(255,255,255,0.3)' }}
-            >Stereo SBS</Button>
-          </ButtonGroup>
-        </Box>
+            {/* Stream Info */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <InfoIcon sx={{ fontSize: 16, color: 'rgba(255,255,255,0.5)' }} />
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>Stream Info</Typography>
+            </Box>
+            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', display: 'block', fontSize: '0.65rem', mt: 0.5, wordBreak: 'break-all' }}>
+              Type: {strategy.toUpperCase()}<br/>
+              URL: {(activeSrc || src || '').substring(0, 80)}...
+            </Typography>
+          </Popover>
+        </>
       )}
 
       {/* Hidden container where ThreeJS inserts WebXR WebGL Canvas */}
