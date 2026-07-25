@@ -1379,112 +1379,95 @@ export default function AccountSecurity({ setSnackbar }) {
             </Typography>
           ) : (
             <Grid container spacing={2}>
-              {pairings.map(pairing => (
-                <Grid xs={12} md={6} key={pairing.id}>
-                  <Paper sx={{
-                    p: 2,
-                    borderRadius: '12px',
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    backdropFilter: 'blur(8px)',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
-                    position: 'relative',
-                    transition: 'transform 0.2s, border-color 0.2s',
-                    '&:hover': {
-                      transform: 'translateY(-2px)',
-                      borderColor: 'rgba(255, 255, 255, 0.12)'
-                    }
-                  }}>
-                    {deleteConfirmPairingId === pairing.id && (
-                      <Box sx={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
-                        bgcolor: 'rgba(18, 18, 18, 0.95)',
-                        borderRadius: 2,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 1.5,
-                        zIndex: 10,
-                        p: 2,
-                        boxSizing: 'border-box',
-                        backdropFilter: 'blur(4px)'
-                      }}>
-                        <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'error.main', textAlign: 'center' }}>
-                          Revoke this pairing?
-                        </Typography>
-                        <Box sx={{ display: 'flex', gap: 1 }}>
-                          <Button 
-                            variant="contained" 
-                            color="error" 
-                            size="small" 
-                            onClick={() => {
-                              handleRevokePairing(pairing.id)
-                              setDeleteConfirmPairingId(null)
-                            }}
-                            sx={{ borderRadius: '6px', textTransform: 'none' }}
-                          >
-                            Revoke
-                          </Button>
-                          <Button 
-                            variant="outlined" 
-                            size="small" 
-                            onClick={() => setDeleteConfirmPairingId(null)}
-                            sx={{ borderRadius: '6px', textTransform: 'none', color: 'text.secondary', borderColor: 'rgba(255,255,255,0.2)' }}
-                          >
-                            Cancel
-                          </Button>
-                        </Box>
-                      </Box>
-                    )}
+              {pairings.map(pairing => {
+                const name = (pairing.name || '').toLowerCase()
+                const isVr = name.includes('vr') || name.includes('headset') || name.includes('quest') || name.includes('vision')
+                const isLens = name.includes('lens') || name.includes('companion') || name.includes('extension')
+                const deviceIcon = isVr ? '🥽' : isLens ? '🧩' : '📱'
+                const deviceType = isVr ? 'VR Headset' : isLens ? 'Browser Extension' : 'Device'
+                const deviceColor = isVr ? 'rgba(156,39,176,0.15)' : isLens ? 'rgba(99,102,241,0.12)' : 'rgba(16,185,129,0.12)'
+                const deviceIconColor = isVr ? '#ce93d8' : isLens ? '#a5b4fc' : '#34d399'
 
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexGrow: 1, overflow: 'hidden' }}>
+                return (
+                  <Grid xs={12} md={6} key={pairing.id}>
+                    <Paper sx={{
+                      p: 2,
+                      borderRadius: '12px',
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      backdropFilter: 'blur(8px)',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      position: 'relative',
+                      transition: 'transform 0.2s, box-shadow 0.2s',
+                      '&:hover': {
+                        transform: 'translateY(-2px)',
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.3)'
+                      }
+                    }}>
+                      {deleteConfirmPairingId === pairing.id && (
                         <Box sx={{
-                          p: 1,
-                          borderRadius: '8px',
-                          backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                          color: '#6366f1',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
+                          position: 'absolute', inset: 0, zIndex: 10,
+                          bgcolor: 'rgba(18, 18, 18, 0.95)',
+                          borderRadius: '12px',
+                          display: 'flex', flexDirection: 'column',
+                          alignItems: 'center', justifyContent: 'center',
+                          gap: 1.5, p: 2, backdropFilter: 'blur(4px)'
                         }}>
-                          <LinkIcon size={18} />
+                          <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'error.main' }}>
+                            Revoke this pairing?
+                          </Typography>
+                          <Box sx={{ display: 'flex', gap: 1 }}>
+                            <Button variant="contained" color="error" size="small"
+                              onClick={() => { handleRevokePairing(pairing.id); setDeleteConfirmPairingId(null) }}
+                              sx={{ borderRadius: '6px', textTransform: 'none' }}>Revoke</Button>
+                            <Button variant="outlined" size="small"
+                              onClick={() => setDeleteConfirmPairingId(null)}
+                              sx={{ borderRadius: '6px', textTransform: 'none', color: 'text.secondary', borderColor: 'rgba(255,255,255,0.2)' }}>Cancel</Button>
+                          </Box>
                         </Box>
-                        <Box sx={{ overflow: 'hidden', flexGrow: 1 }}>
-                          <InlineTextField
-                            value={pairing.name}
-                            onSave={(val) => handleRenamePairing(pairing.id, val)}
-                            label="Rename Pairing"
-                            fullWidth
-                          />
-                        </Box>
-                      </Box>
-                      <IconButton color="error" size="small" onClick={() => setDeleteConfirmPairingId(pairing.id)}>
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Box>
+                      )}
 
-                    <Grid container spacing={1.5}>
-                      <Grid xs={6}>
-                        <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }} color="textSecondary">Created</Typography>
-                        <Typography variant="body2" sx={{ fontWeight: '500' }}>
-                          {new Date(pairing.created_at).toLocaleDateString()}
-                        </Typography>
+                      {/* Header row: device icon + name + delete */}
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                        <Box sx={{
+                          width: 40, height: 40, borderRadius: '10px',
+                          background: deviceColor,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: '1.25rem', flexShrink: 0
+                        }}>
+                          {deviceIcon}
+                        </Box>
+                        <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
+                          <InlineTextField value={pairing.name} onSave={(val) => handleRenamePairing(pairing.id, val)} label="Rename Pairing" fullWidth />
+                          <Typography variant="caption" sx={{ color: deviceIconColor, fontWeight: 600, fontSize: '0.65rem' }}>
+                            {deviceType}
+                          </Typography>
+                        </Box>
+                        <IconButton color="error" size="small" onClick={() => setDeleteConfirmPairingId(pairing.id)} sx={{ opacity: 0.6, '&:hover': { opacity: 1 } }}>
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+
+                      {/* Info row */}
+                      <Grid container spacing={1.5}>
+                        <Grid xs={6}>
+                          <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }} color="textSecondary">Paired On</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: '500', fontSize: '0.82rem' }}>
+                            {new Date(pairing.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </Typography>
+                        </Grid>
+                        <Grid xs={6}>
+                          <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }} color="textSecondary">Last Active</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: '500', fontSize: '0.82rem' }}>
+                            {pairing.last_used
+                              ? new Date(pairing.last_used).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                              : 'Never'}
+                          </Typography>
+                        </Grid>
                       </Grid>
-                      <Grid xs={6}>
-                        <Typography variant="caption" sx={{ opacity: 0.5, display: 'block' }} color="textSecondary">Last Active</Typography>
-                        <Typography variant="body2" sx={{ fontWeight: '500' }}>
-                          {pairing.last_used ? new Date(pairing.last_used).toLocaleDateString() : 'Never'}
-                        </Typography>
-                      </Grid>
-                    </Grid>
-                  </Paper>
-                </Grid>
-              ))}
+                    </Paper>
+                  </Grid>
+                )
+              })}
             </Grid>
           )}
         </Box>

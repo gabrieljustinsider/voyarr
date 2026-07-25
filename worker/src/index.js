@@ -90,7 +90,7 @@ export default {
     // DeoVR detection: proxy to backend if DeoVR user-agent or deovr=1 query param
     const userAgent = request.headers.get("user-agent") || "";
     const uaLower = userAgent.toLowerCase();
-    const isDeovr = uaLower.includes("deovr") || uaLower.includes("deo/") || /\[deo[\d.]+\]/i.test(userAgent) || uaLower.includes("hmd/") || uaLower.includes("meta-store");
+    const isDeovr = uaLower.includes("deovr") || uaLower.includes("deo/") || uaLower.includes("deo") || /\[deo[\d.]+\]/i.test(userAgent) || uaLower.includes("hmd/") || uaLower.includes("meta-store");
     const hasDeovrParam = url.searchParams.get("deovr") === "1" || url.searchParams.get("deovr") === "true";
     if (isDeovr || hasDeovrParam) {
       const backendOrigin = env.BACKEND_ORIGIN;

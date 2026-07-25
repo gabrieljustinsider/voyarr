@@ -5,8 +5,9 @@ from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 import os
 import secrets
+import hashlib
 from database import get_db
-from models import User, Settings
+from models import User, Settings, ApiKey
 import ipaddress
 from security import (
     verify_password,
@@ -271,6 +272,17 @@ def get_current_user(
         if admin_user:
             return admin_user
         return User(id="00000000-0000-0000-0000-000000000000", username="admin", role="admin", is_active=True)
+
+    # 3. Check for scoped/pairing API keys (used by companion extensions and VR headset pairing)
+    if provided_key:
+        hashed_key = hashlib.sha256(provided_key.encode()).hexdigest()
+        db_key = db.query(ApiKey).filter(ApiKey.key_hash == hashed_key).first()
+        if db_key:
+            user = db.query(User).filter(User.id == db_key.user_id).first()
+            if user:
+                db_key.last_used = func.current_timestamp()
+                db.commit()
+                return user
 
     raise credentials_exception
 
