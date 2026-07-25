@@ -95,7 +95,8 @@ export default {
     if (isDeovr || hasDeovrParam) {
       const backendOrigin = env.BACKEND_ORIGIN;
       if (backendOrigin) {
-        const cleanOrigin = backendOrigin.replace(/\/+$/, '');
+        let cleanOrigin = backendOrigin;
+        while (cleanOrigin.endsWith('/')) cleanOrigin = cleanOrigin.slice(0, -1);
         const backendUrl = `${cleanOrigin}${path}${url.search}`;
         const headers = new Headers(request.headers);
         headers.set("Host", new URL(backendOrigin).host);
@@ -134,7 +135,8 @@ export default {
       }
 
       // Strip trailing slashes from backendOrigin
-      const cleanOrigin = backendOrigin.replace(/\/+$/, '');
+      let cleanOrigin = backendOrigin;
+      while (cleanOrigin.endsWith('/')) cleanOrigin = cleanOrigin.slice(0, -1);
       
       // If incoming path starts with /api/, strip the /api prefix before forwarding to backend FastAPI origin
       let targetPath = path;

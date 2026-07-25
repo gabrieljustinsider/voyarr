@@ -6,17 +6,29 @@
 
 export const getSafeLogoUrl = (url) => {
   if (!url) return '';
-  if (url.includes('logo.clearbit.com/')) {
-    const domain = url.split('logo.clearbit.com/')[1];
-    return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname === 'logo.clearbit.com' || parsed.hostname.endsWith('.logo.clearbit.com')) {
+      const domain = parsed.pathname.replace(/^\//, '').split('/')[0];
+      if (domain) {
+        return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
+      }
+    }
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return url;
+    }
+  } catch {
+    return '';
   }
-  return url;
+  return '';
 };
 
 export const getFaviconFromUrl = (webUrl) => {
   if (!webUrl) return '';
   try {
-    const domain = webUrl.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
+    const parsed = new URL(webUrl);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return '';
+    const domain = parsed.hostname.replace(/^www\./, '');
     if (domain) {
       return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
     }

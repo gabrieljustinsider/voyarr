@@ -23,7 +23,7 @@ if not _secret_key or _secret_key == "your_secret_key_here":  # nosec B105
     if os.path.exists(jwt_file):
         try:
             with open(jwt_file, "r") as f:
-                _secret_key = f.read().strip()
+                _secret_key = cipher.decrypt(f.read().strip().encode()).decode()
         except Exception:
             _secret_key = None
     if not _secret_key:
@@ -31,7 +31,7 @@ if not _secret_key or _secret_key == "your_secret_key_here":  # nosec B105
         try:
             os.makedirs(os.path.dirname(jwt_file), exist_ok=True)
             with open(jwt_file, "w") as f:
-                f.write(_secret_key)
+                f.write(cipher.encrypt(_secret_key.encode()).decode())
         except Exception:
             pass
 JWT_SECRET: str = _secret_key

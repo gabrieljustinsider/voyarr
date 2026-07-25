@@ -40,6 +40,8 @@ class ReverseRegexMatcher:
 
         # Inline sanitization for CodeQL path injection tracking
         abs_real_dir = sanitize_tainted_path(real_dir)
+        if not abs_real_dir.startswith(("/media", "/downloads", "/mnt", "/app", "/tmp", "/var", "/Users", "/home", "/storage")):
+            return {"error": f"Access denied: path outside allowed directories"}
 
         if not os.path.exists(abs_real_dir):
             return {"error": f"Directory not found: {directory}"}
@@ -194,7 +196,7 @@ class ReverseRegexMatcher:
                             tags=tags,
                             file_path=file_path,
                             resolution=resolution,
-                            file_size=os.path.getsize(file_path),  # lgtm [py/path-injection]
+                            file_size=os.path.getsize(sanitize_tainted_path(file_path)),
                             entry_metadata=matched_data,
                             adheres_to_naming_scheme=adheres,
                             has_metadata_match=has_metadata,

@@ -613,7 +613,8 @@ def fetch_entity_metadata(
                     res = query_theporndb(QueryRequest(query=target, hash=req.hash), x_api_key=tpdb_key)
                     results["theporndb"] = res.get("results", [])
             except Exception as e:
-                results["theporndb"] = [{"error": f"ThePornDB query failed: {str(e)}"}]
+                logger.exception(f"ThePornDB query failed: {e}")
+                results["theporndb"] = [{"error": "ThePornDB query failed."}]
         else:
             results["theporndb"] = [{"name": target, "notice": "ThePornDB API key not configured."}]
 
@@ -633,7 +634,8 @@ def fetch_entity_metadata(
                     res = query_stashdb(QueryRequest(query=target, hash=req.hash), x_api_key=stashdb_key)
                     results["stashdb"] = res.get("results", [])
             except Exception as e:
-                results["stashdb"] = [{"error": f"StashDB query failed: {str(e)}"}]
+                logger.exception(f"StashDB query failed: {e}")
+                results["stashdb"] = [{"error": "StashDB query failed."}]
         else:
             results["stashdb"] = [{"name": target, "notice": "StashDB API key not configured."}]
 
@@ -796,7 +798,8 @@ async def stream_scrape_task(
                 yield f"data: {json.dumps({'status': 'success', 'result': task.result})}\n\n"
                 break
             elif state == "FAILURE":
-                yield f"data: {json.dumps({'status': 'failed', 'error': str(task.result)})}\n\n"
+                logger.error(f"Scrape task {task_id} failed: {task.result}")
+                yield f"data: {json.dumps({'status': 'failed', 'error': 'Scrape task failed.'})}\n\n"
                 break
             else:
                 yield f"data: {json.dumps({'status': state.lower()})}\n\n"

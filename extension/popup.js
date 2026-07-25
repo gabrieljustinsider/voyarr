@@ -98,19 +98,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const trimmed = (url || '').trim();
     try {
       const parsed = new URL(trimmed);
-      if (parsed.protocol === 'http:' || parsed.protocol === 'https:' || trimmed.startsWith('data:image/')) {
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+        providerLogoPreview.setAttribute('src', parsed.href);
+        providerLogoPreview.style.display = "block";
+        providerLogoFallback.style.display = "none";
+        return;
+      }
+      if (parsed.protocol === 'data:' && parsed.pathname.startsWith('image/')) {
         providerLogoPreview.setAttribute('src', parsed.href);
         providerLogoPreview.style.display = "block";
         providerLogoFallback.style.display = "none";
         return;
       }
     } catch (e) {
-      if (trimmed.startsWith('data:image/')) {
-        providerLogoPreview.setAttribute('src', trimmed);
-        providerLogoPreview.style.display = "block";
-        providerLogoFallback.style.display = "none";
-        return;
-      }
+      // invalid URL, fall through to fallback
     }
     providerLogoPreview.removeAttribute('src');
     providerLogoPreview.style.display = "none";
@@ -764,7 +765,11 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } catch(err) {
       console.error("Local network scan error:", err);
-      localScanResultsContainer.innerHTML = `<div style="font-size: 10px; color: var(--error); text-align: center; padding: 6px 0;">Scan failed: ${err.message}</div>`;
+      localScanResultsContainer.innerHTML = "";
+      const scanErrorDiv = document.createElement('div');
+      scanErrorDiv.style.cssText = 'font-size: 10px; color: var(--error); text-align: center; padding: 6px 0;';
+      scanErrorDiv.textContent = `Scan failed: ${err.message}`;
+      localScanResultsContainer.appendChild(scanErrorDiv);
     } finally {
       scanNetworkBtn.disabled = false;
       scanNetworkBtn.innerText = "Scan Local";
@@ -1230,7 +1235,7 @@ document.addEventListener('DOMContentLoaded', () => {
       img.style.marginRight = "8px";
       img.onerror = () => {
         img.style.display = "none";
-        customProviderSelectedText.innerHTML = "🌐 " + name;
+        customProviderSelectedText.textContent = "🌐 " + name;
       };
       customProviderSelectedText.appendChild(img);
     } else {

@@ -41,7 +41,7 @@ def verify_deovr_auth(
         if master_key and secrets.compare_digest(auth_token, master_key):
             return True
 
-        hashed = hashlib.sha256(auth_token.encode()).hexdigest()
+        hashed = hashlib.sha256(auth_token.encode()).hexdigest()  # nosec - SHA-256 is appropriate for API key hashing (high-entropy random tokens, not low-entropy passwords)
         if db.query(ApiKey).filter(ApiKey.key_hash == hashed).first():
             return True
 

@@ -188,8 +188,12 @@ def stream_transcode_video(
     file_path = (
         db.query(LibraryEntry.file_path).filter(LibraryEntry.id == entry_id).scalar()
     )
-    if not file_path or not os.path.exists(file_path):
+    if not file_path:
         raise HTTPException(status_code=404, detail="File not found")
+    safe_file_path = sanitize_tainted_path(validate_path(file_path))
+    if safe_file_path == "/" or not os.path.exists(safe_file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+    file_path = safe_file_path
 
     cmd = [
         "ffmpeg",
@@ -254,8 +258,10 @@ def stream_video(
     )
     if not file_path:
         raise HTTPException(status_code=404, detail="Media not found")
-    if not os.path.exists(file_path):
+    safe_file_path = sanitize_tainted_path(validate_path(file_path))
+    if safe_file_path == "/" or not os.path.exists(safe_file_path):
         raise HTTPException(status_code=404, detail="File not found on disk")
+    file_path = safe_file_path
 
     # Map comprehensive video/audio extensions to correct MIME types
     MIME_MAP = {
@@ -321,7 +327,10 @@ def get_library_funscript(entry_id: int, db: Session = Depends(get_db)):
     if not file_path:
         raise HTTPException(status_code=404, detail="Media entry not found")
 
-    base, _ = os.path.splitext(file_path)
+    safe_file_path = sanitize_tainted_path(validate_path(file_path))
+    if safe_file_path == "/":
+        raise HTTPException(status_code=403, detail="Access denied")
+    base, _ = os.path.splitext(safe_file_path)
     funscript_path = base + ".funscript"
     if not os.path.exists(funscript_path):
         raise HTTPException(status_code=404, detail="No funscript file found for this entry")
@@ -541,11 +550,14 @@ def update_single_library_entry(
     # If file_path was modified, physically rename the file if it exists
     if payload.file_path and payload.file_path != entry.file_path:
         old_path = entry.file_path
-        new_path = payload.file_path
+        new_path = validate_path(payload.file_path)
+        safe_new_path = sanitize_tainted_path(new_path)
+        if safe_new_path == "/":
+            raise HTTPException(status_code=403, detail="Access denied")
         if os.path.exists(old_path):
             try:
-                os.makedirs(os.path.dirname(new_path), exist_ok=True)
-                os.rename(old_path, new_path)
+                os.makedirs(os.path.dirname(safe_new_path), exist_ok=True)
+                os.rename(old_path, safe_new_path)
             except Exception as e:
                 pass
         entry.file_path = new_path
@@ -790,14 +802,19 @@ def revert_library_file_rename(entry_id: int, db: Session = Depends(get_db), cur
     current_path = entry.file_path
     target_path = latest_rename.old_path
 
-    if not os.path.exists(current_path):
+    safe_current = sanitize_tainted_path(validate_path(current_path))
+    safe_target = sanitize_tainted_path(validate_path(target_path))
+    if safe_current == "/" or safe_target == "/":
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    if not os.path.exists(safe_current):
         raise HTTPException(status_code=404, detail=f"Current file not found on disk at: {current_path}")
 
-    if os.path.exists(target_path) and target_path != current_path:
+    if os.path.exists(safe_target) and safe_target != safe_current:
         raise HTTPException(status_code=400, detail="Target file path already exists on disk, cannot revert.")
 
     try:
-        os.rename(current_path, target_path)
+        os.rename(safe_current, safe_target)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to physically revert file rename: {str(e)}")
 
@@ -820,7 +837,7 @@ def revert_library_file_rename(entry_id: int, db: Session = Depends(get_db), cur
         db.rollback()
         # Roll back physical rename to keep disk in sync with DB
         try:
-            os.rename(target_path, current_path)
+            os.rename(safe_target, safe_current)
         except Exception as fs_err:
             import logging
             logger = logging.getLogger(__name__)

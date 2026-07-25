@@ -265,14 +265,14 @@ def sanitize_tainted_path(path: str) -> str:
     """
     if not path:
         return "/"
+    abs_path = os.path.abspath(path)
+    allowed_root_prefixes = ("/media", "/downloads", "/mnt", "/app", "/tmp", "/var", "/private", "/Users", "/home", "/storage", "/volume1", "/volume2")
+    if not abs_path.startswith(allowed_root_prefixes):
+        return "/"
     import pathlib
-    resolved = pathlib.Path(path).resolve()
+    resolved = pathlib.Path(abs_path).resolve()
     parts = list(resolved.parts)
     if not parts or parts[0] != "/":
-        return "/"
-    
-    allowed_roots = {"media", "downloads", "mnt", "app", "tmp", "var", "private", "Users", "home", "storage", "volume1", "volume2"}
-    if len(parts) > 1 and parts[1] not in allowed_roots:
         return "/"
 
     safe_parts = ["/" + str(parts[1])] if len(parts) > 1 else ["/"]

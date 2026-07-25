@@ -10,6 +10,8 @@ from dependencies import verify_api_key
 from security import encrypt_data, decrypt_data
 from rate_limiter import rate_limit
 from utils import validate_path, sanitize_tainted_path
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/settings", tags=["settings"], dependencies=[Depends(verify_api_key)]
@@ -264,8 +266,9 @@ def get_host_media_paths() -> list[str]:
     # 1. Discover environment variables matching HOST_MEDIA_PATH*
     for key, value in os.environ.items():
         if key.upper().startswith("HOST_MEDIA_PATH") and value:
-            if os.path.exists(value) and os.path.isdir(value):
-                target_dirs.append(value)
+            safe_val = os.path.abspath(value)
+            if safe_val.startswith(("/media", "/mnt", "/storage", "/downloads", "/Users", "/home")) and os.path.exists(safe_val) and os.path.isdir(safe_val):
+                target_dirs.append(safe_val)
     
     # 2. Discover container mount subdirectories under /media (excluding /media itself)
     if os.path.exists("/media") and os.path.isdir("/media"):
@@ -312,6 +315,11 @@ def browse_directory(path: Optional[str] = Query(None), show_excluded: bool = Qu
 
     # Use the regex-based sanitizer to break the CodeQL taint trace!
     target_path = sanitize_tainted_path(target_path)
+    safe_abs = os.path.abspath(target_path)
+    if not safe_abs.startswith(("/media", "/downloads", "/mnt", "/app", "/tmp", "/var", "/private", "/Users", "/home", "/storage", "/volume1", "/volume2")):
+        target_path = "/"
+    else:
+        target_path = safe_abs
 
     if not os.path.exists(target_path) and target_path not in ["/media"]:
         target_path = "/"
@@ -482,8 +490,9 @@ def browse_directory(path: Optional[str] = Query(None), show_excluded: bool = Qu
             "is_writable": is_writable
         }
     except Exception as e:
+        logger.exception(f"Failed to browse directory: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to browse directory: {str(e)}"
+            status_code=500, detail="Failed to browse directory."
         )
 
 
@@ -548,6 +557,10 @@ def create_folder(req: CreateFolderRequest):
         raise HTTPException(status_code=400, detail=f"Invalid path location: {e.detail}")
 
     sanitized = sanitize_tainted_path(validated)
+    safe_abs = os.path.abspath(sanitized)
+    if not safe_abs.startswith(("/media", "/downloads", "/mnt", "/app", "/tmp", "/var", "/private", "/Users", "/home", "/storage", "/volume1", "/volume2")):
+        raise HTTPException(status_code=403, detail="Access denied")
+    sanitized = safe_abs
 
     if os.path.exists(sanitized):
         raise HTTPException(status_code=400, detail="Folder already exists.")
@@ -589,6 +602,11 @@ def autocomplete_path(q: str = Query("")):
 
     # Use the regex-based sanitizer to break the CodeQL taint trace!
     parent_dir = sanitize_tainted_path(parent_dir)
+    safe_abs = os.path.abspath(parent_dir)
+    if safe_abs.startswith(("/media", "/downloads", "/mnt", "/app", "/tmp", "/var", "/private", "/Users", "/home", "/storage", "/volume1", "/volume2")):
+        parent_dir = safe_abs
+    else:
+        parent_dir = "/"
 
     if not os.path.exists(parent_dir) or not os.path.isdir(parent_dir):
         parent_dir = "/"
@@ -638,7 +656,11 @@ def check_path_permissions(path: str = Query(...)):
         }
         
     sanitized = sanitize_tainted_path(validated)
-    
+    safe_abs = os.path.abspath(sanitized)
+    if not safe_abs.startswith(("/media", "/downloads", "/mnt", "/app", "/tmp", "/var", "/private", "/Users", "/home", "/storage", "/volume1", "/volume2")):
+        raise HTTPException(status_code=403, detail="Access denied")
+    sanitized = safe_abs
+
     exists = os.path.exists(sanitized)
     readable = False
     writable = False
@@ -656,7 +678,8 @@ def check_path_permissions(path: str = Query(...)):
         except PermissionError:
             error_detail = "Permission denied: No read access to this path."
         except Exception as e:
-            error_detail = f"Read error: {str(e)}"
+            logger.exception(f"Read error on {sanitized}: {e}")
+            error_detail = "Read error."
             
         # Check write access
         try:
@@ -674,7 +697,8 @@ def check_path_permissions(path: str = Query(...)):
         except PermissionError:
             error_detail = error_detail or "Permission denied: No write access to this path."
         except Exception as e:
-            error_detail = error_detail or f"Write error: {str(e)}"
+            logger.exception(f"Write error on {sanitized}: {e}")
+            error_detail = error_detail or "Write error."
     else:
         # Path does not exist. Check if we can create it (parent directory must be writable)
         parent = os.path.dirname(sanitized)
