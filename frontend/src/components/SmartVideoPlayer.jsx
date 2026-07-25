@@ -35,7 +35,7 @@ import { getAuthHeaders } from '../api'
 
 const HLS_CDN   = 'https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js'
 const DASH_CDN  = 'https://cdn.dashjs.org/latest/dash.all.min.js'
-const THREE_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js'
+const THREE_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r160/three.min.js'
 
 /** Injects a script tag once and resolves when it's ready */
 function loadScript(src, globalKey) {
@@ -289,11 +289,16 @@ export default function SmartVideoPlayer({
           canvasContainerRef.current.appendChild(renderer.domElement)
         }
 
+        // Ensure video is playing before creating texture
+        if (video.paused) {
+          try { await video.play() } catch (e) {}
+        }
+
         // Create texture from the HTML5 video element
         videoTexture = new THREE.VideoTexture(video)
         videoTexture.minFilter = THREE.LinearFilter
         videoTexture.magFilter = THREE.LinearFilter
-        videoTexture.format = THREE.RGBFormat
+        videoTexture.colorSpace = THREE.SRGBColorSpace
 
         // Set up video projection shape based on mode
         let geometry, material;
