@@ -9,7 +9,7 @@ import {
   Download, RefreshCw, Disc, Repeat, ShieldCheck,
   Globe, CreditCard, Film, Database, Copy, Sliders,
   Users, Share2, Key, Save, Terminal, Activity, Settings, HelpCircle,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, User, Tag
 } from 'lucide-react'
 
 const MENU_GROUPS = [
@@ -37,6 +37,8 @@ const MENU_GROUPS = [
     group: 'Metadata & Intelligence',
     items: [
       { id: 'providers', label: 'Media Providers Hub', icon: Globe },
+      { id: 'performers', label: 'Performers', icon: User },
+      { id: 'tags', label: 'Tags', icon: Tag },
       { id: 'studios', label: 'Studios', icon: Film },
       { id: 'metadata_manager', label: 'Metadata Manager Hub', icon: Database },
     ]

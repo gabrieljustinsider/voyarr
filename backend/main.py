@@ -47,6 +47,7 @@ from routers import (
     subscriptions,
     billers,
     scanner,
+    performers_tags,
     logs,
     system_status,
 )
@@ -280,6 +281,7 @@ app.include_router(subscriptions.router)
 app.include_router(billers.router)
 app.include_router(logs.router)
 app.include_router(system_status.router)
+app.include_router(performers_tags.router)
 
 
 @app.get("/.well-known/webauthn")

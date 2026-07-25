@@ -7,6 +7,7 @@ import {
 } from '@mui/material'
 import { X, PlayCircle, Settings, List, CloudUpload, Heart, Cast, Sparkles, Edit2, Plus, FolderOpen, FileUp, Trash2, Film, LayoutGrid, Clock, HardDrive, Filter, ArrowUpDown, SlidersHorizontal, Video, Layers, Search } from 'lucide-react'
 import GlassCard from './common/GlassCard'
+import ChipInput from './common/ChipInput'
 import ChapterManager from './ChapterManager'
 import SecondScreenRemote from './SecondScreenRemote'
 import SmartVideoPlayer from './SmartVideoPlayer'
@@ -18,9 +19,9 @@ export default function Library() {
   const [filters, setFilters] = useState(() => {
     try {
       const saved = localStorage.getItem('voyarr_library_filters')
-      return saved ? JSON.parse(saved) : { search: '', resolution: '', performer: '', tag: '', ohash: '' }
+      return saved ? JSON.parse(saved) : { search: '', resolution: '', performers: [], tags: [] }
     } catch {
-      return { search: '', resolution: '', performer: '', tag: '', ohash: '' }
+      return { search: '', resolution: '', performers: [], tags: [] }
     }
   })
   const [debouncedFilters, setDebouncedFilters] = useState(filters)
@@ -85,9 +86,8 @@ export default function Library() {
       const params = new URLSearchParams()
       if (debouncedFilters.search) params.append('search', debouncedFilters.search)
       if (debouncedFilters.resolution) params.append('resolution', debouncedFilters.resolution)
-      if (debouncedFilters.performer) params.append('performer', debouncedFilters.performer)
-      if (debouncedFilters.tag) params.append('tag', debouncedFilters.tag)
-      if (debouncedFilters.ohash) params.append('ohash', debouncedFilters.ohash)
+      if (debouncedFilters.performers?.length) params.append('performer', debouncedFilters.performers.join(','))
+      if (debouncedFilters.tags?.length) params.append('tag', debouncedFilters.tags.join(','))
       if (sortBy) params.append('sort_by', sortBy)
       params.append('page', page)
       params.append('limit', perPage)
@@ -991,13 +991,9 @@ export default function Library() {
                 <MenuItem value="720p">720p HD</MenuItem>
               </Select>
             </FormControl>
-            <TextField size="small" placeholder="Performer name" name="performer" value={filters.performer} onChange={handleFilterChange}
-              sx={{ minWidth: 140, '& .MuiOutlinedInput-root': { borderRadius: '8px', height: 34 } }} />
-            <TextField size="small" placeholder="Tag" name="tag" value={filters.tag} onChange={handleFilterChange}
-              sx={{ minWidth: 120, '& .MuiOutlinedInput-root': { borderRadius: '8px', height: 34 } }} />
-            <TextField size="small" placeholder="ohash" name="ohash" value={filters.ohash} onChange={handleFilterChange}
-              sx={{ minWidth: 120, '& .MuiOutlinedInput-root': { borderRadius: '8px', height: 34 } }} />
-            <Button size="small" color="warning" onClick={() => setFilters({ search: '', resolution: '', performer: '', tag: '', ohash: '' })}
+            <ChipInput label="Performers" placeholder="Add performer..." value={filters.performers || []} onChange={(v) => setFilters(f => ({ ...f, performers: v }))} fetchUrl="/performers" sx={{ minWidth: 200 }} />
+            <ChipInput label="Tags" placeholder="Add tag..." value={filters.tags || []} onChange={(v) => setFilters(f => ({ ...f, tags: v }))} fetchUrl="/tags" sx={{ minWidth: 200 }} />
+            <Button size="small" color="warning" onClick={() => setFilters(s => ({ ...s, resolution: '', performers: [], tags: [] }))}
               sx={{ borderRadius: '6px', textTransform: 'none', fontWeight: 'bold', fontSize: '0.75rem', minWidth: 'auto', px: 1.5, height: 34 }}>
               Clear filters
             </Button>
@@ -1005,13 +1001,12 @@ export default function Library() {
         )}
 
         {/* Active filter chips */}
-        {!showFilters && (filters.resolution || filters.performer || filters.tag || filters.ohash) && (
+        {!showFilters && (filters.resolution || (filters.performers?.length) || (filters.tags?.length)) && (
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1.5 }}>
             {filters.resolution && <Chip label={`Resolution: ${filters.resolution}`} size="small" onDelete={() => setFilters(f => ({ ...f, resolution: '' }))} sx={{ borderRadius: '6px', fontSize: '0.7rem' }} />}
-            {filters.performer && <Chip label={`Performer: ${filters.performer}`} size="small" onDelete={() => setFilters(f => ({ ...f, performer: '' }))} sx={{ borderRadius: '6px', fontSize: '0.7rem' }} />}
-            {filters.tag && <Chip label={`Tag: ${filters.tag}`} size="small" onDelete={() => setFilters(f => ({ ...f, tag: '' }))} sx={{ borderRadius: '6px', fontSize: '0.7rem' }} />}
-            {filters.ohash && <Chip label={`ohash: ${filters.ohash}`} size="small" onDelete={() => setFilters(f => ({ ...f, ohash: '' }))} sx={{ borderRadius: '6px', fontSize: '0.7rem' }} />}
-            <Button size="small" variant="text" color="warning" onClick={() => setFilters({ search: '', resolution: '', performer: '', tag: '', ohash: '' })}
+            {filters.performers?.map(p => <Chip key={p} label={p} size="small" onDelete={() => setFilters(f => ({ ...f, performers: f.performers.filter(x => x !== p) }))} sx={{ borderRadius: '6px', fontSize: '0.7rem' }} />)}
+            {filters.tags?.map(t => <Chip key={t} label={t} size="small" onDelete={() => setFilters(f => ({ ...f, tags: f.tags.filter(x => x !== t) }))} sx={{ borderRadius: '6px', fontSize: '0.7rem' }} />)}
+            <Button size="small" variant="text" color="warning" onClick={() => setFilters(s => ({ ...s, resolution: '', performers: [], tags: [] }))}
               sx={{ borderRadius: '6px', textTransform: 'none', fontSize: '0.7rem', minWidth: 'auto', px: 0.5, height: 24 }}>
               Clear all
             </Button>
@@ -1203,7 +1198,7 @@ export default function Library() {
                             key={p} 
                             label={p} 
                             size="small" 
-                            onClick={(e) => { e.stopPropagation(); setFilters(prev => ({ ...prev, performer: p })); }}
+                            onClick={(e) => { e.stopPropagation(); setFilters(prev => ({ ...prev, performers: [p] })); }}
                             sx={{ 
                               height: 20, 
                               fontSize: '0.68rem', 

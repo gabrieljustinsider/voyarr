@@ -67,6 +67,8 @@ const P2PSync = lazyWithRetry(() => import('./components/P2PSync'))
 const HelpArea = lazyWithRetry(() => import('./components/HelpArea'))
 const AdminHelpArea = lazyWithRetry(() => import('./components/AdminHelpArea'))
 const AccountSecurity = lazyWithRetry(() => import('./components/AccountSecurity'))
+const Performers = lazyWithRetry(() => import('./components/Performers'))
+const Tags = lazyWithRetry(() => import('./components/Tags'))
 
 import { apiFetch, getAuthHeaders } from './api'
 import ErrorBoundary from './ErrorBoundary'
@@ -940,6 +942,8 @@ function App() {
     { label: "Metadata", component: <MetadataManager />, visible: true },
     { label: "System Status", component: <SystemStatus />, visible: true },
     { label: "Account Security", component: <AccountSecurity setSnackbar={setSnackbar} />, visible: true },
+    { label: "Performers", component: <Performers setActivePage={(p) => handleNavigateToLibrary(p)} />, visible: true },
+    { label: "Tags", component: <Tags setActivePage={(p) => handleNavigateToLibrary(p)} />, visible: true },
     { label: "External APIs", component: <ExternalAPIs />, visible: true },
     { label: "Settings", component: <Settings />, visible: true },
     { label: "User Management", component: <UserManagement />, visible: true },
@@ -1034,9 +1038,16 @@ function App() {
     logs_viewer: 'Logs',
     system_status: 'System Status',
     account_security: 'Account Security',
+    performers: 'Performers',
+    tags: 'Tags',
     settings: 'Settings',
     help: 'Request Manager'
   }), [])
+
+  const handleNavigateToLibrary = useCallback((performerOrTag) => {
+    setPrefTab(0)
+    setTabValue(1)
+  }, [])
 
   const currentTabId = useMemo(() => {
     return Object.keys(tabIdMap).find(k => tabIdMap[k] === currentTabLabel) || 'dashboard'
