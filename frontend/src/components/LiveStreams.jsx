@@ -699,7 +699,7 @@ export default function LiveStreams() {
       <Dialog 
         open={open} 
         onClose={() => !submitting && setOpen(false)} 
-        maxWidth="sm" 
+        maxWidth="md" 
         fullWidth
         PaperProps={{
           sx: {
@@ -744,6 +744,9 @@ export default function LiveStreams() {
                 <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#a5b4fc', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                   ⚡ Auto-Fill Metadata via Live URL Scraper
                 </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.4, fontSize: '0.7rem' }}>
+                  <strong>Parse URL</strong> extracts metadata like title and performer from the page. <strong>Extract .m3u8</strong> resolves the page URL into a direct stream link. Use both or just the one you need.
+                </Typography>
                 <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                   <TextField
                     fullWidth
@@ -771,7 +774,7 @@ export default function LiveStreams() {
                     variant="outlined" 
                     onClick={handleExtractStream} 
                     disabled={extractLoading || !parseUrl}
-                    sx={{ borderRadius: '10px', whiteSpace: 'nowrap', px: 2, height: 40, textTransform: 'none', fontSize: '0.78rem' }}
+                    sx={{ borderRadius: '10px', whiteSpace: 'nowrap', px: 3, height: 40, textTransform: 'none', fontWeight: 'bold', fontSize: '0.78rem' }}
                   >
                     {extractLoading ? <CircularProgress size={18} color="inherit" /> : 'Extract .m3u8'}
                   </Button>
