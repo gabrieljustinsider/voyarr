@@ -58,8 +58,9 @@ p { color: #94a3b8; font-size: 0.9rem; margin-bottom: 2rem; line-height: 1.5; }
           codeEl.className = 'code approved';
           codeEl.textContent = 'PAIRED!';
           statusEl.innerHTML = '<span class="approved">Redirecting to Voyarr...</span>';
-          localStorage.setItem('voyarr_api_key', pdata.api_key || pdata.token || '');
-          setTimeout(function() { window.location.href = '/'; }, 1500);
+          var tok = pdata.api_key || pdata.token || '';
+          localStorage.setItem('voyarr_api_key', tok);
+          setTimeout(function() { window.location.href = '/deovr?token=' + encodeURIComponent(tok); }, 1500);
           return;
         }
       } catch(e) {}
@@ -90,9 +91,14 @@ export default {
     // DeoVR detection: proxy to backend if DeoVR user-agent or deovr=1 query param
     const userAgent = request.headers.get("user-agent") || "";
     const uaLower = userAgent.toLowerCase();
+    const hasToken = url.searchParams.get("token") || url.searchParams.get("api_key");
     const isDeovr = uaLower.includes("deovr") || uaLower.includes("deo/") || uaLower.includes("deo") || /\[deo[\d.]+\]/i.test(userAgent) || uaLower.includes("hmd/") || uaLower.includes("meta-store");
     const hasDeovrParam = url.searchParams.get("deovr") === "1" || url.searchParams.get("deovr") === "true";
     if (isDeovr || hasDeovrParam) {
+      // If at the root with no auth token, redirect to /pair instead of showing a 401
+      if ((path === "/" || path === "") && !hasToken) {
+        return Response.redirect(url.origin + "/pair", 302);
+      }
       const backendOrigin = env.BACKEND_ORIGIN;
       if (backendOrigin) {
         let cleanOrigin = backendOrigin;

@@ -1107,6 +1107,11 @@ function App() {
   useEffect(() => {
     if (!hasRestoredTab.current) return
 
+    // Don't set hash for DeoVR headsets — they need clean URLs for native rendering
+    if (navigator?.userAgent?.toLowerCase().includes('deovr') || navigator?.userAgent?.toLowerCase().includes('deo/') || /\[deo[\d.]+\]/i.test(navigator?.userAgent || '')) {
+      return
+    }
+
     if (currentTabLabel) {
       if (uiConfig.rememberLastTab) {
         localStorage.setItem('voyarr_last_tab', currentTabLabel)
