@@ -76,8 +76,13 @@ To ensure safe, permission-isolated operations, Voyarr strictly limits where it 
 * **Browser Extension:** Remote control for Voyarr, progress monitor, and dynamic regex mapper.
 * **DeoVR Player:** Native scene feed protocol for VR headset playback (Meta Quest, Apple Vision Pro). Serves a full JSON feed with scene metadata, VR projection detection, multiple encodings, haptic feedback support, and pagination. Supports passwordless authentication via 6-digit pairing codes generated from the desktop Account Security panel.
 
-## **🐳 Docker Configuration (docker-compose.yml)**
+## **🐳 Docker Configuration**
 
+Voyarr uses modular Compose fragments assembled by `deploy/compose.sh`. For production, use `docker-compose.deploy.yml` (single-file stack) or run `npm run up` (auto-selects fragments based on `.env` targets).
+
+Services are built from GitHub Container Registry images:
+
+```yaml
 services:  
   db:  
     image: postgres:15-alpine  
@@ -93,6 +98,7 @@ services:
       \- /mnt/host/drive2:/media/drive2
   frontend:  
     image: ghcr.io/gabrieljustinsider/voyarr-frontend:latest
+```
 
 ## **🛤️ Roadmap & GitHub Integration**
 

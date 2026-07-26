@@ -173,6 +173,29 @@ npm run up  # includes cloudflared container when FRONTEND_TARGET is not docker
 
 ---
 
+### Docker Compose File Reference
+
+Voyarr uses modular Compose fragments that are assembled at runtime by the `deploy/compose.sh` script. This allows each layer to independently choose between Docker and cloud hosting.
+
+| File | Purpose | Used by |
+|------|---------|---------|
+| `docker-compose.deploy.yml` | **Self-contained single-file production stack** — all services in one file. Use this for Portainer deployments or when you want a single static compose file. | Portainer, manual `docker compose` |
+| `docker-compose.base.yml` | Core services: redis, backend, celery_worker, celery_beat. The foundation fragment that every Docker deployment includes. | `deploy/compose.sh` |
+| `docker-compose.db-docker.yml` | Adds PostgreSQL 15 as a container. Included automatically when `DATABASE_TARGET=docker`. | `deploy/compose.sh` |
+| `docker-compose.frontend-docker.yml` | Adds the nginx-served frontend SPA. Included when `FRONTEND_TARGET=docker`. | `deploy/compose.sh` |
+| `docker-compose.scraper-docker.yml` | Local headless Chrome container for scraping. Included when `SCRAPER_BROWSER_TARGET=docker`. | `deploy/compose.sh` |
+| `docker-compose.cloudflare-tunnel.yml` | Cloudflare Tunnel sidecar (cloudflared) for exposing the backend without opening ports. Included when `BACKEND_API_TARGET=docker` and `FRONTEND_TARGET` is not docker. | `deploy/compose.sh` |
+| `docker-compose.vpn.yml` | Gluetun VPN sidecar for routing backend traffic through a VPN. | Manual include |
+| `docker-compose.tailscale.yml` | Tailscale sidecar for secure network access. | Manual include |
+| `docker-compose.dev.yml` | Development overrides: dummy DB, local source builds, Vite dev server with HMR. | `npm run dev` |
+| `docker-compose.override.yml` | Auto-loaded by Docker Compose in dev. Mounts source code and enables hot-reload for backend, Celery, and frontend. | Docker Compose (auto) |
+
+**For most users**: run `npm run up` (uses `deploy/compose.sh` which selects the right fragments) or deploy `docker-compose.deploy.yml` directly on Portainer.
+
+**For development**: `npm run dev` starts the full stack with hot-reload.
+
+---
+
 ## Deployment Drivers
 
 Each layer's deployment system follows a driver pattern:
