@@ -21,7 +21,8 @@ export default function DevLayoutShell({
   activeDownloadsCount = 0,
   currentTheme,
   onChangeTheme,
-  user
+  user,
+  uiConfig
 }) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
@@ -37,6 +38,7 @@ export default function DevLayoutShell({
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         activeDownloadsCount={activeDownloadsCount}
+        uiConfig={uiConfig}
       />
 
       {/* 2. Main Viewport & Top Header */}

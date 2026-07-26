@@ -233,10 +233,15 @@ function App() {
   // Custom Preferences state
   const [themeName, setThemeName] = useState('dark')
   const [uiConfig, setUiConfig] = useState({
-    showFavorites: true,
-    showStudios: true,
-    showAnalytics: true,
-    showLive: true,
+    showFavorites: true, showStudios: true, showAnalytics: true, showLive: true,
+    showDashboard: true, showLibrary: true, showSearch: true,
+    showDownloads: true, showTranscode: true, showMassRip: true,
+    showSubscriptions: true, showSchedules: true,
+    showProviders: true, showScraperTester: true, showBillers: true,
+    showPerformers: true, showTags: true, showMetadata: true,
+    showUserManagement: true, showAccountSecurity: true, showP2P: true,
+    showBackup: true, showLogs: true, showStatus: true,
+    showSettings: true, showHelp: true,
     rememberLastTab: true
   })
   const [isTvMode, setIsTvMode] = useState(false)
@@ -246,10 +251,15 @@ function App() {
   // Temp dialog preferences state
   const [tempTheme, setTempTheme] = useState('dark')
   const [tempUiConfig, setTempUiConfig] = useState({
-    showFavorites: true,
-    showStudios: true,
-    showAnalytics: true,
-    showLive: true,
+    showFavorites: true, showStudios: true, showAnalytics: true, showLive: true,
+    showDashboard: true, showLibrary: true, showSearch: true,
+    showDownloads: true, showTranscode: true, showMassRip: true,
+    showSubscriptions: true, showSchedules: true,
+    showProviders: true, showScraperTester: true, showBillers: true,
+    showPerformers: true, showTags: true, showMetadata: true,
+    showUserManagement: true, showAccountSecurity: true, showP2P: true,
+    showBackup: true, showLogs: true, showStatus: true,
+    showSettings: true, showHelp: true,
     rememberLastTab: true
   })
   const [tempTvMode, setTempTvMode] = useState(false)
@@ -274,13 +284,15 @@ function App() {
         const data = await res.json()
         setThemeName(data.theme || 'dark')
         if (data.ui_config) {
-          setUiConfig({
-            showFavorites: data.ui_config.showFavorites !== false,
-            showStudios: data.ui_config.showStudios !== false,
-            showAnalytics: data.ui_config.showAnalytics !== false,
-            showLive: data.ui_config.showLive !== false,
-            rememberLastTab: data.ui_config.rememberLastTab !== false
-          })
+          const allKeys = ['showFavorites','showStudios','showAnalytics','showLive',
+            'showDashboard','showLibrary','showSearch','showDownloads','showTranscode',
+            'showMassRip','showSubscriptions','showSchedules','showProviders',
+            'showScraperTester','showBillers','showPerformers','showTags','showMetadata',
+            'showUserManagement','showAccountSecurity','showP2P','showBackup',
+            'showLogs','showStatus','showSettings','showHelp','rememberLastTab']
+          const merged = {}
+          allKeys.forEach(k => { merged[k] = data.ui_config[k] !== false })
+          setUiConfig(merged)
           setIsTvMode(data.ui_config.isTvMode || false)
           if (data.ui_config.customTheme) {
             setCustomThemeSettings(data.ui_config.customTheme)
@@ -966,7 +978,7 @@ function App() {
       id: "media",
       label: "Library & Media",
       icon: <Clapperboard size={20} />,
-      tabs: ["Dashboard", "Library", "Universal Search", "Favorites", "Studios", "Live Streams", "Analytics", "Request Manager"]
+      tabs: ["Dashboard", "Library", "Universal Search", "Favorites", "Studios", "Live Streams", "Analytics", "Request Manager", "Performers", "Tags"]
     },
     {
       id: "scraping",
@@ -990,7 +1002,7 @@ function App() {
       id: "system",
       label: "System & Admin",
       icon: <Wrench size={20} />,
-      tabs: ["System Status", "External APIs", "Settings", "User Management", "P2P Sync", "Notification Settings", "Backup", "Logs"]
+      tabs: ["System Status", "External APIs", "Settings", "Account Security", "User Management", "P2P Sync", "Notification Settings", "Backup", "Logs"]
     }
   ], []);
 
@@ -1024,16 +1036,16 @@ function App() {
     mass_rip: 'Mass Rip',
     subscriptions: 'Subscriptions',
     schedules: 'Schedules',
-    download_rules: 'Settings',
+    download_rules: 'Rules & Lists',
     providers: 'Providers',
-    billers: 'Providers',
+    billers: 'Billers',
     studios: 'Studios',
     metadata_manager: 'Metadata',
     duplicates: 'Metadata',
-    scraper_tester: 'Providers',
+    scraper_tester: 'Scraper Tester',
     user_management: 'User Management',
     p2p_sync: 'P2P Sync',
-    external_apis: 'Settings',
+    external_apis: 'External APIs',
     backup_manager: 'Backup',
     logs_viewer: 'Logs',
     system_status: 'System Status',
@@ -1148,6 +1160,7 @@ function App() {
           }}
           activeDownloadsCount={queue.filter(q => q.status === 'downloading' || q.status === 'queued').length}
           user={{ username: userName }}
+          uiConfig={uiConfig}
         >
           <ErrorBoundary title="Tab Rendering Error">
             <Suspense fallback={

@@ -21,6 +21,7 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import DownloadIcon from '@mui/icons-material/Download'
 import HelpIcon from '@mui/icons-material/Help'
 import { apiFetch } from '../api'
+import GlassCard from './common/GlassCard'
 import PathPicker from './PathPicker'
 import InlineTextField from './InlineTextField'
 import PasswordChecklist from './PasswordChecklist'
@@ -783,14 +784,9 @@ export default function Settings() {
       </Typography>
 
       <Paper sx={{ mb: 3, borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)', bgcolor: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(12px)' }}>
-        <Tabs 
-          value={settingsTab} 
-          onChange={(e, val) => setSettingsTab(val)}
-          sx={{ px: 2, '& .MuiTab-root': { fontWeight: 'bold', textTransform: 'none', minHeight: 48 } }}
-        >
+        <Tabs value={0}
+          sx={{ px: 2, '& .MuiTab-root': { fontWeight: 'bold', textTransform: 'none', minHeight: 48 } }}>
           <Tab label="System & App Settings" />
-          <Tab label="Integrations & API Keys" />
-          <Tab label="Download Rules & Automation" />
         </Tabs>
       </Paper>
 
@@ -1995,9 +1991,68 @@ export default function Settings() {
       </>
       )}
 
-      {settingsTab === 1 && <ExternalAPIs />}
-      {settingsTab === 2 && <DownloadRules />}
+      {settingsTab === 1 && null}
+      {settingsTab === 2 && null}
 
+      {/* Sidebar Visibility Section */}
+      <GlassCard sx={{ mt: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+          <Box sx={{ p: 1, borderRadius: '10px', background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', color: '#fff', display: 'flex' }}>
+            <TuneIcon fontSize="small" />
+          </Box>
+          <Typography variant="h6" sx={{ fontWeight: '700' }}>Sidebar Navigation Visibility</Typography>
+        </Box>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+          Choose which pages appear in the sidebar. Hidden pages remain accessible via URL or through their parent page.
+        </Typography>
+
+        {[
+          { group: 'Media Hub', items: [
+            ['showDashboard','Dashboard'],['showLibrary','Library'],['showSearch','Universal Search'],
+            ['showFavorites','Favorites'],['showLive','Live Streams'],
+          ]},
+          { group: 'Operations & Queues', items: [
+            ['showDownloads','Download Queue'],['showTranscode','Transcode Queue'],['showMassRip','Mass Ripper'],
+            ['showSubscriptions','Subscriptions'],['showSchedules','Schedules'],
+          ]},
+          { group: 'Metadata & Intelligence', items: [
+            ['showProviders','Providers'],['showScraperTester','Scraper Tester'],['showBillers','Billers'],
+            ['showPerformers','Performers'],['showTags','Tags'],['showStudios','Studios'],['showMetadata','Metadata Manager'],
+          ]},
+          { group: 'System Administration', items: [
+            ['showUserManagement','User Management'],['showAccountSecurity','Account Security'],
+            ['showP2P','P2P Sync'],['showBackup','Backup Manager'],['showLogs','System Logs'],
+            ['showStatus','System Status'],['showSettings','Settings'],['showHelp','Help & Docs'],
+          ]},
+        ].map(section => (
+          <Box key={section.group} sx={{ mb: 2 }}>
+            <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', mb: 1, fontSize: '0.65rem' }}>
+              {section.group}
+            </Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+              {section.items.map(([key, label]) => (
+                <Chip
+                  key={key}
+                  label={label}
+                  variant={uiConfig[key] !== false ? 'filled' : 'outlined'}
+                  color={uiConfig[key] !== false ? 'primary' : 'default'}
+                  onClick={() => {
+                    const newVal = uiConfig[key] === false
+                    handleSaveSetting(key, newVal ? 'true' : 'false')
+                    setUiConfig(prev => ({ ...prev, [key]: newVal }))
+                  }}
+                  onDelete={uiConfig[key] !== false ? () => {
+                    handleSaveSetting(key, 'false')
+                    setUiConfig(prev => ({ ...prev, [key]: false }))
+                  } : undefined}
+                  size="small"
+                  sx={{ borderRadius: '8px', fontWeight: 600, fontSize: '0.72rem' }}
+                />
+              ))}
+            </Box>
+          </Box>
+        ))}
+      </GlassCard>
 
       {/* Mock SSO Simulated OAuth Dialog */}
       <Dialog 

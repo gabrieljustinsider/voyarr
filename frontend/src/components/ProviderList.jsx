@@ -941,7 +941,6 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
           <Tab label="Media Providers & Sites" />
           <Tab label="Payment Billers & Gateways" />
           <Tab label="Session Cookies & Auth" />
-          <Tab label="Scraper Tester" />
           <Tab label="Recipe" />
         </Tabs>
       </Paper>
@@ -1238,8 +1237,7 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
 
       {subTab === 1 && <BillerList />}
       {subTab === 2 && <CookiesManager />}
-      {subTab === 3 && <ScraperTester />}
-      {subTab === 4 && (
+      {subTab === 3 && (
         <Box>
           <Alert severity="info" sx={{ mb: 3, borderRadius: '12px', bgcolor: 'rgba(99,102,241,0.08)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.2)', '& .MuiAlert-icon': { color: '#818cf8' } }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.25 }}>🧪 Scraping Recipe Editor</Typography>

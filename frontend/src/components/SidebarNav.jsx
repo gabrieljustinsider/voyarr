@@ -9,7 +9,7 @@ import {
   Download, RefreshCw, Disc, Repeat, ShieldCheck,
   Globe, CreditCard, Film, Database, Copy, Sliders,
   Users, Share2, Key, Save, Terminal, Activity, Settings, HelpCircle,
-  ChevronLeft, ChevronRight, User, Tag
+  ChevronLeft, ChevronRight, User, Tag, TestTube, Shield
 } from 'lucide-react'
 
 const MENU_GROUPS = [
@@ -37,6 +37,8 @@ const MENU_GROUPS = [
     group: 'Metadata & Intelligence',
     items: [
       { id: 'providers', label: 'Media Providers Hub', icon: Globe },
+      { id: 'scraper_tester', label: 'Scraper Tester', icon: TestTube },
+      { id: 'billers', label: 'Billers', icon: CreditCard },
       { id: 'performers', label: 'Performers', icon: User },
       { id: 'tags', label: 'Tags', icon: Tag },
       { id: 'studios', label: 'Studios', icon: Film },
@@ -47,6 +49,7 @@ const MENU_GROUPS = [
     group: 'System Administration',
     items: [
       { id: 'user_management', label: 'User Management', icon: Users },
+      { id: 'account_security', label: 'Account Security', icon: Shield },
       { id: 'p2p_sync', label: 'P2P Sync Nodes', icon: Share2 },
       { id: 'backup_manager', label: 'Backup Manager', icon: Save },
       { id: 'logs_viewer', label: 'System Logs', icon: Terminal },
@@ -57,7 +60,7 @@ const MENU_GROUPS = [
   }
 ]
 
-export default function SidebarNav({ currentTab, onSelectTab, isCollapsed, onToggleCollapse, activeDownloadsCount = 0 }) {
+export default function SidebarNav({ currentTab, onSelectTab, isCollapsed, onToggleCollapse, activeDownloadsCount = 0, uiConfig = {} }) {
   return (
     <Box
       component={motion.div}

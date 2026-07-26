@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { 
   Box, Typography, TextField, Button, Paper, Grid, 
   Autocomplete, Alert, CircularProgress,
@@ -10,6 +10,7 @@ import { apiFetch } from '../api'
 
 export default function MassRip() {
   const [providers, setProviders] = useState([])
+  const sortedProviders = useMemo(() => [...providers].sort((a, b) => a.name.localeCompare(b.name)), [providers])
   const [providerId, setProviderId] = useState('')
   const [url, setUrl] = useState('')
   const [loading, setLoading] = useState(false)
@@ -176,9 +177,9 @@ export default function MassRip() {
         <Grid container spacing={2} sx={{ alignItems: 'center' }}>
           <Grid item xs={12} md="auto" sx={{ minWidth: 280 }}>
             <Autocomplete
-              options={providers}
+              options={sortedProviders}
               getOptionLabel={(p) => p.name}
-              value={providers.find(p => p.id === providerId) || null}
+              value={sortedProviders.find(p => p.id === providerId) || null}
               onChange={(e, v) => setProviderId(v?.id || '')}
               renderInput={(params) => <TextField {...params} label="Provider Ruleset" size="small" />}
               isOptionEqualToValue={(o, v) => o.id === v.id}

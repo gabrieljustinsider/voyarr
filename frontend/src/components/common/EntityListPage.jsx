@@ -113,7 +113,7 @@ export default function EntityListPage({
           <Button variant="contained" size="small" startIcon={<Plus size={16} />}
             onClick={() => setCreateOpen(true)}
             sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 'bold', whiteSpace: 'nowrap', height: 36 }}>
-            Add ({title.slice(0, -1)})
+            Add {title.slice(0, -1)}
           </Button>
         )}
       </Box>

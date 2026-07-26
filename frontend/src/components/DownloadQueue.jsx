@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { 
   Typography, LinearProgress, List, Box, Button, Chip, 
   TextField, Select, MenuItem, FormControl, InputLabel, Autocomplete, Grid, CircularProgress,
@@ -16,6 +16,7 @@ const accentSx = { bgcolor: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,
 
 export default function DownloadQueue({ queue, onRefresh }) {
   const [providers, setProviders] = useState([])
+  const sortedProviders = useMemo(() => [...providers].sort((a, b) => a.name.localeCompare(b.name)), [providers])
   const [newDownload, setNewDownload] = useState({ provider_id: '', url: '' })
   const [loading, setLoading] = useState(false)
   
@@ -94,9 +95,9 @@ export default function DownloadQueue({ queue, onRefresh }) {
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', ...accentSx }}>
           <Box sx={{ flexShrink: 0, minWidth: 240 }}>
             <Autocomplete
-              options={providers}
+              options={sortedProviders}
               getOptionLabel={(p) => p.name}
-              value={providers.find(p => p.id === newDownload.provider_id) || null}
+              value={sortedProviders.find(p => p.id === newDownload.provider_id) || null}
               onChange={(e, v) => setNewDownload({...newDownload, provider_id: v?.id || ''})}
               renderInput={(params) => <TextField {...params} label="Select Media Provider" size="small" />}
               isOptionEqualToValue={(o, v) => o.id === v.id}

@@ -16,6 +16,7 @@ import KeyIcon from '@mui/icons-material/Key'
 import StreamIcon from '@mui/icons-material/Stream'
 import CloseIcon from '@mui/icons-material/Close'
 import VisibilityIcon from '@mui/icons-material/Visibility'
+import StorageIcon from '@mui/icons-material/Storage'
 import { Globe, Link as LinkIcon, Radio, Search } from 'lucide-react'
 import { apiFetch } from '../api'
 import SmartVideoPlayer from './SmartVideoPlayer'
@@ -467,36 +468,20 @@ export default function LiveStreams() {
 
       {/* Summary KPI Stats Panel */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={6} sm={3}>
-          <Paper sx={{ p: 2, borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)', bgcolor: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(12px)' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold' }}>Monitored Streams</Typography>
-            <Typography variant="h5" sx={{ fontWeight: '800', mt: 0.5 }}>{streams.length}</Typography>
-          </Paper>
-        </Grid>
-        <Grid item xs={6} sm={3}>
-          <Paper sx={{ p: 2, borderRadius: '14px', border: '1px solid rgba(239, 68, 68, 0.2)', bgcolor: 'rgba(239, 68, 68, 0.06)', backdropFilter: 'blur(12px)' }}>
-            <Typography variant="caption" color="error.main" sx={{ fontWeight: 'bold' }}>Active Recordings</Typography>
-            <Typography variant="h5" color="error.main" sx={{ fontWeight: '800', mt: 0.5 }}>
-              {streams.filter(s => s.status === 'recording').length}
-            </Typography>
-          </Paper>
-        </Grid>
-        <Grid item xs={6} sm={3}>
-          <Paper sx={{ p: 2, borderRadius: '14px', border: '1px solid rgba(245, 158, 11, 0.2)', bgcolor: 'rgba(245, 158, 11, 0.06)', backdropFilter: 'blur(12px)' }}>
-            <Typography variant="caption" color="warning.main" sx={{ fontWeight: 'bold' }}>Paused Recorders</Typography>
-            <Typography variant="h5" color="warning.main" sx={{ fontWeight: '800', mt: 0.5 }}>
-              {streams.filter(s => s.status === 'paused').length}
-            </Typography>
-          </Paper>
-        </Grid>
-        <Grid item xs={6} sm={3}>
-          <Paper sx={{ p: 2, borderRadius: '14px', border: '1px solid rgba(14, 165, 233, 0.2)', bgcolor: 'rgba(14, 165, 233, 0.06)', backdropFilter: 'blur(12px)' }}>
-            <Typography variant="caption" color="#38bdf8" sx={{ fontWeight: 'bold' }}>Captured Storage</Typography>
-            <Typography variant="h5" sx={{ fontWeight: '800', mt: 0.5, color: '#38bdf8' }}>
-              {formatSize(streams.reduce((acc, s) => acc + (s.written_size || 0), 0))}
-            </Typography>
-          </Paper>
-        </Grid>
+        {[
+          { label: 'Monitored Streams', value: streams.length, icon: <StreamIcon />, color: '#818cf8', bg: 'rgba(99,102,241,0.08)', border: 'rgba(99,102,241,0.2)' },
+          { label: 'Active Recordings', value: streams.filter(s => s.status === 'recording').length, icon: <FiberManualRecordIcon />, color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.2)' },
+          { label: 'Paused Recorders', value: streams.filter(s => s.status === 'paused').length, icon: <PauseIcon />, color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.2)' },
+          { label: 'Captured Storage', value: formatSize(streams.reduce((acc, s) => acc + (s.written_size || 0), 0)), icon: <StorageIcon />, color: '#38bdf8', bg: 'rgba(14,165,233,0.08)', border: 'rgba(14,165,233,0.2)' },
+        ].map((card, i) => (
+          <Grid item xs={6} sm={3} key={i}>
+            <Paper sx={{ p: 2, borderRadius: '14px', textAlign: 'center', border: `1px solid ${card.border}`, bgcolor: card.bg, backdropFilter: 'blur(12px)', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+              <Box sx={{ color: card.color, mb: 0.5, display: 'flex' }}>{card.icon}</Box>
+              <Typography variant="h5" sx={{ fontWeight: '800', color: card.color, lineHeight: 1.2 }}>{card.value}</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold', mt: 0.5 }}>{card.label}</Typography>
+            </Paper>
+          </Grid>
+        ))}
       </Grid>
 
       {/* Search & Filter Controls Toolbar */}
