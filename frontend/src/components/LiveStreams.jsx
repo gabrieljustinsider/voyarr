@@ -61,6 +61,7 @@ export default function LiveStreams() {
   const [parseUrl, setParseUrl] = useState('')
   const [parseLoading, setParseLoading] = useState(false)
   const [parsedMetadata, setParsedMetadata] = useState(null)
+  const [extractLoading, setExtractLoading] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [urlParsingPermission, setUrlParsingPermission] = useState('edit')
 
@@ -303,6 +304,24 @@ export default function LiveStreams() {
       window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: `Error parsing URL: ${error.message}`, severity: 'error' } }))
     }
     setParseLoading(false)
+  }
+
+  const handleExtractStream = async () => {
+    if (!parseUrl) return
+    setExtractLoading(true)
+    try {
+      const res = await apiFetch('/download/extract-stream', { method: 'POST', body: JSON.stringify({ url: parseUrl }) })
+      const data = await res.json()
+      if (res.ok && data.stream_url) {
+        setFormData(prev => ({ ...prev, url: data.stream_url }))
+        window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Stream URL extracted and applied!', severity: 'success' } }))
+      } else {
+        window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: data.detail || 'Could not extract stream URL.', severity: 'error' } }))
+      }
+    } catch (e) {
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: e.message, severity: 'error' } }))
+    }
+    setExtractLoading(false)
   }
 
   const handleApplyParsedMetadata = (appliedData) => {
@@ -747,6 +766,14 @@ export default function LiveStreams() {
                     sx={{ borderRadius: '10px', whiteSpace: 'nowrap', px: 2.5, height: 40, textTransform: 'none', fontWeight: 'bold' }}
                   >
                     {parseLoading ? <CircularProgress size={20} color="inherit" /> : 'Parse URL'}
+                  </Button>
+                  <Button 
+                    variant="outlined" 
+                    onClick={handleExtractStream} 
+                    disabled={extractLoading || !parseUrl}
+                    sx={{ borderRadius: '10px', whiteSpace: 'nowrap', px: 2, height: 40, textTransform: 'none', fontSize: '0.78rem' }}
+                  >
+                    {extractLoading ? <CircularProgress size={18} color="inherit" /> : 'Extract .m3u8'}
                   </Button>
                 </Box>
               </Box>
