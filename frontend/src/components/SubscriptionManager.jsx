@@ -12,7 +12,9 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
+  Tab,
   Table,
+  Tabs,
   TableBody,
   TableCell,
   TableContainer,
@@ -51,6 +53,7 @@ import {
   Globe,
   Activity
 } from 'lucide-react'
+import GlassCard from './common/GlassCard'
 
 const TIMEFRAME_OPTIONS = [
   {value: 'monthly', label: '1 Month'}, 
@@ -88,6 +91,8 @@ export default function SubscriptionManager() {
   const [emailText, setEmailText] = useState('')
   const [parseResult, setParseResult] = useState(null)
   const [parseLoading, setParseLoading] = useState(false)
+  const [subTab, setSubTab] = useState(0)
+  const [emailFormat, setEmailFormat] = useState('')
 
   // Subscription Form State (for Manual Create & Edit)
   const [isEditingSub, setIsEditingSub] = useState(false)
@@ -297,7 +302,7 @@ export default function SubscriptionManager() {
     try {
       const res = await apiFetch('/subscriptions/parse-email', {
         method: 'POST',
-        body: JSON.stringify({ email_text: emailText }),
+        body: JSON.stringify({ email_text: emailText, format: emailFormat || undefined }),
       })
       if (!res.ok) throw new Error('Parse failed')
       const data = await res.json()
@@ -505,653 +510,688 @@ export default function SubscriptionManager() {
         </Typography>
       </Alert>
 
-      {/* Main Grid Content */}
-      <Grid container spacing={3} sx={{ justifyContent: 'center' }}>
-        
-        {/* Left Side: Subscriptions List & Email Parser */}
-        <Grid xs={12} lg={7} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          
-          {/* Active Subscriptions Card */}
-          <Paper sx={{ 
-            p: { xs: 2, sm: 4 }, 
-            border: '1px solid rgba(99, 102, 241, 0.3)', 
-            background: 'linear-gradient(145deg, rgba(30,30,40,0.6) 0%, rgba(15,15,25,0.9) 100%)',
-            borderRadius: '20px',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-            mx: 'auto',
-            width: '100%',
-            position: 'relative',
-            overflow: 'hidden'
-          }}>
-            <Box sx={{ position: 'absolute', top: -50, left: -50, width: 150, height: 150, background: 'radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(0,0,0,0) 70%)', borderRadius: '50%', pointerEvents: 'none' }} />
-            
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1, mb: 2, position: 'relative', zIndex: 1 }}>
-              <Typography variant="subtitle1" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <CreditCard size={20} className="text-primary-main" /> Active Subscriptions &amp; Trials
-              </Typography>
-              <Chip 
-                label={`Est. Monthly Spend: $${totalMonthlySpend.toFixed(2)}`} 
-                color="primary" 
-                variant="outlined" 
-                size="small" 
-                sx={{ fontWeight: 'bold' }} 
-              />
-            </Box>
-            
-            <TextField
-              fullWidth
-              size="small"
-              placeholder="Search subscriptions by provider, tier, biller, or status..."
-              value={subSearchQuery}
-              onChange={(e) => setSubSearchQuery(e.target.value)}
-              slotProps={{ input: {
-                startAdornment: <InputAdornment position="start"><Search size={18} /></InputAdornment>
-              }}}
-              sx={{ mb: 2, position: 'relative', zIndex: 1 }}
-            />
+      {/* Tab Navigation */}
+      <GlassCard sx={{ mb: 3 }}>
+        <Tabs value={subTab} onChange={(e, v) => setSubTab(v)} variant="scrollable" scrollButtons="auto"
+          sx={{ '& .MuiTab-root': { fontWeight: 'bold', textTransform: 'none', minHeight: 48 } }}>
+          <Tab label="Subscriptions" />
+          <Tab label="Email Import" />
+          <Tab label="Add / Edit" />
+          <Tab label="Provider Tiers" />
+        </Tabs>
+      </GlassCard>
 
-            {filteredSubscriptions.length === 0 ? (
-              <Box sx={{ py: 6, textAlign: 'center', border: '1px dashed rgba(255,255,255,0.08)', borderRadius: '12px', position: 'relative', zIndex: 1 }}>
-                <Typography variant="body2" color="textSecondary">
-                  {subscriptions.length === 0 ? "No active subscriptions or trials tracked yet." : "No subscriptions match your search."}
-                </Typography>
-              </Box>
-            ) : (
-              <List sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, p: 0, position: 'relative', zIndex: 1 }}>
-                {filteredSubscriptions.map(sub => {
-                  const provider = providers.find(p => p.id === sub.provider_id)
-                  const tier = tiers.find(t => t.id === sub.tier_id)
-                  const biller = billers.find(b => b.id === sub.biller_id)
-                  return (
-                    <Paper key={sub.id} variant="outlined" sx={{ 
-                      p: 2, 
-                      borderRadius: '12px', 
-                      background: 'rgba(255,255,255,0.01)',
-                      borderColor: 'rgba(255,255,255,0.05)',
-                      '&:hover': { borderColor: 'rgba(255,255,255,0.12)' }
-                    }}>
-                      <Grid container spacing={2} sx={{ alignItems: 'center' }}>
-                        <Grid xs={12} sm={8}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                            <Box sx={{ 
-                              width: 36, 
-                              height: 36, 
-                              borderRadius: '8px', 
-                              backgroundColor: 'rgba(255,255,255,0.04)', 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              justifyContent: 'center',
-                              fontWeight: 'bold',
-                              color: 'primary.main',
-                              textTransform: 'uppercase'
-                            }}>
-                              {provider?.name ? provider.name.slice(0, 2) : 'SP'}
-                            </Box>
-                            <Box>
-                              <Typography variant="subtitle2" fontWeight="bold">
-                                {provider?.name || `Provider ID: ${sub.provider_id}`}
-                                {tier && <Chip label={tier.name} size="small" variant="outlined" sx={{ ml: 1, height: 18, fontSize: '0.65rem' }} />}
-                              </Typography>
-                              <Typography variant="caption" color="textSecondary" display="block">
-                              Biller: {biller?.name || 'Manual'} &bull; Timeframe: <span style={{ textTransform: 'capitalize' }}>{sub.billing_cycle.replace('_', ' ')}</span>
-                              {['3_months', '6_months', 'yearly'].includes(sub.billing_cycle) ? ` (${sub.charge_type === 'installments' ? sub.installment_frequency + ' installments' : 'bulk charge'})` : ''}
-                              </Typography>
-                            </Box>
-                          </Box>
-                        </Grid>
-                        <Grid xs={12} sm={4} sx={{ display: 'flex', alignItems: 'center', justifyContent: { xs: 'flex-start', sm: 'flex-end' }, gap: 1.5 }}>
-                          <Box sx={{ textAlign: 'right' }}>
-                            <Typography variant="subtitle2" fontWeight="black" color="text.primary">
-                            ${sub.cost.toFixed(2)} {sub.charge_type === 'installments' ? '(Total)' : ''}
-                            </Typography>
-                            <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5 }}>
-                              {sub.is_trial && <Chip label="Trial" color="warning" size="small" sx={{ height: 18, fontSize: '0.65rem' }} />}
-                              <Chip 
-                                label={sub.status} 
-                                size="small" 
-                                color={sub.status === 'active' ? 'success' : sub.status === 'expired' ? 'error' : 'default'}
-                                sx={{ height: 18, fontSize: '0.65rem' }} 
-                              />
-                            </Box>
-                          </Box>
-                          <Divider orientation="vertical" flexItem sx={{ mx: 0.5, display: { xs: 'none', sm: 'block' } }} />
-                          <Box>
-                            <IconButton color="primary" size="small" onClick={() => handleEditSubscription(sub)}>
-                              <Edit3 size={16} />
-                            </IconButton>
-                            <IconButton color="error" size="small" onClick={() => handleDeleteSubscription(sub.id)}>
-                              <Trash2 size={16} />
-                            </IconButton>
-                          </Box>
-                        </Grid>
-                      </Grid>
-                    </Paper>
-                  )
-                })}
-              </List>
-            )}
-          </Paper>
-
-          {/* Email Import Card */}
-          <Paper sx={{ 
-            p: { xs: 2, sm: 4 }, 
-            border: '1px solid rgba(236, 72, 153, 0.3)', 
-            background: 'linear-gradient(145deg, rgba(30,30,40,0.6) 0%, rgba(15,15,25,0.9) 100%)',
-            borderRadius: '20px',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-            mx: 'auto',
-            width: '100%',
-            position: 'relative',
-            overflow: 'hidden'
-          }}>
-            <Box sx={{ position: 'absolute', bottom: -50, right: -50, width: 150, height: 150, background: 'radial-gradient(circle, rgba(236, 72, 153, 0.15) 0%, rgba(0,0,0,0) 70%)', borderRadius: '50%', pointerEvents: 'none' }} />
-
-            <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1, position: 'relative', zIndex: 1 }}>
-              <Sparkles size={20} className="text-secondary-main" /> Fast Import from Email Parser
-            </Typography>
-            <Typography variant="body2" color="textSecondary" sx={{ mb: 2, position: 'relative', zIndex: 1 }}>
-              Paste your raw confirmation email (e.g. from CCBill, Epoch, etc.) to autofill subscription details.
-            </Typography>
-            
-            <TextField
-              fullWidth
-              multiline
-              rows={4}
-              placeholder="Paste subscription/trial email header and contents here..."
-              value={emailText}
-              onChange={e => setEmailText(e.target.value)}
-              sx={{ mb: 2, position: 'relative', zIndex: 1 }}
-            />
-            
-            <Box sx={{ display: 'flex', gap: 1.5, position: 'relative', zIndex: 1 }}>
-              <Button 
-                variant="contained" 
-                onClick={handleParseEmail} 
-                disabled={parseLoading || !emailText.trim()}
-                startIcon={parseLoading ? <CircularProgress size={16} color="inherit" /> : <Sparkles size={16} />}
-                sx={{ 
-                  flex: 1, 
-                  borderRadius: '10px', 
-                  fontWeight: 'bold',
-                  background: 'linear-gradient(135deg, #ec4899 0%, #f43f5e 100%)',
-                  boxShadow: '0 4px 14px rgba(236, 72, 153, 0.3)',
-                  '&:hover': { boxShadow: '0 6px 20px rgba(236, 72, 153, 0.5)' }
-                }}
-              >
-                {parseLoading ? 'Parsing...' : 'Analyze & Parse'}
-              </Button>
-              {emailText && (
-                <Button variant="outlined" color="inherit" onClick={() => setEmailText('')} sx={{ borderRadius: '10px' }}>
-                  Clear
-                </Button>
-              )}
-            </Box>
-
-            {parseResult && (
-              <Paper variant="outlined" sx={{ p: 2, mt: 2, background: 'rgba(255,255,255,0.01)', borderColor: 'rgba(99, 102, 241, 0.2)', position: 'relative', zIndex: 1 }}>
-                <Typography variant="subtitle2" fontWeight="bold" color="primary.main" sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Check size={16} /> Parsing Successful!
-                </Typography>
-                <Grid container spacing={1} sx={{ mb: 2 }}>
-                  <Grid xs={6}><Typography variant="caption" color="textSecondary">Biller:</Typography> <Typography variant="body2" fontWeight="bold">{parseResult.biller || 'Not detected'}</Typography></Grid>
-                  <Grid xs={6}><Typography variant="caption" color="textSecondary">Cycle:</Typography> <Typography variant="body2" fontWeight="bold" sx={{ textTransform: 'capitalize' }}>{parseResult.billing_cycle || 'monthly'}</Typography></Grid>
-                  <Grid xs={6}><Typography variant="caption" color="textSecondary">Estimated Cost:</Typography> <Typography variant="body2" fontWeight="bold">${parseResult.cost?.toFixed(2) || '0.00'}</Typography></Grid>
-                  <Grid xs={6}><Typography variant="caption" color="textSecondary">Is Trial:</Typography> <Typography variant="body2" fontWeight="bold">{parseResult.is_trial ? 'Yes' : 'No'}</Typography></Grid>
-                </Grid>
-                <Button variant="contained" color="primary" fullWidth onClick={handleApplyParsedResult}>
-                  Apply to Form Below
-                </Button>
-              </Paper>
-            )}
-          </Paper>
-
-        </Grid>
-
-        {/* Right Side: Create/Edit Form & Tiers Management */}
-        <Grid xs={12} lg={5} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          
-          {/* Create/Edit Form Card */}
-          <Paper sx={{ 
-            p: { xs: 2, sm: 4 }, 
-            border: '1px solid rgba(168, 85, 247, 0.3)', 
-            background: 'linear-gradient(145deg, rgba(30,30,40,0.6) 0%, rgba(15,15,25,0.9) 100%)',
-            borderRadius: '20px',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-            mx: 'auto',
-            width: '100%',
-            position: 'relative',
-            overflow: 'hidden'
-          }}>
-            {/* Decorative ambient glow */}
-            <Box sx={{ position: 'absolute', top: -50, right: -50, width: 150, height: 150, background: 'radial-gradient(circle, rgba(168,85,247,0.15) 0%, rgba(0,0,0,0) 70%)', borderRadius: '50%', pointerEvents: 'none' }} />
-
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, position: 'relative', zIndex: 1 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <Box sx={{ p: 1, borderRadius: '10px', background: 'rgba(168, 85, 247, 0.15)', color: '#a855f7', display: 'flex', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
-                  {isEditingSub ? <Edit3 size={20} /> : <Plus size={20} />}
-                </Box>
-                <Typography variant="h6" fontWeight="bold" sx={{ color: 'text.primary', letterSpacing: '0.5px' }}>
-                  {isEditingSub ? 'Edit Profile' : 'Track Subscription'}
-                </Typography>
-              </Box>
-              {isEditingSub && (
-                <IconButton size="small" onClick={resetSubForm} sx={{ color: 'text.secondary', '&:hover': { color: 'primary.main', background: 'rgba(99, 102, 241, 0.1)' } }}>
-                  <RotateCcw size={18} />
-                </IconButton>
-              )}
-            </Box>
-
-            <form onSubmit={handleSaveSubscription} style={{ position: 'relative', zIndex: 1 }}>
+      {/* Tab 0: Subscriptions */}
+      {subTab === 0 && (
+        <Grid container spacing={3} sx={{ justifyContent: 'center' }}>
+          <Grid xs={12} lg={7} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <Paper sx={{ 
+              p: { xs: 2, sm: 4 }, 
+              border: '1px solid rgba(99, 102, 241, 0.3)', 
+              background: 'linear-gradient(145deg, rgba(30,30,40,0.6) 0%, rgba(15,15,25,0.9) 100%)',
+              borderRadius: '20px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+              mx: 'auto',
+              width: '100%',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              <Box sx={{ position: 'absolute', top: -50, left: -50, width: 150, height: 150, background: 'radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(0,0,0,0) 70%)', borderRadius: '50%', pointerEvents: 'none' }} />
               
-              {/* Group 1: Service Details */}
-              <Typography variant="overline" color="textSecondary" sx={{ display: 'block', fontWeight: 'bold', letterSpacing: 1, mb: 1, ml: 1 }}>Service Details</Typography>
-              <Box sx={{ p: 2.5, borderRadius: '14px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)', mb: 3 }}>
-                <Grid container spacing={2}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1, mb: 2, position: 'relative', zIndex: 1 }}>
+                <Typography variant="subtitle1" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <CreditCard size={20} className="text-primary-main" /> Active Subscriptions &amp; Trials
+                </Typography>
+                <Chip 
+                  label={`Est. Monthly Spend: $${totalMonthlySpend.toFixed(2)}`} 
+                  color="primary" 
+                  variant="outlined" 
+                  size="small" 
+                  sx={{ fontWeight: 'bold' }} 
+                />
+              </Box>
+              
+              <TextField
+                fullWidth
+                size="small"
+                placeholder="Search subscriptions by provider, tier, biller, or status..."
+                value={subSearchQuery}
+                onChange={(e) => setSubSearchQuery(e.target.value)}
+                slotProps={{ input: {
+                  startAdornment: <InputAdornment position="start"><Search size={18} /></InputAdornment>
+                }}}
+                sx={{ mb: 2, position: 'relative', zIndex: 1 }}
+              />
+
+              {filteredSubscriptions.length === 0 ? (
+                <Box sx={{ py: 6, textAlign: 'center', border: '1px dashed rgba(255,255,255,0.08)', borderRadius: '12px', position: 'relative', zIndex: 1 }}>
+                  <Typography variant="body2" color="textSecondary">
+                    {subscriptions.length === 0 ? "No active subscriptions or trials tracked yet." : "No subscriptions match your search."}
+                  </Typography>
+                </Box>
+              ) : (
+                <List sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, p: 0, position: 'relative', zIndex: 1 }}>
+                  {filteredSubscriptions.map(sub => {
+                    const provider = providers.find(p => p.id === sub.provider_id)
+                    const tier = tiers.find(t => t.id === sub.tier_id)
+                    const biller = billers.find(b => b.id === sub.biller_id)
+                    return (
+                      <Paper key={sub.id} variant="outlined" sx={{ 
+                        p: 2, 
+                        borderRadius: '12px', 
+                        background: 'rgba(255,255,255,0.01)',
+                        borderColor: 'rgba(255,255,255,0.05)',
+                        '&:hover': { borderColor: 'rgba(255,255,255,0.12)' }
+                      }}>
+                        <Grid container spacing={2} sx={{ alignItems: 'center' }}>
+                          <Grid xs={12} sm={8}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                              <Box sx={{ 
+                                width: 36, 
+                                height: 36, 
+                                borderRadius: '8px', 
+                                backgroundColor: 'rgba(255,255,255,0.04)', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center',
+                                fontWeight: 'bold',
+                                color: 'primary.main',
+                                textTransform: 'uppercase'
+                              }}>
+                                {provider?.name ? provider.name.slice(0, 2) : 'SP'}
+                              </Box>
+                              <Box>
+                                <Typography variant="subtitle2" fontWeight="bold">
+                                  {provider?.name || `Provider ID: ${sub.provider_id}`}
+                                  {tier && <Chip label={tier.name} size="small" variant="outlined" sx={{ ml: 1, height: 18, fontSize: '0.65rem' }} />}
+                                </Typography>
+                                <Typography variant="caption" color="textSecondary" display="block">
+                                Biller: {biller?.name || 'Manual'} &bull; Timeframe: <span style={{ textTransform: 'capitalize' }}>{sub.billing_cycle.replace('_', ' ')}</span>
+                                {['3_months', '6_months', 'yearly'].includes(sub.billing_cycle) ? ` (${sub.charge_type === 'installments' ? sub.installment_frequency + ' installments' : 'bulk charge'})` : ''}
+                                </Typography>
+                              </Box>
+                            </Box>
+                          </Grid>
+                          <Grid xs={12} sm={4} sx={{ display: 'flex', alignItems: 'center', justifyContent: { xs: 'flex-start', sm: 'flex-end' }, gap: 1.5 }}>
+                            <Box sx={{ textAlign: 'right' }}>
+                              <Typography variant="subtitle2" fontWeight="black" color="text.primary">
+                              ${sub.cost.toFixed(2)} {sub.charge_type === 'installments' ? '(Total)' : ''}
+                              </Typography>
+                              <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5 }}>
+                                {sub.is_trial && <Chip label="Trial" color="warning" size="small" sx={{ height: 18, fontSize: '0.65rem' }} />}
+                                <Chip 
+                                  label={sub.status} 
+                                  size="small" 
+                                  color={sub.status === 'active' ? 'success' : sub.status === 'expired' ? 'error' : 'default'}
+                                  sx={{ height: 18, fontSize: '0.65rem' }} 
+                                />
+                              </Box>
+                            </Box>
+                            <Divider orientation="vertical" flexItem sx={{ mx: 0.5, display: { xs: 'none', sm: 'block' } }} />
+                            <Box>
+                              <IconButton color="primary" size="small" onClick={() => handleEditSubscription(sub)}>
+                                <Edit3 size={16} />
+                              </IconButton>
+                              <IconButton color="error" size="small" onClick={() => handleDeleteSubscription(sub.id)}>
+                                <Trash2 size={16} />
+                              </IconButton>
+                            </Box>
+                          </Grid>
+                        </Grid>
+                      </Paper>
+                    )
+                  })}
+                </List>
+              )}
+            </Paper>
+          </Grid>
+        </Grid>
+      )}
+
+      {/* Tab 1: Email Import */}
+      {subTab === 1 && (
+        <Grid container spacing={3} sx={{ justifyContent: 'center' }}>
+          <Grid xs={12} lg={7} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <Paper sx={{ 
+              p: { xs: 2, sm: 4 }, 
+              border: '1px solid rgba(236, 72, 153, 0.3)', 
+              background: 'linear-gradient(145deg, rgba(30,30,40,0.6) 0%, rgba(15,15,25,0.9) 100%)',
+              borderRadius: '20px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+              mx: 'auto',
+              width: '100%',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              <Box sx={{ position: 'absolute', bottom: -50, right: -50, width: 150, height: 150, background: 'radial-gradient(circle, rgba(236, 72, 153, 0.15) 0%, rgba(0,0,0,0) 70%)', borderRadius: '50%', pointerEvents: 'none' }} />
+
+              <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1, position: 'relative', zIndex: 1 }}>
+                <Sparkles size={20} className="text-secondary-main" /> Fast Import from Email Parser
+              </Typography>
+              <Typography variant="body2" color="textSecondary" sx={{ mb: 2, position: 'relative', zIndex: 1 }}>
+                Paste your raw confirmation email (e.g. from CCBill, Epoch, etc.) to autofill subscription details.
+              </Typography>
+
+              <FormControl size="small" sx={{ mb: 2, minWidth: 200 }}>
+                <InputLabel>Email Format</InputLabel>
+                <Select value={emailFormat} label="Email Format" onChange={e => setEmailFormat(e.target.value)} sx={{ borderRadius: '10px' }}>
+                  <MenuItem value="">Auto-detect</MenuItem>
+                  <MenuItem value="ccbill">CCBill</MenuItem>
+                  <MenuItem value="epoch">Epoch</MenuItem>
+                  <MenuItem value="verotel">Verotel</MenuItem>
+                </Select>
+              </FormControl>
+
+              <TextField
+                fullWidth
+                multiline
+                rows={4}
+                placeholder="Paste subscription/trial email header and contents here..."
+                value={emailText}
+                onChange={e => setEmailText(e.target.value)}
+                sx={{ mb: 2, position: 'relative', zIndex: 1 }}
+              />
+              
+              <Box sx={{ display: 'flex', gap: 1.5, position: 'relative', zIndex: 1 }}>
+                <Button 
+                  variant="contained" 
+                  onClick={handleParseEmail} 
+                  disabled={parseLoading || !emailText.trim()}
+                  startIcon={parseLoading ? <CircularProgress size={16} color="inherit" /> : <Sparkles size={16} />}
+                  sx={{ 
+                    flex: 1, 
+                    borderRadius: '10px', 
+                    fontWeight: 'bold',
+                    background: 'linear-gradient(135deg, #ec4899 0%, #f43f5e 100%)',
+                    boxShadow: '0 4px 14px rgba(236, 72, 153, 0.3)',
+                    '&:hover': { boxShadow: '0 6px 20px rgba(236, 72, 153, 0.5)' }
+                  }}
+                >
+                  {parseLoading ? 'Parsing...' : 'Analyze & Parse'}
+                </Button>
+                <Button variant="text" size="small" onClick={() => setEmailText("New subscription confirmation\n\nBiller: CCBill\nAmount: $24.99\nCycle: monthly\nStatus: active")}
+                  sx={{ borderRadius: '8px', textTransform: 'none', fontSize: '0.75rem' }}>
+                  📋 Show example
+                </Button>
+                {emailText && (
+                  <Button variant="outlined" color="inherit" onClick={() => setEmailText('')} sx={{ borderRadius: '10px' }}>
+                    Clear
+                  </Button>
+                )}
+              </Box>
+
+              {parseResult && (
+                <Paper variant="outlined" sx={{ p: 2, mt: 2, background: 'rgba(255,255,255,0.01)', borderColor: 'rgba(99, 102, 241, 0.2)' }}>
+                  <Typography variant="subtitle2" fontWeight="bold" color="primary.main" sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    ✓ Parsing Successful!
+                  </Typography>
+                  <Grid container spacing={1.5} sx={{ mb: 2 }}>
+                    <Grid xs={6}><Typography variant="caption" color="textSecondary">Biller:</Typography> <Typography variant="body2" fontWeight="bold">{parseResult.biller || 'Not detected'}</Typography></Grid>
+                    <Grid xs={6}><Typography variant="caption" color="textSecondary">Format:</Typography> <Typography variant="body2" fontWeight="bold">{parseResult.format || emailFormat || 'Auto'}</Typography></Grid>
+                    <Grid xs={6}><Typography variant="caption" color="textSecondary">Cycle:</Typography> <Typography variant="body2" fontWeight="bold" sx={{ textTransform: 'capitalize' }}>{parseResult.billing_cycle || 'Not detected'}</Typography></Grid>
+                    <Grid xs={6}><Typography variant="caption" color="textSecondary">Cost:</Typography> <Typography variant="body2" fontWeight="bold">${parseResult.cost?.toFixed(2) || '0.00'}</Typography></Grid>
+                    <Grid xs={6}><Typography variant="caption" color="textSecondary">Is Trial:</Typography> <Typography variant="body2" fontWeight="bold">{parseResult.is_trial ? 'Yes' : 'No'}</Typography></Grid>
+                    <Grid xs={6}><Typography variant="caption" color="textSecondary">Provider:</Typography> <Typography variant="body2" fontWeight="bold">{parseResult.provider_name || parseResult.provider || 'Not detected'}</Typography></Grid>
+                  </Grid>
+                  <Button variant="contained" color="primary" fullWidth onClick={handleApplyParsedResult} size="small">
+                    Apply to Form Below
+                  </Button>
+                </Paper>
+              )}
+            </Paper>
+          </Grid>
+        </Grid>
+      )}
+
+      {/* Tab 2: Add / Edit */}
+      {subTab === 2 && (
+        <Grid container spacing={3} sx={{ justifyContent: 'center' }}>
+          <Grid xs={12} lg={5} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <Paper sx={{ 
+              p: { xs: 2, sm: 4 }, 
+              border: '1px solid rgba(168, 85, 247, 0.3)', 
+              background: 'linear-gradient(145deg, rgba(30,30,40,0.6) 0%, rgba(15,15,25,0.9) 100%)',
+              borderRadius: '20px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+              mx: 'auto',
+              width: '100%',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              <Box sx={{ position: 'absolute', top: -50, right: -50, width: 150, height: 150, background: 'radial-gradient(circle, rgba(168,85,247,0.15) 0%, rgba(0,0,0,0) 70%)', borderRadius: '50%', pointerEvents: 'none' }} />
+
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, position: 'relative', zIndex: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Box sx={{ p: 1, borderRadius: '10px', background: 'rgba(168, 85, 247, 0.15)', color: '#a855f7', display: 'flex', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
+                    {isEditingSub ? <Edit3 size={20} /> : <Plus size={20} />}
+                  </Box>
+                  <Typography variant="h6" fontWeight="bold" sx={{ color: 'text.primary', letterSpacing: '0.5px' }}>
+                    {isEditingSub ? 'Edit Profile' : 'Track Subscription'}
+                  </Typography>
+                </Box>
+                {isEditingSub && (
+                  <IconButton size="small" onClick={resetSubForm} sx={{ color: 'text.secondary', '&:hover': { color: 'primary.main', background: 'rgba(99, 102, 241, 0.1)' } }}>
+                    <RotateCcw size={18} />
+                  </IconButton>
+                )}
+              </Box>
+
+              <form onSubmit={handleSaveSubscription} style={{ position: 'relative', zIndex: 1 }}>
+                
+                {/* Group 1: Service Details */}
+                <Typography variant="overline" color="textSecondary" sx={{ display: 'block', fontWeight: 'bold', letterSpacing: 1, mb: 1, ml: 1 }}>Service Details</Typography>
+                <Box sx={{ p: 2.5, borderRadius: '14px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)', mb: 3 }}>
+                  <Grid container spacing={2}>
+                    <Grid xs={12}>
+                      <Autocomplete
+                        options={providers}
+                        getOptionLabel={(option) => option?.name || ''}
+                        isOptionEqualToValue={(option, value) => option?.id === value?.id}
+                        value={providers.find(p => p.id === subForm.provider_id) || null}
+                        onChange={(e, newValue) => setSubForm({ ...subForm, provider_id: newValue ? newValue.id : '', tier_id: '' })}
+                        renderInput={(params) => (
+                          <TextField 
+                            {...params} 
+                            label="Media Provider" 
+                            size="small" 
+                            required 
+                            InputProps={{
+                              ...(params.InputProps || {}),
+                              startAdornment: (
+                                <>
+                                  <InputAdornment position="start" sx={{ pl: 1 }}><Globe size={16} /></InputAdornment>
+                                  {params.InputProps?.startAdornment}
+                                </>
+                              )
+                            }}
+                          />
+                        )}
+                        fullWidth
+                      />
+                    </Grid>
+                    <Grid xs={12} sm={6}>
+                      <Autocomplete
+                        options={tierOptions}
+                        getOptionLabel={(option) => option?.name || ''}
+                        isOptionEqualToValue={(option, value) => option?.id === value?.id}
+                        value={tierOptions.find(t => t.id === subForm.tier_id) || tierOptions[0]}
+                        onChange={(e, newValue) => setSubForm({ ...subForm, tier_id: newValue ? newValue.id : '' })}
+                        disabled={!subForm.provider_id}
+                        renderInput={(params) => (
+                          <TextField 
+                            {...params} 
+                            label="Subscription Tier" 
+                            size="small" 
+                            InputProps={{
+                              ...(params.InputProps || {}),
+                              startAdornment: (
+                                <>
+                                  <InputAdornment position="start" sx={{ pl: 1 }}><Layers size={16} /></InputAdornment>
+                                  {params.InputProps?.startAdornment}
+                                </>
+                              )
+                            }}
+                          />
+                        )}
+                        fullWidth
+                      />
+                    </Grid>
+                    <Grid xs={12} sm={6}>
+                      <Autocomplete
+                        options={STATUS_OPTIONS}
+                        getOptionLabel={(option) => option?.label || ''}
+                        isOptionEqualToValue={(option, value) => option?.value === value?.value}
+                        value={STATUS_OPTIONS.find(o => o.value === subForm.status) || null}
+                        onChange={(e, newValue) => setSubForm({ ...subForm, status: newValue ? newValue.value : 'active' })}
+                        renderInput={(params) => (
+                          <TextField 
+                            {...params} 
+                            label="Status" 
+                            size="small" 
+                            InputProps={{
+                              ...(params.InputProps || {}),
+                              startAdornment: (
+                                <>
+                                  <InputAdornment position="start" sx={{ pl: 1 }}><Activity size={16} /></InputAdornment>
+                                  {params.InputProps?.startAdornment}
+                                </>
+                              )
+                            }}
+                          />
+                        )}
+                        fullWidth
+                      />
+                    </Grid>
+                  </Grid>
+                </Box>
+
+                {/* Group 2: Billing & Cost */}
+                <Typography variant="overline" color="textSecondary" sx={{ display: 'block', fontWeight: 'bold', letterSpacing: 1, mb: 1, ml: 1 }}>Billing & Cost</Typography>
+                <Box sx={{ p: 2.5, borderRadius: '14px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)', mb: 3 }}>
+                  <Grid container spacing={2}>
+                    <Grid xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        label="Total Cost"
+                        type="number"
+                        inputProps={{ step: "0.01" }}
+                        value={subForm.cost}
+                        onChange={e => setSubForm({ ...subForm, cost: e.target.value })}
+                        slotProps={{ inputLabel: { shrink: true }, input: { startAdornment: <InputAdornment position="start"><DollarSign size={16} /></InputAdornment> } }}
+                      />
+                    </Grid>
+                    <Grid xs={12} sm={6}>
+                      <Autocomplete
+                        options={TIMEFRAME_OPTIONS}
+                        getOptionLabel={(option) => option?.label || ''}
+                        isOptionEqualToValue={(option, value) => option?.value === value?.value}
+                        value={TIMEFRAME_OPTIONS.find(o => o.value === subForm.billing_cycle) || null}
+                        onChange={(e, newValue) => setSubForm({ ...subForm, billing_cycle: newValue ? newValue.value : 'monthly' })}
+                        renderInput={(params) => (
+                          <TextField 
+                            {...params} 
+                            label="Timeframe" 
+                            size="small" 
+                            InputProps={{
+                              ...(params.InputProps || {}),
+                              startAdornment: (
+                                <>
+                                  <InputAdornment position="start" sx={{ pl: 1 }}><Clock size={16} /></InputAdornment>
+                                  {params.InputProps?.startAdornment}
+                                </>
+                              )
+                            }}
+                          />
+                        )}
+                        fullWidth
+                      />
+                    </Grid>
+                    <Grid xs={12}>
+                      <Autocomplete
+                        options={billers}
+                        getOptionLabel={(option) => option?.name || ''}
+                        isOptionEqualToValue={(option, value) => option?.id === value?.id}
+                        value={billers.find(b => b.id === subForm.biller_id) || null}
+                        onChange={(e, newValue) => setSubForm({ ...subForm, biller_id: newValue ? newValue.id : '' })}
+                        renderInput={(params) => (
+                          <TextField 
+                            {...params} 
+                            label="Biller / Gateway" 
+                            size="small" 
+                            InputProps={{
+                              ...(params.InputProps || {}),
+                              startAdornment: (
+                                <>
+                                  <InputAdornment position="start" sx={{ pl: 1 }}><CreditCard size={16} /></InputAdornment>
+                                  {params.InputProps?.startAdornment}
+                                </>
+                              )
+                            }}
+                          />
+                        )}
+                        fullWidth
+                      />
+                    </Grid>
+                    {['3_months', '6_months', 'yearly'].includes(subForm.billing_cycle) && (
+                      <>
+                        <Grid xs={12} sm={6}>
+                          <Autocomplete
+                            options={CHARGE_TYPE_OPTIONS}
+                            getOptionLabel={(option) => option?.label || ''}
+                            isOptionEqualToValue={(option, value) => option?.value === value?.value}
+                            value={CHARGE_TYPE_OPTIONS.find(o => o.value === subForm.charge_type) || null}
+                            onChange={(e, newValue) => setSubForm({ ...subForm, charge_type: newValue ? newValue.value : 'bulk' })}
+                            renderInput={(params) => <TextField {...params} label="Charge Type" size="small" />}
+                            fullWidth
+                          />
+                        </Grid>
+                        {subForm.charge_type === 'installments' && (
+                          <Grid xs={12} sm={6}>
+                            <Autocomplete
+                              options={INSTALLMENT_FREQ_OPTIONS}
+                              getOptionLabel={(option) => option?.label || ''}
+                              isOptionEqualToValue={(option, value) => option?.value === value?.value}
+                              value={INSTALLMENT_FREQ_OPTIONS.find(o => o.value === subForm.installment_frequency) || null}
+                              onChange={(e, newValue) => setSubForm({ ...subForm, installment_frequency: newValue ? newValue.value : 'monthly' })}
+                              renderInput={(params) => <TextField {...params} label="Installment Frequency" size="small" />}
+                              fullWidth
+                            />
+                          </Grid>
+                        )}
+                      </>
+                    )}
+                  </Grid>
+                </Box>
+
+                {/* Group 3: Lifecycle & Trial */}
+                <Typography variant="overline" color="textSecondary" sx={{ display: 'block', fontWeight: 'bold', letterSpacing: 1, mb: 1, ml: 1 }}>Lifecycle & Trial</Typography>
+                <Box sx={{ p: 2.5, borderRadius: '14px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <Grid container spacing={2} sx={{ alignItems: 'center' }}>
+                    <Grid xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        type="datetime-local"
+                        label="Start Date"
+                        slotProps={{ inputLabel: { shrink: true } }}
+                        value={subForm.start_date}
+                        onChange={e => setSubForm({ ...subForm, start_date: e.target.value })}
+                      />
+                    </Grid>
+                    <Grid xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        type="datetime-local"
+                        label="Expiration / End Date"
+                        slotProps={{ inputLabel: { shrink: true } }}
+                        value={subForm.end_date}
+                        onChange={e => setSubForm({ ...subForm, end_date: e.target.value })}
+                      />
+                    </Grid>
+
+                    <Grid xs={12} sx={{ mt: 1, mb: 1 }}>
+                      <Divider sx={{ borderColor: 'rgba(255,255,255,0.05)' }} />
+                    </Grid>
+
+                    <Grid xs={12} sm={4} sx={{ display: 'flex', justifyContent: { xs: 'flex-start', sm: 'center' } }}>
+                      <FormControlLabel
+                        control={<Switch checked={subForm.is_trial} onChange={e => setSubForm({ ...subForm, is_trial: e.target.checked })} color="secondary" />}
+                        label={<Typography variant="body2" fontWeight="bold">Free Trial?</Typography>}
+                      />
+                    </Grid>
+                    <Grid xs={12} sm={4}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        type="datetime-local"
+                        label="Trial Start"
+                        slotProps={{ inputLabel: { shrink: true } }}
+                        disabled={!subForm.is_trial}
+                        value={subForm.trial_start}
+                        onChange={e => setSubForm({ ...subForm, trial_start: e.target.value })}
+                      />
+                    </Grid>
+                    <Grid xs={12} sm={4}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        type="datetime-local"
+                        label="Trial End"
+                        slotProps={{ inputLabel: { shrink: true } }}
+                        disabled={!subForm.is_trial}
+                        value={subForm.trial_end}
+                        onChange={e => setSubForm({ ...subForm, trial_end: e.target.value })}
+                      />
+                    </Grid>
+                  </Grid>
+                </Box>
+
+                <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    fullWidth
+                    sx={{
+                      py: 1.5,
+                      borderRadius: '12px',
+                      fontWeight: 'bold',
+                      fontSize: '1rem',
+                      background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
+                      boxShadow: '0 8px 20px rgba(168, 85, 247, 0.3)',
+                      transition: 'all 0.2s',
+                      '&:hover': {
+                        transform: 'translateY(-2px)',
+                        boxShadow: '0 12px 24px rgba(168, 85, 247, 0.5)',
+                      }
+                    }}
+                  >
+                    {isEditingSub ? 'Update Subscription' : 'Create Subscription Profile'}
+                  </Button>
+                </Box>
+              </form>
+            </Paper>
+          </Grid>
+        </Grid>
+      )}
+
+      {/* Tab 3: Provider Tiers */}
+      {subTab === 3 && (
+        <Grid container spacing={3} sx={{ justifyContent: 'center' }}>
+          <Grid xs={12} lg={7} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <Paper sx={{ 
+              p: { xs: 2, sm: 4 }, 
+              border: '1px solid rgba(16, 185, 129, 0.3)', 
+              background: 'linear-gradient(145deg, rgba(30,30,40,0.6) 0%, rgba(15,15,25,0.9) 100%)',
+              borderRadius: '20px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+              mx: 'auto',
+              width: '100%',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              <Box sx={{ position: 'absolute', top: -50, left: -50, width: 150, height: 150, background: 'radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, rgba(0,0,0,0) 70%)', borderRadius: '50%', pointerEvents: 'none' }} />
+
+              <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, position: 'relative', zIndex: 1 }}>
+                <Layers size={20} /> Manage Provider Tiers
+              </Typography>
+
+              <form onSubmit={handleSaveTier} style={{ position: 'relative', zIndex: 1 }}>
+                <Grid container spacing={2} sx={{ mb: 3 }}>
                   <Grid xs={12}>
                     <Autocomplete
                       options={providers}
                       getOptionLabel={(option) => option?.name || ''}
                       isOptionEqualToValue={(option, value) => option?.id === value?.id}
-                      value={providers.find(p => p.id === subForm.provider_id) || null}
-                      onChange={(e, newValue) => setSubForm({ ...subForm, provider_id: newValue ? newValue.id : '', tier_id: '' })}
-                      renderInput={(params) => (
-                        <TextField 
-                          {...params} 
-                          label="Media Provider" 
-                          size="small" 
-                          required 
-                          InputProps={{
-                            ...(params.InputProps || {}),
-                            startAdornment: (
-                              <>
-                                <InputAdornment position="start" sx={{ pl: 1 }}><Globe size={16} /></InputAdornment>
-                                {params.InputProps?.startAdornment}
-                              </>
-                            )
-                          }}
-                        />
-                      )}
+                      value={providers.find(p => p.id === newTier.provider_id) || null}
+                      onChange={(e, newValue) => setNewTier({...newTier, provider_id: newValue ? newValue.id : ''})}
+                      renderInput={(params) => <TextField {...params} label="Select Provider" size="small" required />}
                       fullWidth
                     />
                   </Grid>
                   <Grid xs={12} sm={6}>
-                    <Autocomplete
-                      options={tierOptions}
-                      getOptionLabel={(option) => option?.name || ''}
-                      isOptionEqualToValue={(option, value) => option?.id === value?.id}
-                      value={tierOptions.find(t => t.id === subForm.tier_id) || tierOptions[0]}
-                      onChange={(e, newValue) => setSubForm({ ...subForm, tier_id: newValue ? newValue.id : '' })}
-                      disabled={!subForm.provider_id}
-                      renderInput={(params) => (
-                        <TextField 
-                          {...params} 
-                          label="Subscription Tier" 
-                          size="small" 
-                          InputProps={{
-                            ...(params.InputProps || {}),
-                            startAdornment: (
-                              <>
-                                <InputAdornment position="start" sx={{ pl: 1 }}><Layers size={16} /></InputAdornment>
-                                {params.InputProps?.startAdornment}
-                              </>
-                            )
-                          }}
-                        />
-                      )}
+                    <TextField 
                       fullWidth
+                      size="small" 
+                      label="Tier Name (e.g. Gold)" 
+                      required
+                      slotProps={{ inputLabel: { shrink: true } }}
+                      value={newTier.name} 
+                      onChange={e => setNewTier({...newTier, name: e.target.value})}
                     />
                   </Grid>
                   <Grid xs={12} sm={6}>
-                    <Autocomplete
-                      options={STATUS_OPTIONS}
-                      getOptionLabel={(option) => option?.label || ''}
-                      isOptionEqualToValue={(option, value) => option?.value === value?.value}
-                      value={STATUS_OPTIONS.find(o => o.value === subForm.status) || null}
-                      onChange={(e, newValue) => setSubForm({ ...subForm, status: newValue ? newValue.value : 'active' })}
-                      renderInput={(params) => (
-                        <TextField 
-                          {...params} 
-                          label="Status" 
-                          size="small" 
-                          InputProps={{
-                            ...(params.InputProps || {}),
-                            startAdornment: (
-                              <>
-                                <InputAdornment position="start" sx={{ pl: 1 }}><Activity size={16} /></InputAdornment>
-                                {params.InputProps?.startAdornment}
-                              </>
-                            )
-                          }}
-                        />
-                      )}
+                    <TextField 
                       fullWidth
-                    />
-                  </Grid>
-                </Grid>
-              </Box>
-
-              {/* Group 2: Billing & Cost */}
-              <Typography variant="overline" color="textSecondary" sx={{ display: 'block', fontWeight: 'bold', letterSpacing: 1, mb: 1, ml: 1 }}>Billing & Cost</Typography>
-              <Box sx={{ p: 2.5, borderRadius: '14px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)', mb: 3 }}>
-                <Grid container spacing={2}>
-                  <Grid xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="Total Cost"
-                      type="number"
+                      size="small" 
+                      label="Price ($)" 
+                      type="number" 
+                      slotProps={{ inputLabel: { shrink: true } }}
                       inputProps={{ step: "0.01" }}
-                      value={subForm.cost}
-                      onChange={e => setSubForm({ ...subForm, cost: e.target.value })}
-                      slotProps={{ inputLabel: { shrink: true }, input: { startAdornment: <InputAdornment position="start"><DollarSign size={16} /></InputAdornment> } }}
+                      value={newTier.price} 
+                      onChange={e => setNewTier({...newTier, price: parseFloat(e.target.value) || 0})}
                     />
                   </Grid>
-                  <Grid xs={12} sm={6}>
-                    <Autocomplete
-                      options={TIMEFRAME_OPTIONS}
-                      getOptionLabel={(option) => option?.label || ''}
-                      isOptionEqualToValue={(option, value) => option?.value === value?.value}
-                      value={TIMEFRAME_OPTIONS.find(o => o.value === subForm.billing_cycle) || null}
-                      onChange={(e, newValue) => setSubForm({ ...subForm, billing_cycle: newValue ? newValue.value : 'monthly' })}
-                      renderInput={(params) => (
-                        <TextField 
-                          {...params} 
-                          label="Timeframe" 
-                          size="small" 
-                          InputProps={{
-                            ...(params.InputProps || {}),
-                            startAdornment: (
-                              <>
-                                <InputAdornment position="start" sx={{ pl: 1 }}><Clock size={16} /></InputAdornment>
-                                {params.InputProps?.startAdornment}
-                              </>
-                            )
-                          }}
-                        />
-                      )}
-                      fullWidth
-                    />
-                  </Grid>
-                  <Grid xs={12}>
-                    <Autocomplete
-                      options={billers}
-                      getOptionLabel={(option) => option?.name || ''}
-                      isOptionEqualToValue={(option, value) => option?.id === value?.id}
-                      value={billers.find(b => b.id === subForm.biller_id) || null}
-                      onChange={(e, newValue) => setSubForm({ ...subForm, biller_id: newValue ? newValue.id : '' })}
-                      renderInput={(params) => (
-                        <TextField 
-                          {...params} 
-                          label="Biller / Gateway" 
-                          size="small" 
-                          InputProps={{
-                            ...(params.InputProps || {}),
-                            startAdornment: (
-                              <>
-                                <InputAdornment position="start" sx={{ pl: 1 }}><CreditCard size={16} /></InputAdornment>
-                                {params.InputProps?.startAdornment}
-                              </>
-                            )
-                          }}
-                        />
-                      )}
-                      fullWidth
-                    />
-                  </Grid>
-                  {['3_months', '6_months', 'yearly'].includes(subForm.billing_cycle) && (
-                    <>
-                      <Grid xs={12} sm={6}>
-                        <Autocomplete
-                          options={CHARGE_TYPE_OPTIONS}
-                          getOptionLabel={(option) => option?.label || ''}
-                          isOptionEqualToValue={(option, value) => option?.value === value?.value}
-                          value={CHARGE_TYPE_OPTIONS.find(o => o.value === subForm.charge_type) || null}
-                          onChange={(e, newValue) => setSubForm({ ...subForm, charge_type: newValue ? newValue.value : 'bulk' })}
-                          renderInput={(params) => <TextField {...params} label="Charge Type" size="small" />}
-                          fullWidth
-                        />
-                      </Grid>
-                      {subForm.charge_type === 'installments' && (
-                        <Grid xs={12} sm={6}>
-                          <Autocomplete
-                            options={INSTALLMENT_FREQ_OPTIONS}
-                            getOptionLabel={(option) => option?.label || ''}
-                            isOptionEqualToValue={(option, value) => option?.value === value?.value}
-                            value={INSTALLMENT_FREQ_OPTIONS.find(o => o.value === subForm.installment_frequency) || null}
-                            onChange={(e, newValue) => setSubForm({ ...subForm, installment_frequency: newValue ? newValue.value : 'monthly' })}
-                            renderInput={(params) => <TextField {...params} label="Installment Frequency" size="small" />}
-                            fullWidth
-                          />
-                        </Grid>
-                      )}
-                    </>
-                  )}
-                </Grid>
-              </Box>
-
-              {/* Group 3: Lifecycle & Trial */}
-              <Typography variant="overline" color="textSecondary" sx={{ display: 'block', fontWeight: 'bold', letterSpacing: 1, mb: 1, ml: 1 }}>Lifecycle & Trial</Typography>
-              <Box sx={{ p: 2.5, borderRadius: '14px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                <Grid container spacing={2} sx={{ alignItems: 'center' }}>
-                  <Grid xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      type="datetime-local"
-                      label="Start Date"
-                      slotProps={{ inputLabel: { shrink: true } }}
-                      value={subForm.start_date}
-                      onChange={e => setSubForm({ ...subForm, start_date: e.target.value })}
-                    />
-                  </Grid>
-                  <Grid xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      type="datetime-local"
-                      label="Expiration / End Date"
-                      slotProps={{ inputLabel: { shrink: true } }}
-                      value={subForm.end_date}
-                      onChange={e => setSubForm({ ...subForm, end_date: e.target.value })}
-                    />
-                  </Grid>
-
-                  <Grid xs={12} sx={{ mt: 1, mb: 1 }}>
-                    <Divider sx={{ borderColor: 'rgba(255,255,255,0.05)' }} />
-                  </Grid>
-
-                  <Grid xs={12} sm={4} sx={{ display: 'flex', justifyContent: { xs: 'flex-start', sm: 'center' } }}>
-                    <FormControlLabel
-                      control={<Switch checked={subForm.is_trial} onChange={e => setSubForm({ ...subForm, is_trial: e.target.checked })} color="secondary" />}
-                      label={<Typography variant="body2" fontWeight="bold">Free Trial?</Typography>}
-                    />
-                  </Grid>
-                  <Grid xs={12} sm={4}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      type="datetime-local"
-                      label="Trial Start"
-                      slotProps={{ inputLabel: { shrink: true } }}
-                      disabled={!subForm.is_trial}
-                      value={subForm.trial_start}
-                      onChange={e => setSubForm({ ...subForm, trial_start: e.target.value })}
-                    />
-                  </Grid>
-                  <Grid xs={12} sm={4}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      type="datetime-local"
-                      label="Trial End"
-                      slotProps={{ inputLabel: { shrink: true } }}
-                      disabled={!subForm.is_trial}
-                      value={subForm.trial_end}
-                      onChange={e => setSubForm({ ...subForm, trial_end: e.target.value })}
-                    />
-                  </Grid>
-                </Grid>
-              </Box>
-
-              <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
-                <Button
-                  type="submit"
-                  variant="contained"
-                  fullWidth
-                  sx={{
-                    py: 1.5,
-                    borderRadius: '12px',
-                    fontWeight: 'bold',
-                    fontSize: '1rem',
-                    background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
-                    boxShadow: '0 8px 20px rgba(168, 85, 247, 0.3)',
-                    transition: 'all 0.2s',
-                    '&:hover': {
-                      transform: 'translateY(-2px)',
-                      boxShadow: '0 12px 24px rgba(168, 85, 247, 0.5)',
-                    }
-                  }}
-                >
-                  {isEditingSub ? 'Update Subscription' : 'Create Subscription Profile'}
-                </Button>
-              </Box>
-            </form>
-          </Paper>
-
-          {/* Subscription Tiers Card */}
-          <Paper sx={{ 
-            p: { xs: 2, sm: 4 }, 
-            border: '1px solid rgba(16, 185, 129, 0.3)', 
-            background: 'linear-gradient(145deg, rgba(30,30,40,0.6) 0%, rgba(15,15,25,0.9) 100%)',
-            borderRadius: '20px',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-            mx: 'auto',
-            width: '100%',
-            position: 'relative',
-            overflow: 'hidden'
-          }}>
-            <Box sx={{ position: 'absolute', top: -50, left: -50, width: 150, height: 150, background: 'radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, rgba(0,0,0,0) 70%)', borderRadius: '50%', pointerEvents: 'none' }} />
-
-            <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, position: 'relative', zIndex: 1 }}>
-              <Layers size={20} /> Manage Provider Tiers
-            </Typography>
-
-            <form onSubmit={handleSaveTier} style={{ position: 'relative', zIndex: 1 }}>
-              <Grid container spacing={2} sx={{ mb: 3 }}>
-                <Grid xs={12}>
-                  <Autocomplete
-                    options={providers}
-                    getOptionLabel={(option) => option?.name || ''}
-                    isOptionEqualToValue={(option, value) => option?.id === value?.id}
-                    value={providers.find(p => p.id === newTier.provider_id) || null}
-                    onChange={(e, newValue) => setNewTier({...newTier, provider_id: newValue ? newValue.id : ''})}
-                    renderInput={(params) => <TextField {...params} label="Select Provider" size="small" required />}
-                    fullWidth
-                  />
-                </Grid>
-                <Grid xs={12} sm={6}>
-                  <TextField 
-                    fullWidth
-                    size="small" 
-                    label="Tier Name (e.g. Gold)" 
-                    required
-                    slotProps={{ inputLabel: { shrink: true } }}
-                    value={newTier.name} 
-                    onChange={e => setNewTier({...newTier, name: e.target.value})}
-                  />
-                </Grid>
-                <Grid xs={12} sm={6}>
-                  <TextField 
-                    fullWidth
-                    size="small" 
-                    label="Price ($)" 
-                    type="number" 
-                    slotProps={{ inputLabel: { shrink: true } }}
-                    inputProps={{ step: "0.01" }}
-                    value={newTier.price} 
-                    onChange={e => setNewTier({...newTier, price: parseFloat(e.target.value) || 0})}
-                  />
-                </Grid>
-                <Grid xs={12} sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
-                  <Button 
-                    type="submit" 
-                    variant="contained" 
-                    startIcon={!isEditingTier && <Plus size={16} />}
-                    sx={{ 
-                      borderRadius: '10px', 
-                      fontWeight: 'bold',
-                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                      boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)',
-                      '&:hover': { boxShadow: '0 6px 20px rgba(16, 185, 129, 0.5)' }
-                    }}
-                  >
-                    {isEditingTier ? 'Update Provider Tier' : 'Add Provider Tier'}
-                  </Button>
-                  {isEditingTier && (
-                    <Button variant="outlined" color="inherit" onClick={resetTierForm} sx={{ borderRadius: '10px' }}>
-                      Cancel
+                  <Grid xs={12} sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+                    <Button 
+                      type="submit" 
+                      variant="contained" 
+                      startIcon={!isEditingTier && <Plus size={16} />}
+                      sx={{ 
+                        borderRadius: '10px', 
+                        fontWeight: 'bold',
+                        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                        boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)',
+                        '&:hover': { boxShadow: '0 6px 20px rgba(16, 185, 129, 0.5)' }
+                      }}
+                    >
+                      {isEditingTier ? 'Update Provider Tier' : 'Add Provider Tier'}
                     </Button>
-                  )}
+                    {isEditingTier && (
+                      <Button variant="outlined" color="inherit" onClick={resetTierForm} sx={{ borderRadius: '10px' }}>
+                        Cancel
+                      </Button>
+                    )}
+                  </Grid>
                 </Grid>
-              </Grid>
-            </form>
+              </form>
 
-          <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: '8px', overflowX: 'auto', mx: 'auto', width: '100%', position: 'relative', zIndex: 1 }}>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell align="center" sx={{ fontWeight: 'bold' }}>Provider</TableCell>
-                    <TableCell align="center" sx={{ fontWeight: 'bold' }}>Name</TableCell>
-                    <TableCell align="center" sx={{ fontWeight: 'bold' }}>Price</TableCell>
-                    <TableCell align="center" sx={{ fontWeight: 'bold' }}>Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {tiers.length === 0 ? (
+              <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: '8px', overflowX: 'auto', mx: 'auto', width: '100%', position: 'relative', zIndex: 1 }}>
+                <Table size="small">
+                  <TableHead>
                     <TableRow>
-                      <TableCell colSpan={4} align="center">
-                        <Typography variant="caption" color="textSecondary" display="block" sx={{ py: 2 }}>
-                          No tiers configured yet.
-                        </Typography>
-                      </TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 'bold' }}>Provider</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 'bold' }}>Name</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 'bold' }}>Price</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 'bold' }}>Actions</TableCell>
                     </TableRow>
-                  ) : (
-                    tiers
-                      .slice(tierPage * tierRowsPerPage, tierPage * tierRowsPerPage + tierRowsPerPage)
-                      .map(tier => (
-                        <TableRow key={tier.id} hover>
-                          <TableCell align="center" sx={{ fontSize: '0.8rem' }}>{providers.find(p => p.id === tier.provider_id)?.name || tier.provider_id}</TableCell>
-                          <TableCell align="center" sx={{ fontSize: '0.8rem', fontWeight: 'bold' }}>{tier.name}</TableCell>
-                          <TableCell align="center" sx={{ fontSize: '0.8rem' }}>${Number(tier.price).toFixed(2)}</TableCell>
-                          <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
-                            <IconButton color="primary" size="small" onClick={() => handleEditTier(tier)}>
-                              <Edit3 size={14} />
-                            </IconButton>
-                            <IconButton color="error" size="small" onClick={() => handleDeleteTier(tier.id)}>
-                              <Trash2 size={14} />
-                            </IconButton>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-            <TablePagination
-              rowsPerPageOptions={[5, 10, 25]}
-              component="div"
-              count={tiers.length}
-              rowsPerPage={tierRowsPerPage}
-              page={tierPage}
-              onPageChange={handleChangeTierPage}
-              onRowsPerPageChange={handleChangeTierRowsPerPage}
-              sx={{ position: 'relative', zIndex: 1 }}
-            />
-          </Paper>
-
+                  </TableHead>
+                  <TableBody>
+                    {tiers.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} align="center">
+                          <Typography variant="caption" color="textSecondary" display="block" sx={{ py: 2 }}>
+                            No tiers configured yet.
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      tiers
+                        .slice(tierPage * tierRowsPerPage, tierPage * tierRowsPerPage + tierRowsPerPage)
+                        .map(tier => (
+                          <TableRow key={tier.id} hover>
+                            <TableCell align="center" sx={{ fontSize: '0.8rem' }}>{providers.find(p => p.id === tier.provider_id)?.name || tier.provider_id}</TableCell>
+                            <TableCell align="center" sx={{ fontSize: '0.8rem', fontWeight: 'bold' }}>{tier.name}</TableCell>
+                            <TableCell align="center" sx={{ fontSize: '0.8rem' }}>${Number(tier.price).toFixed(2)}</TableCell>
+                            <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
+                              <IconButton color="primary" size="small" onClick={() => handleEditTier(tier)}>
+                                <Edit3 size={14} />
+                              </IconButton>
+                              <IconButton color="error" size="small" onClick={() => handleDeleteTier(tier.id)}>
+                                <Trash2 size={14} />
+                              </IconButton>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              <TablePagination
+                rowsPerPageOptions={[5, 10, 25]}
+                component="div"
+                count={tiers.length}
+                rowsPerPage={tierRowsPerPage}
+                page={tierPage}
+                onPageChange={handleChangeTierPage}
+                onRowsPerPageChange={handleChangeTierRowsPerPage}
+                sx={{ position: 'relative', zIndex: 1 }}
+              />
+            </Paper>
+          </Grid>
         </Grid>
-        
-      </Grid>
+      )}
     </Box>
   )
 }

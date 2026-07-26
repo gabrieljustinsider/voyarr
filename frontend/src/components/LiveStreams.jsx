@@ -19,6 +19,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility'
 import { Globe, Link as LinkIcon, Radio, Search } from 'lucide-react'
 import { apiFetch } from '../api'
 import SmartVideoPlayer from './SmartVideoPlayer'
+import GlassCard from './common/GlassCard'
 import UrlParseConfirmationModal from './UrlParseConfirmationModal'
 
 export default function LiveStreams() {
@@ -65,6 +66,10 @@ export default function LiveStreams() {
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+
+  const [extractUrl, setExtractUrl] = useState('')
+  const [extractedStream, setExtractedStream] = useState(null)
+  const [extracting, setExtracting] = useState(false)
 
   const processedStreams = useMemo(() => {
     return streams.filter(s => {
@@ -373,6 +378,28 @@ export default function LiveStreams() {
     setActiveStreamUrl(null)
   }
 
+  const handleExtractUrl = async () => {
+    if (!extractUrl) return
+    setExtracting(true); setExtractedStream(null)
+    try {
+      const res = await apiFetch('/download/extract-stream', { method: 'POST', body: JSON.stringify({ url: extractUrl }) })
+      const data = await res.json()
+      if (res.ok) setExtractedStream(data)
+      else window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: data.detail || 'Extraction failed', severity: 'error' } }))
+    } catch (e) { window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: e.message, severity: 'error' } })) }
+    setExtracting(false)
+  }
+
+  const handleSaveExtractedStream = async () => {
+    if (!extractedStream) return
+    try {
+      const res = await apiFetch('/download/save-stream', { method: 'POST', body: JSON.stringify({ title: extractedStream.title, url: extractedStream.stream_url }) })
+      const data = await res.json()
+      if (res.ok) window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Stream saved!', severity: 'success' } }))
+      else window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: data.detail || 'Failed to save', severity: 'error' } }))
+    } catch (e) { window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: e.message, severity: 'error' } })) }
+  }
+
   const formatSize = (bytes) => {
     if (!bytes) return '0.00 MB'
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
@@ -502,6 +529,39 @@ export default function LiveStreams() {
           </FormControl>
         </Box>
       </Paper>
+
+      {/* Stream URL Extractor */}
+      <GlassCard sx={{ mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+          <Box sx={{ p: 1, borderRadius: '10px', background: 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)', color: '#fff', display: 'flex' }}>
+            <Radio size={20} />
+          </Box>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: '700' }}>Stream URL Extractor</Typography>
+            <Typography variant="caption" color="text.secondary">Extract direct stream URLs (.m3u8 / .mp4) from supported sites.</Typography>
+          </Box>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', bgcolor: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '12px', p: 2 }}>
+          <Box sx={{ flexGrow: 1, minWidth: 280 }}>
+            <TextField fullWidth size="small" label="Webcam Page URL" placeholder="e.g. https://chaturbate.com/room_name/" value={extractUrl} onChange={e => setExtractUrl(e.target.value)} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }} />
+          </Box>
+          <Button variant="outlined" color="secondary" onClick={handleExtractUrl} disabled={extracting || !extractUrl} sx={{ height: 40, px: 3, borderRadius: '10px', textTransform: 'none', fontWeight: 'bold' }}>
+            {extracting ? <CircularProgress size={20} color="inherit" /> : 'Extract Stream URL'}
+          </Button>
+        </Box>
+        {extractedStream && (
+          <Box sx={{ mt: 2.5, p: 2, bgcolor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px' }}>
+            <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 'bold' }} gutterBottom>{extractedStream.title}</Typography>
+            <Typography variant="caption" sx={{ wordBreak: 'break-all', display: 'block', mb: 2, fontFamily: 'monospace', p: 1.5, bgcolor: 'rgba(0,0,0,0.4)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+              {extractedStream.stream_url}
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1.5 }}>
+              <Button size="small" variant="contained" onClick={() => { navigator.clipboard.writeText(extractedStream.stream_url); window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Stream URL copied!', severity: 'success' } })) }} sx={{ borderRadius: '8px', textTransform: 'none', px: 2 }}>Copy Link</Button>
+              <Button size="small" variant="contained" color="secondary" onClick={handleSaveExtractedStream} sx={{ borderRadius: '8px', textTransform: 'none', px: 2 }}>Save to Streams</Button>
+            </Box>
+          </Box>
+        )}
+      </GlassCard>
 
       <Menu
         anchorEl={fieldsMenuAnchor}

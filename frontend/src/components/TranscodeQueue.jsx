@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { 
-  Box, Typography, Paper, Table, TableBody, TableCell, TableContainer, 
+  Box, Button, Typography, Paper, Table, TableBody, TableCell, TableContainer, 
   TableHead, TableRow, LinearProgress, IconButton, Chip, Tooltip, Card, 
   CardContent, Alert
 } from '@mui/material'
@@ -17,6 +17,7 @@ const API_BASE = import.meta.env.VITE_API_BASE || '/api'
 
 export default function TranscodeQueue() {
   const [jobs, setJobs] = useState([])
+  const [statusFilter, setStatusFilter] = useState('')
 
   const fetchJobs = useCallback(async () => {
     try {
@@ -118,6 +119,8 @@ export default function TranscodeQueue() {
     }
   }
 
+  const filteredJobs = statusFilter ? (jobs || []).filter(j => j.status === statusFilter) : (jobs || [])
+
   return (
     <Card sx={{ background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '16px', maxWidth: 1400, mx: 'auto', width: '100%', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)' }}>
       <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, p: 3 }}>
@@ -149,6 +152,37 @@ export default function TranscodeQueue() {
           </Typography>
         </Alert>
 
+        {/* Status summary + filter */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 2 }}>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+            {['all', 'running', 'pending', 'paused', 'completed', 'failed'].map(s => {
+              const count = s === 'all' ? (jobs || []).length : (jobs || []).filter(j => j.status === s).length
+              return (
+                <Chip key={s} label={`${s.charAt(0).toUpperCase() + s.slice(1)} (${count})`} size="small"
+                  clickable onClick={() => setStatusFilter(s === 'all' ? '' : s)}
+                  color={statusFilter === s || (s === 'all' && !statusFilter) ? 'primary' : 'default'}
+                  variant={statusFilter === s || (s === 'all' && !statusFilter) ? 'filled' : 'outlined'}
+                  sx={{ fontWeight: 600, fontSize: '0.65rem' }}
+                />
+              )
+            })}
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            {(jobs || []).some(j => j.status === 'running') && (
+              <Button size="small" variant="outlined" color="warning" onClick={() => (jobs || []).filter(j => j.status === 'running').forEach(j => handleAction(j.id, 'pause'))}
+                sx={{ borderRadius: '8px', textTransform: 'none', fontSize: '0.75rem' }}>Pause All</Button>
+            )}
+            {(jobs || []).some(j => j.status === 'paused') && (
+              <Button size="small" variant="outlined" color="success" onClick={() => (jobs || []).filter(j => j.status === 'paused').forEach(j => handleAction(j.id, 'resume'))}
+                sx={{ borderRadius: '8px', textTransform: 'none', fontSize: '0.75rem' }}>Resume All</Button>
+            )}
+            {(jobs || []).some(j => ['completed', 'failed', 'cancelled'].includes(j.status)) && (
+              <Button size="small" variant="outlined" color="default" onClick={() => (jobs || []).filter(j => ['completed', 'failed', 'cancelled'].includes(j.status)).forEach(j => handleAction(j.id, 'delete'))}
+                sx={{ borderRadius: '8px', textTransform: 'none', fontSize: '0.75rem' }}>Clear All</Button>
+            )}
+          </Box>
+        </Box>
+
         {(jobs || []).length === 0 ? (
           <Paper sx={{ p: 6, textAlign: 'center', background: 'rgba(255, 255, 255, 0.01)', border: '1px dashed rgba(255, 255, 255, 0.08)', borderRadius: '14px' }}>
             <StorageIcon sx={{ fontSize: 48, opacity: 0.3, mb: 1 }} />
@@ -168,7 +202,7 @@ export default function TranscodeQueue() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {(jobs || []).map((job) => (
+                {filteredJobs.map((job) => (
                   <TableRow key={job.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
                     <TableCell align="left" sx={{ maxWidth: '340px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', pl: 2 }}>
                       <Tooltip title={job.title || `Entry ${job.library_entry_id}`}>

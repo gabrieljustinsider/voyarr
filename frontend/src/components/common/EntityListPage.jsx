@@ -105,9 +105,18 @@ export default function EntityListPage({
 
   return (
     <Box sx={{ maxWidth: 1400, mx: 'auto', width: '100%' }}>
-      <Typography variant="h4" sx={{ fontWeight: '800', letterSpacing: '-0.5px', mb: 3 }}>
-        {title}
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4" sx={{ fontWeight: '800', letterSpacing: '-0.5px' }}>
+          {title}
+        </Typography>
+        {onCreate && (
+          <Button variant="contained" size="small" startIcon={<Plus size={16} />}
+            onClick={() => setCreateOpen(true)}
+            sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 'bold', whiteSpace: 'nowrap', height: 36 }}>
+            Add ({title.slice(0, -1)})
+          </Button>
+        )}
+      </Box>
 
       <Alert severity="info" sx={{ mb: 3, borderRadius: '12px', bgcolor: 'rgba(99,102,241,0.08)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.2)', '& .MuiAlert-icon': { color: '#818cf8' } }}>
         <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.25 }}>
@@ -119,30 +128,21 @@ export default function EntityListPage({
       </Alert>
 
       <GlassCard sx={{ mb: 3 }}>
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-          <TextField
-            fullWidth size="small"
-            placeholder={`Search ${title.toLowerCase()}...`}
-            value={search}
-            onChange={e => { setSearch(e.target.value); setPage(1) }}
-            InputProps={{
-              startAdornment: <InputAdornment position="start"><Search size={18} style={{ opacity: 0.5 }} /></InputAdornment>,
-              endAdornment: search ? (
-                <InputAdornment position="end">
-                  <IconButton size="small" onClick={() => setSearch('')}><X size={14} /></IconButton>
-                </InputAdornment>
-              ) : null
-            }}
-            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-          />
-          {onCreate && (
-            <Button variant="contained" size="small" startIcon={<Plus size={16} />}
-              onClick={() => setCreateOpen(true)}
-              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 'bold', whiteSpace: 'nowrap', height: 36 }}>
-              Add
-            </Button>
-          )}
-        </Box>
+        <TextField
+          fullWidth size="small"
+          placeholder={`Search ${title.toLowerCase()}...`}
+          value={search}
+          onChange={e => { setSearch(e.target.value); setPage(1) }}
+          InputProps={{
+            startAdornment: <InputAdornment position="start"><Search size={18} style={{ opacity: 0.5 }} /></InputAdornment>,
+            endAdornment: search ? (
+              <InputAdornment position="end">
+                <IconButton size="small" onClick={() => setSearch('')}><X size={14} /></IconButton>
+              </InputAdornment>
+            ) : null
+          }}
+          sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+        />
       </GlassCard>
 
       {loading ? (

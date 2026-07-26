@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react'
 import { 
   Typography, LinearProgress, List, Box, Button, Chip, 
-  TextField, Select, MenuItem, FormControl, InputLabel, Grid, CircularProgress,
+  TextField, Select, MenuItem, FormControl, InputLabel, Autocomplete, Grid, CircularProgress,
   IconButton, Divider
 } from '@mui/material'
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward'
 import DownloadIcon from '@mui/icons-material/Download'
-import LiveTvIcon from '@mui/icons-material/LiveTv'
 import FilterListIcon from '@mui/icons-material/FilterList'
 import apiFetch from '../api'
 import GlassCard from './common/GlassCard'
@@ -20,10 +19,6 @@ export default function DownloadQueue({ queue, onRefresh }) {
   const [newDownload, setNewDownload] = useState({ provider_id: '', url: '' })
   const [loading, setLoading] = useState(false)
   
-  const [streamUrlInput, setStreamUrlInput] = useState('')
-  const [extractedStream, setExtractedStream] = useState(null)
-  const [extracting, setExtracting] = useState(false)
-
   const [filters, setFilters] = useState({ status: '', url_contains: '', provider_id: '' })
 
   useEffect(() => {
@@ -75,44 +70,6 @@ export default function DownloadQueue({ queue, onRefresh }) {
     }
   }
 
-  const handleExtractStream = async () => {
-    if (!streamUrlInput) return
-    setExtracting(true)
-    setExtractedStream(null)
-    try {
-      const res = await apiFetch('/download/extract-stream', {
-        method: 'POST',
-        body: JSON.stringify({ url: streamUrlInput })
-      })
-      const data = await res.json()
-      if (res.ok) setExtractedStream(data)
-      else window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: data.detail || 'Extraction failed', severity: 'error' } }))
-    } catch (error) {
-      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: error.message, severity: 'error' } }))
-    }
-    setExtracting(false)
-  }
-
-  const handleCopyStreamUrl = () => {
-    if (extractedStream?.stream_url) {
-      navigator.clipboard.writeText(extractedStream.stream_url)
-      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Stream URL copied!', severity: 'success' } }))
-    }
-  }
-
-  const handleSaveStream = async () => {
-    if (!extractedStream) return
-    try {
-      const res = await apiFetch('/download/save-stream', {
-        method: 'POST',
-        body: JSON.stringify({ title: extractedStream.title, url: extractedStream.stream_url })
-      })
-      const data = await res.json()
-      if (res.ok) window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Live stream saved!', severity: 'success' } }))
-      else window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: data.detail || 'Failed to save stream', severity: 'error' } }))
-    } catch (error) { window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: error.message, severity: 'error' } })) }
-  }
-
   const filteredQueue = (queue || []).filter(task => {
     if (filters.status && task.status !== filters.status) return false
     if (filters.url_contains && !task.url.toLowerCase().includes(filters.url_contains.toLowerCase())) return false
@@ -136,18 +93,15 @@ export default function DownloadQueue({ queue, onRefresh }) {
         </Box>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', ...accentSx }}>
           <Box sx={{ flexShrink: 0, minWidth: 240 }}>
-            <FormControl fullWidth size="small">
-              <InputLabel id="provider-select-label">Select Media Provider</InputLabel>
-              <Select 
-                labelId="provider-select-label"
-                value={newDownload.provider_id} 
-                label="Select Media Provider" 
-                onChange={e => setNewDownload({...newDownload, provider_id: e.target.value})}
-                sx={{ borderRadius: '10px' }}
-              >
-                {providers.map(p => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
-              </Select>
-            </FormControl>
+            <Autocomplete
+              options={providers}
+              getOptionLabel={(p) => p.name}
+              value={providers.find(p => p.id === newDownload.provider_id) || null}
+              onChange={(e, v) => setNewDownload({...newDownload, provider_id: v?.id || ''})}
+              renderInput={(params) => <TextField {...params} label="Select Media Provider" size="small" />}
+              isOptionEqualToValue={(o, v) => o.id === v.id}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+            />
           </Box>
           <Box sx={{ flexGrow: 1, minWidth: 280 }}>
             <TextField fullWidth size="small" label="Media URL" placeholder="https://..." value={newDownload.url} onChange={e => setNewDownload({...newDownload, url: e.target.value})} sx={inputSx} />
@@ -158,42 +112,6 @@ export default function DownloadQueue({ queue, onRefresh }) {
             </Button>
           </Box>
         </Box>
-      </GlassCard>
-
-      {/* Live Stream Extractor Card */}
-      <GlassCard sx={{ mb: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2.5 }}>
-          <Box sx={{ p: 1, borderRadius: '10px', background: 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)', color: '#fff', display: 'flex' }}>
-            <LiveTvIcon fontSize="small" />
-          </Box>
-          <Box>
-            <Typography variant="h6" sx={{ fontWeight: '700' }}>Live Stream Extractor</Typography>
-            <Typography variant="caption" color="text.secondary">Extract direct stream URLs (.m3u8 / .mp4) from supported sites to copy or add to your Live Stream Hub.</Typography>
-          </Box>
-        </Box>
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', ...accentSx }}>
-          <Box sx={{ flexGrow: 1, minWidth: 280 }}>
-            <TextField fullWidth size="small" label="Webcam Page URL" placeholder="e.g. https://chaturbate.com/room_name/" value={streamUrlInput} onChange={e => setStreamUrlInput(e.target.value)} sx={inputSx} />
-          </Box>
-          <Box sx={{ flexShrink: 0 }}>
-            <Button variant="outlined" color="secondary" onClick={handleExtractStream} disabled={extracting || !streamUrlInput} sx={{ height: 40, px: 3, borderRadius: '10px', textTransform: 'none', fontWeight: 'bold' }}>
-              {extracting ? <CircularProgress size={20} color="inherit" /> : 'Extract Stream URL'}
-            </Button>
-          </Box>
-        </Box>
-
-        {extractedStream && (
-          <Box sx={{ mt: 2.5, p: 2, bgcolor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px' }}>
-            <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 'bold' }} gutterBottom>{extractedStream.title}</Typography>
-            <Typography variant="caption" sx={{ wordBreak: 'break-all', display: 'block', mb: 2, fontFamily: 'monospace', p: 1.5, bgcolor: 'rgba(0,0,0,0.4)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-              {extractedStream.stream_url}
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 1.5 }}>
-              <Button size="small" variant="contained" onClick={handleCopyStreamUrl} sx={{ borderRadius: '8px', textTransform: 'none', px: 2 }}>Copy Link</Button>
-              <Button size="small" variant="contained" color="secondary" onClick={handleSaveStream} sx={{ borderRadius: '8px', textTransform: 'none', px: 2 }}>Save to Live Streams</Button>
-            </Box>
-          </Box>
-        )}
       </GlassCard>
 
       {/* Filter & Search Toolbar */}

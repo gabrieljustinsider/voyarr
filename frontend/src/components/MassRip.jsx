@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { 
   Box, Typography, TextField, Button, Paper, Grid, 
-  FormControl, InputLabel, Select, MenuItem, Alert, CircularProgress,
+  Autocomplete, Alert, CircularProgress,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   IconButton, Tooltip, LinearProgress, Chip
 } from '@mui/material'
@@ -16,6 +16,7 @@ export default function MassRip() {
   const [result, setResult] = useState(null)
   const [rippingEnabled, setRippingEnabled] = useState(true)
   const [sessions, setSessions] = useState([])
+  const [statusFilter, setStatusFilter] = useState('')
 
   const fetchSessions = useCallback(async () => {
     try {
@@ -135,6 +136,8 @@ export default function MassRip() {
     return date.toLocaleString()
   }
 
+  const filteredSessions = statusFilter ? sessions.filter(s => s.status === statusFilter) : sessions
+
   return (
     <Box sx={{ maxWidth: 1400, mx: 'auto', width: '100%' }}>
       <Typography variant="h4" gutterBottom sx={{ fontWeight: 700 }}>Mass Rip Workflow</Typography>
@@ -172,18 +175,16 @@ export default function MassRip() {
         
         <Grid container spacing={2} sx={{ alignItems: 'center' }}>
           <Grid item xs={12} md="auto" sx={{ minWidth: 280 }}>
-            <FormControl fullWidth size="small" disabled={!rippingEnabled}>
-              <InputLabel id="mass-rip-provider-label">Provider Ruleset</InputLabel>
-              <Select 
-                labelId="mass-rip-provider-label"
-                value={providerId} 
-                label="Provider Ruleset" 
-                onChange={e => setProviderId(e.target.value)}
-                sx={{ borderRadius: '10px' }}
-              >
-                {providers.map(p => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
-              </Select>
-            </FormControl>
+            <Autocomplete
+              options={providers}
+              getOptionLabel={(p) => p.name}
+              value={providers.find(p => p.id === providerId) || null}
+              onChange={(e, v) => setProviderId(v?.id || '')}
+              renderInput={(params) => <TextField {...params} label="Provider Ruleset" size="small" />}
+              isOptionEqualToValue={(o, v) => o.id === v.id}
+              disabled={!rippingEnabled}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+            />
           </Grid>
           <Grid item xs={12} md={true} sx={{ minWidth: 320 }}>
             <TextField 
@@ -211,6 +212,37 @@ export default function MassRip() {
         </Grid>
         {result && <Alert severity={result.type} sx={{ mt: 3, borderRadius: '10px' }}>{result.message}</Alert>}
       </Paper>
+
+      {/* Status summary + filters */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 2 }}>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          {['all', 'running', 'pending', 'paused', 'completed', 'failed'].map(s => {
+            const count = s === 'all' ? sessions.length : sessions.filter(x => x.status === s).length
+            return (
+              <Chip key={s} label={`${s.charAt(0).toUpperCase() + s.slice(1)} (${count})`} size="small"
+                clickable onClick={() => setStatusFilter(s === 'all' ? '' : s)}
+                color={statusFilter === s || (s === 'all' && !statusFilter) ? 'primary' : 'default'}
+                variant={statusFilter === s || (s === 'all' && !statusFilter) ? 'filled' : 'outlined'}
+                sx={{ fontWeight: 600, fontSize: '0.65rem' }}
+              />
+            )
+          })}
+        </Box>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          {sessions.some(s => s.status === 'running') && (
+            <Button size="small" variant="outlined" color="warning" onClick={() => sessions.filter(s => s.status === 'running').forEach(s => handleSessionAction(s.id, 'pause'))}
+              sx={{ borderRadius: '8px', textTransform: 'none', fontSize: '0.75rem' }}>Pause All</Button>
+          )}
+          {sessions.some(s => s.status === 'paused') && (
+            <Button size="small" variant="outlined" color="success" onClick={() => sessions.filter(s => s.status === 'paused').forEach(s => handleSessionAction(s.id, 'resume'))}
+              sx={{ borderRadius: '8px', textTransform: 'none', fontSize: '0.75rem' }}>Resume All</Button>
+          )}
+          {sessions.some(s => ['completed', 'stopped', 'failed'].includes(s.status)) && (
+            <Button size="small" variant="outlined" color="default" onClick={() => { sessions.filter(s => ['completed', 'stopped', 'failed'].includes(s.status)).forEach(s => handleSessionAction(s.id, 'delete')) }}
+              sx={{ borderRadius: '8px', textTransform: 'none', fontSize: '0.75rem' }}>Clear All</Button>
+          )}
+        </Box>
+      </Box>
 
       {/* Ripping Tasks Log Table */}
       <Paper sx={{ p: 3, borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
@@ -241,7 +273,7 @@ export default function MassRip() {
                   </TableCell>
                 </TableRow>
               ) : (
-                sessions.map((session) => {
+                filteredSessions.map((session) => {
                   const percent = session.total_videos > 0 
                     ? Math.round((session.processed_videos / session.total_videos) * 100) 
                     : 0
