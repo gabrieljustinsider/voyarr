@@ -2038,11 +2038,17 @@ export default function Settings() {
                   color={uiConfig[key] !== false ? 'primary' : 'default'}
                   onClick={() => {
                     const newVal = uiConfig[key] === false
-                    handleSaveSetting(key, newVal ? 'true' : 'false')
+                    apiFetch('/user/stats/preferences', {
+                      method: 'POST',
+                      body: JSON.stringify({ theme: themeName, ui_config: { ...uiConfig, [key]: newVal } })
+                    }).catch(() => {})
                     setUiConfig(prev => ({ ...prev, [key]: newVal }))
                   }}
                   onDelete={uiConfig[key] !== false ? () => {
-                    handleSaveSetting(key, 'false')
+                    apiFetch('/user/stats/preferences', {
+                      method: 'POST',
+                      body: JSON.stringify({ theme: themeName, ui_config: { ...uiConfig, [key]: false } })
+                    }).catch(() => {})
                     setUiConfig(prev => ({ ...prev, [key]: false }))
                   } : undefined}
                   size="small"

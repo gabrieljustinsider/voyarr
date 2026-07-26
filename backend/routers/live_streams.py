@@ -23,6 +23,8 @@ router = APIRouter(
 class LiveStreamCreateUpdate(BaseModel):
     name: str
     url: str
+    auto_monitor: bool = False
+    auto_record: bool = False
 
 class LiveStreamAuth(BaseModel):
     cookies: Optional[str] = None
@@ -79,7 +81,9 @@ def create_live_stream(
     stream = LiveStream(
         name=req.name,
         url=req.url,
-        status="idle"
+        status="idle",
+        auto_monitor=req.auto_monitor,
+        auto_record=req.auto_record,
     )
     db.add(stream)
     db.commit()

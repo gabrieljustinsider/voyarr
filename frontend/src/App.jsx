@@ -935,7 +935,7 @@ function App() {
     { label: "Universal Search", component: <UniversalSearch />, visible: true },
     { label: "Favorites", component: <Favorites />, visible: uiConfig.showFavorites },
     { label: "Studios", component: <Studios />, visible: uiConfig.showStudios },
-    { label: "Live Streams", component: <LiveStreams />, visible: uiConfig.showLive },
+    { label: "Stream Recorder", component: <LiveStreams />, visible: uiConfig.showLive },
     { label: "Analytics", component: <Analytics />, visible: uiConfig.showAnalytics },
     { label: "Providers", component: (
       <ProviderList 
@@ -978,7 +978,7 @@ function App() {
       id: "media",
       label: "Library & Media",
       icon: <Clapperboard size={20} />,
-      tabs: ["Dashboard", "Library", "Universal Search", "Favorites", "Studios", "Live Streams", "Analytics", "Request Manager", "Performers", "Tags"]
+      tabs: ["Dashboard", "Library", "Universal Search", "Favorites", "Studios", "Stream Recorder", "Analytics", "Request Manager", "Performers", "Tags"]
     },
     {
       id: "scraping",
@@ -1030,7 +1030,7 @@ function App() {
     library: 'Library',
     search: 'Universal Search',
     favorites: 'Favorites',
-    livestreams: 'Live Streams',
+    livestreams: 'Stream Recorder',
     download_queue: 'Downloads',
     transcode_queue: 'Transcode Queue',
     mass_rip: 'Mass Rip',

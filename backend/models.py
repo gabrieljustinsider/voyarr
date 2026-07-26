@@ -695,12 +695,16 @@ class LiveStream(Base):
     url = Column(Text, nullable=False)
     status = Column(
         String(50), default="idle", index=True
-    )  # 'idle', 'recording', 'failed'
+    )  # 'idle', 'recording', 'paused', 'failed', 'watching'
     current_task_id = Column(String(255), nullable=True)
     current_output_path = Column(Text, nullable=True)
     written_size = Column(BIGINT, default=0)
     elapsed_seconds = Column(Integer, default=0)
     pid = Column(Integer, nullable=True)
+    auto_monitor = Column(Boolean, default=False)
+    auto_record = Column(Boolean, default=False)
+    last_checked_at = Column(TIMESTAMP, nullable=True)
+    last_online_at = Column(TIMESTAMP, nullable=True)
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
     updated_at = Column(
         TIMESTAMP, default=func.current_timestamp(), onupdate=func.current_timestamp()

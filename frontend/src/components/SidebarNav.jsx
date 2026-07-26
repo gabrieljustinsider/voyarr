@@ -20,7 +20,7 @@ const MENU_GROUPS = [
       { id: 'library', label: 'Library', icon: Library },
       { id: 'search', label: 'Universal Search', icon: Search },
       { id: 'favorites', label: 'Favorites', icon: Heart },
-      { id: 'livestreams', label: 'Live Streams', icon: Radio },
+      { id: 'livestreams', label: 'Stream Recorder', icon: Radio },
     ]
   },
   {

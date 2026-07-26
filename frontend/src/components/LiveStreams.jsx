@@ -412,7 +412,7 @@ export default function LiveStreams() {
       <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: 'center', gap: 2, mb: 3 }}>
         <Typography variant="h4" sx={{ fontWeight: '800', letterSpacing: '-0.5px', display: 'flex', alignItems: 'center', justifyContent: { xs: 'center', sm: 'flex-start' }, gap: 1.5, textAlign: { xs: 'center', sm: 'left' } }}>
           <StreamIcon sx={{ fontSize: 36, color: 'error.main', filter: 'drop-shadow(0 0 8px rgba(239, 68, 68, 0.4))' }} />
-          Live Stream Hub
+          Stream Recorder
         </Typography>
         <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, alignItems: 'center', width: { xs: '100%', sm: 'auto' } }}>
           <Button

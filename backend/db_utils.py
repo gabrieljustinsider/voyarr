@@ -602,6 +602,31 @@ def run_schema_migrations(engine: Any) -> None:
                     pass
                 logger.warning(f"Failed to create tags table (it may already exist): {e}")
 
+        # 17. Add monitoring columns to live_streams table
+        for col_name, col_def in [
+            ("auto_monitor", "BOOLEAN DEFAULT FALSE"),
+            ("auto_record", "BOOLEAN DEFAULT FALSE"),
+            ("last_checked_at", "TIMESTAMP"),
+            ("last_online_at", "TIMESTAMP"),
+        ]:
+            try:
+                conn.execute(text(f"SELECT {col_name} FROM live_streams LIMIT 1"))
+            except Exception:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                try:
+                    conn.execute(text(f"ALTER TABLE live_streams ADD COLUMN {col_name} {col_def}"))
+                    conn.commit()
+                    logger.info(f"Database migration successfully added '{col_name}' to 'live_streams'.")
+                except Exception as e:
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        pass
+                    logger.warning(f"Failed to add '{col_name}' to live_streams: {e}")
+
 def is_feature_enabled(db: Session, feature: str, user: Optional[Any] = None) -> bool:
     from models import Settings
     if feature == "streaming":
