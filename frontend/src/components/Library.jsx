@@ -3,7 +3,7 @@ import {
   Box, Typography, Card, CardContent, Grid, TextField, 
   Chip, FormControl, InputLabel, Select, MenuItem, Paper, CardMedia, Tooltip,
   Dialog, DialogTitle, DialogContent, IconButton, Button, DialogActions,
-  CircularProgress, Alert, Pagination, Checkbox, Slide, Autocomplete, createFilterOptions, InputAdornment
+  CircularProgress, Alert, Pagination, Checkbox, Autocomplete, createFilterOptions, InputAdornment
 } from '@mui/material'
 import { X, PlayCircle, Settings, List, CloudUpload, Heart, Cast, Sparkles, Edit2, Plus, FolderOpen, FileUp, Trash2, Film, LayoutGrid, Clock, HardDrive, Filter, ArrowUpDown, SlidersHorizontal, Video, Layers, Search } from 'lucide-react'
 import GlassCard from './common/GlassCard'
@@ -699,14 +699,15 @@ export default function Library() {
     }
   }
 
-  const handleDeleteEntry = async (entry) => {
-    const confirmed = await window.appConfirm(`Are you sure you want to remove "${entry.title}" from the library?`)
-    if (!confirmed) return
+  const [deleteDialogEntry, setDeleteDialogEntry] = useState(null)
 
+  const handleDeleteEntry = async (entry, keepFile) => {
     try {
-      const res = await apiFetch(`/library/${entry.id}`, { method: 'DELETE' })
+      const url = keepFile ? `/library/${entry.id}?keep_file=true` : `/library/${entry.id}`
+      const res = await apiFetch(url, { method: 'DELETE' })
       if (res.ok) {
-        window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Item removed from library.', severity: 'success' } }))
+        const msg = keepFile ? 'Item removed from library (file kept on disk).' : 'Item and file deleted.'
+        window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: msg, severity: 'success' } }))
         fetchLibrary()
       } else {
         const err = await res.json()
@@ -715,6 +716,7 @@ export default function Library() {
     } catch (err) {
       console.error(err)
     }
+    setDeleteDialogEntry(null)
   }
 
   const handleBulkDelete = async () => {
@@ -1215,6 +1217,32 @@ export default function Library() {
                         )}
                       </Box>
                     )}
+
+                    {/* Tags Chips */}
+                    {entry.tags && entry.tags.length > 0 && (
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.4, mt: 0.5 }}>
+                        {entry.tags.slice(0, 4).map(t => (
+                          <Chip
+                            key={t}
+                            label={t}
+                            size="small"
+                            onClick={(e) => { e.stopPropagation(); setFilters(prev => ({ ...prev, tags: [t] })); }}
+                            sx={{
+                              height: 18,
+                              fontSize: '0.62rem',
+                              bgcolor: 'rgba(16, 185, 129, 0.1)',
+                              color: '#6ee7b7',
+                              border: '1px solid rgba(16, 185, 129, 0.2)',
+                              cursor: 'pointer',
+                              '&:hover': { bgcolor: 'rgba(16, 185, 129, 0.25)' }
+                            }}
+                          />
+                        ))}
+                        {entry.tags.length > 4 && (
+                          <Chip label={`+${entry.tags.length - 4}`} size="small" sx={{ height: 18, fontSize: '0.6rem', opacity: 0.5 }} />
+                        )}
+                      </Box>
+                    )}
                   {/* Card Footer Actions Row */}
                   <Box sx={{ 
                     p: 1.5, 
@@ -1239,8 +1267,8 @@ export default function Library() {
                           <Edit2 size={16} />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="Delete Item">
-                        <IconButton size="small" color="error" onClick={() => handleDeleteEntry(entry)} sx={{ opacity: 0.7, '&:hover': { opacity: 1 } }}>
+                      <Tooltip title="Remove from library">
+                        <IconButton size="small" color="error" onClick={() => setDeleteDialogEntry(entry)} sx={{ opacity: 0.7, '&:hover': { opacity: 1 } }}>
                           <Trash2 size={16} />
                         </IconButton>
                       </Tooltip>
@@ -1380,6 +1408,51 @@ export default function Library() {
           </Button>
         </GlassCard>
       )}
+
+      {/* Remove from Library Confirmation Dialog */}
+      <Dialog
+        open={Boolean(deleteDialogEntry)}
+        onClose={() => setDeleteDialogEntry(null)}
+        PaperProps={{ sx: { borderRadius: '16px', maxWidth: 400 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 'bold' }}>
+          Remove "{deleteDialogEntry?.title || 'this item'}"?
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Do you want to keep the video file on disk, or delete it permanently?
+          </Typography>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            <Button
+              variant="contained"
+              color="primary"
+              fullWidth
+              startIcon={<Trash2 size={16} />}
+              onClick={() => handleDeleteEntry(deleteDialogEntry, false)}
+              sx={{ borderRadius: '10px', textTransform: 'none' }}
+            >
+              Delete file and remove from library
+            </Button>
+            <Button
+              variant="outlined"
+              fullWidth
+              startIcon={<Trash2 size={16} />}
+              onClick={() => handleDeleteEntry(deleteDialogEntry, true)}
+              sx={{ borderRadius: '10px', textTransform: 'none' }}
+            >
+              Remove from library only (keep file)
+            </Button>
+            <Button
+              variant="text"
+              fullWidth
+              onClick={() => setDeleteDialogEntry(null)}
+              sx={{ borderRadius: '10px', textTransform: 'none', color: 'text.secondary' }}
+            >
+              Cancel
+            </Button>
+          </Box>
+        </DialogContent>
+      </Dialog>
 
       {totalPages > 1 && (
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, mb: 4 }}>
@@ -1961,57 +2034,6 @@ export default function Library() {
           )}
         </DialogContent>
       </Dialog>
-
-      {/* Floating Glassmorphic Bulk Operations Toolbar */}
-      <Slide direction="up" in={selectedEntries.size > 0} mountOnEnter unmountOnExit>
-        <Paper 
-          sx={{ 
-            position: 'fixed', 
-            bottom: 24, 
-            left: '50%', 
-            transform: 'translateX(-50%)', 
-            zIndex: 1000, 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: 2, 
-            px: 3, 
-            py: 1.5, 
-            borderRadius: '20px', 
-            backdropFilter: 'blur(20px)', 
-            backgroundColor: 'rgba(18, 18, 18, 0.75)', 
-            border: '1px solid rgba(255, 255, 255, 0.1)', 
-            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.5)'
-          }}
-        >
-          <Typography variant="body1" sx={{ color: 'white', fontWeight: 'bold' }}>
-            {selectedEntries.size} Selected
-          </Typography>
-          <Box sx={{ width: '1px', height: '24px', backgroundColor: 'rgba(255, 255, 255, 0.15)' }} />
-          <Button 
-            variant="contained" 
-            color="primary" 
-            size="small" 
-            startIcon={<Edit2 size={18} />} 
-            onClick={() => setBulkEditOpen(true)}
-            sx={{ borderRadius: '10px' }}
-          >
-            Bulk Edit
-          </Button>
-          <Button 
-            variant="outlined" 
-            color="info" 
-            size="small" 
-            startIcon={<Sparkles size={18} />} 
-            onClick={handleBulkAI}
-            sx={{ borderRadius: '10px' }}
-          >
-            AI Auto-Tag
-          </Button>
-          <IconButton onClick={handleClearSelection} sx={{ color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } }}>
-            <X size={20} />
-          </IconButton>
-        </Paper>
-      </Slide>
 
       {/* Bulk Edit Modal */}
       <Dialog 

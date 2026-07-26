@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session, defer, selectinload
 from database import get_db
@@ -460,7 +460,12 @@ def rename_facial_cluster(
 
 
 @router.delete("/{entry_id}", dependencies=[Depends(verify_api_key)])
-def delete_library_entry(entry_id: int, db: Session = Depends(get_db), current_user = Depends(require_permission("library", "edit"))):
+def delete_library_entry(
+    entry_id: int,
+    keep_file: bool = Query(False, description="If true, remove the database entry but keep the file on disk"),
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission("library", "edit")),
+):
     entry = db.query(LibraryEntry).filter(LibraryEntry.id == entry_id).first()
     if not entry:
         raise HTTPException(status_code=404, detail="Library entry not found")
@@ -476,8 +481,8 @@ def delete_library_entry(entry_id: int, db: Session = Depends(get_db), current_u
     except Exception as e:
         logger.warning(f"Error cleaning up child records for library entry {entry_id}: {e}")
 
-    # Attempt to delete the physical media file safely
-    if entry.file_path:
+    # Attempt to delete the physical media file safely (skip if keep_file is true)
+    if not keep_file and entry.file_path:
         try:
             safe_file_path = sanitize_tainted_path(entry.file_path)
             if safe_file_path != "/" and os.path.exists(safe_file_path):
@@ -487,7 +492,8 @@ def delete_library_entry(entry_id: int, db: Session = Depends(get_db), current_u
 
     db.delete(entry)
     db.commit()
-    return {"message": "Library entry and physical media deleted successfully"}
+    msg = "Library entry removed (file kept on disk)" if keep_file else "Library entry and physical media deleted successfully"
+    return {"message": msg, "file_kept": keep_file}
 
 
 class SingleItemUpdatePayload(BaseModel):
