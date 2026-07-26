@@ -906,3 +906,21 @@ class MassRipSession(Base):
     updated_at = Column(
         TIMESTAMP, default=func.current_timestamp(), onupdate=func.current_timestamp()
     )
+
+
+class Performer(Base):
+    __tablename__ = "performers"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), unique=True, nullable=False, index=True)
+    entry_count = Column(Integer, default=0)
+    created_at = Column(TIMESTAMP, default=func.current_timestamp())
+
+
+class Tag(Base):
+    __tablename__ = "tags"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), unique=True, nullable=False, index=True)
+    entry_count = Column(Integer, default=0)
+    created_at = Column(TIMESTAMP, default=func.current_timestamp())

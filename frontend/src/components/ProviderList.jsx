@@ -18,6 +18,7 @@ import { MediaEntityCard } from './common'
 import BillerList from './BillerList'
 import CookiesManager from './CookiesManager'
 import ScraperTester from './ScraperTester'
+import RecipeEditor from './RecipeEditor'
 import { apiFetch } from '../api'
 
 function ProviderCardLogo({ provider }) {
@@ -84,6 +85,19 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
   const [openDialog, setOpenDialog] = useState(false)
   const [activeProvider, setActiveProvider] = useState(null)
   const [dialogTab, setDialogTab] = useState(0)
+  const [recipeProviderId, setRecipeProviderId] = useState(null)
+  const [selectedRecipe, setSelectedRecipe] = useState(null)
+
+  const fetchSelectedRecipe = useCallback(async () => {
+    if (!recipeProviderId) return
+    try {
+      const res = await apiFetch(`/scraper/${recipeProviderId}`)
+      if (res.ok) setSelectedRecipe(await res.json())
+      else setSelectedRecipe(null)
+    } catch { setSelectedRecipe(null) }
+  }, [recipeProviderId])
+
+  useEffect(() => { fetchSelectedRecipe() }, [fetchSelectedRecipe])
 
   // Billers list state for searchable dropdown
   const [billersList, setBillersList] = useState([])
@@ -928,6 +942,7 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
           <Tab label="Payment Billers & Gateways" />
           <Tab label="Session Cookies & Auth" />
           <Tab label="Scraper Tester" />
+          <Tab label="Recipe" />
         </Tabs>
       </Paper>
 
@@ -1224,6 +1239,24 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
       {subTab === 1 && <BillerList />}
       {subTab === 2 && <CookiesManager />}
       {subTab === 3 && <ScraperTester />}
+      {subTab === 4 && (
+        <Box>
+          <Alert severity="info" sx={{ mb: 3, borderRadius: '12px', bgcolor: 'rgba(99,102,241,0.08)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.2)', '& .MuiAlert-icon': { color: '#818cf8' } }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.25 }}>🧪 Scraping Recipe Editor</Typography>
+            <Typography variant="caption" sx={{ display: 'block', opacity: 0.9, lineHeight: 1.4 }}>
+              Configure CSS selectors, XPath patterns, and regex rules that Voyarr uses to scrape metadata from each provider's pages. Select a provider below to manage its recipe.
+            </Typography>
+          </Alert>
+          <FormControl size="small" sx={{ mb: 3, minWidth: 300 }}>
+            <InputLabel>Select Provider</InputLabel>
+            <Select value={recipeProviderId || ''} label="Select Provider" onChange={e => setRecipeProviderId(e.target.value || null)} sx={{ borderRadius: '10px' }}>
+              <MenuItem value=""><em>None</em></MenuItem>
+              {providers.map(p => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
+            </Select>
+          </FormControl>
+          <RecipeEditor providerId={recipeProviderId} recipe={selectedRecipe} onSave={fetchSelectedRecipe} />
+        </Box>
+      )}
 
       {/* Unified Manage Auth & Session Modal */}
       <Dialog 

@@ -530,6 +530,78 @@ def run_schema_migrations(engine: Any) -> None:
                 pass
             logger.warning(f"Failed to seed default billers: {e}")
 
+        # 15. Create performers table if it doesn't exist
+        try:
+            conn.execute(text("SELECT id FROM performers LIMIT 1"))
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            try:
+                if dialect_name == "postgresql":
+                    conn.execute(text("""
+                        CREATE TABLE performers (
+                            id SERIAL PRIMARY KEY,
+                            name VARCHAR(255) UNIQUE NOT NULL,
+                            entry_count INTEGER DEFAULT 0,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        )
+                    """))
+                else:
+                    conn.execute(text("""
+                        CREATE TABLE performers (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            name VARCHAR(255) UNIQUE NOT NULL,
+                            entry_count INTEGER DEFAULT 0,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        )
+                    """))
+                conn.commit()
+                logger.info("Database migration successfully created 'performers' table.")
+            except Exception as e:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                logger.warning(f"Failed to create performers table (it may already exist): {e}")
+
+        # 16. Create tags table if it doesn't exist
+        try:
+            conn.execute(text("SELECT id FROM tags LIMIT 1"))
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            try:
+                if dialect_name == "postgresql":
+                    conn.execute(text("""
+                        CREATE TABLE tags (
+                            id SERIAL PRIMARY KEY,
+                            name VARCHAR(255) UNIQUE NOT NULL,
+                            entry_count INTEGER DEFAULT 0,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        )
+                    """))
+                else:
+                    conn.execute(text("""
+                        CREATE TABLE tags (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            name VARCHAR(255) UNIQUE NOT NULL,
+                            entry_count INTEGER DEFAULT 0,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        )
+                    """))
+                conn.commit()
+                logger.info("Database migration successfully created 'tags' table.")
+            except Exception as e:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                logger.warning(f"Failed to create tags table (it may already exist): {e}")
+
 def is_feature_enabled(db: Session, feature: str, user: Optional[Any] = None) -> bool:
     from models import Settings
     if feature == "streaming":

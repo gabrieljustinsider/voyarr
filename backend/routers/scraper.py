@@ -266,3 +266,97 @@ def parse_url(
             "thumbnail_url": thumbnail_url
         }
     }
+
+
+# ── Recipe Editor Endpoints ─────────────────────────────────────────────────
+
+
+class SiteRecipeUpdate(BaseModel):
+    css_selectors: Optional[Dict[str, Any]] = None
+    xpath_selectors: Optional[Dict[str, Any]] = None
+    regex_patterns: Optional[Dict[str, Any]] = None
+    map_mode_data: Optional[Dict[str, Any]] = None
+
+
+@router.get("")
+def list_recipes(
+    db: Session = Depends(get_db),
+    _=Depends(require_permission("scraping", "view")),
+):
+    recipes = db.query(SiteRecipe).join(Provider, SiteRecipe.provider_id == Provider.id, isouter=True).all()
+    return [
+        {
+            "id": r.id,
+            "provider_id": r.provider_id,
+            "provider_name": r.provider.name if r.provider else None,
+            "provider_logo_url": r.provider.logo_url if r.provider else None,
+            "css_selectors": r.css_selectors,
+            "xpath_selectors": r.xpath_selectors,
+            "regex_patterns": r.regex_patterns,
+            "map_mode_data": r.map_mode_data,
+        }
+        for r in recipes
+    ]
+
+
+@router.put("/{recipe_id}")
+def update_recipe(
+    recipe_id: int,
+    update: SiteRecipeUpdate,
+    db: Session = Depends(get_db),
+    _=Depends(require_permission("scraping", "edit")),
+):
+    recipe = db.query(SiteRecipe).filter(SiteRecipe.id == recipe_id).first()
+    if not recipe:
+        raise HTTPException(404, "Recipe not found")
+
+    for field in ("css_selectors", "xpath_selectors", "regex_patterns", "map_mode_data"):
+        val = getattr(update, field, None)
+        if val is not None:
+            setattr(recipe, field, val)
+            flag_modified(recipe, field)
+
+    db.commit()
+    db.refresh(recipe)
+    return {
+        "id": recipe.id,
+        "provider_id": recipe.provider_id,
+        "css_selectors": recipe.css_selectors,
+        "xpath_selectors": recipe.xpath_selectors,
+        "regex_patterns": recipe.regex_patterns,
+        "map_mode_data": recipe.map_mode_data,
+    }
+
+
+@router.put("/by-provider/{provider_id}")
+def upsert_recipe(
+    provider_id: int,
+    update: SiteRecipeUpdate,
+    db: Session = Depends(get_db),
+    _=Depends(require_permission("scraping", "edit")),
+):
+    provider = db.query(Provider).filter(Provider.id == provider_id).first()
+    if not provider:
+        raise HTTPException(404, "Provider not found")
+
+    recipe = db.query(SiteRecipe).filter(SiteRecipe.provider_id == provider_id).first()
+    if not recipe:
+        recipe = SiteRecipe(provider_id=provider_id)
+        db.add(recipe)
+
+    for field in ("css_selectors", "xpath_selectors", "regex_patterns", "map_mode_data"):
+        val = getattr(update, field, None)
+        if val is not None:
+            setattr(recipe, field, val)
+            flag_modified(recipe, field)
+
+    db.commit()
+    db.refresh(recipe)
+    return {
+        "id": recipe.id,
+        "provider_id": recipe.provider_id,
+        "css_selectors": recipe.css_selectors,
+        "xpath_selectors": recipe.xpath_selectors,
+        "regex_patterns": recipe.regex_patterns,
+        "map_mode_data": recipe.map_mode_data,
+    }
