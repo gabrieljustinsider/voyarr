@@ -30,10 +30,15 @@ p { color: #94a3b8; font-size: 0.9rem; margin-bottom: 2rem; line-height: 1.5; }
 <body>
 <div class="container">
   <h1>Voyarr</h1>
-  <p>Pair your VR headset or smart device<br>Enter this code on your desktop browser</p>
+  <p>Pair your VR headset or smart device</p>
   <div id="codeDisplay" class="code"><span class="spinner"></span> Loading...</div>
   <div id="statusMessage" class="status"></div>
-  <div class="info">This code expires in 5 minutes. <br>Open <strong>Account Security</strong> in Voyarr on your computer and enter the code above.</div>
+  <div class="info">
+    <strong>Option 1 — Desktop Approval</strong><br>
+    Open <strong>Account Security</strong> in Voyarr on your computer and enter the code above to approve this device.<br><br>
+    <strong>Option 2 — Native DeoVR Sign-In</strong><br>
+    Open the <strong>DeoVR Player</strong> app, navigate to your Voyarr domain, tap <strong>Sign In</strong>, and enter this code as the Password.
+  </div>
 </div>
 <script>
 (async function() {

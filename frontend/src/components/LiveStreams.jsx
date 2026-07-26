@@ -3,7 +3,7 @@ import {
   Box, Typography, Grid, Card, CardContent, Button, TextField, Dialog, 
   DialogTitle, DialogContent, DialogActions, Chip, CircularProgress, 
   Alert, IconButton, Paper, Tooltip, Menu, MenuItem, ListItemText, Checkbox,
-  FormControl, InputLabel, Select
+  FormControl, InputLabel, Select, LinearProgress
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
@@ -614,6 +614,20 @@ export default function LiveStreams() {
                     {/* Real-time Capture Statistics Panel */}
                     {visibleFields.captureStats && (isRecording || isPaused) && (
                       <Paper sx={{ p: 1.5, mb: 2, borderRadius: '10px', backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        {isRecording && (
+                          <Box sx={{ mb: 1.5 }}>
+                            <Tooltip
+                              title={
+                                stream.written_size && stream.elapsed_seconds
+                                  ? `Bitrate: ${((stream.written_size * 8) / (stream.elapsed_seconds || 1) / 1000000).toFixed(1)} Mbps · ${formatSize(stream.written_size)} · ${formatTime(stream.elapsed_seconds)}`
+                                  : 'Recording in progress...'
+                              }
+                              placement="bottom"
+                            >
+                              <LinearProgress variant="indeterminate" sx={{ height: 4, borderRadius: 2 }} />
+                            </Tooltip>
+                          </Box>
+                        )}
                         <Grid container spacing={1}>
                           <Grid item xs={6}>
                             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.75rem' }}>Captured Data</Typography>

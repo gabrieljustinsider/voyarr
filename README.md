@@ -262,6 +262,24 @@ The player supports immersive WebXR virtual reality playback (Three.js, lazy-loa
 - **Stereo SBS** (Side-by-Side) for stereoscopic content
 - Requires a **secure context** (HTTPS or localhost)
 
+### DeoVR Native Integration
+
+Voyarr serves a fully compliant DeoVR Selection Scene JSON feed. Open your DeoVR Player app, navigate to your Voyarr domain, and browse your library in DeoVR's native VR interface.
+
+**Authentication options:**
+- **Pairing code** — Generate a 6-digit code from Account Security on your desktop — enter it as the password in DeoVR's sign-in form. No Voyarr password needed on the headset.
+- **Username/password** — Traditional sign-in with your Voyarr account credentials.
+- **Device pairing** — Open `/pair` on your headset and approve the code from Account Security.
+
+**Feed capabilities:**
+- Scene metadata (title, description, performers, tags, categories, rating, date)
+- VR projection auto-detection (SBS/TB, 180/360/fisheye)
+- Multiple quality encodings with resolution selection
+- Thumbnails, gallery images, and preview clips
+- Funscript/HSP support for interactive devices
+- Download sources for offline playback
+- Pagination and multi-field filtering (search, studio, performer, tag)
+
 ### Maximizing Compatibility
 
 For the widest browser compatibility, use the **Transcode Queue** to convert any file to **MP4 with H.264 video and AAC audio**. MP4/H.264 plays in every modern browser on every platform without additional codecs.

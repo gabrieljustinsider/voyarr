@@ -794,15 +794,51 @@ async def stream_scrape_task(
         task = AsyncResult(task_id)
         while True:
             state = task.state
+            meta = task.info if state in ("PROGRESS", "STARTED") else {}
+            progress = meta.get("progress", 0) if isinstance(meta, dict) else 0
+            step = meta.get("step", "") if isinstance(meta, dict) else ""
+
             if state == "SUCCESS":
-                yield f"data: {json.dumps({'status': 'success', 'result': task.result})}\n\n"
+                yield f"data: {json.dumps({'status': 'success', 'progress': 100, 'step': 'Complete', 'result': task.result})}\n\n"
                 break
             elif state == "FAILURE":
                 logger.error(f"Scrape task {task_id} failed: {task.result}")
-                yield f"data: {json.dumps({'status': 'failed', 'error': 'Scrape task failed.'})}\n\n"
+                yield f"data: {json.dumps({'status': 'failed', 'progress': 0, 'step': 'Failed', 'error': 'Scrape task failed.'})}\n\n"
                 break
             else:
-                yield f"data: {json.dumps({'status': state.lower()})}\n\n"
+                yield f"data: {json.dumps({'status': state.lower(), 'progress': progress, 'step': step})}\n\n"
+            await asyncio.sleep(1)
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+@router.get("/library/scan/stream/{task_id}")
+async def stream_scan_task(
+    task_id: str,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission("scraping", "view"))
+):
+    async def event_generator():
+        task = AsyncResult(task_id)
+        while True:
+            state = task.state
+            meta = task.info if state in ("PROGRESS", "STARTED") else {}
+            progress = meta.get("progress", 0) if isinstance(meta, dict) else 0
+            step = meta.get("step", "") if isinstance(meta, dict) else ""
+            current_file = meta.get("current_file", "") if isinstance(meta, dict) else ""
+            scanned = meta.get("scanned", 0) if isinstance(meta, dict) else 0
+            total = meta.get("total", 0) if isinstance(meta, dict) else 0
+
+            if state == "SUCCESS":
+                result = task.result if isinstance(task.result, dict) else {}
+                yield f"data: {json.dumps({'status': 'success', 'progress': 100, 'step': 'Complete', 'result': result})}\n\n"
+                break
+            elif state == "FAILURE":
+                logger.error(f"Scan task {task_id} failed: {task.result}")
+                yield f"data: {json.dumps({'status': 'failed', 'progress': 0, 'step': 'Failed'})}\n\n"
+                break
+            else:
+                yield f"data: {json.dumps({'status': state.lower(), 'progress': progress, 'step': step, 'current_file': current_file, 'scanned': scanned, 'total': total})}\n\n"
             await asyncio.sleep(1)
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")

@@ -8,18 +8,21 @@ from db_utils import get_db_session
 from typing import Any
 
 
-@shared_task
-def scrape_url_task(url: str, recipe_id: int) -> dict[str, Any] | None:
+@shared_task(bind=True)
+def scrape_url_task(self: Any, url: str, recipe_id: int) -> dict[str, Any] | None:
     """
     Fetches HTML from a URL and uses the DynamicScraper to extract metadata.
     """
+    self.update_state(state="PROGRESS", meta={"progress": 0, "step": "Validating URL..."})
+
     try:
         from routers.download import validate_url_ssrf
-
         validate_url_ssrf(url)
     except Exception as e:
         print(f"SSRF validation failed for {url}: {e}")
         return None
+
+    self.update_state(state="PROGRESS", meta={"progress": 5, "step": "Checking feature permissions..."})
 
     with get_db_session() as db:
         from db_utils import is_feature_enabled
@@ -29,23 +32,20 @@ def scrape_url_task(url: str, recipe_id: int) -> dict[str, Any] | None:
 
         recipe = None
         try:
-            # Fetch the scraping recipe from the DB
             recipe = db.query(SiteRecipe).filter(SiteRecipe.id == recipe_id).first()
             if not recipe:
                 print(f"Error: SiteRecipe with ID {recipe_id} not found.")
                 return None
 
-            # Use Playwright to launch a headless browser and wait for JS to render
+            self.update_state(state="PROGRESS", meta={"progress": 15, "step": "Launching browser..."})
+
             with sync_playwright() as p:
                 browserless_url = os.getenv("BROWSERLESS_URL")
                 browserless_token = os.getenv("BROWSERLESS_TOKEN")
                 if browserless_url:
-                    # Append token for authentication if provided
                     if browserless_token:
                         sep = "&" if "?" in browserless_url else "?"
-                        browserless_url = (
-                            f"{browserless_url}{sep}token={browserless_token}"
-                        )
+                        browserless_url = f"{browserless_url}{sep}token={browserless_token}"
                     browser = p.chromium.connect_over_cdp(browserless_url)
                 else:
                     proxy_url = os.getenv("GLOBAL_PROXY_URL")
@@ -62,10 +62,12 @@ def scrape_url_task(url: str, recipe_id: int) -> dict[str, Any] | None:
                         if global_ua
                         else "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
                     )
+
+                    self.update_state(state="PROGRESS", meta={"progress": 30, "step": "Fetching page..."})
+
                     context = browser.new_context(user_agent=ua)
                     page = context.new_page()
 
-                    # PERFORMANCE: Block heavy, non-metadata resources to dramatically speed up scraping and save RAM
                     page.route(
                         "**/*",
                         lambda route: route.abort()
@@ -73,22 +75,25 @@ def scrape_url_task(url: str, recipe_id: int) -> dict[str, Any] | None:
                         else route.continue_()
                     )
 
-                    # networkidle ensures dynamic scripts have finished fetching data
+                    self.update_state(state="PROGRESS", meta={"progress": 50, "step": "Rendering JavaScript..."})
+
                     page.goto(url, wait_until="networkidle", timeout=20000)
                     html_content = page.content()
                 finally:
                     browser.close()
 
-                # Scrape the metadata using our logic
+                self.update_state(state="PROGRESS", meta={"progress": 80, "step": "Extracting metadata..."})
+
                 scraper = DynamicScraper(recipe)
                 metadata = scraper.parse(html_content)
 
             print(f"Scraped Metadata for {url}:\n{metadata}")
+            self.update_state(state="PROGRESS", meta={"progress": 100, "step": "Complete"})
             return metadata
 
         except PlaywrightTimeoutError as e:
             print(f"Timeout waiting for JS to render on {url}: {str(e)}")
-            print("Falling back to standard requests scraper...")
+            self.update_state(state="PROGRESS", meta={"progress": 60, "step": "Playwright timed out, falling back to requests..."})
             try:
                 if not recipe:
                     return None
@@ -99,13 +104,19 @@ def scrape_url_task(url: str, recipe_id: int) -> dict[str, Any] | None:
                     if global_ua
                     else "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
                 )
+
+                self.update_state(state="PROGRESS", meta={"progress": 70, "step": "Fallback: fetching with requests..."})
+
                 headers = {"User-Agent": ua}
                 response = requests.get(url, headers=headers, timeout=15)
                 response.raise_for_status()
 
+                self.update_state(state="PROGRESS", meta={"progress": 85, "step": "Fallback: extracting metadata..."})
+
                 scraper = DynamicScraper(recipe)
                 metadata = scraper.parse(response.text)
                 print(f"Fallback Scraped Metadata for {url}:\n{metadata}")
+                self.update_state(state="PROGRESS", meta={"progress": 100, "step": "Complete (fallback)"})
                 return metadata
             except Exception as fallback_e:
                 print(f"Fallback scraping error for {url}: {str(fallback_e)}")

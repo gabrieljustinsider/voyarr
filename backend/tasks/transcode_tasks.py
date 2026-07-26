@@ -1,4 +1,5 @@
 import os
+import json
 import subprocess  # nosec B404
 import logging
 import re
@@ -130,7 +131,24 @@ def transcode_video_task(self: Any, transcode_job_id: int) -> None:
 
                         job.progress_percentage = progress  # type: ignore
                         job.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)  # type: ignore
+
+                        # Populate details with extended progress info
+                        job.details = json.dumps({  # type: ignore
+                            "target_codec": str(job.target_codec),
+                            "current_time_sec": round(current_time, 1),
+                            "duration_sec": round(duration, 1),
+                        })
+
                         db.commit()
+
+                        # Send Celery meta for tooltip display
+                        self.update_state(state="PROGRESS", meta={
+                            "progress": round(progress, 1),
+                            "current_time_sec": round(current_time, 1),
+                            "duration_sec": round(duration, 1),
+                            "target_codec": str(job.target_codec),
+                        })
+
                         last_progress = progress
 
             process.wait()

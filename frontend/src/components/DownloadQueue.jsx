@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { 
   Typography, LinearProgress, List, Box, Button, Chip, 
   TextField, Select, MenuItem, FormControl, InputLabel, Autocomplete, Grid, CircularProgress,
-  IconButton, Divider
+  IconButton, Divider, Tooltip
 } from '@mui/material'
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward'
@@ -159,9 +159,19 @@ export default function DownloadQueue({ queue, onRefresh }) {
 
               {/* Progress bar */}
               <Box sx={{ width: '100%', mb: 1.5 }}>
-                <LinearProgress variant="determinate" value={task.progress_percentage || 0} sx={{ height: 8, borderRadius: 4, bgcolor: 'rgba(255,255,255,0.08)' }} />
+                <Tooltip
+                  title={
+                    task.speed
+                      ? `${task.speed} · ${task.progress_percentage?.toFixed(1) || 0}%`
+                      : `${(task.progress_percentage || 0).toFixed(1)}% complete`
+                  }
+                  placement="bottom"
+                >
+                  <LinearProgress variant="determinate" value={task.progress_percentage || 0} sx={{ height: 8, borderRadius: 4, bgcolor: 'rgba(255,255,255,0.08)' }} />
+                </Tooltip>
                 <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block', fontWeight: 'bold' }}>
                   {(task.progress_percentage || 0).toFixed(1)}% complete
+                  {task.speed ? ` — ${task.speed}` : ''}
                 </Typography>
               </Box>
 

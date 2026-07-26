@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { 
   Box, Typography, TextField, Button, Paper, Grid, 
   Autocomplete, Alert, CircularProgress,
@@ -6,7 +6,9 @@ import {
   IconButton, Tooltip, LinearProgress, Chip
 } from '@mui/material'
 import { Play, Pause, Square, Trash2, RefreshCw, ExternalLink, Zap } from 'lucide-react'
-import { apiFetch } from '../api'
+import { apiFetch, getAuthHeaders } from '../api'
+
+const MASS_RIP_API_BASE = import.meta.env.VITE_API_BASE || '/api'
 
 export default function MassRip() {
   const [providers, setProviders] = useState([])
@@ -18,8 +20,19 @@ export default function MassRip() {
   const [rippingEnabled, setRippingEnabled] = useState(true)
   const [sessions, setSessions] = useState([])
   const [statusFilter, setStatusFilter] = useState('')
+  const eventSourceRef = useRef(null)
 
-  const fetchSessions = useCallback(async () => {
+  const getAuthQuery = () => {
+    const token = localStorage.getItem('voyarr_jwt')
+    if (token) return `token=${encodeURIComponent(token)}`
+    let apiKey = localStorage.getItem('voyarr_api_key')
+    if (apiKey) {
+      try { apiKey = atob(apiKey) } catch {}
+    }
+    return `api_key=${encodeURIComponent(apiKey || '')}`
+  }
+
+  const fetchSessions = async () => {
     try {
       const res = await apiFetch('/download/mass_rip/sessions')
       if (res.ok) {
@@ -29,7 +42,7 @@ export default function MassRip() {
     } catch (e) {
       console.error('Failed to fetch mass rip sessions:', e)
     }
-  }, [])
+  }
 
   useEffect(() => {
     apiFetch('/providers')
@@ -47,15 +60,26 @@ export default function MassRip() {
       .catch(console.error)
 
     fetchSessions()
-  }, [fetchSessions])
 
-  // Poll for session updates every 3 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchSessions()
-    }, 3000)
-    return () => clearInterval(interval)
-  }, [fetchSessions])
+    // Connect to SSE stream for real-time updates
+    const es = new EventSource(`${MASS_RIP_API_BASE}/download/mass_rip/sessions/stream?${getAuthQuery()}`)
+    eventSourceRef.current = es
+
+    es.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        if (Array.isArray(data)) {
+          setSessions(data)
+        }
+      } catch {}
+    }
+
+    es.onerror = () => {}
+
+    return () => {
+      es.close()
+    }
+  }, [])
 
   const handleMassRip = async () => {
     if (!providerId || !url) return

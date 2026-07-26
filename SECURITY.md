@@ -30,6 +30,8 @@ Voyarr handles sensitive credentials for third-party media providers and secures
 - **Path Sanitization**: Backend file-serving endpoints normalize and validate paths to prevent directory traversal attacks. Stack traces are suppressed in all production API error responses.
 - **autoComplete Attributes**: All authentication form fields carry correct `autocomplete` attribute values (`username webauthn`, `current-password`, `new-password`) to ensure browser password managers and passkey autofill work correctly and securely.
 - **External API Keys**: Machine-generated API keys use high-entropy random tokens. Keys are shown once on creation and stored only as a hashed value.
+- **VR Headset / DeoVR Device Pairing**: Temporary 6-digit numeric codes generated from the desktop Account Security panel for passwordless authentication on VR headsets. Codes are single-use, expire after 5 minutes, are stored in server memory only (not persisted to disk), and are cryptographically bound to the generating user's session. Authentication via a pairing code creates a standard JWT session indistinguishable from a password-based login. The legacy device pairing flow (headset displays a code, desktop approves it) also uses an in-memory store with the same expiry and single-use constraints.
+- **DeoVR Native Sign-In**: The DeoVR scene feed endpoint (`POST /deovr`) accepts the same JWT-based authentication as the web application. Password verification uses the same Argon2 password hashing as the standard login endpoint. Pairing code authentication bypasses password entry entirely — the code is validated against the in-memory pairing store and a JWT is issued on success.
 
 ## Reporting a Vulnerability
 

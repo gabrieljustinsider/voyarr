@@ -337,3 +337,55 @@ If you encounter an issue not listed here:
    ```
 
 5. For persistent issues, check the [GitHub Issues](https://github.com/gabrieljustinsider/voyarr/issues) page or open a new issue with relevant logs.
+
+---
+
+## 18. DeoVR / VR Headset Integration
+
+### DeoVR shows "Unauthorized" or blank screen
+
+The DeoVR browser requests a scene feed from `/deovr`. Unauthenticated requests receive an empty feed with a Sign In prompt.
+
+**Solution:** Tap the **Sign In** button in the DeoVR app and enter a 6-digit pairing code (generated from Account Security on your desktop) or your Voyarr username and password.
+
+### DeoVR shows "Invalid credentials" after signing in
+
+**Likely causes:**
+- The 6-digit pairing code expired (valid for 5 minutes). Generate a fresh code from Account Security.
+- You entered your Voyarr username and password incorrectly. Check that your account exists and is active.
+
+### "Sign In" button does not appear in DeoVR
+
+**Solution:** Voyarr signals to DeoVR that authorization is required. If the button does not appear, ensure your Voyarr server is reachable over HTTPS. Try navigating to `https://yourdomain.com/deovr` directly in the DeoVR browser and confirm you receive a JSON response (you can inspect the response with a non-VR browser first).
+
+### Pairing code not working
+
+**Likely causes:**
+- The code was generated on a different user account. Pairing codes are tied to the Voyarr user who generated them. Both the desktop session and the headset must authenticate against the same user account.
+- The code expired after 5 minutes. Generate a new code.
+- The code was already used. Each pairing code is single-use.
+
+### `/pair` page does not display a code
+
+**Solution:** Ensure the Cloudflare Worker is properly deployed and the `BACKEND_ORIGIN` environment variable is configured. The `/pair` page calls the backend API to generate a pairing code. If the backend is unreachable, the page displays a "Failed to connect to server" error.
+
+### DeoVR feed shows no videos even after signing in
+
+**Likely causes:**
+- Your library is empty. Add media through the Voyarr web interface first.
+- The streaming feature is disabled. Check **Settings → Feature Toggles** to ensure streaming is enabled.
+- Your account does not have the "streaming" permission. Contact your Voyarr administrator.
+
+### DeoVR feed shows incorrect VR metadata (wrong projection, no 3D)
+
+Voyarr auto-detects stereo mode and screen type from file metadata and filenames. If detection is incorrect:
+
+1. Manually set `stereo_mode` and `screenType` in the video's metadata via Voyarr's web interface.
+2. Ensure file names follow naming conventions that include `SBS`, `TB`, `180`, `360`, or similar keywords.
+3. Metadata from the scraping provider takes precedence over filename detection.
+
+### QR code scan does not load the DeoVR feed
+
+The QR code encodes the feed URL with your authentication token. If scanning shows an error:
+- The token in the QR code may be expired. Generate a fresh QR code from Account Security.
+- The QR code includes the `token` query parameter. Ensure your DeoVR app supports URL query parameters for authentication.

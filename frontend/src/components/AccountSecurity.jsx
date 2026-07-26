@@ -102,6 +102,39 @@ export default function AccountSecurity({ setSnackbar }) {
   const [vrApproveMsg, setVrApproveMsg] = useState('')
   const [vrApproveSeverity, setVrApproveSeverity] = useState('info')
   const [deovrCopied, setDeovrCopied] = useState(false)
+  const [deovrPairCode, setDeovrPairCode] = useState('')
+  const [deovrPairExpires, setDeovrPairExpires] = useState(0)
+  const [deovrPairLoading, setDeovrPairLoading] = useState(false)
+
+  const handleGenerateDeoVRPair = async () => {
+    setDeovrPairLoading(true)
+    try {
+      const res = await apiFetch('/deovr/pair', { method: 'POST' })
+      if (res.ok) {
+        const data = await res.json()
+        setDeovrPairCode(data.user_code)
+        setDeovrPairExpires(data.expires_in || 300)
+      } else {
+        const err = await res.json().catch(() => ({}))
+        setSnackbar({ open: true, message: err.detail || 'Failed to generate DeoVR pairing code.', severity: 'error' })
+      }
+    } catch {
+      setSnackbar({ open: true, message: 'Network error generating DeoVR pairing code.', severity: 'error' })
+    } finally {
+      setDeovrPairLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!deovrPairCode || deovrPairExpires <= 0) return
+    const t = setInterval(() => {
+      setDeovrPairExpires(prev => {
+        if (prev <= 1) { setDeovrPairCode(''); return 0 }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(t)
+  }, [deovrPairCode, deovrPairExpires])
 
   const handleApproveVrDevice = async () => {
     if (!vrApproveCode.trim()) return
@@ -1607,6 +1640,74 @@ export default function AccountSecurity({ setSnackbar }) {
                   2. Open DeoVR and tap <strong>Settings</strong> → <strong>Custom URL</strong><br/>
                   3. Scan the QR code above or paste the copied feed URL<br/>
                   4. Your Voyarr library loads instantly — browse and play in VR
+                </Typography>
+              </Box>
+            </Box>
+          </Grid>
+
+          {/* Card 3: DeoVR Native Sign-In Code */}
+          <Grid xs={12} md={6}>
+            <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: 'action.hover', display: 'flex', flexDirection: 'column', height: '100%' }}>
+              <Box sx={{ display: 'flex', gap: 2.5, alignItems: 'flex-start', mb: 2 }}>
+                <Box sx={{ p: 1.5, bgcolor: 'rgba(167, 139, 250, 0.15)', borderRadius: 2, display: 'flex', flexShrink: 0 }}>
+                  <KeyRound size={24} color="#a78bfa" />
+                </Box>
+                <Box sx={{ flexGrow: 1 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+                    🔐 DeoVR Native Sign-In Code
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" paragraph sx={{ mb: 1 }}>
+                    Generate a temporary 6-digit code to sign in on your VR headset without typing your Voyarr password.
+                  </Typography>
+                </Box>
+              </Box>
+
+              {deovrPairCode ? (
+                <Box sx={{
+                  textAlign: 'center', p: 2, mb: 2,
+                  border: '1px dashed #a78bfa', borderRadius: 2,
+                  bgcolor: 'rgba(167, 139, 250, 0.06)',
+                }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
+                    Enter this code in the DeoVR <strong>Password</strong> field (expires in {deovrPairExpires}s):
+                  </Typography>
+                  <Typography variant="h3" sx={{ letterSpacing: 6, fontWeight: 'bold', color: '#a78bfa', fontFamily: 'monospace', mb: 1 }}>
+                    {deovrPairCode}
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+                    <Button size="small" variant="outlined" color="inherit"
+                      onClick={() => {
+                        navigator.clipboard.writeText(deovrPairCode)
+                        setSnackbar({ open: true, message: 'Code copied!', severity: 'info' })
+                      }}
+                      sx={{ textTransform: 'none' }}>
+                      Copy
+                    </Button>
+                    <Button size="small" variant="text" color="error"
+                      onClick={() => { setDeovrPairCode(''); setDeovrPairExpires(0) }}
+                      sx={{ textTransform: 'none' }}>
+                      Cancel
+                    </Button>
+                  </Box>
+                </Box>
+              ) : (
+                <Button
+                  variant="contained"
+                  color="secondary"
+                  disabled={deovrPairLoading}
+                  onClick={handleGenerateDeoVRPair}
+                  sx={{ textTransform: 'none', alignSelf: 'center' }}
+                >
+                  {deovrPairLoading ? 'Generating...' : 'Generate Code'}
+                </Button>
+              )}
+
+              <Box sx={{ mt: 'auto', pt: 1, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                <Typography variant="caption" color="text.secondary" component="div" sx={{ lineHeight: 1.6 }}>
+                  1. Open <strong>DeoVR</strong> on your headset and navigate to <strong style={{ color: '#a78bfa' }}>voyarr.gabrieljustinsider.com</strong><br/>
+                  2. Tap the <strong>Sign In</strong> button<br/>
+                  3. Enter this 6-digit code in the <strong>Password</strong> field (leave Username blank)<br/>
+                  4. Your library loads immediately — no password required
                 </Typography>
               </Box>
             </Box>

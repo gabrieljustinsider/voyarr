@@ -329,6 +329,67 @@ The player supports WebXR virtual reality playback (Three.js, lazy-loaded from C
 - **Exit Safeguard**: Click the primary select trigger on either VR controller to exit VR mode
 - **Requirement**: Secure context (`https://` or `localhost`) — WebXR is blocked on plain HTTP
 
+### DeoVR Integration
+
+Voyarr serves a native DeoVR-compatible scene feed that turns your VR headset into a private home theater for your library. The feed is automatically available to any supported VR media player.
+
+**Compatible Players**
+
+The DeoVR feed works with any app that implements the DeoVR Selection Scene JSON protocol:
+- **DeoVR Player** — Available on Meta Quest Store and Apple App Store (Vision Pro)
+- **Any VR media browser** that supports the DeoVR feed format
+
+**How It Works**
+
+1. Open the **DeoVR** app on your headset and navigate to `voyarr.gabrieljustinsider.com` (or your Voyarr domain)
+2. The DeoVR browser automatically requests the scene feed from your Voyarr server
+3. Tap the **Sign In** button and authenticate using one of the methods below
+4. Browse your full library in DeoVR's native VR grid interface with cover thumbnails, metadata, and playback controls
+
+**Signing In Without a Password**
+
+You can authenticate from your VR headset without typing your Voyarr password by generating a temporary pairing code:
+
+1. On your **desktop computer**, open Voyarr and go to **Account Security**
+2. Under the **VR Headset & DeoVR Easy Sign-In** section, click **Generate Code** next to "DeoVR Native Sign-In Code"
+3. A 6-digit code appears that expires after 5 minutes
+4. On your VR headset, open the DeoVR Player and navigate to your Voyarr domain
+5. Tap the **Sign In** button
+6. Enter the 6-digit code in the **Password** field (leave the Username field blank)
+
+Your library loads immediately — no password saved or entered on the headset.
+
+**Traditional Sign-In**
+
+If you prefer, you can enter your Voyarr username and password directly in the DeoVR sign-in form. Credentials are verified against your Voyarr account.
+
+**Feed Features**
+
+The DeoVR scene feed includes:
+- **Video metadata**: Title, duration, description, date added, performers, tags, categories, and rating
+- **VR projection detection**: Automatically detects stereo mode (SBS, top-bottom, off) and screen type (flat, 180°, 360°, fisheye) from file names and metadata
+- **Multiple resolutions** with encoding-aware quality selection
+- **Thumbnails and screenshots**: Cover art and additional gallery images
+- **Preview clips**: Short preview URLs when available in metadata
+- **Haptic feedback**: Funscript and HSP file URLs for compatible interactive devices
+- **Download sources**: Direct download links for each video
+- **Pagination**: Full library navigation with page controls (50 items per page)
+- **Filter support**: Filter the feed by search query, studio, performer, or tag via URL parameters
+
+**Pairing a VR Headset (Alternative Method)**
+
+If the native DeoVR sign-in is not your preferred approach, you can pair your VR headset using the 6-digit device pairing flow:
+
+1. On your VR headset, open the browser and navigate to `voyarr.gabrieljustinsider.com/pair` (or your Voyarr domain + `/pair`)
+2. A 6-digit pairing code is displayed on the headset screen
+3. On your desktop computer, open Voyarr → **Account Security** → under "VR Headset & DeoVR Easy Sign-In", enter the 6-digit code and click **Approve VR Device**
+4. The headset automatically detects the approval and redirects to the DeoVR feed with an authentication token
+5. Your library loads immediately
+
+**QR Code Shortcut**
+
+In the VR Headset section of **Account Security**, a QR code encodes the full authenticated feed URL. Scan it with your headset's camera to jump directly to your library without manual URL entry.
+
 ### Browser Codec Compatibility
 
 | Browser | H.264 | H.265 | VP9/WebM | HLS | DASH |

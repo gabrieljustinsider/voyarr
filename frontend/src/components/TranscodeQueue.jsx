@@ -250,12 +250,29 @@ export default function TranscodeQueue() {
                     <TableCell align="center" sx={{ minWidth: '160px', whiteSpace: 'nowrap' }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Box sx={{ width: '100%', mr: 1 }}>
-                          <LinearProgress 
-                            variant="determinate" 
-                            value={job.progress_percentage || 0} 
-                            color={job.status === 'paused' ? 'warning' : 'primary'}
-                            sx={{ borderRadius: 5, height: 6 }}
-                          />
+                          <Tooltip
+                            title={
+                              job.details
+                                ? (() => {
+                                    try {
+                                      const d = typeof job.details === 'string' ? JSON.parse(job.details) : job.details
+                                      const timeStr = d.current_time_sec ? `${Math.floor(d.current_time_sec / 60)}m ${Math.floor(d.current_time_sec % 60)}s` : ''
+                                      const durStr = d.duration_sec ? `${Math.floor(d.duration_sec / 60)}m ${Math.floor(d.duration_sec % 60)}s` : ''
+                                      const codec = d.target_codec || ''
+                                      return `${(job.progress_percentage || 0).toFixed(1)}% · ${codec}${timeStr ? ` · ${timeStr} / ${durStr}` : ''}`
+                                    } catch { return `${(job.progress_percentage || 0).toFixed(1)}%` }
+                                  })()
+                                : `${(job.progress_percentage || 0).toFixed(1)}%`
+                            }
+                            placement="bottom"
+                          >
+                            <LinearProgress 
+                              variant="determinate" 
+                              value={job.progress_percentage || 0} 
+                              color={job.status === 'paused' ? 'warning' : 'primary'}
+                              sx={{ borderRadius: 5, height: 6 }}
+                            />
+                          </Tooltip>
                         </Box>
                         <Box sx={{ minWidth: 35 }}>
                           <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 'bold' }}>

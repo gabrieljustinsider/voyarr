@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, TextField, Button, Typography, Paper, CircularProgress, Alert } from '@mui/material';
+import { Box, TextField, Button, Typography, Paper, CircularProgress, Alert, LinearProgress, Tooltip } from '@mui/material';
 import { apiFetch, API_BASE } from '../api';
 
 export default function ScraperTester() {
@@ -8,6 +8,8 @@ export default function ScraperTester() {
   const [status, setStatus] = useState('Idle');
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [progress, setProgress] = useState(0);
+  const [step, setStep] = useState('');
   const eventSourceRef = useRef(null);
 
   const getAuthQuery = () => {
@@ -45,6 +47,8 @@ export default function ScraperTester() {
       }
 
       const data = await res.json();
+      setProgress(0);
+      setStep('Queued');
       setStatus('Waiting for scrape to finish (connecting to stream)...');
       startSSE(data.task_id);
     } catch (err) {
@@ -86,14 +90,20 @@ export default function ScraperTester() {
 
       if (data.status === 'success') {
         setStatus('Completed');
+        setProgress(100);
+        setStep('Complete');
         setResult(data.result);
         eventSource.close();
       } else if (data.status === 'failed') {
         setStatus('Failed');
+        setProgress(0);
+        setStep('Failed');
         setError(data.error);
         eventSource.close();
       } else {
-        setStatus(`In progress: ${data.status}`);
+        setStatus(`In progress`);
+        if (data.progress !== undefined) setProgress(data.progress);
+        if (data.step) setStep(data.step);
       }
     };
 
@@ -122,9 +132,28 @@ export default function ScraperTester() {
           {isBusy ? 'Scraping...' : 'Start Scrape'}
         </Button>
 
-        <Box sx={{ mt: 2 }}>
-          <Typography variant="subtitle1">Status: {status}</Typography>
-          {error && <Typography color="error">{error}</Typography>}
+        <Box sx={{ mt: 2, width: '100%' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+            <Typography variant="subtitle1">Status: {status}</Typography>
+            {progress > 0 && (
+              <Tooltip title={step || 'Scraping...'}>
+                <Typography variant="caption" sx={{ fontWeight: 'bold' }}>{progress}%</Typography>
+              </Tooltip>
+            )}
+          </Box>
+          {progress > 0 && (
+            <Box sx={{ width: '100%', mb: 1 }}>
+              <Tooltip title={step || 'Scraping...'} placement="bottom">
+                <LinearProgress variant="determinate" value={progress} sx={{ height: 8, borderRadius: 4 }} />
+              </Tooltip>
+            </Box>
+          )}
+          {step && progress > 0 && progress < 100 && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, fontStyle: 'italic' }}>
+              {step}
+            </Typography>
+          )}
+          {error && <Typography color="error" sx={{ mb: 1 }}>{error}</Typography>}
           {result && (
             <Box sx={{ mt: 2, p: 2, bgcolor: 'background.default', borderRadius: 1, overflowX: 'auto' }}>
               <pre style={{ margin: 0, color: '#a5d6ff' }}>{JSON.stringify(result, null, 2)}</pre>

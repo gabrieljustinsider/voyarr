@@ -668,6 +668,47 @@ def get_mass_rip_sessions(db: Session = Depends(get_db), current_user = Depends(
     return db.query(MassRipSession).order_by(MassRipSession.created_at.desc()).all()
 
 
+@router.get("/mass_rip/sessions/stream")
+async def stream_mass_rip_sessions(
+    request: Request,
+    current_user = Depends(require_permission("ripping", "view")),
+):
+    """Server-Sent Events endpoint for real-time mass rip session updates."""
+
+    def fetch_sessions():
+        with get_db_session() as db:
+            from models import MassRipSession
+            sessions = db.query(MassRipSession).order_by(MassRipSession.created_at.desc()).all()
+            return [
+                {
+                    "id": s.id,
+                    "provider_id": s.provider_id,
+                    "url": s.url,
+                    "status": s.status,
+                    "total_videos": s.total_videos,
+                    "processed_videos": s.processed_videos,
+                    "queued_videos": s.queued_videos,
+                    "skipped_videos": s.skipped_videos,
+                    "created_at": str(s.created_at) if s.created_at else "",
+                    "updated_at": str(s.updated_at) if s.updated_at else "",
+                }
+                for s in sessions
+            ]
+
+    async def event_generator():
+        try:
+            while True:
+                if await request.is_disconnected():
+                    break
+                data = await asyncio.to_thread(fetch_sessions)
+                yield f"data: {json.dumps(data)}\n\n"
+                await asyncio.sleep(2.0)
+        except asyncio.CancelledError:
+            pass
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
 @router.get("/mass_rip/sessions/{session_id}")
 def get_mass_rip_session(session_id: int, db: Session = Depends(get_db), current_user = Depends(require_permission("ripping", "view"))):
     from models import MassRipSession

@@ -74,6 +74,7 @@ To ensure safe, permission-isolated operations, Voyarr strictly limits where it 
 * **1Password & Bitwarden:** Securely synchronize credentials from your external password managers.
 * **Stash Plugin:** Custom scraper for Stash that uses **Voyarr** as a high-quality metadata source.  
 * **Browser Extension:** Remote control for Voyarr, progress monitor, and dynamic regex mapper.
+* **DeoVR Player:** Native scene feed protocol for VR headset playback (Meta Quest, Apple Vision Pro). Serves a full JSON feed with scene metadata, VR projection detection, multiple encodings, haptic feedback support, and pagination. Supports passwordless authentication via 6-digit pairing codes generated from the desktop Account Security panel.
 
 ## **🐳 Docker Configuration (docker-compose.yml)**
 

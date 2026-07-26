@@ -93,13 +93,40 @@ def real_download_task(self: Any, task_id: int, prefs_dict: dict[str, Any], meta
                         clean_p = "".join(c for c in p_str if c.isdigit() or c == ".")
                         if clean_p:
                             task.progress_percentage = float(clean_p)  # type: ignore
+
+                            # Extract speed, ETA, and byte counts from yt-dlp
+                            speed_str = d.get("_speed_str", "")
+                            eta_str = d.get("_eta_str", "")
+                            downloaded = d.get("downloaded_bytes", 0)
+                            total = d.get("total_bytes") or d.get("total_bytes_estimate", 0)
+
+                            task.speed = speed_str[:20]  # type: ignore
+
                             db.commit()
+
+                            # Store extended info via Celery meta for tooltip display
+                            self.update_state(state="PROGRESS", meta={
+                                "progress": float(clean_p),
+                                "speed": speed_str,
+                                "eta": eta_str,
+                                "downloaded_bytes": downloaded,
+                                "total_bytes": total,
+                            })
+
                             last_progress_update[0] = time.time()
                     except ValueError:
                         pass
             elif d["status"] == "finished":
                 task.progress_percentage = 100.0  # type: ignore
+                task.speed = ""  # type: ignore
                 db.commit()
+                self.update_state(state="PROGRESS", meta={
+                    "progress": 100,
+                    "speed": "",
+                    "eta": "",
+                    "downloaded_bytes": 0,
+                    "total_bytes": 0,
+                })
 
         resolution_pref = str(
             prefs_dict.get("preferred_resolution", "1080p")  # type: ignore
