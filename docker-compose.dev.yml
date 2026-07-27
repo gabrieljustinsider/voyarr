@@ -1,4 +1,3 @@
-name: voyarr-dev
 services:
   # Dummy DB service to satisfy depends_on without starting local PostgreSQL
   db:
