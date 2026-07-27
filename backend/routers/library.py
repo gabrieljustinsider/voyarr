@@ -490,8 +490,25 @@ def delete_library_entry(
         except Exception as e:
             logger.warning(f"Could not remove physical media file for entry {entry_id}: {e}")
 
+    title = str(entry.title) if entry.title else f"Media #{entry.id}"
+    file_path = str(entry.file_path) if entry.file_path else ""
     db.delete(entry)
     db.commit()
+
+    from db_utils import log_admin_action
+    log_admin_action(
+        db,
+        admin_id=current_user.id,
+        admin_username=current_user.username,
+        action="delete_library_entry",
+        details={
+            "entry_id": entry_id,
+            "title": title,
+            "file_path": file_path,
+            "file_kept": keep_file,
+        },
+    )
+
     msg = "Library entry removed (file kept on disk)" if keep_file else "Library entry and physical media deleted successfully"
     return {"message": msg, "file_kept": keep_file}
 

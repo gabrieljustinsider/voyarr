@@ -1522,8 +1522,8 @@ export default function AccountSecurity({ setSnackbar }) {
 
         <Grid container spacing={3}>
           {/* Card 1: 6-Digit VR Device Pairing Approval */}
-          <Grid xs={12} md={6}>
-            <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: 'action.hover', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+          <Grid xs={12} md={4}>
+            <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: 'action.hover', height: '100%', display: 'flex', flexDirection: 'column' }}>
               <Box>
                 <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
                   🥽 Pair New VR Headset (6-Digit Code)
@@ -1579,6 +1579,7 @@ export default function AccountSecurity({ setSnackbar }) {
                     placeholder="e.g. 839201"
                     value={vrApproveCode}
                     onChange={(e) => setVrApproveCode(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleApproveVrDevice() }}
                     inputProps={{ maxLength: 6, style: { letterSpacing: '3px', fontWeight: 'bold', textAlign: 'center', fontSize: '1.1rem' } }}
                     sx={{ maxWidth: 160 }}
                   />
@@ -1595,58 +1596,8 @@ export default function AccountSecurity({ setSnackbar }) {
             </Box>
           </Grid>
 
-          {/* Card 2: DeoVR QR Code Feed Link */}
-          <Grid xs={12} md={6}>
-            <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: 'action.hover', display: 'flex', flexDirection: 'column', height: '100%' }}>
-              <Box sx={{ display: 'flex', gap: 2.5, alignItems: 'center', mb: 2 }}>
-                <Box sx={{ p: 1.5, bgcolor: '#ffffff', borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <QRCodeSVG
-                    value={`${window.location.origin}/deovr?token=${localStorage.getItem('voyarr_jwt') || ''}`}
-                    size={110}
-                    level="M"
-                  />
-                </Box>
-                <Box sx={{ flexGrow: 1 }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.5 }}>
-                    🎮 DeoVR Player Feed
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" paragraph sx={{ mb: 1 }}>
-                    DeoVR transforms your VR headset into a personal home theater for your Voyarr library. Browse and watch your collection in an immersive VR cinema.
-                  </Typography>
-                  <Box sx={{ display: 'flex', gap: 1 }}>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      startIcon={<LinkIcon fontSize="small" />}
-                      onClick={() => {
-                        const url = `${window.location.origin}/deovr?token=${localStorage.getItem('voyarr_jwt') || ''}`
-                        navigator.clipboard.writeText(url)
-                        setDeovrCopied(true)
-                        setTimeout(() => setDeovrCopied(false), 3000)
-                      }}
-                      sx={{ textTransform: 'none', borderRadius: '6px' }}
-                    >
-                      {deovrCopied ? 'Copied!' : 'Copy Feed URL'}
-                    </Button>
-                  </Box>
-                </Box>
-              </Box>
-              <Box sx={{ pl: 0.5, pt: 0.5, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5, fontWeight: 600, color: 'text.primary' }}>
-                  How to use:
-                </Typography>
-                <Typography variant="caption" color="text.secondary" component="div" sx={{ lineHeight: 1.6 }}>
-                  1. Install <strong>DeoVR</strong> from your headset's app store<br/>
-                  2. Open DeoVR and tap <strong>Settings</strong> → <strong>Custom URL</strong><br/>
-                  3. Scan the QR code above or paste the copied feed URL<br/>
-                  4. Your Voyarr library loads instantly — browse and play in VR
-                </Typography>
-              </Box>
-            </Box>
-          </Grid>
-
-          {/* Card 3: DeoVR Native Sign-In Code */}
-          <Grid xs={12} md={6}>
+          {/* Card 2: DeoVR Native Sign-In Code */}
+          <Grid xs={12} md={4}>
             <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: 'action.hover', display: 'flex', flexDirection: 'column', height: '100%' }}>
               <Box sx={{ display: 'flex', gap: 2.5, alignItems: 'flex-start', mb: 2 }}>
                 <Box sx={{ p: 1.5, bgcolor: 'rgba(167, 139, 250, 0.15)', borderRadius: 2, display: 'flex', flexShrink: 0 }}>
@@ -1708,6 +1659,56 @@ export default function AccountSecurity({ setSnackbar }) {
                   2. Tap the <strong>Sign In</strong> button<br/>
                   3. Enter this 6-digit code in the <strong>Password</strong> field (leave Username blank)<br/>
                   4. Your library loads immediately — no password required
+                </Typography>
+              </Box>
+            </Box>
+          </Grid>
+
+          {/* Card 3: DeoVR QR Code Feed Link */}
+          <Grid xs={12} md={4}>
+            <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: 'action.hover', display: 'flex', flexDirection: 'column', height: '100%' }}>
+              <Box sx={{ display: 'flex', gap: 2.5, alignItems: 'center', mb: 2 }}>
+                <Box sx={{ p: 1.5, bgcolor: '#ffffff', borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <QRCodeSVG
+                    value={`${window.location.origin}/deovr?token=${localStorage.getItem('voyarr_jwt') || ''}`}
+                    size={110}
+                    level="M"
+                  />
+                </Box>
+                <Box sx={{ flexGrow: 1 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+                    🎮 DeoVR Player Feed
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" paragraph sx={{ mb: 1 }}>
+                    DeoVR transforms your VR headset into a personal home theater for your Voyarr library. Browse and watch your collection in an immersive VR cinema.
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<LinkIcon fontSize="small" />}
+                      onClick={() => {
+                        const url = `${window.location.origin}/deovr?token=${localStorage.getItem('voyarr_jwt') || ''}`
+                        navigator.clipboard.writeText(url)
+                        setDeovrCopied(true)
+                        setTimeout(() => setDeovrCopied(false), 3000)
+                      }}
+                      sx={{ textTransform: 'none', borderRadius: '6px' }}
+                    >
+                      {deovrCopied ? 'Copied!' : 'Copy Feed URL'}
+                    </Button>
+                  </Box>
+                </Box>
+              </Box>
+              <Box sx={{ pl: 0.5, pt: 0.5, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5, fontWeight: 600, color: 'text.primary' }}>
+                  How to use:
+                </Typography>
+                <Typography variant="caption" color="text.secondary" component="div" sx={{ lineHeight: 1.6 }}>
+                  1. Install <strong>DeoVR</strong> from your headset's app store<br/>
+                  2. Open DeoVR and tap <strong>Settings</strong> → <strong>Custom URL</strong><br/>
+                  3. Scan the QR code above or paste the copied feed URL<br/>
+                  4. Your Voyarr library loads instantly — browse and play in VR
                 </Typography>
               </Box>
             </Box>
