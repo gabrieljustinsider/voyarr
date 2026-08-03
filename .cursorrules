@@ -3,8 +3,8 @@
 This document serves as the absolute source of truth for all projects within the GameProductions organization. All AI interactions and development must adhere to these standards.
 
 ## 1. Cloudflare-First Infrastructure
-- **Stack**: Projects must use Cloudflare's native serverless stack: Workers, D1 (SQL), KV (Key-Value), R2 (Storage), Durable Objects (State), and Queues (Background tasks).
-- **Product Alignment**: All features must use the specific Cloudflare product that supports it (e.g., D1 for SQL, KV for caching).
+- **Stack**: Projects must use Cloudflare's native serverless stack: Workers, KV (Key-Value), R2 (Storage), Durable Objects (State), and Queues (Background tasks). Relational persistence uses **Neon Postgres** (not D1) for the Foundation fleet — see Section 3.
+- **Product Alignment**: All features must use the specific Cloudflare product that supports it (e.g., Neon Postgres for relational SQL, KV for caching).
 - **Apps as PWA**: All applications are set up as Progressive Web Apps (PWA) by default.
 - **Configuration**: Use `wrangler.jsonc` exclusively. Never use `wrangler.toml`.
 - **Infrastructure as Code**: All bindings and environment variables must be defined in `wrangler.jsonc`.
@@ -32,21 +32,21 @@ This document serves as the absolute source of truth for all projects within the
 - **DNS Automation **: Cloudflare Workers automatically register DNS records for `gpnet.dev` subdomains when the `routes` property is defined in `wrangler.jsonc`.
   - All projects MUST define their custom domain route: `"{project-name}.gpnet.dev/*"`.
   - The `workers_dev` flag MUST be set to `false` for production.
-- **Unified Hono Router**: Use a single Hono entry point to handle all traffic.
-- **CDN Manifest & Icon Purity**: To ensure 3rd-party password managers (like 1Password / AgileBits) and external crawlers can securely bind rich icons, the Hono router MUST explicitly route `app.get('/apple-touch-icon.png', serveStatic({ path: 'apple-touch-icon.png', manifest }));` at the root level alongside `favicon.ico`.
+- **Unified Hono Router**: Use a single Hono entry point to handle all traffic. The production entry is `apps/api/worker.ts` (declared as `main` in `wrangler.jsonc`); `apps/api/server.ts` is the local Node dev runner.
+- **CDN Manifest & Icon Purity**: To ensure 3rd-party password managers (like 1Password / AgileBits) and external crawlers can securely bind rich icons, the PWA MUST expose `apple-touch-icon.png` and `favicon.png` as static assets in `public/`, referenced from `index.html` via `<link rel="apple-touch-icon">` and `<link rel="icon">`.
 - **Path Branching**: 
+  - `/api/auth/*`: Shared authentication (session, profile, passkeys, backup codes, OAuth) served from `packages/shared/auth/server`.
   - `/api/*`: Reserved for bot logic, webhooks, and backend API.
   - `/admin/*`: Dedicated directory for project-level administrative tools.
-  - `/administration/*`: High-security portal for Owners.
   - `/*`: Reserved for the PWA (frontend) and static assets.
 - **Webhook Exemption**: Any Bearer/Token auth guards or strict middlewares acting globally on the `/api/*` blanket must explicitly whitelist routes containing `/discord` or `/interactions`. Failure to do this will block native webhook validation tools from remote platforms (e.g., Discord) causing 401s that break server-to-server operations.
-- **CORS Consolidation **: CORS MUST be handled exclusively in the root entry point (`server.ts`). Secondary CORS middlewares in sub-routers (e.g., `src/api/index.ts`) are strictly prohibited as they cause preflight (`OPTIONS`) request failures. The root CORS handler MUST explicitly allow `Authorization`, `x-household-id`, and `X-Ledger-Integrity` headers.
+- **CORS Consolidation **: CORS MUST be handled at the entry-point layer: `apps/api/worker.ts` for the `/api/*` namespace (dynamic allowlist of `*.gpnet.dev`, `*.glosonproductions.com`, localhost) and `apps/api/server.ts` for the local dev/deploy socket. Secondary CORS middlewares in sub-routers are strictly prohibited as they cause preflight (`OPTIONS`) request failures.
 
 ## 3. Database & Persistence (SQL)
-- **Standard**: Use the native Cloudflare D1 client (`c.env.DB`) orchestrated purely through Drizzle ORM.
+- **Standard**: Use **Neon Postgres** via the serverless HTTP client (`drizzle-orm/neon-http` + `@neondatabase/serverless`) orchestrated purely through Drizzle ORM. The connection string is injected via the `DATABASE_URL` binding.
 - **ORM Policy **: **Drizzle ORM is STRICTLY REQUIRED** across all GameProductions projects. Legacy raw SQL/wrappers must be aggressively phased out.
-- **Schema Management**: All definitions must exist inside `src/api/db/schema.ts` and managed via `drizzle-kit`.
-- **Legacy Archival Standards**: All obsolete database structures, physical `.db`/`.sqlite` files, and raw SQL migrations MUST be moved into a root `archive/` directory. For in-place D1 schema migrations, follow the strict standards defined in **Section 14**.
+- **Schema Management**: All definitions must exist inside `db/schema.ts` (repository root) using `pgTable`, managed via `drizzle-kit`.
+- **Legacy Archival Standards**: All obsolete database structures, physical `.db`/`.sqlite` files, and raw SQL migrations MUST be moved into a root `archive/` directory. For in-place schema migrations, follow the strict standards defined in **Section 14**.
 
 ## 4. User & Identity Management
 - **Account Creation**:
@@ -54,33 +54,33 @@ This document serves as the absolute source of truth for all projects within the
   - **Raw Snowflake Pattern (I-AM, Food)**: For lightweight apps strictly coupled to a remote ecosystem, use the raw remote provider identifier (e.g., the Discord Snowflake ID) directly as the primary database ID to eliminate query overhead.
 - **Security Standard & Zero-Trust Authentication **:
   - **Hashing**: Use PBKDF2 with **100,000 iterations** for all password hashing (native Cloudflare Worker limit).
-  - **Zero-Trust Step-Up Auth**: Administrative dashboards (`/administration`, `/admin`, and high-risk fleet actions) MUST NEVER rely solely on standardized SSO bearer tokens. Such routes MUST implement a **Biometric WebAuthn Challenge (Passkeys)** step-up verification. The backend middleware must confirm a cryptographic hardware signature from the user's physical device before yielding access to critical infrastructure.
+  - **Zero-Trust Step-Up Auth**: Administrative dashboards (`/admin`, `/superadmin`, and high-risk fleet actions) MUST NEVER rely solely on standardized SSO bearer tokens. Such routes MUST implement a **Biometric WebAuthn Challenge (Passkeys)** step-up verification. The backend middleware must confirm a cryptographic hardware signature from the user's physical device before yielding access to critical infrastructure.
   - **Passkey Implementation Workflow **: 
     - If a project already features a dedicated "User Account" or "Profile Settings" UI where users modify their core info, the Passkey CRUD module (list, generate, rename, revoke) MUST be natively embedded directly into that existing page.
     - If a project is inherently lightweight (e.g., uses Discord SSO + step-up Zero Trust) and lacks a dedicated account page, it MUST construct a standalone `/settings` (Portal Settings) route dedicated exclusively to managing biometric hardware binders and recovery codes, maintaining the premium layout architecture established in the Foundation portal.
   - **Step-Up API Standard**: 
-    - Administrative WebAuthn routes MUST be located in the `admin` router stack (`apps/api/routes/admin/webauthn.ts`).
+    - Administrative WebAuthn routes MUST be located in `apps/api/admin/webauthn.ts` (mounted at `/admin/webauthn`) for the legacy admin stack, and in `packages/shared/auth/server/routes/passkey.ts` (mounted at `/api/auth/passkeys`) for the shared stack.
     - Standard Endpoints:
-        - `POST /api/admin/webauthn/generate-auth` (Assertion Challenge)
-        - `POST /api/admin/webauthn/verify-auth` (Assertion Verification)
-        - `POST /api/admin/webauthn/generate-registration` (Enrollment Challenge)
-        - `POST /api/admin/webauthn/verify-registration` (Enrollment Verification)
-    - All routes in this namespace MUST be protected by `adminMiddleware`.
+        - `POST /admin/webauthn/generate-auth` (Assertion Challenge)
+        - `POST /admin/webauthn/verify-auth` (Assertion Verification)
+        - `POST /admin/webauthn/generate-registration` (Enrollment Challenge)
+        - `POST /admin/webauthn/verify-registration` (Enrollment Verification)
+    - All routes in this namespace MUST be protected by `sessionGuard` + `requirePasskeyFreshness`.
+  - **Step-Up State Machine**: Passkey step-up state is stored in the `sessions.passkeyVerifiedAt` column. `requirePasskeyFreshness(N)` in `packages/shared/auth/server/middleware/stepup.ts` returns `403 { requireWebAuthn: true }` for administrative routes until a successful verification refreshes the timestamp. The `passkey_verified` cookie from earlier versions is deprecated — the column-based freshness window is the single source of truth.
 - **Role Hierarchy**: 
-  - **Owner**: Full global control via the **Governance Portal** (`GovernancePortal`).
+  - **Owner**: Full global control via the **Administration** suite.
   - **Admin**: Project-specific administrative access.
   - **Mod**: Content moderation and user management.
   - **User**: Standard access.
 - **First User Auto-Elevation**: The very first user to successfully sign into any project MUST automatically be granted the owner role. This is determined by checking whether any user record exists in the database at the time of registration — if zero users exist, the new user becomes owner. This ensures every freshly deployed project always has at least one owner without manual intervention.
 - **User Management**: Always include full CRUD for user management, accessible to Mods and above.
-- **Governance Portal (`GovernancePortal`)**:
-  - **Component**: Create a separate, secure portal named `GovernancePortal` for Owners.
-  - **Pathing **: All Owner tools MUST be located in `app/routes/administration/` and use a dedicated `GovernanceLayout`.
-  - **Isolation **: Never mention or list Governance Portal features/capabilities outside of designated Owner routes or protected administrative documentation. Public documentation and landing pages MUST remain clean of any "Governance Portal" references.
+- **Administration Portal (`SystemAdministration`)**:
+  - **Component**: Owner-level tooling lives in `apps/web/pages/superadmin.tsx` (`SystemAdministration`), routed at `/superadmin`.
+  - **Pathing **: Administrative and owner tools are grouped under the protected `/superadmin`, `/roles`, `/tools`, and `/security` routes in `apps/web/main.tsx`.
   - **Impersonation**: Must support "View As" mode with a persistent warning header.
   - **Audit Logging **: Sensitive administrative actions MUST be logged using a centralized audit utility. This utility MUST comply with the **Security Standards** forensic standard (see Section 14), capturing actor, action, target entity, state changes, and network forensics (IP/UA).
-  - **Walkthrough History **: A full history of all project `walkthrough.md` files MUST be preserved and synchronized within the Governance Portal "Help" or "Audit" section for comprehensive architectural traceability.
-  - **Setup Guides **: The Governance "Help" section MUST contain exhaustive, step-by-step setup instructions for all platform integrations. This includes:
+  - **Walkthrough History **: A full history of all project `walkthrough.md` files MUST be preserved and synchronized within the administration "Help" or "Audit" section for comprehensive architectural traceability.
+  - **Setup Guides **: The administration "Help" section MUST contain exhaustive, step-by-step setup instructions for all platform integrations. This includes:
     - **Exact Enpoints**: Providing the project's specific callback and interactions URLs (e.g., `https://[project].gpnet.dev/api/...`).
     - **App Listing Metadata**: Standardized descriptions and feature lists intended for third-party app stores/listings.
     - **Constraint**: NEVER use the word "exhaustive" when presenting feature lists, even if the list is comprehensive.
@@ -117,7 +117,7 @@ This document serves as the absolute source of truth for all projects within the
 
 ## 6. Local Development & Deployment
 - **Local-First Testing**: Mandatory local testing before any deployment. 
-- **Remote DB Binding**: Use `wrangler dev --remote` to connect local dev to the live D1 database.
+- **Remote DB Binding**: Use `wrangler dev --remote` to connect local dev to the live Neon database.
 - **Publishing Workflow**: Local Test -> User Confirmation -> Commit (with version) -> Publish.
 - **Refactoring Policy**: Keep PWAs modular. If a component grows too large, suggest refactor options. **Never refactor without user confirmation.**
 - **Opportunistic Refactor Abstraction**: When modifying any code — whether fixing a bug, adding a feature, or adjusting existing logic — if you identify a clear opportunity to extract a reusable abstraction (function, component, hook, type, utility, or service), perform that extraction immediately as part of the same change. Do not defer it. This rule applies fleet-wide: every edit is an opportunity to reduce duplication and improve modularity. The only exception is when the extraction would fundamentally change the scope of the task — in that case, flag the opportunity and create a follow-up task rather than silently leaving the duplication.
@@ -160,7 +160,7 @@ All projects MUST adhere to this unified monorepo-style layout to ensure scalabi
 - **`apps/web/`**: The primary React/Vite PWA (Frontend UI).
 - **`apps/api/`**: The Hono/Cloudflare Workers API (Backend Orchestrator).
 - **`apps/bot/`**: Dedicated interface logic for Discord, Twitch, or GroupMe integrations.
-- **Entry Point**: The root `wrangler.jsonc` MUST point to `apps/api/server.ts` as the main entry point.
+- **Entry Point**: The `main` field of the root `wrangler.jsonc` MUST point to `apps/api/worker.ts`.
 
 ### 2. Shared Logic & Types (`packages/`)
 - **`packages/shared/`**: The absolute source of truth for Zod schemas, TypeScript interfaces, and shared utility functions. This directory MUST be used for any logic shared between `web` and `api` to prevent out-of-sync state.
@@ -210,7 +210,7 @@ All projects MUST adhere to this unified monorepo-style layout to ensure scalabi
 
 ## 12. Naming Conventions & Code Style 
 - **Database (Drizzle/SQL)**:
-  - **Table Names**: Must be `snake_case` in the database definition and `camelCase` for the TypeScript export (e.g., `export const userSettings = sqliteTable('user_settings', ...)`).
+  - **Table Names**: Must be `snake_case` in the database definition and `camelCase` for the TypeScript export (e.g., `export const userSettings = pgTable('user_settings', ...)`).
   - **Column Names**: Must be `snake_case` in the database and `camelCase` in the Drizzle property mapping.
   - **Indexes**: Must follow the pattern `idx_[table]_[column]`.
 - **File Naming**:
@@ -226,23 +226,23 @@ All projects MUST adhere to this unified monorepo-style layout to ensure scalabi
   - Deconstruct props in the function signature for clarity.
 
 ## 13. High-Performance Infrastructure 
-- **Rule 13.1 (KV Caching)**: High-computation or frequently accessed configuration state must be offloaded to Cloudflare KV integrations to reduce D1 database query bottlenecking.
+- **Rule 13.1 (KV Caching)**: High-computation or frequently accessed configuration state must be offloaded to Cloudflare KV integrations to reduce database query bottlenecking.
 - **Rule 13.2 (Drizzle Preparing)**: Serverless functions routing high-frequency pathways must precompile Drizzle SQL AST parameters via `.prepare()`.
-- **Rule 13.3 (Rate-Limit Headers)**: Durable Object Rate Limiters must provide transparent countdowns and generic retry-after statuses on throttled responses (`X-RateLimit-Limit`, `X-RateLimit-Remaining`).
+- **Rule 13.3 (Rate-Limit Transparency)**: The rate limiter in `apps/api/utils/rate-limit.ts` MUST return `429` with a structured JSON body on throttle. Durable Object / KV-backed limiters SHOULD provide countdown and retry information (`X-RateLimit-Limit`, `X-RateLimit-Remaining`, `Retry-After`) on throttled responses.
 - **Rule 13.4 (Automated Testing)**: Projects must deploy Vitest for core pathway integrity checking.
 - **Rule 13.5 (Disaster Recovery)**: Leverage Cloudflare Cron triggers and endpoints to export disaster-recovery binary or JSON structural dumps to securely attached R2 buckets.
-- **Rule 13.6 (D1 Foreign Indexing)**: Explicitly map native database indexing via `index()` usage inside `drizzle-orm` mappings for heavily queried foreign keys (`householdId`, `userId`) to prevent full table scans.
+- **Rule 13.6 (Foreign Indexing)**: Explicitly map native database indexing via `index()` usage inside `drizzle-orm` mappings for heavily queried foreign keys (`userId`) to prevent full table scans.
 - **Rule 13.7 (PWA Offline First)**: Implement `sw.js` offline caching logic for primary static assets to ensure absolute network independence and instant WebUI visual resolution upon disconnected state.
 - **Rule 13.8 (E2E Validation)**: Advanced projects must configure robust end-to-end user-flow validations simulating human navigation via the `Playwright` engine.
 - **Rule 13.9 (Error Sanitization)**: API handlers MUST implement production-aware error catching. In `production`, sensitive identifiers, raw database errors, and internal configuration keys must be stripped from the response body and replaced with generic error messages (e.g., "An internal error occurred") to prevent information disclosure.
 - **Rule 13.10 (Shared KV Partitioning)**: To prevent crosstalk in shared KV namespaces (e.g., `FLEET_SECURITY_CACHE`), all project-specific keys MUST be prefixed with the unique identifier derived from the `APP_NAME` environment variable. Standard patterns: `fs:bot:${APP_NAME}:...` for service state, and `fs:config:${APP_NAME}:...` for service-specific overrides. Global keys (e.g., `fs:block:${ip}`) must be used exclusively for cross-platform forensic data.
 - **Rule 13.11 (Non-blocking I/O & CPU Integrity)**: All non-essential operations (e.g., audit logging, telemetry, cache warming) MUST be orchestrated via `c.executionCtx.waitUntil()`. This prevents secondary background logic from consuming the primary request's CPU quota and ensures minimum response latency.
-- **Rule 13.12 (Cold Storage & R2 Offloading)**: High-volume datasets or large metadata blobs (historical logs, detailed transaction data, media) MUST be migrated to Cloudflare R2 (Cold Storage) via a dedicated `ArchiveService`. The D1 database MUST remain lean, reserved exclusively for frequently accessed relational data.
+- **Rule 13.12 (Cold Storage & R2 Offloading)**: High-volume datasets or large metadata blobs (historical logs, detailed transaction data, media) MUST be migrated to Cloudflare R2 (Cold Storage) via a dedicated `ArchiveService`. The relational database MUST remain lean, reserved exclusively for frequently accessed relational data.
 - **Rule 13.13 (Heavy Task Orchestration - Queues)**: Any operation with a projected CPU duration exceeding 10ms or involving bulk data mutations MUST be offloaded to Cloudflare Queues. The API worker MUST only act as a thin ingress, pushing task payloads into the queue for asynchronous processing to prevent Error 1102 (CPU Limit Exceeded).
 
 - **Rule 13.14 (Automatic Asset Recovery)**: All PWAs MUST implement a global error listener in the root component to detect failed network requests (`404`) for hashed assets within the `/assets/` directory. If a critical script or stylesheet fails to load (typically due to a stale PWA cache after a new deployment), the application MUST automatically trigger a `window.location.reload()` to force a clean synchronization with the latest server-side bundle. 
 - **Rule 13.15 (KV Write Coalescing)**: To prevent hitting Cloudflare's hard limit of 1 write per second per key, all high-frequency KV updates (specifically rate-limit counters) MUST implement a **write-coalescing** mechanism. State updates occurring within 1000ms of a previous write to the same key MUST be dropped unless the update is a security-critical state change (e.g., a "Shield Active" block trigger).
-- **Rule 13.16 (Fleet Activity Queue)**: All projects acting as producers MUST bind to the `fleet-activity` queue via the `FLEET_ACTIVITY` environment variable. High-volume audit trails and forensic telemetry MUST be offloaded to this queue to ensure zero-latency for the end-user and centralized durability in the Foundation D1 database.
+- **Rule 13.16 (Fleet Activity Queue)**: All projects acting as producers MUST bind to the `fleet-activity` queue via the `FLEET_ACTIVITY` environment variable. High-volume audit trails and forensic telemetry MUST be offloaded to this queue to ensure zero-latency for the end-user and centralized durability in the Foundation database.
 - **Rule 13.17 (PII Redaction & Forensic Purity)**: Before any data is committed to the `FLEET_ACTIVITY` queue or local `audit_logs`, the `redactSensitiveData` utility MUST be executed on all `oldValues`, `newValues`, and `metadata` payloads. Keys including `password`, `token`, `secret`, `key`, `email`, and `phone` MUST be masked to ensure forensic logs remain free of PII and security credentials.
 
 ## 14. Database Migration Standards 
@@ -261,18 +261,19 @@ All projects MUST adhere to this unified monorepo-style layout to ensure scalabi
 - **Migration & Verifiability**: During database migrations (Rule 14), the agent MUST explicitly perform a 1:1 row count verification between the archive and new table. The agent MUST report the exact results and any anomalies to the user before requesting final decommission approval.
 - **Operational Consistency**: Maintain English as the sole operational language for all internal and external communication.
 - **Intellectual Honesty**: Always be honest in your responses. If you disagree with a request because it would do more harm than good, is illogical, or has negative downstream consequences, say so directly. A "yes" is never required out of politeness. If you have an alternative recommendation, voice it — we can discuss trade-offs and decide how to proceed together. Silence or false agreement in the face of a bad idea is a disservice to the codebase.
+- **First-Time Writing Standard**: When updating documentation, writing code comments, or crafting any user-facing dialog, always write as the original text — not as a change, update, or modification. Write as if implementing the feature or concept for the first time. The only exceptions are items whose purpose is to highlight change (changelogs, what's new modals, onboarding tour steps that announce new capabilities).
 
 ## 16. Standardized Identity Schema
 To ensure fleet-wide interoperability and unified identity management, all projects MUST adhere to the "Gold Standard" schema for users, social identities, and multi-factor authentication.
 
 ### 16.1 Users Table (`users`)
 - `id`: `text('id').primaryKey()`
-- `email`: `text('email').unique()`
-- `username`: `text('username').unique()`
+- `email`: `text('email')` (nullable; users may be SSO-only)
 - `displayName`: `text('display_name')`
-- `avatarUrl`: `text('avatar_url')` (Standardized from legacy `avatar`)
 - `globalRole`: `text('global_role').default('user')` (Standardized from legacy `role`. Top role is `OWNER`)
 - `status`: `text('status').default('active')`
+- `passwordHash`: `text('password_hash')` (PBKDF2; nullable for SSO-only accounts)
+- `avatarUrl`: `text('avatar_url')`
 - `lastActiveAt`: `text('last_active_at')`
 - `createdAt`: `text('created_at').default(sql`CURRENT_TIMESTAMP`)`
 
@@ -298,14 +299,14 @@ Replaces legacy `backupCodesJson` blob on the `users` table.
 
 ### 16.4 Geographic Session Tracking
 To ensure absolute forensic traceability, the `sessions` table MUST include:
-- `city`, `country`, `region`, `continent`, `latitude`, `longitude`, `cfIp`.
-- These must be populated from the Cloudflare `cf` metadata object on every login/verification.
+- `ipAddress`, `ipV4`, `ipV6`, `cfRay`, `location` (city, country), `deviceName`, `os`, `browser`.
+- These must be populated from the Cloudflare `cf` metadata object and request headers on every login/verification.
 
 ### 16.5 MFA & Session Hardening (Forensic Standard)
 To ensure absolute account integrity and forensic traceability, all identity systems MUST implement the following:
-- **Session Geolocation**: The `sessions` table MUST include granular geographic metadata: `city`, `country`, `region`, `continent`, `latitude`, `longitude`, and `cfIp`.
+- **Session Geolocation**: The `sessions` table MUST include network and device metadata: `ipAddress`, `ipV4`, `ipV6`, `cfRay`, `location` (city, country), `deviceName`, `os`, `browser`.
 - **Dual-Stack IP Tracking**: All security tables (`sessions`, `passkeys`, `audit_logs`) MUST track both `ip_v4` and `ip_v6` addresses to ensure transparency across all network types. The `logAudit` utility MUST automatically detect and separate these addresses using the `cf-connecting-ip` and `cf-pseudo-ipv4` headers.
-- **MFA Usage Tracking**: The `passkeys` table MUST track usage forensics: `lastUsedAt`, `lastUsedIp`, `lastUsedIpV4`, `lastUsedIpV6`, `lastUsedLocation`, and `lastUsedUa`.
+- **MFA Usage Tracking**: The `passkeys` table MUST track usage forensics: `lastUsedAt`, `lastUsedIpV4`, `lastUsedIpV6`, `lastUsedCity`, `lastUsedCountry`, `lastUsedRegion`, `lastUsedLatitude`, `lastUsedLongitude`, and `lastUsedUa`.
 - **Recovery Logic**: Passkey-only systems MUST generate 10 high-entropy recovery codes stored as individual hashes in the `backup_codes` table. These codes MUST be displayed to the user immediately upon successful passkey enrollment with a secure download option.
 - **Biometric Metadata**: Passkey entries MUST include an `aaguid` field for hardware identification, mapped to a human-readable provider name in the UI.
 
@@ -344,21 +345,21 @@ To ensure absolute account integrity and forensic traceability, all identity sys
   - CI/CD workflows MUST use the `1password/load-secrets-action` as the authoritative mechanism for environment injection.
 
 ## 18. Step-Up Authentication & Administrative Routing (Fleet Standard v6.1)
-- **Administrative Sub-Router**: All biometric Step-Up authentication logic MUST be centralized in a dedicated administrative WebAuthn sub-router located at `apps/api/routes/admin/webauthn.ts`.
+- **Administrative Sub-Router**: All biometric Step-Up authentication logic MUST be centralized in a dedicated administrative WebAuthn sub-router located at `apps/api/admin/webauthn.ts`, with shared-stack parity in `packages/shared/auth/server/routes/passkey.ts`.
 - **Standardized Endpoints**: The following endpoints are strictly required for administrative security parity:
-    - `POST /api/admin/webauthn/generate-registration`: Generates options for a new passkey.
-    - `POST /api/admin/webauthn/verify-registration`: Verifies and persists a new passkey.
-    - `POST /api/admin/webauthn/generate-auth`: Generates a biometric challenge for an existing session.
-    - `POST /api/admin/webauthn/verify-auth`: Verifies the challenge and issues a `passkey_verified` signed cookie.
+    - `POST /admin/webauthn/generate-registration`: Generates options for a new passkey.
+    - `POST /admin/webauthn/verify-registration`: Verifies and persists a new passkey.
+    - `POST /admin/webauthn/generate-auth`: Generates a biometric challenge for an existing session.
+    - `POST /admin/webauthn/verify-auth`: Verifies the challenge and refreshes `sessions.passkeyVerifiedAt`.
 - **Middleware Enforcement**:
-    - These routes MUST be protected by `sessionMiddleware` to identify the actor.
-    - Administrative routes (`/admin/*`, `/administration/*`) MUST verify the presence of a valid `passkey_verified` cookie before granting access to sensitive data or actions.
-- **Cookie Security**: The `passkey_verified` cookie MUST be a signed HTTP-only cookie with a maximum age of 3600 seconds (1 hour) to ensure short-lived administrative authorization.
+    - These routes MUST be protected by `sessionGuard` to identify the actor.
+    - Administrative routes (`/admin/*`) MUST be guarded by `requirePasskeyFreshness(N)` in `packages/shared/auth/server/middleware/stepup.ts`, returning `403 { requireWebAuthn: true }` until a fresh verification is recorded.
+- **Step-Up Freshness Window**: The `passkeyVerifiedAt` column on `sessions` is the single source of truth for step-up state. The freshness window defaults to 15 minutes and is configured via `config.passkey.stepUpWindow`.
 
 ## 19. Passkey Standardization & Forensic Standards (v6.1)
 - **Encoding Standard**: All WebAuthn binary data (Credential IDs, Public Keys, Signatures) MUST be encoded using **base64url**. Standard `base64` is strictly prohibited to ensure maximum URL and database compatibility.
-- **Biometric Isolation (Vault Service)**: Sensitive biometric identifiers, specifically the `publicKey` (encoded as base64url) and the raw `credentialId` (encoded as base64url), MUST NEVER be stored in the relational database (`passkeys` table). These materials MUST be stored exclusively in the `VaultService` under the `PASSKEY_PUBLIC_KEY` and `CREDENTIAL_ID` secret names respectively, isolated by the unique passkey UUID.
-- **Zero-Knowledge Identifier Hashing**: To prevent raw exposure of biometric identifiers while maintaining lookup efficiency, the `passkeys` table MUST use a **SHA-256 hash** of the `credentialId` (the "Identifier Hash") for indexing and verification lookups.
+- **Biometric Isolation (Vault Service)**: Sensitive biometric identifiers, specifically the `publicKey` (encoded as base64url) MUST NEVER be stored in the relational database (`passkeys` table). The public key MUST be stored exclusively in the `VaultService` under the `PASSKEY_PUBLIC_KEY` secret name, isolated by the passkey ID.
+- **Passkey ID Indexing**: The `passkeys` table uses the base64url credential ID as its primary key for verification lookups. (SHA-256 hashing of the credential ID is a planned hardening step but is NOT currently implemented — do not assume hashed identifiers.)
 - **AAGUID High-Fidelity Branding**: Passkey registration and listing MUST implement rich AAGUID metadata mapping. 
     - **Logo Integration**: Display high-quality logos for recognized providers (Apple, Google, Microsoft, Yubico) using verified SVGs or CDN-hosted assets.
     - **Security Grading**: Explicitly label the security level of the hardware (e.g., "Hardware Protected (TEE/SE)", "Software Protected (Fallback)").
@@ -366,7 +367,6 @@ To ensure absolute account integrity and forensic traceability, all identity sys
 - **Forensic Granularity**: All passkey registrations and authentication events MUST capture:
     - **Dual-Stack Network Data**: Explicitly log both `ip_v4` and `ip_v6` addresses for every lifecycle event.
     - **Granular Geolocation**: Log `city`, `country`, `region`, `latitude`, and `longitude` derived from Cloudflare headers.
-    - **Device Context**: Log `user_agent`, `browser`, `os`, and `device_name`.
     - **Audit Continuity**: Every passkey record MUST maintain a permanent `registration_forensics` block and a rolling `last_used_forensics` block.
 - **Administrative Clearing**: Upon transition to the base64url and Vault standard, all existing legacy passkey registrations MUST be cleared from the database to ensure state purity and security compliance.
 
@@ -375,16 +375,19 @@ To ensure absolute account integrity and forensic traceability, all identity sys
 - **Usage in Code & UI**: Using "owner" in code (variable names, type definitions, route guards), file paths, and documentation is perfectly fine, especially when describing restrictions limited to that role. In UI labels and user-facing text, prefer "Owner" (capitalized) for clarity.
 - **Prohibited Terminology**: Do not use "God Mode", "Supreme", "Power User", or any other informal jargon to describe administrative roles or interfaces. Owner and Admin are sufficient and professional.
 - **Interface Standard**: All high-level administrative tools, dashboards, and portals MUST be collectively referred to as **Administration**.
-- **Routing Standard**: Access to owner-level administrative features MUST be gated via the `/administration/` namespace.
+- **Routing Standard**: Access to owner-level administrative features MUST be gated via the protected routes in `apps/web/main.tsx` (`/superadmin`, `/roles`, `/tools`, `/security`) and the `/admin/*` API namespace.
 
 ## 21. Migration Lifecycle & Squashing (Standard v6.1)
 - **Milestone Squashing**: Periodically, individual migrations in `db/migrations/` MUST be squashed into a single `0000_initial_schema.sql` to ensure fresh install reliability.
 - **Archiving Workflow**:
   1. **Preservation**: Move existing `.sql` files to `archive/migrations/history_[timestamp]/`.
   2. **Clean Slate**: Delete the `db/migrations/meta/` directory to force a full schema regeneration.
-  3. **Consolidation**: Run `npx drizzle-kit generate` to create a clean, single-file baseline from the current `schema.ts`.
+  3. **Consolidation**: Run `npx drizzle-kit generate` (Postgres dialect, config in `drizzle.config.ts`) to create a clean, single-file baseline from the current `schema.ts`.
   4. **Naming**: Rename the generated `.sql` file to `0000_initial_schema.sql`.
-- **Remote State Synchronization**:
-  - **Reset**: Clear the remote `d1_migrations` table: `DELETE FROM d1_migrations;`.
-  - **Alignment**: Manually insert the squash identifier: `INSERT INTO d1_migrations (name, applied_at) VALUES ('0000_initial_schema.sql', CURRENT_TIMESTAMP);`.
-- **Post-Squash Verification**: Verify sync with `wrangler d1 migrations list --remote`. The database MUST report `✅ No migrations to apply!`.
+- **Apply Migrations**: Use `npx drizzle-kit migrate` (or `drizzle-kit push`) against the Neon `DATABASE_URL` to apply the baseline.
+- **Post-Squash Verification**: Verify the schema is applied and queryable against Neon before releasing. The baseline MUST report a clean, applied state.
+
+## 22. Operational Transparency & Rule Attribution
+- **Rule Attribution Requirement**: When performing any operation that is directly triggered by, required by, or executed in compliance with any of the Global Laws defined in this document, you MUST explicitly state the rule number(s) and brief justification before executing the operation. For example: `[Rule 22 — Transparency] I'm performing this operation because of Rule X (Name) — brief reason.`
+- **Scope**: This applies to all operations including but not limited to: code changes, file modifications, database migrations, security fixes, configuration updates, and architectural decisions.
+- **Exceptions**: Routine operations that are not specifically triggered by a rule (e.g., running a standard build, responding to a direct user request unrelated to a rule) do not require attribution.
