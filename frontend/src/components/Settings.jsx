@@ -236,28 +236,32 @@ export default function Settings() {
   // Password Vault Integrations: Auto-fetch vaults & folders when Host & Token are supplied
   const [opVaults, setOpVaults] = useState([])
   const [opLoadingVaults, setOpLoadingVaults] = useState(false)
+  const [opVaultsError, setOpVaultsError] = useState(null)
   const [bwFolders, setBwFolders] = useState([])
   const [bwLoadingFolders, setBwLoadingFolders] = useState(false)
 
   useEffect(() => {
     if (settings.op_connect_host && settings.op_connect_token) {
       setOpLoadingVaults(true)
-      const cleanHost = settings.op_connect_host.replace(/\/$/, '')
-      fetch(`${cleanHost}/v1/vaults`, {
-        headers: { Authorization: `Bearer ${settings.op_connect_token}` }
-      })
-        .then(res => res.ok ? res.json() : [])
+      setOpVaultsError(null)
+      apiFetch('/settings/op/vaults')
+        .then(res => res.ok ? res.json() : Promise.reject(res))
         .then(data => {
-          if (Array.isArray(data)) {
-            setOpVaults(data.map(v => ({ id: v.id, name: v.name || v.id, label: `${v.name || v.id} (${v.id})` })))
+          const list = data.vaults || []
+          if (Array.isArray(list)) {
+            setOpVaults(list.map(v => ({ id: v.id, name: v.name || v.id, label: `${v.name || v.id} (${v.id})` })))
           } else {
             setOpVaults([])
           }
         })
-        .catch(() => setOpVaults([]))
+        .catch(() => {
+          setOpVaults([])
+          setOpVaultsError("Couldn't reach 1Password Connect. Check the host and token.")
+        })
         .finally(() => setOpLoadingVaults(false))
     } else {
       setOpVaults([])
+      setOpVaultsError(null)
     }
   }, [settings.op_connect_host, settings.op_connect_token])
 
@@ -1275,21 +1279,24 @@ export default function Settings() {
                     )
                   }}
                   renderInput={(params) => {
-                    const { InputProps, ...restParams } = params
+                    const { slotProps: { input: inputProps } = {}, ...restParams } = params
                     return (
                       <TextField
                         {...restParams}
                         name="op_vault_id"
                         placeholder="Select or paste 26-character Vault ID"
-                        helperText={opLoadingVaults ? "Loading account vaults..." : (opVaults.length > 0 ? `Select or type vault ID (${opVaults.length} vaults found)` : "The 26-character ID of vault to sync with.")}
-                        InputProps={{
-                          ...InputProps,
-                          endAdornment: (
-                            <InputAdornment position="end">
-                              {opLoadingVaults ? <CircularProgress color="inherit" size={16} sx={{ mr: 1 }} /> : null}
-                              {InputProps?.endAdornment}
-                            </InputAdornment>
-                          )
+                        error={!!opVaultsError}
+                        helperText={opLoadingVaults ? "Loading account vaults..." : (opVaultsError || (opVaults.length > 0 ? `Select or type vault ID (${opVaults.length} vaults found)` : "The 26-character ID of vault to sync with."))}
+                        slotProps={{
+                          input: {
+                            ...inputProps,
+                            endAdornment: (
+                              <InputAdornment position="end">
+                                {opLoadingVaults ? <CircularProgress color="inherit" size={16} sx={{ mr: 1 }} /> : null}
+                                {inputProps?.endAdornment}
+                              </InputAdornment>
+                            )
+                          }
                         }}
                         sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
                       />

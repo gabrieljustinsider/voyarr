@@ -9,6 +9,8 @@ from typing import Optional
 from dependencies import verify_api_key
 from security import encrypt_data, decrypt_data
 from rate_limiter import rate_limit
+from services.onepassword_service import OnePasswordService
+import requests
 from utils import validate_path, sanitize_tainted_path
 import logging
 logger = logging.getLogger(__name__)
@@ -30,6 +32,35 @@ SECURE_SETTINGS = [
 class SettingUpdate(BaseModel):
     key: str
     value: str | None = None
+
+
+@router.get("/op/vaults")
+def list_op_vaults(db: Session = Depends(get_db)):
+    host, token, _ = OnePasswordService.get_config(db)
+    if not all([host, token]):
+        raise HTTPException(status_code=400, detail="1Password Connect host and token must be configured first.")
+
+    try:
+        res = requests.get(
+            f"{host.rstrip('/')}/v1/vaults",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=10,
+        )
+    except Exception as e:
+        logger.warning("Failed to reach 1Password Connect: %s", e)
+        raise HTTPException(status_code=503, detail="Could not reach the 1Password Connect server.")
+
+    if not res.ok:
+        logger.warning("1Password Connect returned %s: %s", res.status_code, res.text)
+        raise HTTPException(status_code=res.status_code, detail="1Password Connect rejected the request (check host and token).")
+
+    data = res.json()
+    vaults = [
+        {"id": v.get("id"), "name": v.get("name") or v.get("id")}
+        for v in data
+        if isinstance(v, dict) and v.get("id")
+    ]
+    return {"vaults": vaults}
 
 
 @router.get("")
