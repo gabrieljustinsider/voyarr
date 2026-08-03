@@ -207,7 +207,7 @@ export default function EntityListPage({
       {/* Create Dialog */}
       {onCreate && (
         <Dialog open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="xs" fullWidth
-          PaperProps={{ sx: { borderRadius: '12px', bgcolor: 'rgba(15,23,42,0.95)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.1)' } }}>
+          slotProps={{ paper: { sx: { borderRadius: '12px', bgcolor: 'rgba(15,23,42,0.95)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.1)' } } }}>
           <DialogTitle sx={{ fontWeight: 'bold' }}>Create {title.slice(0, -1)}</DialogTitle>
           <DialogContent>
             <TextField autoFocus fullWidth size="small" label="Name" value={createName}
@@ -226,7 +226,7 @@ export default function EntityListPage({
       {/* Rename Dialog */}
       {onRename && (
         <Dialog open={renameOpen} onClose={() => setRenameOpen(false)} maxWidth="xs" fullWidth
-          PaperProps={{ sx: { borderRadius: '12px', bgcolor: 'rgba(15,23,42,0.95)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.1)' } }}>
+          slotProps={{ paper: { sx: { borderRadius: '12px', bgcolor: 'rgba(15,23,42,0.95)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.1)' } } }}>
           <DialogTitle sx={{ fontWeight: 'bold' }}>Rename</DialogTitle>
           <DialogContent>
             <TextField autoFocus fullWidth size="small" label="New name" value={renameValue}
@@ -245,7 +245,7 @@ export default function EntityListPage({
       {/* Delete Dialog */}
       {onDelete && (
         <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)} maxWidth="xs" fullWidth
-          PaperProps={{ sx: { borderRadius: '12px', bgcolor: 'rgba(15,23,42,0.95)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.1)' } }}>
+          slotProps={{ paper: { sx: { borderRadius: '12px', bgcolor: 'rgba(15,23,42,0.95)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.1)' } } }}>
           <DialogTitle sx={{ fontWeight: 'bold' }}>Delete {title.slice(0, -1)}</DialogTitle>
           <DialogContent>
             <Typography variant="body2">
@@ -263,7 +263,7 @@ export default function EntityListPage({
       {/* Merge Dialog */}
       {onMerge && (
         <Dialog open={mergeOpen} onClose={() => setMergeOpen(false)} maxWidth="xs" fullWidth
-          PaperProps={{ sx: { borderRadius: '12px', bgcolor: 'rgba(15,23,42,0.95)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.1)' } }}>
+          slotProps={{ paper: { sx: { borderRadius: '12px', bgcolor: 'rgba(15,23,42,0.95)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.1)' } } }}>
           <DialogTitle sx={{ fontWeight: 'bold' }}>Merge {title.slice(0, -1)}</DialogTitle>
           <DialogContent>
             <Typography variant="body2" sx={{ mb: 2 }}>

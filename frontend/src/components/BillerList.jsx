@@ -319,7 +319,7 @@ export default function BillerList() {
         onClose={() => setOpenBillerForm(false)} 
         maxWidth="sm" 
         fullWidth
-        PaperProps={{
+        slotProps={{ paper: {
           sx: {
             borderRadius: '20px',
             background: 'rgba(30,30,40,0.95)',
@@ -327,7 +327,7 @@ export default function BillerList() {
             border: '1px solid rgba(255,255,255,0.1)',
             boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
           }
-        }}
+        } }}
       >
         <DialogTitle sx={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 1.5, pb: 2 }}>
           <Box sx={{ p: 1, borderRadius: '10px', background: 'rgba(236, 72, 153, 0.15)', color: '#ec4899', display: 'flex', border: '1px solid rgba(236, 72, 153, 0.3)' }}>

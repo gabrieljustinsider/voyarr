@@ -126,7 +126,7 @@ export default function DevLayoutShell({
               anchorEl={userMenuAnchor}
               open={Boolean(userMenuAnchor)}
               onClose={() => setUserMenuAnchor(null)}
-              PaperProps={{ sx: { borderRadius: 2, minWidth: 180, mt: 1 } }}
+              slotProps={{ paper: { sx: { borderRadius: 2, minWidth: 180, mt: 1 } } }}
             >
               <MenuItem onClick={() => { setUserMenuAnchor(null); onSelectTab('account_security'); }}>
                 Account Security

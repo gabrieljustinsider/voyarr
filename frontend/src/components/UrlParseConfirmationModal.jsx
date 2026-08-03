@@ -81,7 +81,7 @@ export default function UrlParseConfirmationModal({
       onClose={onClose}
       maxWidth="md"
       fullWidth
-      PaperProps={{
+      slotProps={{ paper: {
         sx: {
           borderRadius: '16px',
           backdropFilter: 'blur(20px)',
@@ -90,7 +90,7 @@ export default function UrlParseConfirmationModal({
           boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.5)',
           color: 'white'
         }
-      }}
+      } }}
     >
       <DialogTitle sx={{ m: 0, p: 2.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography variant="h6" component="div" sx={{ fontWeight: 'bold' }}>

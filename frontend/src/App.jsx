@@ -726,6 +726,7 @@ function App() {
         const reader = res.body.getReader()
         const decoder = new TextDecoder('utf-8')
         let buffer = ''
+        let lastQueueJson = ''
         while (true) {
           const { done, value } = await reader.read()
           if (done) break
@@ -734,7 +735,13 @@ function App() {
           buffer = lines.pop()
           for (const line of lines) {
             if (line.startsWith('data: ')) {
-              try { setQueue(JSON.parse(line.substring(6))) } catch (e) { console.debug('JSON Parse error', e) }
+              try {
+                const nextQueueJson = line.substring(6)
+                if (nextQueueJson !== lastQueueJson) {
+                  lastQueueJson = nextQueueJson
+                  setQueue(JSON.parse(nextQueueJson))
+                }
+              } catch (e) { console.debug('JSON Parse error', e) }
             }
           }
         }
@@ -1457,14 +1464,14 @@ function App() {
           disableRestoreFocus
           maxWidth="md"
           fullWidth
-          PaperProps={{
+          slotProps={{ paper: {
             sx: {
               borderRadius: '20px',
               background: 'rgba(30, 30, 40, 0.95)',
               backdropFilter: 'blur(20px)',
               border: '1px solid rgba(255,255,255,0.08)'
             }
-          }}
+          } }}
         >
           <DialogTitle sx={{ fontWeight: 'bold' }}>Voyarr Help & Documentation</DialogTitle>
           <DialogContent dividers sx={{ borderColor: 'rgba(255,255,255,0.08)' }}>

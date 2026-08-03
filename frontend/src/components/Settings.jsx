@@ -1211,17 +1211,21 @@ export default function Settings() {
                     />
                   </Tooltip>
                 </Box>
-                <TextField 
-                  fullWidth 
-                  size="small" 
-                  type="password" 
-                  name="op_connect_token" 
-                  placeholder="Generated API Access Token"
-                  value={settings.op_connect_token || ''} 
-                  onChange={handleChange} 
-                  helperText="Generate in 1Password.com -> Developer Settings"
-                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-                />
+                <Box component="form" onSubmit={(e) => e.preventDefault()} sx={{ '& .MuiFormHelperText-root': { ml: 0 } }}>
+                  <input type="text" name="username" autoComplete="username" tabIndex={-1} aria-hidden="true" style={{ display: 'none' }} />
+                  <TextField 
+                    fullWidth 
+                    size="small" 
+                    type="password" 
+                    autoComplete="new-password"
+                    name="op_connect_token" 
+                    placeholder="Generated API Access Token"
+                    value={settings.op_connect_token || ''} 
+                    onChange={handleChange} 
+                    helperText="Generate in 1Password.com -> Developer Settings"
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+                  />
+                </Box>
               </Box>
 
               {/* 1Password Vault ID */}
@@ -1413,17 +1417,21 @@ export default function Settings() {
                     />
                   </Tooltip>
                 </Box>
-                <TextField 
-                  fullWidth 
-                  size="small" 
-                  type="password" 
-                  name="bw_session_token" 
-                  placeholder="BW_SESSION token from 'bw unlock'"
-                  value={settings.bw_session_token || ''} 
-                  onChange={handleChange} 
-                  helperText="Session token from 'bw unlock'" 
-                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-                />
+                <Box component="form" onSubmit={(e) => e.preventDefault()} sx={{ '& .MuiFormHelperText-root': { ml: 0 } }}>
+                  <input type="text" name="username" autoComplete="username" tabIndex={-1} aria-hidden="true" style={{ display: 'none' }} />
+                  <TextField 
+                    fullWidth 
+                    size="small" 
+                    type="password" 
+                    autoComplete="new-password"
+                    name="bw_session_token" 
+                    placeholder="BW_SESSION token from 'bw unlock'"
+                    value={settings.bw_session_token || ''} 
+                    onChange={handleChange} 
+                    helperText="Session token from 'bw unlock'" 
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+                  />
+                </Box>
               </Box>
 
               {/* Bitwarden Folder ID */}
@@ -2066,12 +2074,12 @@ export default function Settings() {
         onClose={() => setMockSsoOpen(false)}
         maxWidth="xs"
         fullWidth
-        PaperProps={{
+        slotProps={{ paper: {
           elevation: 6,
           sx: {
             borderRadius: 3
           }
-        }}
+        } }}
       >
         <DialogTitle sx={{ textAlign: 'center', pt: 3, pb: 1 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>

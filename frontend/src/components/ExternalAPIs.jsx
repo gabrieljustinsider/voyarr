@@ -632,7 +632,7 @@ export default function ExternalAPIs() {
         onClose={() => setOpenSyncDialog(false)} 
         maxWidth="sm" 
         fullWidth
-        PaperProps={{
+        slotProps={{ paper: {
           sx: {
             borderRadius: '16px',
             background: 'rgba(15, 23, 42, 0.95)',
@@ -640,7 +640,7 @@ export default function ExternalAPIs() {
             border: '1px solid rgba(255, 255, 255, 0.1)',
             boxShadow: '0 20px 40px rgba(0,0,0,0.5)'
           }
-        }}
+        } }}
       >
         <DialogTitle sx={{ m: 0, p: 2.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -685,7 +685,7 @@ export default function ExternalAPIs() {
         onClose={() => setOpenBioDialog(false)} 
         maxWidth="sm" 
         fullWidth
-        PaperProps={{
+        slotProps={{ paper: {
           sx: {
             borderRadius: '16px',
             background: 'rgba(15, 23, 42, 0.95)',
@@ -693,7 +693,7 @@ export default function ExternalAPIs() {
             border: '1px solid rgba(255, 255, 255, 0.1)',
             boxShadow: '0 20px 40px rgba(0,0,0,0.5)'
           }
-        }}
+        } }}
       >
         <DialogTitle sx={{ m: 0, p: 2.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
           <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Performer Biography</Typography>
@@ -734,7 +734,7 @@ export default function ExternalAPIs() {
         onClose={() => setGeneratedKey(null)} 
         maxWidth="sm" 
         fullWidth
-        PaperProps={{
+        slotProps={{ paper: {
           sx: {
             borderRadius: '16px',
             background: 'rgba(15, 23, 42, 0.95)',
@@ -742,7 +742,7 @@ export default function ExternalAPIs() {
             border: '1px solid rgba(255, 255, 255, 0.1)',
             boxShadow: '0 20px 40px rgba(0,0,0,0.5)'
           }
-        }}
+        } }}
       >
         <DialogTitle sx={{ m: 0, p: 2.5, display: 'flex', alignItems: 'center', gap: 1.5, borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
           <KeyIcon color="primary" />
@@ -775,14 +775,14 @@ export default function ExternalAPIs() {
       <Dialog 
         open={deleteConfirm.open} 
         onClose={() => setDeleteConfirm({ open: false, keyId: null })}
-        PaperProps={{
+        slotProps={{ paper: {
           sx: {
             borderRadius: '16px',
             background: 'rgba(15, 23, 42, 0.95)',
             backdropFilter: 'blur(16px)',
             border: '1px solid rgba(255, 255, 255, 0.1)'
           }
-        }}
+        } }}
       >
         <DialogTitle sx={{ fontWeight: 'bold' }}>Revoke API Key</DialogTitle>
         <DialogContent>
