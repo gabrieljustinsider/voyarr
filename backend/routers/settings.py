@@ -262,19 +262,26 @@ def run_network_diagnostic(db: Session = Depends(get_db)):
 def get_host_media_paths() -> list[str]:
     """Find all valid paths defined by environment variables starting with HOST_MEDIA_PATH or mounted in /media."""
     target_dirs = []
-    
+
+    def is_usable_media_dir(path: str) -> bool:
+        """Return True if path is a directory and contains at least one entry (skips empty bind-mount placeholders)."""
+        try:
+            return os.path.isdir(path) and bool(os.listdir(path))
+        except OSError:
+            return False
+
     # 1. Discover environment variables matching HOST_MEDIA_PATH*
     for key, value in os.environ.items():
         if key.upper().startswith("HOST_MEDIA_PATH") and value:
             safe_val = os.path.abspath(value)
-            if safe_val.startswith(("/media", "/mnt", "/storage", "/downloads", "/Users", "/home")) and os.path.exists(safe_val) and os.path.isdir(safe_val):
+            if safe_val.startswith(("/media", "/mnt", "/storage", "/downloads", "/Users", "/home")) and is_usable_media_dir(safe_val):
                 target_dirs.append(safe_val)
-    
+
     # 2. Discover container mount subdirectories under /media (excluding /media itself)
     if os.path.exists("/media") and os.path.isdir("/media"):
         for item in os.listdir("/media"):
             sub_path = os.path.join("/media", item)
-            if os.path.isdir(sub_path) and sub_path != "/media":
+            if sub_path != "/media" and is_usable_media_dir(sub_path):
                 target_dirs.append(sub_path)
 
     # 3. Fallback default
@@ -285,7 +292,7 @@ def get_host_media_paths() -> list[str]:
     deduped = []
     for d in target_dirs:
         norm = os.path.normpath(d)
-        if norm not in deduped and os.path.exists(norm) and os.path.isdir(norm):
+        if norm not in deduped and is_usable_media_dir(norm):
             deduped.append(norm)
 
     return deduped
