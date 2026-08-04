@@ -221,6 +221,8 @@ class Credential(Base):
     sync_source = Column(
         String(50), default="manual"
     )  # 'manual', '1password', 'bitwarden'
+    external_item_id = Column(String(500), nullable=True)  # linked 1Password item UUID
+    external_vault_id = Column(String(500), nullable=True)  # source vault UUID
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
 
 

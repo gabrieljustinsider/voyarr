@@ -544,13 +544,13 @@ export default function UserManagement() {
         onClose={() => setManageUserOpen(false)}
         maxWidth="md"
         fullWidth
-        PaperProps={{
+        slotProps={{ paper: {
           elevation: 6,
           sx: {
             borderRadius: 3,
             minHeight: '580px'
           }
-        }}
+        } }}
       >
         <DialogTitle sx={{ borderBottom: '1px solid rgba(255,255,255,0.08)', pb: 2 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1089,12 +1089,12 @@ export default function UserManagement() {
         open={adminResetPasswordOpen} 
         onClose={() => setAdminResetPasswordOpen(false)}
         disableRestoreFocus
-        PaperProps={{
+        slotProps={{ paper: {
           elevation: 6,
           sx: {
             borderRadius: 3
           }
-        }}
+        } }}
       >
         <form onSubmit={(e) => { e.preventDefault(); if (adminResetPasswordNew.length >= 8) handleAdminResetPassword(adminResetPasswordNew); }}>
           <DialogTitle sx={{ pb: 1 }}>Reset User Password</DialogTitle>

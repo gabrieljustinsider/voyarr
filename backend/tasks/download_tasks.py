@@ -175,6 +175,14 @@ def real_download_task(self: Any, task_id: int, prefs_dict: dict[str, Any], meta
                 pass
 
         cookie_temp_path = None
+
+        # Auto-refresh a stale/expired session cookie using linked credentials (rate-limited).
+        try:
+            from services.provider_auth import refresh_stale_cookie_if_needed
+            refresh_stale_cookie_if_needed(db, task.media_entry.provider_id)
+        except Exception as e:
+            print(f"Auto cookie refresh skipped for provider {task.media_entry.provider_id}: {e}")
+
         active_cookie = (
             db.query(SessionCookie)
             .filter(
@@ -198,6 +206,14 @@ def real_download_task(self: Any, task_id: int, prefs_dict: dict[str, Any], meta
                 with os.fdopen(fd, "w") as f:
                     f.write(decrypt_data(str(vault_entry.encrypted_value)))
                 ydl_opts["cookiefile"] = cookie_temp_path
+
+        # Pass linked credentials to yt-dlp as fallback authentication when no cookie is set.
+        if not cookie_temp_path:
+            from services.credential_vault import get_username_password
+            cred_user, cred_pass = get_username_password(db, task.media_entry.provider_id)
+            if cred_user and cred_pass:
+                ydl_opts["username"] = cred_user
+                ydl_opts["password"] = cred_pass
 
         filename = ""
         try:

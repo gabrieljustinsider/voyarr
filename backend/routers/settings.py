@@ -9,6 +9,8 @@ from typing import Optional
 from dependencies import verify_api_key
 from security import encrypt_data, decrypt_data
 from rate_limiter import rate_limit
+from services.onepassword_service import OnePasswordService
+import requests
 from utils import validate_path, sanitize_tainted_path
 import logging
 logger = logging.getLogger(__name__)
@@ -30,6 +32,57 @@ SECURE_SETTINGS = [
 class SettingUpdate(BaseModel):
     key: str
     value: str | None = None
+
+
+@router.get("/op/vaults")
+def list_op_vaults(db: Session = Depends(get_db)):
+    host, token, _ = OnePasswordService.get_config(db)
+    if not all([host, token]):
+        raise HTTPException(status_code=400, detail="1Password Connect host and token must be configured first.")
+
+    try:
+        res = requests.get(
+            f"{host.rstrip('/')}/v1/vaults",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=10,
+        )
+    except Exception as e:
+        logger.warning("Failed to reach 1Password Connect: %s", e)
+        raise HTTPException(status_code=503, detail="Could not reach the 1Password Connect server.")
+
+    if not res.ok:
+        logger.warning("1Password Connect returned %s: %s", res.status_code, res.text)
+        raise HTTPException(status_code=res.status_code, detail="1Password Connect rejected the request (check host and token).")
+
+    data = res.json()
+    vaults = [
+        {"id": v.get("id"), "name": v.get("name") or v.get("id")}
+        for v in data
+        if isinstance(v, dict) and v.get("id")
+    ]
+    return {"vaults": vaults}
+
+
+@router.get("/op/items")
+def list_op_items(db: Session = Depends(get_db)):
+    try:
+        items = OnePasswordService.list_login_items(db)
+        try:
+            vaults = OnePasswordService.list_accessible_vaults(db)
+        except Exception:
+            vaults = []
+        vault_names = {v["id"]: v["name"] for v in vaults}
+        for item in items:
+            item["vault_name"] = vault_names.get(item.get("vault_id", ""), "")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except requests.RequestException as e:
+        logger.warning("Failed to reach 1Password Connect: %s", e)
+        raise HTTPException(status_code=503, detail="Could not reach the 1Password Connect server.")
+    except Exception as e:
+        logger.warning("1Password Connect returned an error: %s", e)
+        raise HTTPException(status_code=502, detail="1Password Connect returned an unexpected error.")
+    return {"items": items}
 
 
 @router.get("")
@@ -262,19 +315,26 @@ def run_network_diagnostic(db: Session = Depends(get_db)):
 def get_host_media_paths() -> list[str]:
     """Find all valid paths defined by environment variables starting with HOST_MEDIA_PATH or mounted in /media."""
     target_dirs = []
-    
+
+    def is_usable_media_dir(path: str) -> bool:
+        """Return True if path is a directory and contains at least one entry (skips empty bind-mount placeholders)."""
+        try:
+            return os.path.isdir(path) and bool(os.listdir(path))
+        except OSError:
+            return False
+
     # 1. Discover environment variables matching HOST_MEDIA_PATH*
     for key, value in os.environ.items():
         if key.upper().startswith("HOST_MEDIA_PATH") and value:
             safe_val = os.path.abspath(value)
-            if safe_val.startswith(("/media", "/mnt", "/storage", "/downloads", "/Users", "/home")) and os.path.exists(safe_val) and os.path.isdir(safe_val):
+            if safe_val.startswith(("/media", "/mnt", "/storage", "/downloads", "/Users", "/home")) and is_usable_media_dir(safe_val):
                 target_dirs.append(safe_val)
-    
+
     # 2. Discover container mount subdirectories under /media (excluding /media itself)
     if os.path.exists("/media") and os.path.isdir("/media"):
         for item in os.listdir("/media"):
             sub_path = os.path.join("/media", item)
-            if os.path.isdir(sub_path) and sub_path != "/media":
+            if sub_path != "/media" and is_usable_media_dir(sub_path):
                 target_dirs.append(sub_path)
 
     # 3. Fallback default
@@ -285,7 +345,7 @@ def get_host_media_paths() -> list[str]:
     deduped = []
     for d in target_dirs:
         norm = os.path.normpath(d)
-        if norm not in deduped and os.path.exists(norm) and os.path.isdir(norm):
+        if norm not in deduped and is_usable_media_dir(norm):
             deduped.append(norm)
 
     return deduped

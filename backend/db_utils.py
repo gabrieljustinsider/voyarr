@@ -602,6 +602,10 @@ def run_schema_migrations(engine: Any) -> None:
                     pass
                 logger.warning(f"Failed to create tags table (it may already exist): {e}")
 
+        # 16b. Add 1Password linking columns to credentials table
+        ensure_column_exists("credentials", "external_item_id", "VARCHAR(500)")
+        ensure_column_exists("credentials", "external_vault_id", "VARCHAR(500)")
+
         # 17. Add monitoring columns to live_streams table
         for col_name, col_def in [
             ("auto_monitor", "BOOLEAN DEFAULT FALSE"),

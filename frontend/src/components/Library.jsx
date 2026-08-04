@@ -1413,7 +1413,7 @@ export default function Library() {
       <Dialog
         open={Boolean(deleteDialogEntry)}
         onClose={() => setDeleteDialogEntry(null)}
-        PaperProps={{ sx: { borderRadius: '16px', maxWidth: 400 } }}
+        slotProps={{ paper: { sx: { borderRadius: '16px', maxWidth: 400 } } }}
       >
         <DialogTitle sx={{ fontWeight: 'bold' }}>
           Remove "{deleteDialogEntry?.title || 'this item'}"?
@@ -1685,7 +1685,7 @@ export default function Library() {
         onClose={() => !itemEditLoading && setEditingItemModalOpen(false)}
         maxWidth="md"
         fullWidth
-        PaperProps={{
+        slotProps={{ paper: {
           sx: {
             borderRadius: '20px',
             bgcolor: '#0f172a',
@@ -1693,7 +1693,7 @@ export default function Library() {
             border: '1px solid rgba(255, 255, 255, 0.1)',
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
           }
-        }}
+        } }}
       >
         <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1, borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -1912,7 +1912,7 @@ export default function Library() {
         onClose={() => setPerformerProfileOpen(false)}
         maxWidth="md"
         fullWidth
-        PaperProps={{
+        slotProps={{ paper: {
           sx: {
             backgroundColor: '#141414',
             backgroundImage: 'radial-gradient(circle at 10% 20%, rgba(255, 152, 0, 0.05) 0%, transparent 40%)',
@@ -1921,7 +1921,7 @@ export default function Library() {
             boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.5)',
             color: '#fff'
           }
-        }}
+        } }}
       >
         <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1, borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
           <Typography variant="h5" sx={{ fontWeight: '700', letterSpacing: '0.5px' }}>
@@ -2039,7 +2039,7 @@ export default function Library() {
       <Dialog 
         open={bulkEditOpen} 
         onClose={() => setBulkEditOpen(false)}
-        PaperProps={{
+        slotProps={{ paper: {
           sx: {
             borderRadius: '16px',
             backdropFilter: 'blur(20px)',
@@ -2050,7 +2050,7 @@ export default function Library() {
             width: '100%',
             maxWidth: '500px'
           }
-        }}
+        } }}
       >
         <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           Bulk Edit {selectedEntries.size} Videos
@@ -2143,7 +2143,7 @@ export default function Library() {
       <Dialog 
         open={importDialogOpen} 
         onClose={() => !importLoading && setImportDialogOpen(false)}
-        PaperProps={{
+        slotProps={{ paper: {
           sx: {
             borderRadius: '16px',
             backdropFilter: 'blur(20px)',
@@ -2154,7 +2154,7 @@ export default function Library() {
             width: '100%',
             maxWidth: '600px'
           }
-        }}
+        } }}
       >
         <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           Import Video File / Stream

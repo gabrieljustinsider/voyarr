@@ -715,7 +715,7 @@ export default function LiveStreams() {
         onClose={() => !submitting && setOpen(false)} 
         maxWidth="md" 
         fullWidth
-        PaperProps={{
+        slotProps={{ paper: {
           sx: {
             borderRadius: '16px',
             background: 'rgba(15, 23, 42, 0.95)',
@@ -723,7 +723,7 @@ export default function LiveStreams() {
             border: '1px solid rgba(255, 255, 255, 0.1)',
             boxShadow: '0 20px 40px rgba(0,0,0,0.5)'
           }
-        }}
+        } }}
       >
         <form onSubmit={handleSubmit}>
           <DialogTitle sx={{ m: 0, p: 2.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
@@ -846,7 +846,7 @@ export default function LiveStreams() {
         onClose={() => !authLoading && setAuthOpen(false)} 
         maxWidth="sm" 
         fullWidth
-        PaperProps={{
+        slotProps={{ paper: {
           sx: {
             borderRadius: '16px',
             background: 'rgba(15, 23, 42, 0.95)',
@@ -854,7 +854,7 @@ export default function LiveStreams() {
             border: '1px solid rgba(255, 255, 255, 0.1)',
             boxShadow: '0 20px 40px rgba(0,0,0,0.5)'
           }
-        }}
+        } }}
       >
         <DialogTitle sx={{ m: 0, p: 2.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>

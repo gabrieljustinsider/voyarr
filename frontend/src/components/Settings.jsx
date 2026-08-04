@@ -236,28 +236,32 @@ export default function Settings() {
   // Password Vault Integrations: Auto-fetch vaults & folders when Host & Token are supplied
   const [opVaults, setOpVaults] = useState([])
   const [opLoadingVaults, setOpLoadingVaults] = useState(false)
+  const [opVaultsError, setOpVaultsError] = useState(null)
   const [bwFolders, setBwFolders] = useState([])
   const [bwLoadingFolders, setBwLoadingFolders] = useState(false)
 
   useEffect(() => {
     if (settings.op_connect_host && settings.op_connect_token) {
       setOpLoadingVaults(true)
-      const cleanHost = settings.op_connect_host.replace(/\/$/, '')
-      fetch(`${cleanHost}/v1/vaults`, {
-        headers: { Authorization: `Bearer ${settings.op_connect_token}` }
-      })
-        .then(res => res.ok ? res.json() : [])
+      setOpVaultsError(null)
+      apiFetch('/settings/op/vaults')
+        .then(res => res.ok ? res.json() : Promise.reject(res))
         .then(data => {
-          if (Array.isArray(data)) {
-            setOpVaults(data.map(v => ({ id: v.id, name: v.name || v.id, label: `${v.name || v.id} (${v.id})` })))
+          const list = data.vaults || []
+          if (Array.isArray(list)) {
+            setOpVaults(list.map(v => ({ id: v.id, name: v.name || v.id, label: `${v.name || v.id} (${v.id})` })))
           } else {
             setOpVaults([])
           }
         })
-        .catch(() => setOpVaults([]))
+        .catch(() => {
+          setOpVaults([])
+          setOpVaultsError("Couldn't reach 1Password Connect. Check the host and token.")
+        })
         .finally(() => setOpLoadingVaults(false))
     } else {
       setOpVaults([])
+      setOpVaultsError(null)
     }
   }, [settings.op_connect_host, settings.op_connect_token])
 
@@ -667,9 +671,8 @@ export default function Settings() {
 
   const handleSyncManager = async (provider, direction) => {
     try {
-      const res = await apiFetch(`/settings/sync/${provider}`, {
-        method: 'POST',
-        body: JSON.stringify({ direction })
+      const res = await apiFetch(`/credentials/sync/${provider}/${direction}`, {
+        method: 'POST'
       })
       if (res.ok) {
         setSnackbar({ open: true, message: `Sync initiated for ${provider}`, severity: 'success' })
@@ -1211,17 +1214,21 @@ export default function Settings() {
                     />
                   </Tooltip>
                 </Box>
-                <TextField 
-                  fullWidth 
-                  size="small" 
-                  type="password" 
-                  name="op_connect_token" 
-                  placeholder="Generated API Access Token"
-                  value={settings.op_connect_token || ''} 
-                  onChange={handleChange} 
-                  helperText="Generate in 1Password.com -> Developer Settings"
-                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-                />
+                <Box component="form" onSubmit={(e) => e.preventDefault()} sx={{ '& .MuiFormHelperText-root': { ml: 0 } }}>
+                  <input type="text" name="username" autoComplete="username" tabIndex={-1} aria-hidden="true" style={{ display: 'none' }} />
+                  <TextField 
+                    fullWidth 
+                    size="small" 
+                    type="password" 
+                    autoComplete="new-password"
+                    name="op_connect_token" 
+                    placeholder="Generated API Access Token"
+                    value={settings.op_connect_token || ''} 
+                    onChange={handleChange} 
+                    helperText="Generate in 1Password.com -> Developer Settings"
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+                  />
+                </Box>
               </Box>
 
               {/* 1Password Vault ID */}
@@ -1271,21 +1278,24 @@ export default function Settings() {
                     )
                   }}
                   renderInput={(params) => {
-                    const { InputProps, ...restParams } = params
+                    const { slotProps: { input: inputProps } = {}, ...restParams } = params
                     return (
                       <TextField
                         {...restParams}
                         name="op_vault_id"
                         placeholder="Select or paste 26-character Vault ID"
-                        helperText={opLoadingVaults ? "Loading account vaults..." : (opVaults.length > 0 ? `Select or type vault ID (${opVaults.length} vaults found)` : "The 26-character ID of vault to sync with.")}
-                        InputProps={{
-                          ...InputProps,
-                          endAdornment: (
-                            <InputAdornment position="end">
-                              {opLoadingVaults ? <CircularProgress color="inherit" size={16} sx={{ mr: 1 }} /> : null}
-                              {InputProps?.endAdornment}
-                            </InputAdornment>
-                          )
+                        error={!!opVaultsError}
+                        helperText={opLoadingVaults ? "Loading account vaults..." : (opVaultsError || (opVaults.length > 0 ? `Select or type vault ID (${opVaults.length} vaults found)` : "The 26-character ID of vault to sync with."))}
+                        slotProps={{
+                          input: {
+                            ...inputProps,
+                            endAdornment: (
+                              <InputAdornment position="end">
+                                {opLoadingVaults ? <CircularProgress color="inherit" size={16} sx={{ mr: 1 }} /> : null}
+                                {inputProps?.endAdornment}
+                              </InputAdornment>
+                            )
+                          }
                         }}
                         sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
                       />
@@ -1413,17 +1423,21 @@ export default function Settings() {
                     />
                   </Tooltip>
                 </Box>
-                <TextField 
-                  fullWidth 
-                  size="small" 
-                  type="password" 
-                  name="bw_session_token" 
-                  placeholder="BW_SESSION token from 'bw unlock'"
-                  value={settings.bw_session_token || ''} 
-                  onChange={handleChange} 
-                  helperText="Session token from 'bw unlock'" 
-                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-                />
+                <Box component="form" onSubmit={(e) => e.preventDefault()} sx={{ '& .MuiFormHelperText-root': { ml: 0 } }}>
+                  <input type="text" name="username" autoComplete="username" tabIndex={-1} aria-hidden="true" style={{ display: 'none' }} />
+                  <TextField 
+                    fullWidth 
+                    size="small" 
+                    type="password" 
+                    autoComplete="new-password"
+                    name="bw_session_token" 
+                    placeholder="BW_SESSION token from 'bw unlock'"
+                    value={settings.bw_session_token || ''} 
+                    onChange={handleChange} 
+                    helperText="Session token from 'bw unlock'" 
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+                  />
+                </Box>
               </Box>
 
               {/* Bitwarden Folder ID */}
@@ -2066,12 +2080,12 @@ export default function Settings() {
         onClose={() => setMockSsoOpen(false)}
         maxWidth="xs"
         fullWidth
-        PaperProps={{
+        slotProps={{ paper: {
           elevation: 6,
           sx: {
             borderRadius: 3
           }
-        }}
+        } }}
       >
         <DialogTitle sx={{ textAlign: 'center', pt: 3, pb: 1 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>

@@ -346,7 +346,10 @@ export default function PathPicker({
     return segments
   }
 
-  const filteredFolders = folders.filter(f => showHidden || !f.name.startsWith('.')).filter(f => f.name.toLowerCase().includes(filterText.toLowerCase()))
+  const filteredFolders = folders
+    .filter(f => showHidden || !f.name.startsWith('.'))
+    .filter(f => f.name.toLowerCase().includes(filterText.toLowerCase()))
+    .filter((f, idx, arr) => arr.findIndex(x => x.path === f.path) === idx)
   const filteredFiles = files.filter(f => showHidden || !f.name.startsWith('.')).filter(f => f.name.toLowerCase().includes(filterText.toLowerCase()))
 
   return (
@@ -447,7 +450,7 @@ export default function PathPicker({
         disableRestoreFocus
         maxWidth="md"
         fullWidth
-        PaperProps={{
+        slotProps={{ paper: {
           sx: {
             backdropFilter: 'blur(24px)',
             backgroundColor: 'rgba(18, 19, 26, 0.92)',
@@ -457,7 +460,7 @@ export default function PathPicker({
             color: '#f3f4f6',
             overflow: 'hidden'
           }
-        }}
+        } }}
       >
         <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>

@@ -748,7 +748,7 @@ export default function AccountSecurity({ setSnackbar }) {
             anchorEl={avatarAnchorEl}
             open={Boolean(avatarAnchorEl)}
             onClose={handleAvatarClose}
-            PaperProps={{
+            slotProps={{ paper: {
               elevation: 4,
               sx: {
                 borderRadius: '12px',
@@ -756,7 +756,7 @@ export default function AccountSecurity({ setSnackbar }) {
                 minWidth: 200,
                 mt: 1
               }
-            }}
+            } }}
           >
             <MenuItem onClick={() => { fileInputRef.current.click(); handleAvatarClose(); }}>
               Upload from Device
@@ -1722,12 +1722,12 @@ export default function AccountSecurity({ setSnackbar }) {
         onClose={() => setMockSsoOpen(false)}
         maxWidth="xs"
         fullWidth
-        PaperProps={{
+        slotProps={{ paper: {
           elevation: 6,
           sx: {
             borderRadius: 3
           }
-        }}
+        } }}
       >
         <DialogTitle sx={{ textAlign: 'center', pt: 3, pb: 1 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
@@ -1799,12 +1799,12 @@ export default function AccountSecurity({ setSnackbar }) {
       <Dialog 
         open={urlDialogOpen} 
         onClose={() => setUrlDialogOpen(false)}
-        PaperProps={{
+        slotProps={{ paper: {
           sx: {
             borderRadius: '16px',
             border: '1px solid rgba(255, 255, 255, 0.08)'
           }
-        }}
+        } }}
       >
         <DialogTitle>Use Image URL</DialogTitle>
         <form onSubmit={handleUrlSubmit}>
