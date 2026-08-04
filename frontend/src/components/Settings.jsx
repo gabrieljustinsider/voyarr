@@ -671,9 +671,8 @@ export default function Settings() {
 
   const handleSyncManager = async (provider, direction) => {
     try {
-      const res = await apiFetch(`/settings/sync/${provider}`, {
-        method: 'POST',
-        body: JSON.stringify({ direction })
+      const res = await apiFetch(`/credentials/sync/${provider}/${direction}`, {
+        method: 'POST'
       })
       if (res.ok) {
         setSnackbar({ open: true, message: `Sync initiated for ${provider}`, severity: 'success' })
