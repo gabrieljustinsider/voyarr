@@ -23,60 +23,111 @@ class OnePasswordService(CredentialServiceBase):
         return host_val, token_val, vault_id_val
 
     @staticmethod
-    def list_login_items(db: Session) -> list[dict]:
-        """Return LOGIN items available in the configured vault (without secret field values)."""
-        host, token, vault_id = OnePasswordService.get_config(db)
-        if not all([host, token, vault_id]):
-            raise ValueError("1Password Connect integration is not fully configured.")
+    def list_accessible_vaults(db: Session) -> list[dict[str, str]]:
+        """Return all vaults the configured Connect token can access."""
+        host, token, _ = OnePasswordService.get_config(db)
+        if not all([host, token]):
+            raise ValueError("1Password Connect host and token must be configured first.")
 
         headers = {"Authorization": f"Bearer {token}"}
         res = requests.get(
-            f"{host.rstrip('/')}/v1/vaults/{vault_id}/items",
+            f"{host.rstrip('/')}/v1/vaults",
             headers=headers,
             timeout=10,
         )
         res.raise_for_status()
 
-        items = []
-        for summary in res.json():
-            if not isinstance(summary, dict):
-                continue
-            if summary.get("category") != "LOGIN":
-                continue
-            fields = summary.get("fields") or []
-            field_map = {
-                f.get("id"): f.get("value", "")
-                for f in fields
-                if isinstance(f, dict)
-            }
-            item_id = summary.get("id")
-            items.append(
-                {
-                    "id": item_id,
-                    "title": summary.get("title", ""),
-                    "username": field_map.get("username", ""),
-                    "url": field_map.get("url", ""),
-                }
-            )
-        return items
+        vaults = []
+        for v in res.json():
+            if isinstance(v, dict) and v.get("id"):
+                vaults.append({"id": v["id"], "name": v.get("name") or v["id"]})
+        return vaults
 
     @staticmethod
-    def get_item_fields(db: Session, item_id: str) -> dict[str, str]:
-        """Fetch a single item's fields (with secret values) from the configured vault."""
-        host, token, vault_id = OnePasswordService.get_config(db)
-        if not all([host, token, vault_id]):
+    def list_login_items(db: Session, vault_id_override: str | None = None) -> list[dict]:
+        """Return LOGIN items across the accessible vaults (or a single vault if overridden).
+
+        Each item is tagged with its source vault id so it can be linked/looked up later.
+        Secret field values are not included.
+        """
+        host, token, _ = OnePasswordService.get_config(db)
+        if not all([host, token]):
             raise ValueError("1Password Connect integration is not fully configured.")
 
         headers = {"Authorization": f"Bearer {token}"}
+        host = host.rstrip("/")
+
+        if vault_id_override:
+            vault_ids = [vault_id_override]
+        else:
+            # Search all accessible vaults so items surface regardless of the configured default.
+            vault_ids = [v["id"] for v in OnePasswordService.list_accessible_vaults(db)]
+
+        items = []
+        for vid in vault_ids:
+            try:
+                res = requests.get(
+                    f"{host}/v1/vaults/{vid}/items",
+                    headers=headers,
+                    timeout=10,
+                )
+                if not res.ok:
+                    continue
+            except requests.RequestException:
+                continue
+
+            for summary in res.json():
+                if not isinstance(summary, dict):
+                    continue
+                if summary.get("category") != "LOGIN":
+                    continue
+                fields = summary.get("fields") or []
+                field_map = {
+                    f.get("id"): f.get("value", "")
+                    for f in fields
+                    if isinstance(f, dict)
+                }
+                item_id = summary.get("id")
+                items.append(
+                    {
+                        "id": item_id,
+                        "vault_id": vid,
+                        "title": summary.get("title", ""),
+                        "username": field_map.get("username", ""),
+                        "url": field_map.get("url", ""),
+                    }
+                )
+        return items
+
+    @staticmethod
+    def get_item_fields(db: Session, item_id: str, vault_id: str | None = None) -> dict[str, str]:
+        """Fetch a single item's fields (with secret values).
+
+        Uses the explicit vault_id if provided (item may live in a non-default vault),
+        otherwise falls back to the configured vault. The source vault is included in
+        the returned dict under the key ``vault_id``.
+        """
+        host, token, configured_vault = OnePasswordService.get_config(db)
+        if not all([host, token]):
+            raise ValueError("1Password Connect integration is not fully configured.")
+
+        host = host.rstrip("/")
+        headers = {"Authorization": f"Bearer {token}"}
+
+        if not vault_id:
+            if not configured_vault:
+                raise ValueError("1Password Connect vault is not configured.")
+            vault_id = configured_vault
+
         res = requests.get(
-            f"{host.rstrip('/')}/v1/vaults/{vault_id}/items/{item_id}",
+            f"{host}/v1/vaults/{vault_id}/items/{item_id}",
             headers=headers,
             timeout=10,
         )
         res.raise_for_status()
         item = res.json()
 
-        fields: dict[str, str] = {}
+        fields: dict[str, str] = {"vault_id": vault_id}
         for field in item.get("fields") or []:
             if not isinstance(field, dict):
                 continue

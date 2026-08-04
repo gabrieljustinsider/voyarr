@@ -541,7 +541,7 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
     try {
       const res = await apiFetch(`/credentials/${activeProvider.id}/link`, {
         method: 'POST',
-        body: JSON.stringify({ item_id: selectedOpItem.id })
+        body: JSON.stringify({ item_id: selectedOpItem.id, vault_id: selectedOpItem.vault_id || null })
       })
       if (res.ok) {
         setLinkedItemId(selectedOpItem.id)
@@ -1493,11 +1493,28 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
                   fullWidth
                   size="small"
                   options={opItems}
-                  getOptionLabel={(it) => it?.title || ''}
+                  getOptionLabel={(it) => it?.vault_name ? `${it.title} (${it.vault_name})` : (it?.title || '')}
                   loading={opItemsLoading}
                   value={selectedOpItem || null}
                   onChange={(e, val) => setSelectedOpItem(val)}
                   onOpen={loadOpItems}
+                  renderOption={(props, it) => (
+                    <Box component="li" {...props}>
+                      <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {it?.title || ''}
+                        </Typography>
+                        {it?.username && (
+                          <Typography variant="caption" color="text.secondary">
+                            {it.username}
+                          </Typography>
+                        )}
+                      </Box>
+                      {it?.vault_name && (
+                        <Chip label={it.vault_name} size="small" sx={{ ml: 1, fontSize: '0.65rem' }} />
+                      )}
+                    </Box>
+                  )}
                   renderInput={(params) => (
                     <TextField
                       {...params}

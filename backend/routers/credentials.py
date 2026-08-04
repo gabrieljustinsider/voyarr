@@ -120,6 +120,7 @@ def delete_credential(provider_id: int, db: Session = Depends(get_db)):
 
 class LinkRequest(BaseModel):
     item_id: str
+    vault_id: str | None = None
 
 
 class TotpRequest(BaseModel):
@@ -140,7 +141,7 @@ def link_credential(provider_id: int, req: LinkRequest, db: Session = Depends(ge
         raise HTTPException(status_code=404, detail="Provider not found")
 
     try:
-        fields = OnePasswordService.get_item_fields(db, req.item_id)
+        fields = OnePasswordService.get_item_fields(db, req.item_id, req.vault_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -161,7 +162,7 @@ def link_credential(provider_id: int, req: LinkRequest, db: Session = Depends(ge
         db_cred.sync_source = "1password"
 
     db_cred.external_item_id = req.item_id
-    db_cred.external_vault_id = None
+    db_cred.external_vault_id = fields.get("vault_id") or req.vault_id
 
     from services.credential_vault import set_fields
     set_fields(db, db_cred.id, {"username": username, "password": password})
@@ -187,7 +188,9 @@ def refresh_credential(provider_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="This credential is not linked to a 1Password item.")
 
     try:
-        fields = OnePasswordService.get_item_fields(db, db_cred.external_item_id)
+        fields = OnePasswordService.get_item_fields(
+            db, db_cred.external_item_id, db_cred.external_vault_id
+        )
     except Exception as e:
         print(f"Failed to refresh 1Password item: {e}")
         raise HTTPException(status_code=502, detail="Failed to refresh from 1Password.")

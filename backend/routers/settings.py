@@ -67,6 +67,13 @@ def list_op_vaults(db: Session = Depends(get_db)):
 def list_op_items(db: Session = Depends(get_db)):
     try:
         items = OnePasswordService.list_login_items(db)
+        try:
+            vaults = OnePasswordService.list_accessible_vaults(db)
+        except Exception:
+            vaults = []
+        vault_names = {v["id"]: v["name"] for v in vaults}
+        for item in items:
+            item["vault_name"] = vault_names.get(item.get("vault_id", ""), "")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except requests.RequestException as e:
