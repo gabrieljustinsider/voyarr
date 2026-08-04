@@ -63,6 +63,21 @@ def list_op_vaults(db: Session = Depends(get_db)):
     return {"vaults": vaults}
 
 
+@router.get("/op/items")
+def list_op_items(db: Session = Depends(get_db)):
+    try:
+        items = OnePasswordService.list_login_items(db)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except requests.RequestException as e:
+        logger.warning("Failed to reach 1Password Connect: %s", e)
+        raise HTTPException(status_code=503, detail="Could not reach the 1Password Connect server.")
+    except Exception as e:
+        logger.warning("1Password Connect returned an error: %s", e)
+        raise HTTPException(status_code=502, detail="1Password Connect returned an unexpected error.")
+    return {"items": items}
+
+
 @router.get("")
 def get_settings(db: Session = Depends(get_db)):
     settings = db.query(Settings).all()

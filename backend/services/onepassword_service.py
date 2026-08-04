@@ -23,6 +23,73 @@ class OnePasswordService(CredentialServiceBase):
         return host_val, token_val, vault_id_val
 
     @staticmethod
+    def list_login_items(db: Session) -> list[dict]:
+        """Return LOGIN items available in the configured vault (without secret field values)."""
+        host, token, vault_id = OnePasswordService.get_config(db)
+        if not all([host, token, vault_id]):
+            raise ValueError("1Password Connect integration is not fully configured.")
+
+        headers = {"Authorization": f"Bearer {token}"}
+        res = requests.get(
+            f"{host.rstrip('/')}/v1/vaults/{vault_id}/items",
+            headers=headers,
+            timeout=10,
+        )
+        res.raise_for_status()
+
+        items = []
+        for summary in res.json():
+            if not isinstance(summary, dict):
+                continue
+            if summary.get("category") != "LOGIN":
+                continue
+            fields = summary.get("fields") or []
+            field_map = {
+                f.get("id"): f.get("value", "")
+                for f in fields
+                if isinstance(f, dict)
+            }
+            item_id = summary.get("id")
+            items.append(
+                {
+                    "id": item_id,
+                    "title": summary.get("title", ""),
+                    "username": field_map.get("username", ""),
+                    "url": field_map.get("url", ""),
+                }
+            )
+        return items
+
+    @staticmethod
+    def get_item_fields(db: Session, item_id: str) -> dict[str, str]:
+        """Fetch a single item's fields (with secret values) from the configured vault."""
+        host, token, vault_id = OnePasswordService.get_config(db)
+        if not all([host, token, vault_id]):
+            raise ValueError("1Password Connect integration is not fully configured.")
+
+        headers = {"Authorization": f"Bearer {token}"}
+        res = requests.get(
+            f"{host.rstrip('/')}/v1/vaults/{vault_id}/items/{item_id}",
+            headers=headers,
+            timeout=10,
+        )
+        res.raise_for_status()
+        item = res.json()
+
+        fields: dict[str, str] = {}
+        for field in item.get("fields") or []:
+            if not isinstance(field, dict):
+                continue
+            ftype = field.get("type", "")
+            value = field.get("value", "") or ""
+            ftype_l = ftype.lower()
+            if ftype_l in ("username", "otp", "totp"):
+                fields[ftype_l] = str(value)
+            elif ftype_l == "password" or field.get("purpose") == "PASSWORD":
+                fields["password"] = str(value)
+        return fields
+
+    @staticmethod
     def push_credentials(db: Session):
         host, token, vault_id = OnePasswordService.get_config(db)
         if not all([host, token, vault_id]):
@@ -170,23 +237,8 @@ class OnePasswordService(CredentialServiceBase):
                     cred.sync_source = "1password"
 
                 # Safely sync to encrypted Vault table
-                for key, val in [("username", username), ("password", password)]:
-                    v = (
-                        db.query(Vault)
-                        .filter_by(entity_type="credential", entity_id=cred.id, key=key)
-                        .first()
-                    )
-                    if v:
-                        v.encrypted_value = encrypt_data(val)
-                    else:
-                        db.add(
-                            Vault(
-                                entity_type="credential",
-                                entity_id=cred.id,
-                                key=key,
-                                encrypted_value=encrypt_data(val),
-                            )
-                        )
+                from services.credential_vault import set_fields
+                set_fields(db, cred.id, {"username": username, "password": password})
 
                 db.commit()
                 pulled_count += 1

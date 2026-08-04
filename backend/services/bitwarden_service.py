@@ -158,23 +158,8 @@ class BitwardenService(CredentialServiceBase):
                 else:
                     cred.sync_source = "bitwarden"
 
-                for key, val in [("username", username), ("password", password)]:
-                    v = (
-                        db.query(Vault)
-                        .filter_by(entity_type="credential", entity_id=cred.id, key=key)
-                        .first()
-                    )
-                    if v:
-                        v.encrypted_value = encrypt_data(val)
-                    else:
-                        db.add(
-                            Vault(
-                                entity_type="credential",
-                                entity_id=cred.id,
-                                key=key,
-                                encrypted_value=encrypt_data(val),
-                            )
-                        )
+                from services.credential_vault import set_fields
+                set_fields(db, cred.id, {"username": username, "password": password})
 
                 db.commit()
                 pulled_count += 1

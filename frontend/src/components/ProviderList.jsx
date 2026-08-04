@@ -5,7 +5,7 @@ import {
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, 
   IconButton, Alert, Paper, FormControlLabel, Switch, Avatar,
   Accordion, AccordionSummary, AccordionDetails, Menu, MenuItem, Checkbox, ListItemText, ListItemIcon, Autocomplete,
-  ToggleButton, ToggleButtonGroup, FormControl, InputLabel, Select
+  ToggleButton, ToggleButtonGroup, FormControl, InputLabel, Select, Divider
 } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
 import AddIcon from '@mui/icons-material/Add'
@@ -19,7 +19,7 @@ import BillerList from './BillerList'
 import CookiesManager from './CookiesManager'
 import ScraperTester from './ScraperTester'
 import RecipeEditor from './RecipeEditor'
-import { apiFetch } from '../api'
+import { apiFetch, getErrorMessage } from '../api'
 
 function ProviderCardLogo({ provider }) {
   const [imgError, setImgError] = useState(false)
@@ -121,6 +121,19 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [dailyLimit, setDailyLimit] = useState('')
+
+  // 1Password linking + TOTP state
+  const [linkedItemId, setLinkedItemId] = useState(null)
+  const [hasTotp, setHasTotp] = useState(false)
+  const [opItems, setOpItems] = useState([])
+  const [opItemsLoading, setOpItemsLoading] = useState(false)
+  const [selectedOpItem, setSelectedOpItem] = useState(null)
+  const [totpCode, setTotpCode] = useState('')
+  const [totpSeconds, setTotpSeconds] = useState(0)
+  const [manualTotp, setManualTotp] = useState('')
+  const [signInBusy, setSignInBusy] = useState(false)
+  const [testResult, setTestResult] = useState(null)
+  const linkedItemTitle = linkedItemId ? opItems.find((it) => it.id === linkedItemId)?.title || linkedItemId : null
 
   // Cookie form state
   const [cookieText, setCookieText] = useState('')
@@ -439,6 +452,10 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
     setDailyLimit('')
     setCookieText('')
     setCookieLimit('')
+    setLinkedItemId(null)
+    setHasTotp(false)
+    setSelectedOpItem(null)
+    setTestResult(null)
 
     try {
       const response = await apiFetch(`/credentials/${provider.id}`)
@@ -447,6 +464,12 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
         setUsername(data.username || '')
         setPassword(data.password || '')
         setDailyLimit(data.custom_limits?.daily_downloads || '')
+        setLinkedItemId(data.external_item_id || null)
+        setHasTotp(!!data.has_totp)
+        if (data.external_item_id && opItems.length) {
+          const match = opItems.find((it) => it.id === data.external_item_id)
+          if (match) setSelectedOpItem(match)
+        }
       }
     } catch (err) {
       // 404 expected if no credentials exist yet
@@ -489,6 +512,168 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
       window.dispatchEvent(new CustomEvent('show-toast', { 
         detail: { message: error.message, severity: 'error' } 
       }))
+    }
+  }
+
+  // 1Password linking handlers
+  const loadOpItems = async () => {
+    setOpItemsLoading(true)
+    try {
+      const res = await apiFetch('/settings/op/items')
+      if (res.ok) {
+        const data = await res.json()
+        setOpItems(data.items || [])
+      } else {
+        const errMsg = await getErrorMessage(res, 'Failed to load 1Password items')
+        window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: errMsg, severity: 'error' } }))
+        setOpItems([])
+      }
+    } catch (e) {
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: e.message, severity: 'error' } }))
+      setOpItems([])
+    } finally {
+      setOpItemsLoading(false)
+    }
+  }
+
+  const handleLinkItem = async () => {
+    if (!activeProvider || !selectedOpItem) return
+    try {
+      const res = await apiFetch(`/credentials/${activeProvider.id}/link`, {
+        method: 'POST',
+        body: JSON.stringify({ item_id: selectedOpItem.id })
+      })
+      if (res.ok) {
+        setLinkedItemId(selectedOpItem.id)
+        setHasTotp(true)
+        window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Credential linked to 1Password item.', severity: 'success' } }))
+        // reload stored values to show the fetched username
+        const credRes = await apiFetch(`/credentials/${activeProvider.id}`)
+        if (credRes.ok) {
+          const data = await credRes.json()
+          setUsername(data.username || '')
+          setPassword(data.password || '')
+          setHasTotp(!!data.has_totp)
+        }
+      } else {
+        const errMsg = await getErrorMessage(res, 'Failed to link credential')
+        window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: errMsg, severity: 'error' } }))
+      }
+    } catch (e) {
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: e.message, severity: 'error' } }))
+    }
+  }
+
+  const handleRefreshLink = async () => {
+    if (!activeProvider) return
+    try {
+      const res = await apiFetch(`/credentials/${activeProvider.id}/refresh`, { method: 'POST' })
+      const msg = res.ok ? 'Credential refreshed from 1Password.' : await getErrorMessage(res, 'Failed to refresh credential')
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: msg, severity: res.ok ? 'success' : 'error' } }))
+    } catch (e) {
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: e.message, severity: 'error' } }))
+    }
+  }
+
+  const handleUnlink = async () => {
+    if (!activeProvider) return
+    try {
+      const res = await apiFetch(`/credentials/${activeProvider.id}/unlink`, { method: 'POST' })
+      const msg = res.ok ? 'Credential unlinked (stored copy kept).' : await getErrorMessage(res, 'Failed to unlink credential')
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: msg, severity: res.ok ? 'success' : 'error' } }))
+      if (res.ok) {
+        setLinkedItemId(null)
+        setSelectedOpItem(null)
+      }
+    } catch (e) {
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: e.message, severity: 'error' } }))
+    }
+  }
+
+  const handleSaveManualTotp = async () => {
+    if (!activeProvider || !manualTotp) return
+    try {
+      const res = await apiFetch(`/credentials/${activeProvider.id}/totp`, {
+        method: 'POST',
+        body: JSON.stringify({ secret: manualTotp })
+      })
+      const msg = res.ok ? 'TOTP secret stored.' : await getErrorMessage(res, 'Failed to store TOTP')
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: msg, severity: res.ok ? 'success' : 'error' } }))
+      if (res.ok) {
+        setHasTotp(true)
+        setManualTotp('')
+      }
+    } catch (e) {
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: e.message, severity: 'error' } }))
+    }
+  }
+
+  const handleDeleteTotp = async () => {
+    if (!activeProvider) return
+    try {
+      const res = await apiFetch(`/credentials/${activeProvider.id}/totp`, { method: 'DELETE' })
+      const msg = res.ok ? 'TOTP secret removed.' : await getErrorMessage(res, 'Failed to remove TOTP')
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: msg, severity: res.ok ? 'success' : 'error' } }))
+      if (res.ok) {
+        setHasTotp(false)
+        setTotpCode('')
+      }
+    } catch (e) {
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: e.message, severity: 'error' } }))
+    }
+  }
+
+  const handleGetTotpCode = async () => {
+    if (!activeProvider) return
+    try {
+      const res = await apiFetch(`/credentials/${activeProvider.id}/totp/code`, { method: 'POST' })
+      if (res.ok) {
+        const data = await res.json()
+        setTotpCode(data.code)
+        setTotpSeconds(data.seconds_remaining || 0)
+      } else {
+        const errMsg = await getErrorMessage(res, 'Failed to generate code')
+        window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: errMsg, severity: 'error' } }))
+      }
+    } catch (e) {
+      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: e.message, severity: 'error' } }))
+    }
+  }
+
+  const handleTestSignIn = async () => {
+    if (!activeProvider) return
+    setSignInBusy(true)
+    setTestResult(null)
+    try {
+      const res = await apiFetch(`/credentials/${activeProvider.id}/test`, { method: 'POST' })
+      if (res.ok) {
+        setTestResult(await res.json())
+      } else {
+        setTestResult({ status: 'error', message: await getErrorMessage(res, 'Sign-in test failed') })
+      }
+    } catch (e) {
+      setTestResult({ status: 'error', message: e.message })
+    } finally {
+      setSignInBusy(false)
+    }
+  }
+
+  const handleSignIn = async () => {
+    if (!activeProvider) return
+    setSignInBusy(true)
+    setTestResult(null)
+    try {
+      const res = await apiFetch(`/credentials/${activeProvider.id}/sign-in`, { method: 'POST' })
+      if (res.ok) {
+        setTestResult(await res.json())
+        fetchCookies()
+      } else {
+        setTestResult({ status: 'error', message: await getErrorMessage(res, 'Sign-in failed') })
+      }
+    } catch (e) {
+      setTestResult({ status: 'error', message: e.message })
+    } finally {
+      setSignInBusy(false)
     }
   }
 
@@ -1299,6 +1484,55 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
               <Typography variant="body2" color="text.secondary" paragraph>
                 Configure credentials to let Voyarr query metadata, index search categories, and authenticate API connections contextually.
               </Typography>
+
+              <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mt: 1 }}>
+                Link from 1Password
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <Autocomplete
+                  fullWidth
+                  size="small"
+                  options={opItems}
+                  getOptionLabel={(it) => it?.title || ''}
+                  loading={opItemsLoading}
+                  value={selectedOpItem || null}
+                  onChange={(e, val) => setSelectedOpItem(val)}
+                  onOpen={loadOpItems}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="1Password login items"
+                      placeholder={linkedItemId ? 'Linked to an item' : 'Search items...'}
+                      slotProps={{ input: params.InputProps }}
+                    />
+                  )}
+                />
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={handleLinkItem}
+                  disabled={!selectedOpItem || opItemsLoading}
+                  startIcon={<LinkIcon size={16} />}
+                >
+                  Link
+                </Button>
+                {linkedItemId && (
+                  <Button variant="outlined" color="secondary" onClick={handleRefreshLink}>
+                    Refresh
+                  </Button>
+                )}
+              </Box>
+
+              {linkedItemId ? (
+                <Alert severity="success" sx={{ mt: 1 }} onClose={handleUnlink}>
+                  Linked to 1Password item{linkedItemTitle ? `: ${linkedItemTitle}` : ''}. Credentials are encrypted locally.
+                </Alert>
+              ) : (
+                <Typography variant="caption" color="text.secondary">
+                  No 1Password item linked. Credentials below are saved locally.
+                </Typography>
+              )}
+
               <TextField
                 fullWidth
                 label="Username"
@@ -1330,6 +1564,58 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
                   Save Credentials
                 </Button>
               </Box>
+
+              <Divider sx={{ my: 2 }} />
+              <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+                Two-Factor Authentication (TOTP)
+              </Typography>
+              {hasTotp ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                  <Typography variant="h6" sx={{ fontFamily: 'monospace', letterSpacing: 3 }}>
+                    {totpCode || '------'}
+                  </Typography>
+                  <Button size="small" variant="outlined" onClick={handleGetTotpCode}>
+                    Show Code {totpSeconds > 0 ? `(${totpSeconds}s)` : ''}
+                  </Button>
+                  <Button size="small" color="error" onClick={handleDeleteTotp}>
+                    Remove
+                  </Button>
+                </Box>
+              ) : (
+                <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="TOTP secret or otpauth:// URL (manual)"
+                    value={manualTotp}
+                    onChange={(e) => setManualTotp(e.target.value)}
+                  />
+                  <Button onClick={handleSaveManualTotp} variant="outlined" disabled={!manualTotp}>
+                    Save
+                  </Button>
+                </Box>
+              )}
+
+              <Divider sx={{ my: 2 }} />
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <Button
+                  variant="contained"
+                  color="secondary"
+                  onClick={handleSignIn}
+                  disabled={signInBusy}
+                  startIcon={<LinkIcon size={16} />}
+                >
+                  {signInBusy ? 'Working...' : 'Sign In & Get Session'}
+                </Button>
+                <Button variant="outlined" onClick={handleTestSignIn} disabled={signInBusy}>
+                  Test Sign-in
+                </Button>
+              </Box>
+              {testResult && (
+                <Alert severity={testResult.status === 'success' ? 'success' : testResult.status === 'error' ? 'error' : 'info'} sx={{ mt: 1 }}>
+                  {testResult.message || testResult.status}
+                </Alert>
+              )}
             </Box>
           )}
 

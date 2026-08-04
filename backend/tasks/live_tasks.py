@@ -98,15 +98,11 @@ def record_live_stream_task(self: Any, stream_id: int) -> None:
                         cookies_injected = True
 
             # Check for credential user/pass to pass as headers or plugin args if needed
-            cred_obj = db.query(Credential).filter(Credential.provider_id == matched_provider.id).first()
-            if cred_obj:
-                vault_items = db.query(Vault).filter_by(entity_type="credential", entity_id=cred_obj.id).all()
-                vault_dict = {str(item.key): decrypt_data(str(item.encrypted_value)) for item in vault_items if item.encrypted_value}  # type: ignore
-                user = vault_dict.get("username")
-                pwd = vault_dict.get("password")
-                if user and pwd:
-                    # Streamlink plugins often accept credentials as custom args or HTTP basic auth
-                    cmd.extend(["--http-header", f"Authorization=Basic {user}:{pwd}"])
+            from services.credential_vault import get_username_password
+            user, pwd = get_username_password(db, matched_provider.id)
+            if user and pwd:
+                # Streamlink plugins often accept credentials as custom args or HTTP basic auth
+                cmd.extend(["--http-header", f"Authorization=Basic {user}:{pwd}"])
 
         if cookie_entry and cookie_entry.encrypted_value and not cookies_injected:  # type: ignore
             cookies_val = decrypt_data(str(cookie_entry.encrypted_value))

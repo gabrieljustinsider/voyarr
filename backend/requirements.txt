@@ -33,6 +33,7 @@ argon2-cffi
 authlib
 itsdangerous
 PyNaCl
+pyotp
 
 # Integrations & External API Requests (StashDB, 1Password, Webhooks)
 httpx
