@@ -37,7 +37,7 @@
     "jest": "^30.4.2",
     "ts-jest": "^29.4.12",
     "typescript": "^6.0.3",
-    "wrangler": "^4.115.0"
+    "wrangler": "^4.118.0"
   },
   "overrides": {
     "brace-expansion": "^5.0.8",
