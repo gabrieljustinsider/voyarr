@@ -330,7 +330,7 @@ def sync_credential_manager(
     OnePasswordService.register(_registry)
     BitwardenService.register(_registry)
 
-    service = _registry.get(manager)
+    service = _registry.get(manager) or _registry.get({"1password": "onepassword"}.get(manager))
     if service is None:
         raise HTTPException(
             status_code=400,

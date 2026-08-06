@@ -746,9 +746,19 @@ def submit_stashdb_fingerprint(
         }
     }
 
-    # Simulate submission response since we don't want to actually push dummy data to prod StashDB
-    # In a real scenario, this would be uncommented:
-    # res = requests.post("https://stashdb.org/graphql", json={"query": mutation, "variables": variables}, headers=headers)
+    try:
+        res = requests.post(
+            "https://stashdb.org/graphql",
+            json={"query": mutation, "variables": variables},
+            headers=headers,
+            timeout=10,
+        )
+        res.raise_for_status()
+    except requests.RequestException as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Failed to submit fingerprint to StashDB: {str(e)}",
+        )
 
     return {
         "message": f"Successfully submitted {req.algorithm} fingerprint {req.hash} to StashDB scene {req.scene_id}"
