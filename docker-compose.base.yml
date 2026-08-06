@@ -65,10 +65,10 @@ services:
       - ${HOST_MEDIA_PATH_3:-./media_alt2}:/media/storage_alt2
     healthcheck:
       test: python -c "from urllib.request import urlopen; exit(0) if urlopen('http://localhost:8000/health').status == 200 else exit(1)"
-      interval: 15s
+      interval: 10s
       timeout: 5s
-      retries: 3
-      start_period: 10s
+      retries: 5
+      start_period: 30s
     networks:
       - voyarr_network
 

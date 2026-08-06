@@ -25,10 +25,10 @@ if DATABASE_URL.startswith("sqlite"):
 else:
     engine = create_engine(
         DATABASE_URL,
-        pool_size=20,
-        max_overflow=10,
-        pool_timeout=30,
-        pool_recycle=120,
+        pool_size=int(os.getenv("DB_POOL_SIZE", "10")),
+        max_overflow=int(os.getenv("DB_MAX_OVERFLOW", "15")),
+        pool_timeout=int(os.getenv("DB_POOL_TIMEOUT", "15")),
+        pool_recycle=int(os.getenv("DB_POOL_RECYCLE", "60")),
         pool_pre_ping=True,
         connect_args={
             "keepalives": 1,
