@@ -6,6 +6,14 @@ import {
 import HelpIcon from '@mui/icons-material/Help'
 import AddIcon from '@mui/icons-material/Add'
 import CloseIcon from '@mui/icons-material/Close'
+import CloudUploadIcon from '@mui/icons-material/CloudUpload'
+import CloudDownloadIcon from '@mui/icons-material/CloudDownload'
+import SaveIcon from '@mui/icons-material/Save'
+import LockIcon from '@mui/icons-material/Lock'
+import ShieldIcon from '@mui/icons-material/Shield'
+import CheckCircleIcon from '@mui/icons-material/CheckCircle'
+import ErrorIcon from '@mui/icons-material/Error'
+import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import { apiFetch } from '../api'
 
 const STORAGE_KEY = 'voyarr_credential_managers'
@@ -20,11 +28,12 @@ const HelpChip = ({ help, color, accent }) => (
       sx={{
         height: 20,
         fontSize: '0.68rem',
-        fontWeight: 'bold',
-        bgcolor: `rgba(${color}, 0.15)`,
-        color: '#a5b4fc',
-        border: `1px solid rgba(${color}, 0.35)`,
-        '&:hover': { bgcolor: `rgba(${color}, 0.3)` }
+        fontWeight: '700',
+        bgcolor: `rgba(${color}, 0.12)`,
+        color: accent,
+        border: `1px solid rgba(${color}, 0.25)`,
+        backdropFilter: 'blur(8px)',
+        '&:hover': { bgcolor: `rgba(${color}, 0.25)` }
       }}
     />
   </Tooltip>
@@ -32,16 +41,16 @@ const HelpChip = ({ help, color, accent }) => (
 
 const FieldLabel = ({ label, help, color, accent }) => (
   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}>
-    <Typography variant="caption" sx={{ fontWeight: '700', color: '#cbd5e1', ml: 0.5 }}>
+    <Typography variant="caption" sx={{ fontWeight: '700', color: '#cbd5e1', ml: 0.5, letterSpacing: '0.02em' }}>
       {label}
     </Typography>
     <HelpChip help={help} color={color} accent={accent} />
   </Box>
 )
 
-const HelpField = ({ field, value, onChange }) => (
-  <Box>
-    <FieldLabel label={field.label} help={field.help} color={field.color} accent={field.accent} />
+const HelpField = ({ field, value, onChange, accent, color }) => (
+  <Box sx={{ mb: 1.5 }}>
+    <FieldLabel label={field.label} help={field.help} color={color} accent={accent} />
     <TextField
       fullWidth
       size="small"
@@ -52,14 +61,33 @@ const HelpField = ({ field, value, onChange }) => (
       value={value || ''}
       onChange={onChange}
       helperText={field.helperText}
-      sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+      FormHelperTextProps={{ sx: { color: 'rgba(255,255,255,0.4)', fontSize: '0.72rem', ml: 0.5 } }}
+      sx={{
+        '& .MuiOutlinedInput-root': {
+          borderRadius: '12px',
+          backgroundColor: 'rgba(0, 0, 0, 0.25)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          transition: 'all 0.2s ease-in-out',
+          color: '#f8fafc',
+          fontSize: '0.85rem',
+          '&:hover': {
+            borderColor: `rgba(${color}, 0.4)`,
+            backgroundColor: 'rgba(0, 0, 0, 0.35)'
+          },
+          '&.Mui-focused': {
+            borderColor: accent,
+            boxShadow: `0 0 0 3px rgba(${color}, 0.15)`,
+            backgroundColor: 'rgba(0, 0, 0, 0.4)'
+          }
+        }
+      }}
     />
   </Box>
 )
 
-const SelectField = ({ field, items, loading, error, value, onChange }) => (
-  <Box>
-    <FieldLabel label={field.label} help={field.help} color={field.color} accent={field.accent} />
+const SelectField = ({ field, items, loading, error, value, onChange, accent, color }) => (
+  <Box sx={{ mb: 1.5 }}>
+    <FieldLabel label={field.label} help={field.help} color={color} accent={accent} />
     <Autocomplete
       freeSolo
       size="small"
@@ -76,9 +104,11 @@ const SelectField = ({ field, items, loading, error, value, onChange }) => (
       renderOption={(props, option) => {
         const { key, ...optionProps } = props
         return (
-          <Box component="li" key={key || option.id} {...optionProps} sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>{option.name}</Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ ml: 1, fontFamily: 'monospace' }}>({option.id})</Typography>
+          <Box component="li" key={key || option.id} {...optionProps} sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', py: 1 }}>
+            <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#f1f5f9' }}>{option.name}</Typography>
+            <Typography variant="caption" sx={{ ml: 1, fontFamily: 'monospace', color: accent, bgcolor: `rgba(${color}, 0.12)`, px: 1, py: 0.2, borderRadius: '6px' }}>
+              {option.id}
+            </Typography>
           </Box>
         )
       }}
@@ -91,18 +121,37 @@ const SelectField = ({ field, items, loading, error, value, onChange }) => (
             placeholder={field.placeholder}
             error={!!error}
             helperText={loading ? field.loadingText : (error || (items.length > 0 ? field.foundText(items.length) : field.emptyText))}
+            FormHelperTextProps={{ sx: { color: error ? '#f87171' : 'rgba(255,255,255,0.4)', fontSize: '0.72rem', ml: 0.5 } }}
             slotProps={{
               input: {
                 ...inputProps,
                 endAdornment: (
                   <InputAdornment position="end">
-                    {loading ? <CircularProgress color="inherit" size={16} sx={{ mr: 1 }} /> : null}
+                    {loading ? <CircularProgress color="inherit" size={16} sx={{ mr: 1, color: accent }} /> : null}
                     {inputProps?.endAdornment}
                   </InputAdornment>
                 )
               }
             }}
-            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '12px',
+                backgroundColor: 'rgba(0, 0, 0, 0.25)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                transition: 'all 0.2s ease-in-out',
+                color: '#f8fafc',
+                fontSize: '0.85rem',
+                '&:hover': {
+                  borderColor: `rgba(${color}, 0.4)`,
+                  backgroundColor: 'rgba(0, 0, 0, 0.35)'
+                },
+                '&.Mui-focused': {
+                  borderColor: accent,
+                  boxShadow: `0 0 0 3px rgba(${color}, 0.15)`,
+                  backgroundColor: 'rgba(0, 0, 0, 0.4)'
+                }
+              }
+            }}
           />
         )
       }}
@@ -111,9 +160,7 @@ const SelectField = ({ field, items, loading, error, value, onChange }) => (
 )
 
 /**
- * Registry of supported credential managers. Each entry is fully data-driven so
- * adding a new manager requires only one new entry here (fields, colors, loaders,
- * sync provider, save keys).
+ * Registry of supported credential managers.
  */
 const MANAGERS = [
   {
@@ -122,8 +169,8 @@ const MANAGERS = [
     favicon: '1password.com',
     syncProvider: '1password',
     accent: '#818cf8',
-    background: 'rgba(99, 102, 241, 0.04)',
-    border: 'rgba(99, 102, 241, 0.18)',
+    background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(15, 23, 42, 0.6) 100%)',
+    border: 'rgba(99, 102, 241, 0.25)',
     color: '99, 102, 241',
     channelText: '#6ee7b7',
     loadItems: async () => {
@@ -162,8 +209,8 @@ const MANAGERS = [
     favicon: 'bitwarden.com',
     syncProvider: 'bitwarden',
     accent: '#34d399',
-    background: 'rgba(16, 185, 129, 0.04)',
-    border: 'rgba(16, 185, 129, 0.18)',
+    background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(15, 23, 42, 0.6) 100%)',
+    border: 'rgba(16, 185, 129, 0.25)',
     color: '16, 185, 129',
     channelText: '#6ee7b7',
     loadItems: async (host, token) => {
@@ -214,8 +261,8 @@ export default function CredentialManagerIntegration({ settings, handleChange, n
   const [loadingMap, setLoadingMap] = useState({})
   const [errorMap, setErrorMap] = useState({})
   const [selectValue, setSelectValue] = useState(null)
+  const [syncingMap, setSyncingMap] = useState({})
 
-  // A manager card is shown if explicitly added OR already configured via settings.
   const visible = useManagerList(added, settings)
   const available = MANAGERS.filter(m => !visible.includes(m.key))
 
@@ -233,7 +280,6 @@ export default function CredentialManagerIntegration({ settings, handleChange, n
         .catch(() => { setItemsMap(p => ({ ...p, [key]: [] })); setErrorMap(p => ({ ...p, [key]: `Couldn't reach ${manager.label}. Check the host and token.` })) })
         .finally(() => setLoadingMap(p => ({ ...p, [key]: false })))
     })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible.join('|'), JSON.stringify([settings.op_connect_host, settings.op_connect_token, settings.bw_connect_host, settings.bw_session_token])])
 
   const addManager = (key) => {
@@ -241,6 +287,7 @@ export default function CredentialManagerIntegration({ settings, handleChange, n
     setAdded(next)
     writeStored(next)
   }
+
   const removeManager = (manager) => {
     const next = added.filter(k => k !== manager.key)
     setAdded(next)
@@ -257,29 +304,59 @@ export default function CredentialManagerIntegration({ settings, handleChange, n
     Promise.all(manager.saveKeys.map(k =>
       apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: k, value: String(settings[k] ?? '') }) })
     )).then(results => {
-      if (results.every(r => r.ok)) notify(`${manager.label} settings saved!`, 'success')
+      if (results.every(r => r.ok)) notify(`${manager.label} settings saved successfully!`, 'success')
       else notify(`Some ${manager.label} settings failed to save.`, 'warning')
     }).catch(() => notify(`Failed to save ${manager.label} settings.`, 'error'))
   }
 
+  const triggerSync = (manager, direction) => {
+    setSyncingMap(p => ({ ...p, [`${manager.key}_${direction}`]: true }))
+    Promise.resolve(handleSyncManager(manager.syncProvider, direction))
+      .finally(() => setSyncingMap(p => ({ ...p, [`${manager.key}_${direction}`]: false })))
+  }
+
   return (
     <Paper sx={{
-      p: 3, mb: 3, borderRadius: '16px',
-      background: 'rgba(15, 23, 42, 0.4)',
-      backdropFilter: 'blur(12px)',
-      border: '1px solid rgba(255, 255, 255, 0.08)',
-      boxShadow: '0 8px 32px rgba(0,0,0,0.25)'
+      p: { xs: 2.5, md: 4 },
+      mb: 4,
+      borderRadius: '24px',
+      background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.75) 0%, rgba(2, 6, 23, 0.85) 100%)',
+      backdropFilter: 'blur(20px)',
+      border: '1px solid rgba(255, 255, 255, 0.1)',
+      boxShadow: '0 20px 50px rgba(0,0,0,0.4)',
+      position: 'relative',
+      overflow: 'hidden'
     }}>
-      <Box sx={{ textAlign: 'center', mb: 2 }}>
-        <Typography variant="h6" sx={{ fontWeight: '700' }}>Password Vault Integrations</Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          Securely sync Voyarr credentials with external password managers (1Password Connect or Bitwarden / Vaultwarden CLI server).
+      {/* Decorative Glow Ambient Element */}
+      <Box sx={{
+        position: 'absolute',
+        top: -100,
+        right: -100,
+        width: 300,
+        height: 300,
+        borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, rgba(0,0,0,0) 70%)',
+        pointerEvents: 'none'
+      }} />
+
+      <Box sx={{ textAlign: 'center', mb: 3, position: 'relative', zIndex: 1 }}>
+        <Stack direction="row" alignItems="center" justifyContent="center" spacing={1.5} sx={{ mb: 1 }}>
+          <Box sx={{ p: 1, borderRadius: '12px', bgcolor: 'rgba(99, 102, 241, 0.15)', border: '1px solid rgba(99, 102, 241, 0.3)' }}>
+            <ShieldIcon sx={{ color: '#818cf8', fontSize: 24 }} />
+          </Box>
+          <Typography variant="h5" sx={{ fontWeight: '900', color: '#f8fafc', tracking: '-0.02em' }}>
+            Password Vault Integrations
+          </Typography>
+        </Stack>
+        <Typography variant="body2" sx={{ color: '#94a3b8', maxWidth: 650, mx: 'auto', lineHeight: 1.6 }}>
+          Securely synchronize Voyarr application credentials, tokens, and storage secrets directly with enterprise password managers (1Password Connect or Bitwarden / Vaultwarden CLI server).
         </Typography>
       </Box>
-      <Divider sx={{ mb: 3, borderColor: 'rgba(255, 255, 255, 0.08)' }} />
+
+      <Divider sx={{ mb: 4, borderColor: 'rgba(255, 255, 255, 0.08)' }} />
 
       {available.length > 0 && (
-        <Box sx={{ mb: visible.length > 0 ? 3 : 0 }}>
+        <Box sx={{ mb: visible.length > 0 ? 4 : 0, maxWidth: 600, mx: 'auto' }}>
           <Autocomplete
             size="small"
             options={available}
@@ -289,9 +366,9 @@ export default function CredentialManagerIntegration({ settings, handleChange, n
             renderOption={(props, option) => {
               const { key, ...optionProps } = props
               return (
-                <Box component="li" key={key || option.key} {...optionProps} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
+                <Box component="li" key={key || option.key} {...optionProps} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%', py: 1 }}>
                   <Avatar src={`https://www.google.com/s2/favicons?domain=${option.favicon}&sz=128`} alt={option.label} sx={{ width: 24, height: 24, borderRadius: '6px', bgcolor: 'transparent' }} />
-                  <Typography variant="body2">{option.label}</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: '700', color: '#f1f5f9' }}>{option.label}</Typography>
                 </Box>
               )
             }}
@@ -299,8 +376,18 @@ export default function CredentialManagerIntegration({ settings, handleChange, n
               <TextField
                 {...params}
                 label="Add a credential manager"
-                placeholder="Search for 1Password, Bitwarden..."
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+                placeholder="Search 1Password, Bitwarden..."
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '14px',
+                    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    color: '#f8fafc',
+                    '&:hover': { borderColor: 'rgba(99, 102, 241, 0.4)' },
+                    '&.Mui-focused': { borderColor: '#818cf8', boxShadow: '0 0 0 3px rgba(99, 102, 241, 0.2)' }
+                  },
+                  '& .MuiInputLabel-root': { color: '#94a3b8', fontWeight: '600' }
+                }}
               />
             )}
           />
@@ -308,7 +395,7 @@ export default function CredentialManagerIntegration({ settings, handleChange, n
       )}
 
       {visible.length > 0 && (
-        <Grid container spacing={3} justifyContent="center" sx={{ maxWidth: 1000, mx: 'auto' }}>
+        <Grid container spacing={3} justifyContent="center" sx={{ maxWidth: 1100, mx: 'auto' }}>
           {visible.map((key) => {
             const manager = MANAGERS.find(m => m.key === key)
             if (!manager) return null
@@ -316,38 +403,72 @@ export default function CredentialManagerIntegration({ settings, handleChange, n
             const tokenField = tokenOf(manager)
             const selectField = selectOf(manager)
             const hostConfigured = !!(settings[hostField.name] && settings[tokenField.name])
+            const isError = !!errorMap[key]
+
             return (
               <Grid item xs={12} md={visible.length === 1 ? 12 : 6} key={key}>
                 <Box sx={{
-                  p: 2.5, borderRadius: '14px',
+                  p: { xs: 2.5, sm: 3 },
+                  borderRadius: '20px',
                   position: 'relative',
                   background: manager.background,
                   border: `1px solid ${manager.border}`,
-                  display: 'flex', flexDirection: 'column', gap: 2, height: '100%'
+                  boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 2,
+                  height: '100%',
+                  transition: 'transform 0.3s ease, border-color 0.3s ease',
+                  '&:hover': {
+                    borderColor: manager.accent
+                  }
                 }}>
+                  {/* Remove Manager Button */}
                   <IconButton
                     size="small"
                     onClick={() => removeManager(manager)}
-                    sx={{ position: 'absolute', top: 8, right: 8, color: 'rgba(255,255,255,0.4)', '&:hover': { color: '#ef4444' } }}
+                    sx={{
+                      position: 'absolute',
+                      top: 12,
+                      right: 12,
+                      color: 'rgba(255,255,255,0.4)',
+                      bgcolor: 'rgba(0,0,0,0.2)',
+                      border: '1px solid rgba(255,255,255,0.05)',
+                      '&:hover': { color: '#ef4444', bgcolor: 'rgba(239, 68, 68, 0.15)' }
+                    }}
                     title={`Remove ${manager.label}`}
                   >
                     <CloseIcon sx={{ fontSize: 18 }} />
                   </IconButton>
 
-                  <Stack direction="row" alignItems="center" justifyContent="space-between">
-                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: manager.accent, display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Avatar src={`https://www.google.com/s2/favicons?domain=${manager.favicon}&sz=128`} alt={manager.label} sx={{ width: 26, height: 26, borderRadius: '6px', bgcolor: 'transparent' }} /> {manager.label}
+                  {/* Header Row */}
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ pr: 4 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: '800', color: manager.accent, display: 'flex', alignItems: 'center', gap: 1.25, fontSize: '1.05rem' }}>
+                      <Avatar src={`https://www.google.com/s2/favicons?domain=${manager.favicon}&sz=128`} alt={manager.label} sx={{ width: 28, height: 28, borderRadius: '8px', bgcolor: 'transparent' }} />
+                      {manager.label}
                     </Typography>
                     <Chip
-                      label={hostConfigured ? 'Connected' : 'Setup required'}
+                      icon={hostConfigured ? <CheckCircleIcon sx={{ fontSize: '14px !important', color: '#34d399 !important' }} /> : <ErrorIcon sx={{ fontSize: '14px !important', color: '#cbd5e1 !important' }} />}
+                      label={hostConfigured ? (isError ? 'Error' : 'Connected') : 'Setup required'}
                       size="small"
-                      color={hostConfigured ? 'success' : 'default'}
-                      sx={{ height: 20, fontSize: '0.65rem', fontWeight: 'bold' }}
+                      sx={{
+                        height: 22,
+                        fontSize: '0.68rem',
+                        fontWeight: '800',
+                        textTransform: 'uppercase',
+                        tracking: '0.05em',
+                        bgcolor: hostConfigured ? (isError ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)') : 'rgba(255,255,255,0.05)',
+                        color: hostConfigured ? (isError ? '#f87171' : '#34d399') : '#94a3b8',
+                        border: `1px solid ${hostConfigured ? (isError ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)') : 'rgba(255,255,255,0.1)'}`
+                      }}
                     />
                   </Stack>
 
-                  <HelpField field={hostField} value={settings[hostField.name]} onChange={handleChange} />
-                  <HelpField field={tokenField} value={settings[tokenField.name]} onChange={handleChange} />
+                  <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.06)', my: 0.5 }} />
+
+                  {/* Input Fields */}
+                  <HelpField field={hostField} value={settings[hostField.name]} onChange={handleChange} accent={manager.accent} color={manager.color} />
+                  <HelpField field={tokenField} value={settings[tokenField.name]} onChange={handleChange} accent={manager.accent} color={manager.color} />
                   <SelectField
                     field={selectField}
                     items={itemsMap[key] || []}
@@ -355,20 +476,89 @@ export default function CredentialManagerIntegration({ settings, handleChange, n
                     error={errorMap[key]}
                     value={settings[selectField.name]}
                     onChange={handleChange}
+                    accent={manager.accent}
+                    color={manager.color}
                   />
 
-                  <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mt: 'auto', pt: 1, justifyContent: 'center' }}>
-                    <Button variant="contained" color="primary" size="small" startIcon={<AddIcon />}
+                  {/* Action Bar */}
+                  <Box sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 1.5,
+                    mt: 'auto',
+                    pt: 2,
+                    borderTop: '1px solid rgba(255, 255, 255, 0.06)'
+                  }}>
+                    <Button
+                      variant="contained"
+                      size="small"
+                      startIcon={<SaveIcon />}
                       onClick={() => saveManager(manager)}
-                      sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 'bold', px: 2 }}>
-                      Save {manager.label}
+                      sx={{
+                        borderRadius: '10px',
+                        textTransform: 'none',
+                        fontWeight: '800',
+                        py: 1,
+                        bgcolor: manager.accent,
+                        color: '#0f172a',
+                        boxShadow: `0 4px 14px rgba(${manager.color}, 0.3)`,
+                        '&:hover': {
+                          bgcolor: manager.accent,
+                          filter: 'brightness(1.1)'
+                        }
+                      }}
+                    >
+                      Save {manager.label} Settings
                     </Button>
-                    <Button variant="outlined" color="primary" size="small"
-                      onClick={() => handleSyncManager(manager.syncProvider, 'push')}
-                      sx={{ borderRadius: '8px', textTransform: 'none' }}>Push</Button>
-                    <Button variant="outlined" color="secondary" size="small"
-                      onClick={() => handleSyncManager(manager.syncProvider, 'pull')}
-                      sx={{ borderRadius: '8px', textTransform: 'none' }}>Pull</Button>
+
+                    <Stack direction="row" spacing={1.5} justifyContent="center">
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        disabled={!hostConfigured || syncingMap[`${manager.key}_push`]}
+                        startIcon={syncingMap[`${manager.key}_push`] ? <CircularProgress size={14} color="inherit" /> : <CloudUploadIcon sx={{ fontSize: 16 }} />}
+                        onClick={() => triggerSync(manager, 'push')}
+                        sx={{
+                          flex: 1,
+                          borderRadius: '10px',
+                          textTransform: 'none',
+                          fontWeight: '700',
+                          fontSize: '0.78rem',
+                          color: '#f8fafc',
+                          borderColor: 'rgba(255,255,255,0.15)',
+                          bgcolor: 'rgba(255,255,255,0.03)',
+                          '&:hover': {
+                            borderColor: manager.accent,
+                            bgcolor: `rgba(${manager.color}, 0.1)`
+                          }
+                        }}
+                      >
+                        Push to Vault
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        disabled={!hostConfigured || syncingMap[`${manager.key}_pull`]}
+                        startIcon={syncingMap[`${manager.key}_pull`] ? <CircularProgress size={14} color="inherit" /> : <CloudDownloadIcon sx={{ fontSize: 16 }} />}
+                        onClick={() => triggerSync(manager, 'pull')}
+                        sx={{
+                          flex: 1,
+                          borderRadius: '10px',
+                          textTransform: 'none',
+                          fontWeight: '700',
+                          fontSize: '0.78rem',
+                          color: '#f8fafc',
+                          borderColor: 'rgba(255,255,255,0.15)',
+                          bgcolor: 'rgba(255,255,255,0.03)',
+                          '&:hover': {
+                            borderColor: manager.accent,
+                            bgcolor: `rgba(${manager.color}, 0.1)`
+                          }
+                        }}
+                      >
+                        Pull from Vault
+                      </Button>
+                    </Stack>
                   </Box>
                 </Box>
               </Grid>
@@ -378,9 +568,10 @@ export default function CredentialManagerIntegration({ settings, handleChange, n
       )}
 
       {visible.length === 0 && (
-        <Box sx={{ textAlign: 'center', py: 2 }}>
-          <Typography variant="body2" color="text.secondary">
-            Select a credential manager above to get started.
+        <Box sx={{ textAlign: 'center', py: 4, bgcolor: 'rgba(0,0,0,0.2)', borderRadius: '16px', border: '1px dashed rgba(255,255,255,0.1)' }}>
+          <LockIcon sx={{ fontSize: 40, color: 'rgba(255,255,255,0.2)', mb: 1 }} />
+          <Typography variant="body2" sx={{ color: '#94a3b8', fontWeight: '500' }}>
+            No password managers configured yet. Select a credential manager above to begin.
           </Typography>
         </Box>
       )}
