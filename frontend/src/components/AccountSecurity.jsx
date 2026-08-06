@@ -78,9 +78,6 @@ export default function AccountSecurity({ setSnackbar }) {
 
   // SSO Linking State
   const [ssoLinks, setSsoLinks] = useState([])
-  const [mockSsoOpen, setMockSsoOpen] = useState(false)
-  const [mockSsoProvider, setMockSsoProvider] = useState('')
-  const [mockSsoEmail, setMockSsoEmail] = useState('')
   const [newlyAddedPasskeyId, setNewlyAddedPasskeyId] = useState(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState(null)
 
@@ -454,21 +451,6 @@ export default function AccountSecurity({ setSnackbar }) {
     return window.btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
   }
 
-  const getUsernameFromJwt = () => {
-    const token = localStorage.getItem('voyarr_jwt')
-    if (!token) return 'User'
-    try {
-      const base64Url = token.split('.')[1]
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
-      const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
-          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
-      }).join(''))
-      return JSON.parse(jsonPayload).sub || 'User'
-    } catch {
-      return 'User'
-    }
-  }
-
   const scanAaguid = (attestationObjectBuffer) => {
     const bytes = new Uint8Array(attestationObjectBuffer)
     const pattern = [0x68, 0x61, 0x75, 0x74, 0x68, 0x44, 0x61, 0x74, 0x61] // "authData"
@@ -631,45 +613,6 @@ export default function AccountSecurity({ setSnackbar }) {
   }
 
   // SSO Operations
-  const handleOpenMockSso = (provider) => {
-    setMockSsoProvider(provider)
-    const currentUsername = getUsernameFromJwt().toLowerCase()
-    setMockSsoEmail(`${currentUsername}@${provider}.com`)
-    setMockSsoOpen(true)
-  }
-
-  const handleExecuteMockSso = async () => {
-    setMockSsoOpen(false)
-    try {
-      const array = new Uint32Array(1);
-      window.crypto.getRandomValues(array);
-      const randomStr = array[0].toString(36).substring(0, 8);
-      const providerUserId = `${mockSsoProvider}_usr_${randomStr}`
-      const payload = {
-        provider: mockSsoProvider,
-        provider_user_id: providerUserId,
-        email: mockSsoEmail,
-        token: "mock_sso_oauth_flow_token"
-      }
-      
-      const res = await apiFetch('/auth/sso/link', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      })
-      
-      if (res.ok) {
-        setSnackbar({ open: true, message: `${mockSsoProvider.charAt(0).toUpperCase() + mockSsoProvider.slice(1)} linked successfully!`, severity: 'success' })
-        fetchSsoLinks()
-      } else {
-        const err = await res.json()
-        setSnackbar({ open: true, message: `Failed to link: ${err.detail}`, severity: 'error' })
-      }
-    } catch (err) {
-      console.error(err)
-      setSnackbar({ open: true, message: 'Network error linking SSO.', severity: 'error' })
-    }
-  }
-
   const handleUnlinkSso = async (provider) => {
     try {
       const res = await apiFetch(`/auth/sso/unlink/${provider}`, {
@@ -1715,85 +1658,6 @@ export default function AccountSecurity({ setSnackbar }) {
           </Grid>
         </Grid>
       </Paper>
-
-      {/* Mock SSO Simulated OAuth Dialog */}
-      <Dialog 
-        open={mockSsoOpen} 
-        onClose={() => setMockSsoOpen(false)}
-        maxWidth="xs"
-        fullWidth
-        slotProps={{ paper: {
-          elevation: 6,
-          sx: {
-            borderRadius: 3
-          }
-        } }}
-      >
-        <DialogTitle sx={{ textAlign: 'center', pt: 3, pb: 1 }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-            <Box sx={{ 
-              p: 1.5, 
-              borderRadius: '12px', 
-              backgroundColor: 'rgba(255, 255, 255, 0.05)',
-              display: 'inline-flex',
-              color: 'text.primary'
-            }}>
-              {mockSsoProvider === 'google' && <GoogleSvg />}
-              {mockSsoProvider === 'github' && (
-                <svg viewBox="0 0 24 24" width="20" height="20" style={{ fill: 'currentColor' }}>
-                  <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
-                </svg>
-              )}
-              {mockSsoProvider === 'discord' && (
-                <svg viewBox="0 0 127.14 96.36" width="20" height="20" style={{ fill: '#5865F2' }}>
-                  <path d="M107.7,8.07A105.15,105.15,0,0,0,77.26,0a77.19,77.19,0,0,0-3.3,6.83A96.67,96.67,0,0,0,52.8,6.83,77.19,77.19,0,0,0,49.5,0,105.15,105.15,0,0,0,19.06,8.07C-3.81,42.23-1,75.52,10.6,92.63a105.86,105.86,0,0,0,32,16.15,79,79,0,0,0,6.79-11,68.6,68.6,0,0,1-10.74-5.12c.91-.66,1.8-1.34,2.65-2a75.58,75.58,0,0,0,71.72,0c.85.71,1.74,1.39,2.65,2a75.58,75.58,0,0,0,71.72,0c.85.71,1.74,1.39,2.65,2a68.6,68.6,0,0,1-10.74,5.12,79,79,0,0,0,6.79,11,105.86,105.86,0,0,0,32-16.15C129.5,75.52,132.3,42.23,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53S36.18,40.36,42.45,40.36,53.83,46,53.83,53,48.72,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.24,60,73.24,53S78.41,40.36,84.69,40.36,96.07,46,96.07,53,91,65.69,84.69,65.69Z"/>
-                </svg>
-              )}
-            </Box>
-            <Typography variant="h6" sx={{ fontWeight: 'bold', textTransform: 'capitalize' }}>
-              Sign in with {mockSsoProvider}
-            </Typography>
-            <Typography variant="caption" sx={{ opacity: 0.6 }} color="textSecondary">
-              to continue to <strong>Voyarr Media Server</strong>
-            </Typography>
-          </Box>
-        </DialogTitle>
-        <DialogContent sx={{ px: 3, pb: 1 }}>
-          <Box sx={{ py: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Email Address"
-              type="email"
-              value={mockSsoEmail}
-              onChange={e => setMockSsoEmail(e.target.value)}
-              placeholder="e.g. user@example.com"
-              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-            />
-            <Typography variant="caption" sx={{ opacity: 0.5 }} color="textSecondary">
-              This simulates a secure identity validation callback by coupling your profile with the provider Exit API.
-            </Typography>
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 3, justifyContent: 'space-between' }}>
-          <Button 
-            onClick={() => setMockSsoOpen(false)}
-            variant="text" 
-            sx={{ color: 'text.secondary', textTransform: 'none' }}
-          >
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleExecuteMockSso}
-            variant="contained" 
-            color="primary"
-            disabled={!mockSsoEmail.trim() || !mockSsoEmail.includes('@')}
-            sx={{ borderRadius: '10px', textTransform: 'none', px: 3 }}
-          >
-            Authorize
-          </Button>
-        </DialogActions>
-      </Dialog>
 
       {/* Dialog to input image URL */}
       <Dialog 

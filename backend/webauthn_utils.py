@@ -1,8 +1,11 @@
 import base64
 import hashlib
 import json
+import logging
 import secrets
 from typing import Dict, Any, List
+
+logger = logging.getLogger(__name__)
 
 # AAGUID Metadata dictionary mapping standard authenticators
 AAGUID_METADATA = {
@@ -75,12 +78,39 @@ MOCK_LOCATIONS = [
 ]
 
 
+def _resolve_ip_location_online(ip_address: str):
+    """Perform a real IP geolocation lookup against a keyless HTTPS provider."""
+    try:
+        import requests
+
+        res = requests.get(
+            f"https://ipinfo.io/{ip_address}/json",
+            headers={"User-Agent": "curl/8.0"},
+            timeout=3,
+        )
+        res.raise_for_status()
+        data = res.json()
+        city = (data.get("city") or "").strip()
+        region = (data.get("region") or "").strip()
+        country = (data.get("country") or "").strip()
+        parts = [p for p in (city, region, country) if p]
+        if parts:
+            return ", ".join(parts), data
+    except Exception as e:
+        logger.debug(f"Online geolocation lookup failed for {ip_address}: {e}")
+    return None, {}
+
+
 def resolve_ip_location(ip_address: str) -> str:
-    """Deterministically maps any IP to a premium mock offline location."""
+    """Resolve an IP to a location, falling back to a deterministic offline estimate."""
     if not ip_address or ip_address in ("127.0.0.1", "localhost", "::1"):
         return "Local Host (Development)"
-    
-    # Hash the IP deterministically to select a location
+
+    location, _ = _resolve_ip_location_online(ip_address)
+    if location:
+        return location
+
+    # Fallback: hash the IP deterministically to select a location
     ip_hash = int(hashlib.sha256(ip_address.encode()).hexdigest(), 16)
     idx = ip_hash % len(MOCK_LOCATIONS)
     return MOCK_LOCATIONS[idx]

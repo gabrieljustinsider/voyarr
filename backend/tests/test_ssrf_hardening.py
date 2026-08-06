@@ -261,20 +261,28 @@ def test_live_stream_update_blocked():
 
 
 # ==============================================================================
-# 4. Scraper Test Route SSRF Boundary Tests
+# 4. Scraper URL SSRF Boundary Tests
 # ==============================================================================
 
-def test_scraper_test_allowed():
+def test_scraper_parse_url_allowed():
     headers = {"X-Voyarr-Api-Key": "test_master_key_1234567890_abcdef"}
-    payload = {"url": "https://my-media-source.com/video123", "provider_id": 1}
-    resp = client.post("/scraper/test", json=payload, headers=headers)
-    assert resp.status_code == 200
-    assert resp.json()["status"] == "success"
+    resp = client.post(
+        "/scraper/parse-url",
+        json={"url": "https://my-media-source.com/video123"},
+        headers=headers,
+    )
+    # SSRF passes for public hosts: a subsequent fetch failure is fine, but it must
+    # never be an SSRF rejection.
+    detail = resp.json().get("detail", "") if resp.headers.get("content-type", "").startswith("application/json") else ""
+    assert "Disallowed internal IP" not in detail
 
 
-def test_scraper_test_blocked():
+def test_scraper_parse_url_blocked():
     headers = {"X-Voyarr-Api-Key": "test_master_key_1234567890_abcdef"}
-    payload = {"url": "http://169.254.169.254/latest/meta-data/", "provider_id": 1}
-    resp = client.post("/scraper/test", json=payload, headers=headers)
+    resp = client.post(
+        "/scraper/parse-url",
+        json={"url": "http://169.254.169.254/latest/meta-data/"},
+        headers=headers,
+    )
     assert resp.status_code == 400
     assert "Disallowed internal IP" in resp.json()["detail"]

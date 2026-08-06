@@ -49,8 +49,7 @@ def get_download_stats(db: Session = Depends(get_db)):
 def get_progress(task_id: int, db: Session = Depends(get_db)):
     task = db.query(DownloadQueue).filter(DownloadQueue.id == task_id).first()
     if not task:
-        # For testing purposes when queue is empty, simulate a running task
-        return {"task_id": task_id, "progress": 50, "status": "running"}
+        raise HTTPException(status_code=404, detail="Task not found")
 
     return {
         "task_id": task.id,
