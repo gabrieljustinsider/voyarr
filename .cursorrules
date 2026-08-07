@@ -113,7 +113,8 @@ This document serves as the absolute source of truth for all projects within the
 - **Notifications**: Dismissable toasts only. Do NOT use browser alerts.
 - **What's New Modals**: All update/release notes modals MUST use a vertical, scrollable list (`.scrollable-list`). They must track the last version viewed by the user so that upon their next visit, they see an aggregated view of all versions and changes released since their last recorded view.
 
-- **Reactive Data Synchronization**: All data-driven components (Lists, Ledgers, Summaries) MUST implement a global mutation listener. When a data-modifying action occurs (Add, Edit, Delete), the component MUST broadcast a global mutation event (e.g., `[app-name]-api-mutate`) to notify all active hooks watching that resource path to refetch data immediately. This ensures application-wide state consistency without requiring manual page refreshes. 
+- **Reactive Data Synchronization**: All data-driven components (Lists, Ledgers, Summaries) MUST implement a global mutation listener. When a data-modifying action occurs (Add, Edit, Delete), the component MUST broadcast a global mutation event (e.g., `[app-name]-api-mutate`) to notify all active hooks watching that resource path to refetch data immediately. This ensures application-wide state consistency without requiring manual page refreshes.
+- **Searchable & Actionable Data Dropdowns**: Any time a dropdown menu is used, if the menu is connected to a data source (instead of being a list to control functions or actions), that list shall be searchable. In addition to that, if the menu is connected to a data source that uses CRUD logic, that searchable list shall also allow creating new items that are not found in the list.
 
 ## 6. Local Development & Deployment
 - **Local-First Testing**: Mandatory local testing before any deployment. 
