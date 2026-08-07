@@ -175,6 +175,11 @@ const MANAGERS = [
     channelText: '#6ee7b7',
     loadItems: async () => {
       const res = await apiFetch('/settings/op/vaults')
+      if (!res.ok) {
+        let detail = ''
+        try { detail = (await res.json())?.detail || '' } catch { /* ignore */ }
+        throw new Error(detail || `Server returned ${res.status}`)
+      }
       const data = await res.json()
       const list = Array.isArray(data?.vaults) ? data.vaults : []
       return list.map(v => ({ id: v.id, name: v.name || v.id, label: `${v.name || v.id} (${v.id})` }))

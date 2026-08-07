@@ -51,10 +51,23 @@ def list_op_vaults(db: Session = Depends(get_db)):
         raise HTTPException(status_code=503, detail="Could not reach the 1Password Connect server.")
 
     if not res.ok:
-        logger.warning("1Password Connect returned %s: %s", res.status_code, res.text)
-        raise HTTPException(status_code=res.status_code, detail="1Password Connect rejected the request (check host and token).")
+        logger.warning("1Password Connect returned %s: %s", res.status_code, res.text[:500])
+        detail = "1Password Connect rejected the request (check host and token)."
+        if res.status_code in (401, 403):
+            detail = "1Password Connect rejected the token. Double-check the Connect Access Token."
+        elif res.status_code in (400, 404):
+            detail = "1Password Connect couldn't find the resource (check the host URL)."
+        raise HTTPException(status_code=502, detail=detail)
 
-    data = res.json()
+    try:
+        data = res.json()
+    except Exception as e:
+        logger.warning("1Password Connect returned a non-JSON response: %s", e)
+        raise HTTPException(
+            status_code=502,
+            detail="1Password Connect returned an unexpected response. Check the host URL.",
+        )
+
     vaults = [
         {"id": v.get("id"), "name": v.get("name") or v.get("id")}
         for v in data
