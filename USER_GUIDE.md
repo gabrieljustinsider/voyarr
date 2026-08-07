@@ -143,6 +143,8 @@ HOST_MEDIA_PATH_2=/data/media2     # Additional Storage
 HOST_MEDIA_PATH_3=/data/media3     # Additional Storage
 ```
 
+> **Note:** the third mount (`HOST_MEDIA_PATH_3`) is commented out in the compose files by default because leaving it unset creates an empty bind mount. To use a third drive, uncomment the `HOST_MEDIA_PATH_3` line in your compose file, set the host path, and add `/media/storage_alt2` to `CONTAINER_MEDIA_PATHS`.
+
 In the file picker (Path Picker), these appear as labelled quick-access drives:
 - **Main Storage** → `HOST_MEDIA_PATH_1`
 - **Additional Storage** → `HOST_MEDIA_PATH_2` / `HOST_MEDIA_PATH_3`

@@ -52,10 +52,37 @@ User-managed data uses bind mounts — you specify the host paths:
 |----------|----------------|---------|
 | `HOST_MEDIA_PATH_1` | `/media/storage` | Primary media library (Main Storage) |
 | `HOST_MEDIA_PATH_2` | `/media/storage_alt1` | Additional media drive |
-| `HOST_MEDIA_PATH_3` | `/media/storage_alt2` | Additional media drive |
+| `HOST_MEDIA_PATH_3` | `/media/storage_alt2` | Additional media drive (disabled by default — see below) |
 | `DEFAULT_DOWNLOAD_PATH` | (under media) | Download destination |
 
 All configured paths are also aggregated and exposed as a **unified virtual media directory** at `/media/unified`, allowing the backend to treat your entire library as a single tree regardless of how many drives you have.
+
+#### How media mounts are wired up
+
+A media mount requires **three coordinated declarations** in different places:
+
+1. **Compose bind mount** — maps a host path into the container. Declared once per service in the compose file:
+   ```yaml
+   - ${HOST_MEDIA_PATH_N:-./default}:/media/storage_altN
+   ```
+2. **`CONTAINER_MEDIA_PATHS` env var** — the comma-separated container paths the backend actually scans. Add the new container path here:
+   ```yaml
+   CONTAINER_MEDIA_PATHS="/media/storage,/media/storage_alt1"
+   ```
+   Consumed by `get_media_roots()` (`backend/utils/__init__.py`) and the media-scan tasks.
+3. **`media_root_path` DB setting** — an optional override stored in Settings. When set, it takes precedence over `CONTAINER_MEDIA_PATHS` (leave it empty to use the env var).
+
+Once the mount is live, the file picker auto-discovers any directory under `/media` plus every set `HOST_MEDIA_PATH_*` variable, so new drives appear automatically without further config.
+
+#### Adding or re-enabling a media mount
+
+1. **Uncomment or add the bind mount** in both `docker-compose.base.yml` and your `docker-compose.deploy.yml` (Portainer uses the deploy copy — remember to re-paste it after editing).
+2. **Set the host path** in your `.env` (e.g. `HOST_MEDIA_PATH_3=/volume3/media3`). Leave the variable empty and the mount commented out when it's not in use.
+3. **Update `CONTAINER_MEDIA_PATHS`** to include the new container path so the backend scans it.
+4. Redeploy the stack (Portainer: re-paste `docker-compose.deploy.yml` and pull the image).
+5. Optionally set a higher-priority root in **Settings → Media**.
+
+> **Current default:** the third media mount (`HOST_MEDIA_PATH_3` → `/media/storage_alt2`) is **commented out** in both compose files to avoid an empty bind mount (`:/media/storage_alt2`) when the variable is unset. Re-enable it by uncommenting the line and repeating steps 2–4 above. The commented line is intentionally left in both files for future use.
 
 ### Secrets Management
 
