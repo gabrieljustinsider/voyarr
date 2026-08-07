@@ -62,13 +62,13 @@ services:
       - voyarr-certs:/app/certs:ro
       - ${HOST_MEDIA_PATH_1:-./media}:/media/storage
       - ${HOST_MEDIA_PATH_2:-./media_alt1}:/media/storage_alt1
-      - ${HOST_MEDIA_PATH_3:-./media_alt2}:/media/storage_alt2
+      # ${HOST_MEDIA_PATH_3:-./media_alt2}:/media/storage_alt2   # disabled: no third mount currently configured
     healthcheck:
       test: python -c "from urllib.request import urlopen; exit(0) if urlopen('http://localhost:8000/health').status == 200 else exit(1)"
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 30s
+      start_period: 10s
     networks:
       - voyarr_network
 
@@ -109,7 +109,7 @@ services:
       - voyarr-backups:/app/backups
       - ${HOST_MEDIA_PATH_1:-./media}:/media/storage
       - ${HOST_MEDIA_PATH_2:-./media_alt1}:/media/storage_alt1
-      - ${HOST_MEDIA_PATH_3:-./media_alt2}:/media/storage_alt2
+      # ${HOST_MEDIA_PATH_3:-./media_alt2}:/media/storage_alt2   # disabled: no third mount currently configured
     depends_on:
       redis:
         condition: service_healthy
