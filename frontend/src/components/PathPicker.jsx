@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import {
   Box,
   Typography,
@@ -152,10 +152,10 @@ export default function PathPicker({
 
   const debounceRef = useRef(null)
 
-  const doFetch = async (url, opts = {}) => {
+  const doFetch = useCallback(async (url, opts = {}) => {
     if (fetcher) return fetcher(url, opts)
     return fetch(url, opts)
-  }
+  }, [fetcher])
 
   useEffect(() => {
     const formatted = Array.isArray(value) ? value.join(', ') : (value || '')
@@ -174,7 +174,7 @@ export default function PathPicker({
     } else {
       setValidationError('')
     }
-  }, [value, multiple])
+  }, [value, multiple, doFetch, validateEndpoint])
 
   useEffect(() => {
     try {
@@ -208,7 +208,7 @@ export default function PathPicker({
       } else {
         setFetchError('Unable to access folder due to system permission restrictions.')
       }
-    } catch (err) {
+    } catch {
       setFetchError('Network error loading directory.')
     } finally {
       setBrowserLoading(false)
@@ -538,6 +538,13 @@ export default function PathPicker({
               <IconButton size="small" onClick={() => loadDirectory('/')} sx={{ color: currentPath === '/' ? 'var(--accent, #6366f1)' : '#9ca3af' }}>
                 <HomeIcon fontSize="small" />
               </IconButton>
+              {parentPath && (
+                <Tooltip title="Up to Parent">
+                  <IconButton size="small" onClick={() => loadDirectory(parentPath)} sx={{ color: '#9ca3af' }}>
+                    <ArrowUpwardIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
               <Breadcrumbs separator="/" sx={{ color: '#f3f4f6', '& .MuiBreadcrumbs-separator': { color: '#6b7280' } }}>
                 {getPathSegments().map((seg, idx, arr) => (
                   <Link
@@ -584,37 +591,39 @@ export default function PathPicker({
           </Box>
 
           {/* Search, Filter & Action Toolbar */}
-          <Box sx={{ display: 'flex', gap: 1, mb: 2, alignItems: 'center' }}>
-            <TextField
-              size="small"
-              fullWidth
-              placeholder="Search folders or files..."
-              value={filterText}
-              onChange={(e) => setFilterText(e.target.value)}
-              slotProps={{ input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon sx={{ color: '#6b7280' }} />
-                  </InputAdornment>
-                ),
-                sx: { backgroundColor: 'rgba(255, 255, 255, 0.03)', color: '#f3f4f6' }
-              }}}
-            />
+          <Box sx={{ display: 'flex', gap: 1, mb: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Box sx={{ flex: '1 1 260px', minWidth: 220 }}>
+              <TextField
+                size="small"
+                fullWidth
+                placeholder="Search folders or files..."
+                value={filterText}
+                onChange={(e) => setFilterText(e.target.value)}
+                slotProps={{ input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon sx={{ color: '#6b7280' }} />
+                    </InputAdornment>
+                  ),
+                  sx: { backgroundColor: 'rgba(255, 255, 255, 0.03)', color: '#f3f4f6' }
+                }}}
+              />
+            </Box>
 
             <Tooltip title={showHidden ? "Hide Hidden Files" : "Show Hidden Files"}>
-              <IconButton size="small" onClick={() => setShowHidden(!showHidden)} sx={{ color: showHidden ? 'var(--accent, #6366f1)' : '#9ca3af', border: '1px solid rgba(255,255,255,0.1)', p: 1 }}>
+              <IconButton size="small" onClick={() => setShowHidden(!showHidden)} sx={{ color: showHidden ? 'var(--accent, #6366f1)' : '#9ca3af', border: '1px solid rgba(255,255,255,0.1)', p: 1, flexShrink: 0 }}>
                 {showHidden ? <VisibilityIcon fontSize="small" /> : <VisibilityOffIcon fontSize="small" />}
               </IconButton>
             </Tooltip>
 
             <Tooltip title={showExcluded ? "Hide Excluded Folders" : "Show Excluded Folders"}>
-              <IconButton size="small" onClick={() => { const next = !showExcluded; setShowExcluded(next); loadDirectory(currentPath, false); }} sx={{ color: showExcluded ? '#f59e0b' : '#9ca3af', border: '1px solid rgba(255,255,255,0.1)', p: 1 }}>
+              <IconButton size="small" onClick={() => { const next = !showExcluded; setShowExcluded(next); loadDirectory(currentPath, false); }} sx={{ color: showExcluded ? '#f59e0b' : '#9ca3af', border: '1px solid rgba(255,255,255,0.1)', p: 1, flexShrink: 0 }}>
                 <BlockIcon fontSize="small" />
               </IconButton>
             </Tooltip>
 
             {enableViewToggle && (
-              <Box sx={{ display: 'flex', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', overflow: 'hidden' }}>
+              <Box sx={{ display: 'flex', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', overflow: 'hidden', flexShrink: 0 }}>
                 <IconButton size="small" onClick={() => setViewMode('list')} sx={{ color: viewMode === 'list' ? 'var(--accent, #6366f1)' : '#9ca3af', borderRadius: 0 }}>
                   <ViewListIcon fontSize="small" />
                 </IconButton>
@@ -629,20 +638,10 @@ export default function PathPicker({
               color="secondary"
               startIcon={<CreateNewFolderIcon />}
               onClick={() => setShowNewFolderInput(true)}
-              sx={{ whiteSpace: 'nowrap', textTransform: 'none' }}
+              sx={{ whiteSpace: 'nowrap', textTransform: 'none', flexShrink: 0 }}
             >
               New Folder
             </Button>
-            {parentPath && (
-              <Button
-                variant="outlined"
-                startIcon={<ArrowUpwardIcon />}
-                onClick={() => loadDirectory(parentPath)}
-                sx={{ whiteSpace: 'nowrap', textTransform: 'none', color: '#9ca3af', borderColor: 'rgba(255,255,255,0.1)' }}
-              >
-                Up
-              </Button>
-            )}
           </Box>
 
           {/* New Folder Creation Input */}
