@@ -3,7 +3,7 @@
 # Compile all C-extension wheels (psycopg2, face-recognition, opencv, etc.)
 # build-essential and libpq-dev are only needed here, not in the final image.
 ############################
-FROM python:3.14-slim-bookworm AS builder
+FROM python:3.12-slim-bookworm AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
@@ -18,18 +18,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     liblapack-dev \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+# Compile/download-heavy ML deps live in their own cached layer so app
+# dependency changes don't force recompiling dlib/opencv from source.
+COPY requirements-build.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir --prefix=/install -r requirements.txt
+    pip install --no-cache-dir --prefix=/install -r requirements-build.txt
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 ############################
 # Stage 2 — Runtime
 # Only copy compiled wheels + install ffmpeg (runtime-only, no compiler needed)
 ############################
-FROM python:3.14-slim-bookworm
+FROM python:3.12-slim-bookworm
 
-LABEL version="1.163.1"
-LABEL org.opencontainers.image.version="1.163.1"
+LABEL version="1.163.2"
+LABEL org.opencontainers.image.version="1.163.2"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1

@@ -19,11 +19,6 @@ mutagen
 ffmpeg-python
 Pillow
 ImageHash
-opencv-python-headless
-
-# Machine Learning & Face Clustering
-face-recognition
-scikit-learn
 
 # Security & Authentication
 pydantic
