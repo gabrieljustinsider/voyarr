@@ -1,6 +1,6 @@
 {
   "name": "voyarr",
-  "version": "1.163.0",
+  "version": "1.163.1",
   "description": "Media downloader/manager and metadata scraper",
   "main": "index.js",
   "scripts": {
@@ -53,6 +53,7 @@
     "node-notifier": "^10.0.1",
     "rimraf": "^3.0.2",
     "fast-uri": "^3.0.6",
-    "js-yaml": "^4.1.0"
+    "js-yaml": "^4.1.0",
+    "undici": "^7.29.0"
   }
 }
