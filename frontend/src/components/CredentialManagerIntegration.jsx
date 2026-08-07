@@ -260,7 +260,6 @@ export default function CredentialManagerIntegration({ settings, handleChange, n
   const [itemsMap, setItemsMap] = useState({})
   const [loadingMap, setLoadingMap] = useState({})
   const [errorMap, setErrorMap] = useState({})
-  const [selectValue, setSelectValue] = useState(null)
   const [syncingMap, setSyncingMap] = useState({})
 
   const visible = useManagerList(added, settings)
@@ -344,7 +343,7 @@ export default function CredentialManagerIntegration({ settings, handleChange, n
           <Box sx={{ p: 1, borderRadius: '12px', bgcolor: 'rgba(99, 102, 241, 0.15)', border: '1px solid rgba(99, 102, 241, 0.3)' }}>
             <ShieldIcon sx={{ color: '#818cf8', fontSize: 24 }} />
           </Box>
-          <Typography variant="h5" sx={{ fontWeight: '900', color: '#f8fafc', tracking: '-0.02em' }}>
+          <Typography variant="h5" sx={{ fontWeight: '900', color: '#f8fafc', letterSpacing: '-0.02em' }}>
             Password Vault Integrations
           </Typography>
         </Stack>
@@ -356,41 +355,52 @@ export default function CredentialManagerIntegration({ settings, handleChange, n
       <Divider sx={{ mb: 4, borderColor: 'rgba(255, 255, 255, 0.08)' }} />
 
       {available.length > 0 && (
-        <Box sx={{ mb: visible.length > 0 ? 4 : 0, maxWidth: 600, mx: 'auto' }}>
-          <Autocomplete
-            size="small"
-            options={available}
-            getOptionLabel={(o) => o.label}
-            value={selectValue}
-            onChange={(e, val) => { if (val) { addManager(val.key); setSelectValue(null) } }}
-            renderOption={(props, option) => {
-              const { key, ...optionProps } = props
-              return (
-                <Box component="li" key={key || option.key} {...optionProps} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%', py: 1 }}>
-                  <Avatar src={`https://www.google.com/s2/favicons?domain=${option.favicon}&sz=128`} alt={option.label} sx={{ width: 24, height: 24, borderRadius: '6px', bgcolor: 'transparent' }} />
-                  <Typography variant="body2" sx={{ fontWeight: '700', color: '#f1f5f9' }}>{option.label}</Typography>
-                </Box>
-              )
-            }}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                label="Add a credential manager"
-                placeholder="Search 1Password, Bitwarden..."
+        <Box sx={{ mb: visible.length > 0 ? 4 : 0 }}>
+          <Typography variant="body2" sx={{ color: '#94a3b8', fontWeight: '600', textAlign: 'center', mb: 2 }}>
+            {visible.length === 0 ? 'Select a credential manager to begin' : 'Add another credential manager'}
+          </Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, justifyContent: 'center' }}>
+            {available.map((option) => (
+              <Box
+                key={option.key}
+                component="button"
+                type="button"
+                onClick={() => addManager(option.key)}
                 sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: '14px',
-                    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    color: '#f8fafc',
-                    '&:hover': { borderColor: 'rgba(99, 102, 241, 0.4)' },
-                    '&.Mui-focused': { borderColor: '#818cf8', boxShadow: '0 0 0 3px rgba(99, 102, 241, 0.2)' }
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1.25,
+                  px: 2.25,
+                  py: 1.25,
+                  borderRadius: '14px',
+                  cursor: 'pointer',
+                  appearance: 'none',
+                  userSelect: 'none',
+                  lineHeight: 1,
+                  background: `linear-gradient(135deg, rgba(${option.color}, 0.12) 0%, rgba(0, 0, 0, 0.3) 100%)`,
+                  border: `1px solid ${option.border}`,
+                  color: '#f8fafc',
+                  fontFamily: 'inherit',
+                  fontSize: '0.85rem',
+                  fontWeight: '700',
+                  transition: 'all 0.2s ease-in-out',
+                  '&:hover': {
+                    borderColor: option.accent,
+                    boxShadow: `0 4px 18px rgba(${option.color}, 0.25)`,
+                    transform: 'translateY(-1px)'
                   },
-                  '& .MuiInputLabel-root': { color: '#94a3b8', fontWeight: '600' }
+                  '&:focus-visible': {
+                    outline: '2px solid ' + option.accent,
+                    outlineOffset: '2px'
+                  }
                 }}
-              />
-            )}
-          />
+              >
+                <Avatar src={`https://www.google.com/s2/favicons?domain=${option.favicon}&sz=128`} alt={option.label} sx={{ width: 22, height: 22, borderRadius: '6px', bgcolor: 'transparent' }} />
+                {option.label}
+                <AddIcon sx={{ fontSize: 16, color: option.accent }} />
+              </Box>
+            ))}
+          </Box>
         </Box>
       )}
 
@@ -456,7 +466,7 @@ export default function CredentialManagerIntegration({ settings, handleChange, n
                         fontSize: '0.68rem',
                         fontWeight: '800',
                         textTransform: 'uppercase',
-                        tracking: '0.05em',
+                        letterSpacing: '0.05em',
                         bgcolor: hostConfigured ? (isError ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)') : 'rgba(255,255,255,0.05)',
                         color: hostConfigured ? (isError ? '#f87171' : '#34d399') : '#94a3b8',
                         border: `1px solid ${hostConfigured ? (isError ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)') : 'rgba(255,255,255,0.1)'}`
