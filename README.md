@@ -48,12 +48,14 @@ System data uses Docker named volumes (managed by Docker — no manual folder cr
 
 User-managed data uses bind mounts — you specify the host paths:
 
-| Variable | Container path | Purpose |
-|----------|----------------|---------|
-| `HOST_MEDIA_PATH_1` | `/media/storage` | Primary media library (Main Storage) |
-| `HOST_MEDIA_PATH_2` | `/media/storage_alt1` | Additional media drive |
-| `HOST_MEDIA_PATH_3` | `/media/storage_alt2` | Additional media drive (disabled by default — see below) |
-| `DEFAULT_DOWNLOAD_PATH` | (under media) | Download destination |
+| Variable | Side | Container path | Purpose |
+|----------|------|----------------|---------|
+| `HOST_MEDIA_PATH_1` | Host | `/media/storage` | Primary media library (Main Storage) |
+| `HOST_MEDIA_PATH_2` | Host | `/media/storage_alt1` | Additional media drive |
+| `HOST_MEDIA_PATH_3` | Host | `/media/storage_alt2` | Additional media drive (disabled by default — see below) |
+| `HOST_DOWNLOAD_PATH` | Host | `/downloads` | Download destination bind mount |
+| `DEFAULT_DOWNLOAD_PATH` | Container | `/downloads` | Default in-container download destination |
+| `CONTAINER_MEDIA_PATHS` | Container | comma-separated | Media roots the backend actually scans |
 
 All configured paths are also aggregated and exposed as a **unified virtual media directory** at `/media/unified`, allowing the backend to treat your entire library as a single tree regardless of how many drives you have.
 
