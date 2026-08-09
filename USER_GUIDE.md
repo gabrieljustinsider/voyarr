@@ -30,7 +30,7 @@ Voyarr runs as a set of services that can be deployed on Docker, cloud platforms
 | **Database** | Stores your library metadata, rules, and settings (PostgreSQL or Neon) |
 | **Scraper Browser** | Browses websites to scrape metadata for your media (headless Chrome) |
 
-You can choose where each layer runs. By default, everything runs locally in Docker. You can also run the frontend on Cloudflare Pages, the database on Neon, or the scraper via browserless.io.
+You can choose where each layer runs. By default, everything runs locally in Docker. You can also run the frontend on Cloudflare Worker, the database on Neon, or the scraper via browserless.io.
 
 ### Initial Setup
 

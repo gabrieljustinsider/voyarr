@@ -17,7 +17,7 @@ Voyarr is composed of five independently deployable layers:
 
 | Layer | Role | Deployment targets |
 |-------|------|--------------------|
-| **Frontend** | React 19 PWA with Material UI v9 | `docker`, `cloudflare-pages` |
+| **Frontend** | React 19 PWA with Material UI v9 | `docker`, `cloudflare-worker` |
 | **Backend API** | Python FastAPI server | `docker` |
 | **Workers** | Celery task queue (downloads, transcodes, AI) | `docker` |
 | **Database** | PostgreSQL 15 or Neon serverless | `docker`, `neon` |
@@ -33,7 +33,7 @@ DATABASE_TARGET=docker
 SCRAPER_BROWSER_TARGET=browserless-io
 ```
 
-When a layer is set to `docker`, it runs as a container managed by Docker Compose. Cloud targets (Cloudflare Pages, Neon, browserless.io) are configured via environment variables and deployed through driver scripts in `deploy/`.
+When a layer is set to `docker`, it runs as a container managed by Docker Compose. Cloud targets (Cloudflare Workers, Neon, browserless.io) are configured via environment variables and deployed through driver scripts in `deploy/`.
 
 ### Volume Architecture
 
@@ -163,13 +163,12 @@ npm run up
 npm run down
 ```
 
-### Cloudflare Pages frontend + Neon database
+### Cloudflare Worker frontend + Neon database
 
 Set in `.env`:
 ```env
-FRONTEND_TARGET=cloudflare-pages
+FRONTEND_TARGET=cloudflare-worker
 DATABASE_TARGET=neon
-CLOUDFLARE_PAGES_PROJECT_NAME=voyarr
 FRONTEND_BACKEND_URL=https://api.yourdomain.com
 NEON_DATABASE_URL=postgresql://...
 ```
@@ -185,7 +184,7 @@ npm run deploy:workers
 npm run deploy:frontend
 ```
 
-For the backend to be reachable from Cloudflare Pages, use Cloudflare Tunnel:
+For the backend to be reachable from the Cloudflare Worker, use Cloudflare Tunnel:
 ```bash
 # One-time tunnel setup
 cloudflared tunnel create voyarr

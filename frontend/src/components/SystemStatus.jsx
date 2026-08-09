@@ -23,7 +23,7 @@ const LAYERS = [
 ]
 
 const SERVICE_NAMES = {
-  'cloudflare-pages': 'Cloudflare Pages',
+  'cloudflare-worker': 'Cloudflare Worker',
   'docker': 'Docker',
   'neon': 'Neon',
   'browserless-io': 'browserless.io',

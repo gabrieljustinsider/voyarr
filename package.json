@@ -1,10 +1,11 @@
 {
   "name": "voyarr",
-  "version": "1.163.6",
+  "version": "1.163.7",
   "description": "Media downloader/manager and metadata scraper",
   "main": "index.js",
   "scripts": {
     "deploy": "npm run build && wrangler deploy",
+    "resolve-env": "bash scripts/resolve-env.sh",
     "deploy:frontend": "bash deploy/frontend/deploy.sh",
     "deploy:backend-api": "bash deploy/backend-api/deploy.sh",
     "deploy:workers": "bash deploy/workers/deploy.sh",

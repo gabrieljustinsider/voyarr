@@ -78,10 +78,10 @@ For Docker frontend (`FRONTEND_TARGET=docker`):
 - The nginx container proxies `/api` requests to the backend container. Verify both containers are running: `docker compose ps`
 - Check the backend health: `curl http://localhost:8000/health`
 
-For Cloudflare Pages frontend (`FRONTEND_TARGET=cloudflare-pages`):
+For Cloudflare Worker frontend (`FRONTEND_TARGET=cloudflare-worker`):
 - Verify `FRONTEND_BACKEND_URL` is set correctly in `.env`.
 - If using Cloudflare Tunnel, ensure the tunnel is running and the token is valid.
-- Verify `CORS_ORIGINS` in your backend environment includes your Cloudflare Pages domain.
+- Verify `CORS_ORIGINS` in your backend environment includes your Cloudflare Worker domain.
 
 For local development (Vite):
 - The Vite dev server proxies `/api` to `http://localhost:8000` by default (configurable via `VITE_API_BASE_URL`).
