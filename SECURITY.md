@@ -33,6 +33,26 @@ Voyarr handles sensitive credentials for third-party media providers and secures
 - **VR Headset / DeoVR Device Pairing**: Temporary 6-digit numeric codes generated from the desktop Account Security panel for passwordless authentication on VR headsets. Codes are single-use, expire after 5 minutes, are stored in server memory only (not persisted to disk), and are cryptographically bound to the generating user's session. Authentication via a pairing code creates a standard JWT session indistinguishable from a password-based login. The legacy device pairing flow (headset displays a code, desktop approves it) also uses an in-memory store with the same expiry and single-use constraints.
 - **DeoVR Native Sign-In**: The DeoVR scene feed endpoint (`POST /deovr`) accepts the same JWT-based authentication as the web application. Password verification uses the same Argon2 password hashing as the standard login endpoint. Pairing code authentication bypasses password entry entirely — the code is validated against the in-memory pairing store and a JWT is issued on success.
 
+## Deployment & Secrets Workflow
+
+Secrets are stored in 1Password and injected at deploy time. Never paste `op://` references or resolved secrets into the Portainer UI.
+
+- `.env` (gitignored, mode `600`) — holds `op://` references (e.g. `DATABASE_URL=op://vault/item/field`), not literal secrets. Quotes around values are intentional: they protect `&`-containing URLs through the shell `eval`/`source` paths and are stripped by Docker Compose at runtime.
+- `.env.portainer` (gitignored, mode `600`) — generated from `.env` with `op inject -i .env -o .env.portainer`; holds the *resolved* values used when (re)building the stack's environment in Portainer.
+- Stack environment in Portainer is populated from the resolved `.env.portainer` via the repo's push script. Resolving references inside Portainer's editor (or pasting `.env` verbatim) fails with a 500 error.
+
+### Pending Hardening Items (manual, require NAS access)
+
+1. **Portainer is served over plaintext HTTP** at `http://10.0.0.32:9000`. Use `https://10.0.0.32:9443` and disable the HTTP port at the Portainer container level on the NAS.
+2. **1Password Connect is served over plaintext HTTP** (`OP_CONNECT_HOST: http://10.0.0.32:32785`). Configure TLS on the Connect server and update the vault field accordingly.
+3. **`CORS_ORIGINS` in production includes `http://localhost:3000`** (dev-only origin). Remove it from the production vault value once nothing local calls the API.
+
+### Audit Trail
+
+- All Dependabot alerts (52) are resolved or auto-dismissed; zero open.
+- No real credentials are committed; git secret scans only match `${VAR:-default}` interpolation templates and placeholders.
+- Shared Portainer API keys are revoked after use; never reuse a key shared in chat/shell history.
+
 ## Reporting a Vulnerability
 
 If you discover a security vulnerability in Voyarr, **do not disclose it publicly**.

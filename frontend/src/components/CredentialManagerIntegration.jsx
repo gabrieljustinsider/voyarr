@@ -85,79 +85,110 @@ const HelpField = ({ field, value, onChange, accent, color }) => (
   </Box>
 )
 
-const SelectField = ({ field, items, loading, error, value, onChange, accent, color }) => (
-  <Box sx={{ mb: 1.5 }}>
-    <FieldLabel label={field.label} help={field.help} color={color} accent={accent} />
-    <Autocomplete
-      freeSolo
-      size="small"
-      options={items}
-      getOptionLabel={(option) => typeof option === 'string' ? option : option.id || ''}
-      value={value || ''}
-      onChange={(e, newValue) => {
-        const val = typeof newValue === 'object' && newValue !== null ? newValue.id : newValue
-        onChange({ target: { name: field.name, value: val || '' } })
-      }}
-      onInputChange={(e, newInputValue) => {
-        onChange({ target: { name: field.name, value: newInputValue || '' } })
-      }}
-      renderOption={(props, option) => {
-        const { key, ...optionProps } = props
-        return (
-          <Box component="li" key={key || option.id} {...optionProps} sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', py: 1 }}>
-            <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#f1f5f9' }}>{option.name}</Typography>
-            <Typography variant="caption" sx={{ ml: 1, fontFamily: 'monospace', color: accent, bgcolor: `rgba(${color}, 0.12)`, px: 1, py: 0.2, borderRadius: '6px' }}>
-              {option.id}
-            </Typography>
-          </Box>
-        )
-      }}
-      renderInput={(params) => {
-        const { slotProps: { input: inputProps } = {}, ...restParams } = params
-        return (
-          <TextField
-            {...restParams}
-            name={field.name}
-            placeholder={field.placeholder}
-            error={!!error}
-            helperText={loading ? field.loadingText : (error || (items.length > 0 ? field.foundText(items.length) : field.emptyText))}
-            FormHelperTextProps={{ sx: { color: error ? '#f87171' : 'rgba(255,255,255,0.4)', fontSize: '0.72rem', ml: 0.5 } }}
-            slotProps={{
-              input: {
-                ...inputProps,
-                endAdornment: (
-                  <InputAdornment position="end">
-                    {loading ? <CircularProgress color="inherit" size={16} sx={{ mr: 1, color: accent }} /> : null}
-                    {inputProps?.endAdornment}
-                  </InputAdornment>
-                )
-              }
-            }}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                borderRadius: '12px',
-                backgroundColor: 'rgba(0, 0, 0, 0.25)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                transition: 'all 0.2s ease-in-out',
-                color: '#f8fafc',
-                fontSize: '0.85rem',
-                '&:hover': {
-                  borderColor: `rgba(${color}, 0.4)`,
-                  backgroundColor: 'rgba(0, 0, 0, 0.35)'
-                },
-                '&.Mui-focused': {
-                  borderColor: accent,
-                  boxShadow: `0 0 0 3px rgba(${color}, 0.15)`,
-                  backgroundColor: 'rgba(0, 0, 0, 0.4)'
+const selectFieldSx = (color, accent) => ({
+  '& .MuiOutlinedInput-root': {
+    borderRadius: '12px',
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+    transition: 'all 0.2s ease-in-out',
+    color: '#f8fafc',
+    fontSize: '0.85rem',
+    '&:hover': {
+      borderColor: `rgba(${color}, 0.4)`,
+      backgroundColor: 'rgba(0, 0, 0, 0.35)'
+    },
+    '&.Mui-focused': {
+      borderColor: accent,
+      boxShadow: `0 0 0 3px rgba(${color}, 0.15)`,
+      backgroundColor: 'rgba(0, 0, 0, 0.4)'
+    }
+  }
+})
+
+const SelectField = ({ field, items, loading, error, value, onChange, accent, color }) => {
+  if (loading || items.length === 0) {
+    return (
+      <Box sx={{ mb: 1.5 }}>
+        <FieldLabel label={field.label} help={field.help} color={color} accent={accent} />
+        <TextField
+          size="small"
+          name={field.name}
+          placeholder={field.placeholder}
+          value={value || ''}
+          onChange={onChange}
+          error={!!error}
+          helperText={loading ? field.loadingText : (error || field.emptyText)}
+          FormHelperTextProps={{ sx: { color: error ? '#f87171' : 'rgba(255,255,255,0.4)', fontSize: '0.72rem', ml: 0.5 } }}
+          slotProps={{
+            input: {
+              endAdornment: loading ? (
+                <InputAdornment position="end">
+                  <CircularProgress color="inherit" size={16} sx={{ mr: 1, color: accent }} />
+                </InputAdornment>
+              ) : null
+            }
+          }}
+          sx={selectFieldSx(color, accent)}
+        />
+      </Box>
+    )
+  }
+
+  return (
+    <Box sx={{ mb: 1.5 }}>
+      <FieldLabel label={field.label} help={field.help} color={color} accent={accent} />
+      <Autocomplete
+        freeSolo
+        size="small"
+        options={items}
+        getOptionLabel={(option) => typeof option === 'string' ? option : option.id || ''}
+        value={value || ''}
+        onChange={(e, newValue) => {
+          const val = typeof newValue === 'object' && newValue !== null ? newValue.id : newValue
+          onChange({ target: { name: field.name, value: val || '' } })
+        }}
+        onInputChange={(e, newInputValue) => {
+          onChange({ target: { name: field.name, value: newInputValue || '' } })
+        }}
+        renderOption={(props, option) => {
+          const { key, ...optionProps } = props
+          return (
+            <Box component="li" key={key || option.id} {...optionProps} sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', py: 1 }}>
+              <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#f1f5f9' }}>{option.name}</Typography>
+              <Typography variant="caption" sx={{ ml: 1, fontFamily: 'monospace', color: accent, bgcolor: `rgba(${color}, 0.12)`, px: 1, py: 0.2, borderRadius: '6px' }}>
+                {option.id}
+              </Typography>
+            </Box>
+          )
+        }}
+        renderInput={(params) => {
+          const { slotProps: { input: inputProps } = {}, ...restParams } = params
+          return (
+            <TextField
+              {...restParams}
+              name={field.name}
+              placeholder={field.placeholder}
+              error={!!error}
+              helperText={error || field.foundText(items.length)}
+              FormHelperTextProps={{ sx: { color: error ? '#f87171' : 'rgba(255,255,255,0.4)', fontSize: '0.72rem', ml: 0.5 } }}
+              slotProps={{
+                input: {
+                  ...inputProps,
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      {inputProps?.endAdornment}
+                    </InputAdornment>
+                  )
                 }
-              }
-            }}
-          />
-        )
-      }}
-    />
-  </Box>
-)
+              }}
+              sx={selectFieldSx(color, accent)}
+            />
+          )
+        }}
+      />
+    </Box>
+  )
+}
 
 /**
  * Registry of supported credential managers.
