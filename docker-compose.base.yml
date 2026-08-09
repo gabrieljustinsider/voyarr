@@ -1,4 +1,48 @@
 name: voyarr
+x-celery-worker: &celery-worker
+  image: ghcr.io/gabrieljustinsider/voyarr-backend:latest
+  user: "${PUID:-1000}:${PGID:-1000}"
+  group_add:
+    - "${SUPPLEMENTARY_GID:-1000}"
+  environment:
+    - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:5432/${POSTGRES_DB:-voyarr}}
+    - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
+    - BROWSERLESS_URL=${BROWSERLESS_URL:-wss://chrome.browserless.io}
+    - BROWSERLESS_TOKEN=${BROWSERLESS_TOKEN:-}
+    - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
+    - CONTAINER_MEDIA_PATHS=${CONTAINER_MEDIA_PATHS:-/media/storage}
+    - DEFAULT_DOWNLOAD_PATH=${DEFAULT_DOWNLOAD_PATH:-/downloads}
+    - MASTER_KEY=${MASTER_KEY}
+    - SECRET_KEY=${SECRET_KEY}
+    - TZ=${TZ:-UTC}
+    - TRUST_FORWARDED_FOR=${TRUST_FORWARDED_FOR:-false}
+    - DEFAULT_USER_AGENT=${DEFAULT_USER_AGENT:-}
+    - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+    - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+    - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID:-}
+    - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET:-}
+    - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID:-}
+    - DISCORD_CLIENT_SECRET=${DISCORD_CLIENT_SECRET:-}
+    - OIDC_CLIENT_ID=${OIDC_CLIENT_ID:-}
+    - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET:-}
+    - OIDC_DISCOVERY_URL=${OIDC_DISCOVERY_URL:-}
+    - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+    - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN:-}
+    - DISCORD_PUBLIC_KEY=${DISCORD_PUBLIC_KEY:-}
+    - DISCORD_ADMIN_CHANNEL_ID=${DISCORD_ADMIN_CHANNEL_ID:-}
+    - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+  volumes:
+    - voyarr-config:/app/config
+    - voyarr-backups:/app/backups
+    - ${HOST_MEDIA_PATH_1:-./media}:/media/storage
+    - ${HOST_MEDIA_PATH_2:-./media_alt1}:/media/storage_alt1
+    - ${HOST_DOWNLOAD_PATH:-./downloads}:/downloads
+    # ${HOST_MEDIA_PATH_3:-./media_alt2}:/media/storage_alt2   # disabled: no third mount currently configured
+  depends_on:
+    redis:
+      condition: service_healthy
+  networks:
+    - voyarr_network
 services:
   redis:
     image: redis:7-alpine
@@ -70,51 +114,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
-    networks:
-      - voyarr_network
-
-  x-celery-worker: &celery-worker
-    image: ghcr.io/gabrieljustinsider/voyarr-backend:latest
-    user: "${PUID:-1000}:${PGID:-1000}"
-    group_add:
-      - "${SUPPLEMENTARY_GID:-1000}"
-    environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:5432/${POSTGRES_DB:-voyarr}}
-      - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
-      - BROWSERLESS_URL=${BROWSERLESS_URL:-wss://chrome.browserless.io}
-      - BROWSERLESS_TOKEN=${BROWSERLESS_TOKEN:-}
-      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
-      - CONTAINER_MEDIA_PATHS=${CONTAINER_MEDIA_PATHS:-/media/storage}
-      - DEFAULT_DOWNLOAD_PATH=${DEFAULT_DOWNLOAD_PATH:-/downloads}
-      - MASTER_KEY=${MASTER_KEY}
-      - SECRET_KEY=${SECRET_KEY}
-      - TZ=${TZ:-UTC}
-      - TRUST_FORWARDED_FOR=${TRUST_FORWARDED_FOR:-false}
-      - DEFAULT_USER_AGENT=${DEFAULT_USER_AGENT:-}
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
-      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID:-}
-      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET:-}
-      - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID:-}
-      - DISCORD_CLIENT_SECRET=${DISCORD_CLIENT_SECRET:-}
-      - OIDC_CLIENT_ID=${OIDC_CLIENT_ID:-}
-      - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET:-}
-      - OIDC_DISCOVERY_URL=${OIDC_DISCOVERY_URL:-}
-      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
-      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN:-}
-      - DISCORD_PUBLIC_KEY=${DISCORD_PUBLIC_KEY:-}
-      - DISCORD_ADMIN_CHANNEL_ID=${DISCORD_ADMIN_CHANNEL_ID:-}
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-    volumes:
-      - voyarr-config:/app/config
-      - voyarr-backups:/app/backups
-      - ${HOST_MEDIA_PATH_1:-./media}:/media/storage
-      - ${HOST_MEDIA_PATH_2:-./media_alt1}:/media/storage_alt1
-      - ${HOST_DOWNLOAD_PATH:-./downloads}:/downloads
-      # ${HOST_MEDIA_PATH_3:-./media_alt2}:/media/storage_alt2   # disabled: no third mount currently configured
-    depends_on:
-      redis:
-        condition: service_healthy
     networks:
       - voyarr_network
 

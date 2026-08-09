@@ -28,7 +28,6 @@ jobs:
       - name: Load secrets from 1Password
         id: op-secrets
         uses: 1password/load-secrets-action@v4.1.1
-        continue-on-error: true
         with:
           export-env: true
         env:
@@ -36,6 +35,13 @@ jobs:
           CLOUDFLARE_API_TOKEN: "op://6wgu5yz5yphvacdimgc64ej65i/Voyarr Environment Variables/CLOUDFLARE_API_TOKEN"
           CLOUDFLARE_ACCOUNT_ID: "op://6wgu5yz5yphvacdimgc64ej65i/Voyarr Environment Variables/CLOUDFLARE_ACCOUNT_ID"
           FRONTEND_BACKEND_URL: "op://6wgu5yz5yphvacdimgc64ej65i/Voyarr Environment Variables/FRONTEND_BACKEND_URL"
+
+      - name: Verify secrets resolved
+        run: |
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ] || [ -z "${FRONTEND_BACKEND_URL:-}" ]; then
+            echo "::error::1Password did not resolve required secrets (CLOUDFLARE_API_TOKEN/CLOUDFLARE_ACCOUNT_ID/FRONTEND_BACKEND_URL). Aborting deploy." >&2
+            exit 1
+          fi
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -51,33 +57,20 @@ jobs:
 
       - name: Build frontend static assets
         run: |
-          # Resolve backend URL from environment (1Password), .env, or production fallback
-          RESOLVED_BACKEND_URL="${FRONTEND_BACKEND_URL:-}"
-          if [ -z "$RESOLVED_BACKEND_URL" ] && [ -f .env ]; then
-            RESOLVED_BACKEND_URL=$(grep '^FRONTEND_BACKEND_URL=' .env | cut -d= -f2 | tr -d '[:space:]"')
-          fi
-          if [ -z "$RESOLVED_BACKEND_URL" ]; then
-            RESOLVED_BACKEND_URL="https://backend.gabrieljustinsider.com"
-          fi
-          
-          echo "Building frontend VITE with Backend URL: $RESOLVED_BACKEND_URL"
+          # API calls go to the same origin; the Worker proxies /api to BACKEND_ORIGIN
+          echo "Building frontend VITE with API base: /api"
           cd frontend
-          VITE_API_BASE_URL="$RESOLVED_BACKEND_URL" npx vite build --mode production
+          VITE_API_BASE_URL="/api" npx vite build --mode production
 
       - name: Install global Wrangler
         run: npm install -g wrangler@latest
 
       - name: Deploy Cloudflare Worker
         run: |
-          RESOLVED_BACKEND_URL="${FRONTEND_BACKEND_URL:-https://backend.gabrieljustinsider.com}"
-          echo "Deploying to Cloudflare Worker routing to: $RESOLVED_BACKEND_URL"
+          echo "Deploying to Cloudflare Worker routing to: $FRONTEND_BACKEND_URL"
           cd worker
-          if [ -n "$CLOUDFLARE_API_TOKEN" ]; then
-            echo "$RESOLVED_BACKEND_URL" | wrangler secret put BACKEND_ORIGIN || true
-            wrangler deploy || echo "Wrangler deploy warning/bypassed"
-          else
-            echo "Skipping Wrangler deployment: CLOUDFLARE_API_TOKEN is not set in secrets"
-          fi
+          echo "$FRONTEND_BACKEND_URL" | wrangler secret put BACKEND_ORIGIN --force || echo "Warning: could not update BACKEND_ORIGIN secret"
+          wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
