@@ -129,9 +129,10 @@ This document serves as the absolute source of truth for all projects within the
 - **CI/CD**: Use GitHub Actions for auto-deploy.
 - **Version Format**: All version references MUST use the `v` prefix (e.g., `v1.17.3`). In commit message titles, the version MUST be wrapped in brackets: `[v1.17.3]`.
 - **Scope-Based Versioning**: The bump type is determined by the logical scope of changes, not commit count:
-  - **Patch** — bug fixes, refactors, documentation, dependency updates, non-functional changes. Group all such changes into a single patch bump per session regardless of quantity.
+  - **Patch** — bug fixes, refactors, database schema column additions/fixes, documentation, dependency updates, non-functional changes. Group all such changes into a single patch bump per session regardless of quantity.
   - **Minor** — new features, new endpoints, new components, non-breaking API additions, internal breaking changes.
-  - **Major** — breaking architectural changes, framework migrations, database migrations, public API breaks.
+  - **Major** — breaking architectural changes, framework migrations, public API breaks.
+- **Double-Bump Prevention**: The git pre-commit hook (`scripts/prepare-commit.cjs`) automatically handles version bumping for staged commits. If `package.json` is manually bumped prior to committing, the pre-commit hook preserves the manual version without double-bumping.
 - **No Automatic Major Bumps**: The system MUST NEVER auto-bump a major version. If the changes appear to warrant a major bump, suggest it explicitly and wait for user approval before applying.
 - **Version Skip Protection**: The bump mechanism MUST enforce sequential versioning. A jump from `v1.17.3` → `v1.56.0` (skipping 38 minors) or `v1.17.3` → `v2.0.0` (unapproved major) MUST be rejected as likely a typo or miscalculation. The allowed transitions are:
   - Patch: increment the patch segment by 1 (`v1.17.3` → `v1.17.4`)
