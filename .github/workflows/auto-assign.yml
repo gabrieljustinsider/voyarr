@@ -1,0 +1,24 @@
+name: Auto Assign
+on:
+  issues:
+    types: [opened, reopened]
+  pull_request:
+    types: [opened, reopened]
+
+jobs:
+  assign:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Assign to morenicano
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [[ "${{ github.event_name }}" == "issues" ]]; then
+            gh issue edit ${{ github.event.issue.number }} --repo ${{ github.repository }} --add-assignee morenicano
+          elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --add-assignee morenicano
+          fi

@@ -1,6 +1,6 @@
 {
   "name": "voyarr",
-  "version": "1.165.0",
+  "version": "1.166.0",
   "description": "Media downloader/manager and metadata scraper",
   "main": "index.js",
   "scripts": {
@@ -34,7 +34,10 @@
   },
   "homepage": "https://github.com/gabrieljustinsider/voyarr#readme",
   "devDependencies": {
+    "@simplewebauthn/browser": "^13.3.0",
+    "@simplewebauthn/server": "^13.3.2",
     "@types/jest": "^30.0.0",
+    "hono": "^4.13.2",
     "jest": "^30.4.2",
     "ts-jest": "^29.4.12",
     "typescript": "^6.0.3",
