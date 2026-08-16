@@ -4,13 +4,14 @@ This document serves as the absolute source of truth for all projects within the
 
 ## 1. Cloudflare-First Infrastructure
 - **Stack**: Projects must use Cloudflare's native serverless stack: Workers, KV (Key-Value), R2 (Storage), Durable Objects (State), and Queues (Background tasks). Relational persistence uses **Neon Postgres** (not D1) for the Foundation fleet — see Section 3.
+- **Modern Fullstack Runtime**: Applications utilize the unified **React Router v8 Fullstack SSR + Vite Environment API (`@cloudflare/vite-plugin`)** pattern. Single-pass bundling compiles both Cloudflare Worker edge logic and React Router client hydration into an optimized asset stream.
 - **Product Alignment**: All features must use the specific Cloudflare product that supports it (e.g., Neon Postgres for relational SQL, KV for caching).
-- **Apps as PWA**: All applications are set up as Progressive Web Apps (PWA) by default.
+- **Apps as PWA**: All applications are set up as Progressive Web Apps (PWA) by default with offline asset fallback and manifest support.
 - **Configuration**: Use `wrangler.jsonc` exclusively. Never use `wrangler.toml`.
 - **Infrastructure as Code**: All bindings and environment variables must be defined in `wrangler.jsonc`.
-- **Resource Naming **:
+- **Resource Naming**:
   - Cloudflare Workers MUST be named exactly `[project]`, with no tags or suffixes added.
-- **Observability **: Every `wrangler.jsonc` MUST include the following block to enable full diagnostic logging and worker traces:
+- **Observability**: Every `wrangler.jsonc` MUST include the following block to enable full diagnostic logging and worker traces:
   ```jsonc
   "observability": {
     "enabled": true,
@@ -20,7 +21,7 @@ This document serves as the absolute source of truth for all projects within the
     }
   }
   ```
-- **Git Metadata **: Every `wrangler.jsonc` MUST include a `GIT_REPO` variable in the `vars` block to link the project to its repository:
+- **Git Metadata**: Every `wrangler.jsonc` MUST include a `GIT_REPO` variable in the `vars` block to link the project to its repository:
   ```jsonc
   "vars": {
     "GIT_REPO": "https://github.com/GameProductions/{repo-name}"
@@ -29,18 +30,18 @@ This document serves as the absolute source of truth for all projects within the
 
 ## 2. Path-Based Routing Architecture
 - **Domain Pattern**: Every project is assigned a sub-domain on `gpnet.dev` (e.g., `project-name.gpnet.dev`).
-- **DNS Automation **: Cloudflare Workers automatically register DNS records for `gpnet.dev` subdomains when the `routes` property is defined in `wrangler.jsonc`.
+- **DNS Automation**: Cloudflare Workers automatically register DNS records for `gpnet.dev` subdomains when the `routes` property is defined in `wrangler.jsonc`.
   - All projects MUST define their custom domain route: `"{project-name}.gpnet.dev/*"`.
   - The `workers_dev` flag MUST be set to `false` for production.
-- **Unified Hono Router**: Use a single Hono entry point to handle all traffic. The production entry is `apps/api/worker.ts` (declared as `main` in `wrangler.jsonc`); `apps/api/server.ts` is the local Node dev runner.
-- **CDN Manifest & Icon Purity**: To ensure 3rd-party password managers (like 1Password / AgileBits) and external crawlers can securely bind rich icons, the PWA MUST expose `apple-touch-icon.png` and `favicon.png` as static assets in `public/`, referenced from `index.html` via `<link rel="apple-touch-icon">` and `<link rel="icon">`.
+- **Unified Fullstack Hono + React Router Entrypoint**: Use a single Hono entry point at `apps/api/worker.ts` to mount API routes (`/api/*`), WebAuthn challenges (`/api/auth/*`), and proxy handlers (`/api/proxy/*`), with unmatched route traffic falling through directly to the **React Router v8 Server-Side Rendering (SSR) handler**.
+- **CDN Manifest & Icon Purity**: To ensure 3rd-party password managers (like 1Password / AgileBits) and external crawlers can securely bind rich icons, the PWA MUST expose `apple-touch-icon.png` and `favicon.png` as static assets in `public/`, referenced from `index.html` or `root.tsx` via `<link rel="apple-touch-icon">` and `<link rel="icon">`.
 - **Path Branching**: 
   - `/api/auth/*`: Shared authentication (session, profile, passkeys, backup codes, OAuth) served from `packages/shared/auth/server`.
   - `/api/*`: Reserved for bot logic, webhooks, and backend API.
   - `/admin/*`: Dedicated directory for project-level administrative tools.
-  - `/*`: Reserved for the PWA (frontend) and static assets.
+  - `/*`: Rendered via React Router v8 fullstack SSR with edge loaders and client hydration.
 - **Webhook Exemption**: Any Bearer/Token auth guards or strict middlewares acting globally on the `/api/*` blanket must explicitly whitelist routes containing `/discord` or `/interactions`. Failure to do this will block native webhook validation tools from remote platforms (e.g., Discord) causing 401s that break server-to-server operations.
-- **CORS Consolidation **: CORS MUST be handled at the entry-point layer: `apps/api/worker.ts` for the `/api/*` namespace (dynamic allowlist of `*.gpnet.dev`, `*.glosonproductions.com`, localhost) and `apps/api/server.ts` for the local dev/deploy socket. Secondary CORS middlewares in sub-routers are strictly prohibited as they cause preflight (`OPTIONS`) request failures.
+- **CORS Consolidation**: CORS MUST be handled at the entry-point layer: `apps/api/worker.ts` for the `/api/*` namespace (dynamic allowlist of `*.gpnet.dev`, `*.glosonproductions.com`, localhost) and `apps/api/server.ts` for the local dev/deploy socket. Secondary CORS middlewares in sub-routers are strictly prohibited as they cause preflight (`OPTIONS`) request failures.
 
 ## 3. Database & Persistence (SQL)
 - **Standard**: Use **Neon Postgres** via the serverless HTTP client (`drizzle-orm/neon-http` + `@neondatabase/serverless`) orchestrated purely through Drizzle ORM. The connection string is injected via the `DATABASE_URL` binding.
