@@ -1,6 +1,6 @@
 {
   "name": "voyarr",
-  "version": "1.170.0",
+  "version": "1.170.1",
   "description": "Media downloader/manager and metadata scraper",
   "main": "index.js",
   "scripts": {
@@ -48,7 +48,7 @@
     "wrangler": "^4.118.0"
   },
   "overrides": {
-    "brace-expansion": "^5.0.8",
+    "brace-expansion": "^5.0.9",
     "minimatch": "^10.0.2",
     "glob": "^10.5.0",
     "braces": "^3.0.3",
@@ -60,8 +60,8 @@
     "form-data": "^4.0.6",
     "node-notifier": "^10.0.1",
     "rimraf": "^3.0.2",
-    "fast-uri": "^3.0.6",
-    "js-yaml": "^4.1.0",
+    "esbuild": "^0.25.0",
+    "js-yaml": "^4.3.1",
     "undici": "^7.29.0"
   }
 }
