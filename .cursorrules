@@ -100,6 +100,8 @@ This document serves as the absolute source of truth for all projects within the
     - **Signed In**: User drop-down menu with avatar.
     - **Signed Out**: A prominent **"Sign In"** button that initiates the primary authentication flow.
   - **Law**: Never alter branding, logos, or typography unless specifically requested by the user.
+- **Gradient Brand Typography (Fleet-Wide Law)**: Whenever an application name is displayed prominently in a **Header, Navbar, Hero, Landing banner, or Title bar**, the text MUST incorporate a sleek, high-contrast **CSS linear gradient** (e.g. `bg-gradient-to-r from-cyan-400 via-teal-300 to-emerald-400 bg-clip-text text-transparent` or product-tailored palette) to impart a modern, premium, state-of-the-art visual aesthetic, regardless of surrounding surface themes.
+- **Modern Version Badges**: Version indicators (in headers, sidebars, modals, and footers) MUST be rendered as high-fidelity pills with subtle borders, backdrop blur, and monospaced font formatting (e.g., `font-mono text-xs px-2 py-0.5 rounded-full bg-surface-muted/60 border border-border/80 text-text-secondary font-medium tracking-wide`).
 - **Landing Page **:
   - Must comply with Google’s safety rules to avoid "dangerous site" classification.
   - MUST include a compelling **Application Description** immediately following the hero section.
@@ -108,9 +110,9 @@ This document serves as the absolute source of truth for all projects within the
   - **Naming Policy **: **Application names must NEVER be prefixed with "GameProductions"** in UI headers, page titles, or internal identifiers. "GameProductions" is the organization name and its usage must be restricted to legal disclosures, copyright tags, and repository URLs. (e.g., "I Am" instead of "GameProductions I Am").
 - **Universal Footer**: Every project MUST implement a standard floating footer.
   - Content: 
-    - Top Row: App Name + Version (Left), Legal Links (Right)
+    - Top Row: App Name + Version Badge (Left), Legal Links (Terms of Service, Privacy Policy, Cookie Policy) (Right)
     - Bottom Row (Standard): `{new Date().getFullYear()} GameProductions™. All rights reserved.`
-    - Bottom Row (Gloson Production): `{new Date().getFullYear()} GameProductions™ | Gloson Production™. All rights reserved.`
+    - Bottom Row (GloBot): GloBot uniquely presents dual publisher attribution: `{new Date().getFullYear()} GameProductions™ & Gloson Production™. All rights reserved.`
 - **Notifications**: Dismissable toasts only. Do NOT use browser alerts.
 - **What's New Modals**: All update/release notes modals MUST use a vertical, scrollable list (`.scrollable-list`). They must track the last version viewed by the user so that upon their next visit, they see an aggregated view of all versions and changes released since their last recorded view.
 
