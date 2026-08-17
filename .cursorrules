@@ -112,7 +112,7 @@ This document serves as the absolute source of truth for all projects within the
   - Content: 
     - Top Row: App Name + Version Badge (Left), Legal Links (Terms of Service, Privacy Policy, Cookie Policy) (Right)
     - Bottom Row (Standard): `{new Date().getFullYear()} GameProductions™. All rights reserved.`
-    - Bottom Row (GloBot): GloBot uniquely presents dual publisher attribution: `{new Date().getFullYear()} GameProductions™ & Gloson Production™. All rights reserved.`
+    - Bottom Row (GloBot): GloBot uniquely presents dual publisher attribution: `{new Date().getFullYear()} GameProductions™ | Gloson Production™. All rights reserved.`
 - **Notifications**: Dismissable toasts only. Do NOT use browser alerts.
 - **What's New Modals**: All update/release notes modals MUST use a vertical, scrollable list (`.scrollable-list`). They must track the last version viewed by the user so that upon their next visit, they see an aggregated view of all versions and changes released since their last recorded view.
 
