@@ -86,6 +86,73 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
+    // 1. Standard Fleet Health & Status Interceptor
+    if (path === "/api/health" || path === "/health") {
+      let isMaintenance = false;
+      const isHardLocked = env.MAINTENANCE_MODE === "true";
+      const kv = env.FLEET_SECURITY_CACHE;
+      
+      let globalCache = null;
+      let projectCache = null;
+      if (kv) {
+        try {
+          globalCache = await kv.get("global:maintenance");
+          projectCache = await kv.get("project:maintenance:voyarr");
+        } catch (e) {}
+      }
+      isMaintenance = isHardLocked || globalCache === "true" || projectCache === "true";
+
+      return new Response(JSON.stringify({
+        status: isMaintenance ? "maintenance" : "online",
+        maintenance: isMaintenance,
+        database: "connected",
+        service: "voyarr",
+        environment: env.ENVIRONMENT || "production",
+        versions: {
+          production: "1.170.1",
+          development: "1.170.1-dev"
+        },
+        timestamp: Date.now()
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        }
+      });
+    }
+
+    // 2. Fleet Maintenance Guard
+    const isHardLocked = env.MAINTENANCE_MODE === "true";
+    const kv = env.FLEET_SECURITY_CACHE;
+    let isLocked = isHardLocked;
+    if (kv && !isLocked) {
+      try {
+        const globalCache = await kv.get("global:maintenance");
+        const projectCache = await kv.get("project:maintenance:voyarr");
+        if (globalCache === "true" || projectCache === "true") {
+          isLocked = true;
+        }
+      } catch (e) {}
+    }
+
+    // If in maintenance mode, return 503 for API or serve Maintenance HTML for UI
+    if (isLocked && !path.startsWith("/api/auth/pair") && !path.includes(".well-known")) {
+      if (path.startsWith("/api")) {
+        return new Response(JSON.stringify({
+          status: "maintenance",
+          service: "voyarr",
+          message: "Voyarr is currently undergoing scheduled infrastructure updates.",
+          retryAfter: 30
+        }), {
+          status: 503,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*"
+          }
+        });
+      }
+    }
+
     // Pairing page for VR headsets: serve standalone HTML (before DeoVR detection)
     if (path === "/pair") {
       return new Response(PAIR_PAGE_HTML, {

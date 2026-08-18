@@ -1,5 +1,6 @@
 export const APP_NAME = 'Voyarr';
-export const FLEET_VERSION = '1.167.0';
+import pkg from '../../package.json';
+export const APP_VERSION = pkg.version;
 
 export const AUTH_EXCLUSIONS = [
   '/api/health',

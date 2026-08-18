@@ -33,8 +33,8 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 ############################
 FROM python:3.12-slim-bookworm
 
-LABEL version="1.170.1"
-LABEL org.opencontainers.image.version="1.170.1"
+LABEL version="1.171.0"
+LABEL org.opencontainers.image.version="1.171.0"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
