@@ -435,3 +435,21 @@ To ensure absolute account integrity and forensic traceability, all identity sys
   - **`LETS Draw-Down`** (`LETS` in ALL CAPS, `Draw-Down` in Title Case)
   - **`FOOD`** (Entire name in ALL CAPS)
 - **Application**: When referencing any of these projects in user-facing UI, alerts, toasts, logs, maintenance views, and documentation, always use their exact standardized display name with acronym casing.
+
+## 26. Containerization, Portainer Stacks & Named Volumes Standard
+- **1Password Secret Management for Containers & Stacks**:
+  - All container environment variables and stack credentials MUST be centralized in the dedicated **`Docker stacks`** 1Password vault.
+  - Stack items MUST be created with the **`API Credential`** category (e.g., `Voyarr Stack`, `RomM Stack`).
+  - **Categorization & Sorting**: Variables within stack items MUST be categorized into distinct, logical sections (e.g., *Authentication & Security*, *Database*, *Container Settings*, *Storage & Volume Paths*, *Integrations & Cloudflare*) and sorted alphabetically (**A–Z**) within each section.
+  - **Item Metadata**: Every stack item MUST include comprehensive documentation in its notes (architecture overview, service breakdowns, volume mappings) and relevant operational tags.
+- **Docker Named Volumes Policy (`{project_name}-{volume_category}`)**:
+  - All **functional/runtime container volumes** (configuration, state files, databases, automated backups, TLS certs) MUST use standard Docker named volumes formatted strictly as:
+    ```
+    {project_name}-{volume_category}
+    ```
+    *(e.g., `voyarr-config`, `voyarr-backups`, `voyarr-certs`, `voyarr-db-data`, `voyarr-tailscale-state`, `romm-config`, `romm-db-data`)*.
+  - **Host Media Mounts Exemption**: Under NO circumstances should volumes hosting user media, library files, game ROMs, downloads, or external datasets (e.g. `/media/storage`, `/volume1/downloads`, `/romm/roms`) be converted into named volumes. These MUST remain strictly host bind mounts.
+  - **Zero-Loss Data Migration**: When migrating legacy host bind paths to named volumes, existing data MUST be safely transferred into the initialized named volume via a transient copy container before deprecating the host path.
+- **Portainer Compose Manifest Declarations**:
+  - Docker compose files MUST explicitly declare all functional named volumes in the top-level `volumes:` manifest block with explicit `name:` attributes.
+  - Secrets and environment variables MUST be referenced via variable interpolation (`${VAR_NAME}`) rather than hardcoded credentials.
