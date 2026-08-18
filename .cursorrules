@@ -396,3 +396,42 @@ To ensure absolute account integrity and forensic traceability, all identity sys
 - **Rule Attribution Requirement**: When performing any operation that is directly triggered by, required by, or executed in compliance with any of the Global Laws defined in this document, you MUST explicitly state the rule number(s) and brief justification before executing the operation. For example: `[Rule 22 — Transparency] I'm performing this operation because of Rule X (Name) — brief reason.`
 - **Scope**: This applies to all operations including but not limited to: code changes, file modifications, database migrations, security fixes, configuration updates, and architectural decisions.
 - **Exceptions**: Routine operations that are not specifically triggered by a rule (e.g., running a standard build, responding to a direct user request unrelated to a rule) do not require attribution.
+
+## 23. Versioning & Health Endpoints Standard
+- **Single Source of Truth (`APP_VERSION`)**: 
+  - Every project must export `APP_VERSION = pkg.version` from `packages/shared/constants.ts` (or `@shared/constants`).
+  - Never hardcode static version strings or use the deprecated `FLEET_VERSION` alias.
+  - Commit hooks automatically bump `package.json`, which must seamlessly cascade into all version displays.
+- **Standardized `/api/health` Endpoint**:
+  - Every project MUST expose a public, unauthenticated `GET /api/health` returning:
+    ```json
+    {
+      "status": "online" | "maintenance" | "degraded",
+      "maintenance": boolean,
+      "database": "connected" | "disconnected" | "error",
+      "service": "<project-id>",
+      "environment": "production" | "development",
+      "versions": {
+        "production": APP_VERSION,
+        "development": "APP_VERSION-dev"
+      },
+      "timestamp": 1723900000000
+    }
+    ```
+
+## 24. Dedicated Themed Maintenance Mode (`MaintenanceView.tsx`)
+- **Dedicated Maintenance Views**: Every project across the fleet MUST maintain a dedicated `MaintenanceView.tsx` component that activates whenever maintenance mode is active.
+- **Standardized Core Components**:
+  1. **Project Branding**: Must visibly display the official project icon, exact user-viewable display name, and current version (`v{APP_VERSION}`).
+  2. **Themed Boilerplate Narrative**: Must clearly explain that the application is undergoing scheduled maintenance, what that means (data is secure, access temporarily locked), and always refer to itself by its official display name.
+  3. **Auto-Polling & Reconnect**: Must poll `/api/health` every 15–30s to automatically reload when back online, plus provide a manual "Check Connectivity" action button.
+- **Visual Theming**: The visual presentation, colors, animations, and narrative tone must be custom-tailored to the project's identity (e.g., Command Center for Foundation, Shonen Comic for GloBot, Encrypted Vault for LEDGER, Fresh Pantry for FOOD).
+
+## 25. Acronym Display Naming Standards
+- **Acronym Casing**: For all project names that represent acronyms, user-viewable display names MUST always display the acronym portion of the name in **ALL CAPS**.
+- **Recognized Acronym Names Across the Fleet**:
+  - **`I AM`** (Entire name in ALL CAPS)
+  - **`LEDGER`** (Entire name in ALL CAPS)
+  - **`LETS Draw-Down`** (`LETS` in ALL CAPS, `Draw-Down` in Title Case)
+  - **`FOOD`** (Entire name in ALL CAPS)
+- **Application**: When referencing any of these projects in user-facing UI, alerts, toasts, logs, maintenance views, and documentation, always use their exact standardized display name with acronym casing.
