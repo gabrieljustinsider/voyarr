@@ -1,3 +1,6 @@
+import pkg from '../../package.json';
+const APP_VERSION = pkg.version;
+
 const ASSET_MANIFEST = {
   "manifest.webmanifest": "manifest.webmanifest",
   "registerSW.js": "registerSW.js",
@@ -109,8 +112,8 @@ export default {
         service: "voyarr",
         environment: env.ENVIRONMENT || "production",
         versions: {
-          production: "1.170.1",
-          development: "1.170.1-dev"
+          production: APP_VERSION,
+          development: `${APP_VERSION}-dev`
         },
         timestamp: Date.now()
       }), {
