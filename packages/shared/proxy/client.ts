@@ -1,3 +1,21 @@
+/**
+ * Unified API Bridge — Client SDK (Issue #2, Phase 4)
+ *
+ * Shared utility for subordinate GameProductions apps to easily hit the
+ * Foundation Fleet Proxy Hub. Callers supply their identity (projectId),
+ * the provider + scope they are authorized for, and Foundation attaches the
+ * correct stored OAuth token and forwards the request.
+ *
+ * Usage:
+ *   const proxy = new FleetProxyClient({
+ *     baseUrl: 'https://foundation.gpnet.dev/api/proxy/v1',
+ *     serviceToken: env.SHARED_SERVICE_SECRET,
+ *     projectId: 'globot',
+ *   });
+ *   await proxy.request('discord', 'webhook.send', '/users/@me');
+ *   await proxy.post('discord', 'webhook.send', '/webhooks/{id}', { content: 'hi' });
+ */
+
 export interface FleetProxyClientOptions {
   baseUrl: string;
   serviceToken: string;
@@ -40,28 +58,33 @@ export class FleetProxyClient {
     });
   }
 
-  async get(provider: string, scope: string, path: string): Promise<Response> {
+  /** GET through the proxy. */
+  request(provider: string, scope: string, path: string): Promise<Response> {
     return this.send(provider, scope, path, 'GET');
   }
 
-  async post(provider: string, scope: string, path: string, body?: unknown): Promise<Response> {
+  /** POST through the proxy. */
+  post(provider: string, scope: string, path: string, body?: unknown): Promise<Response> {
     return this.send(provider, scope, path, 'POST', body);
   }
 
-  async put(provider: string, scope: string, path: string, body?: unknown): Promise<Response> {
+  /** PATCH through the proxy. */
+  patch(provider: string, scope: string, path: string, body?: unknown): Promise<Response> {
+    return this.send(provider, scope, path, 'PATCH', body);
+  }
+
+  /** PUT through the proxy. */
+  put(provider: string, scope: string, path: string, body?: unknown): Promise<Response> {
     return this.send(provider, scope, path, 'PUT', body);
   }
 
-  async delete(provider: string, scope: string, path: string, body?: unknown): Promise<Response> {
-    return this.send(provider, scope, path, 'DELETE', body);
+  /** DELETE through the proxy. */
+  delete(provider: string, scope: string, path: string): Promise<Response> {
+    return this.send(provider, scope, path, 'DELETE');
   }
 
-  async request(
-    provider: string,
-    scope: string,
-    path: string,
-    options: { method?: string; body?: unknown } = {}
-  ): Promise<Response> {
-    return this.send(provider, scope, path, options.method || 'GET', options.body);
+  /** Convenience: parse a JSON response. */
+  async json<T = any>(res: Response): Promise<T> {
+    return res.json() as Promise<T>;
   }
 }
