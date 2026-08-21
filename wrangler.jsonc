@@ -25,6 +25,10 @@
     {
       "binding": "FLEET_SECURITY_CACHE",
       "id": "3b5176621a954976ba0b6d78a2c9af08"
+    },
+    {
+      "binding": "CACHE",
+      "id": "bc7c5ec543464acbacc351dc63680164"
     }
   ],
   "assets": {

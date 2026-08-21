@@ -249,6 +249,17 @@ All projects MUST adhere to this unified monorepo-style layout to ensure scalabi
 - **Rule 13.15 (KV Write Coalescing)**: To prevent hitting Cloudflare's hard limit of 1 write per second per key, all high-frequency KV updates (specifically rate-limit counters) MUST implement a **write-coalescing** mechanism. State updates occurring within 1000ms of a previous write to the same key MUST be dropped unless the update is a security-critical state change (e.g., a "Shield Active" block trigger).
 - **Rule 13.16 (Fleet Activity Queue)**: All projects acting as producers MUST bind to the `fleet-activity` queue via the `FLEET_ACTIVITY` environment variable. High-volume audit trails and forensic telemetry MUST be offloaded to this queue to ensure zero-latency for the end-user and centralized durability in the Foundation database.
 - **Rule 13.17 (PII Redaction & Forensic Purity)**: Before any data is committed to the `FLEET_ACTIVITY` queue or local `audit_logs`, the `redactSensitiveData` utility MUST be executed on all `oldValues`, `newValues`, and `metadata` payloads. Keys including `password`, `token`, `secret`, `key`, `email`, and `phone` MUST be masked to ensure forensic logs remain free of PII and security credentials.
+- **Rule 13.18 (Discord Slash Command Taxonomy & Subcommand Hierarchy)**:
+  - **Category Rooting**: Slash commands sharing a logical domain (e.g. `security`, `maintenance`, `admin`, `verse`, `vip`, `giveaway`) MUST be registered under a single root command category utilizing native Discord **Subcommands (`type: 1`)** or **Subcommand Groups (`type: 2`)** rather than fragmented flat root commands (e.g. `/admin-stats`, `/admin-logs` $\rightarrow$ `/admin stats`, `/admin logs`).
+  - **Contextual Option Prompting**: Subcommands must define only the specific options required for that exact action. Flat commands with generic `action` dropdowns that clutter the user with unused optional arguments are prohibited.
+  - **Permission Scoping**: Sensitive categories (e.g., `security`, `maintenance`, `admin`) MUST set default member permission constraints (`default_member_permissions: "8"` for Administrator or `"32"` for Manage Server) at the root command level.
+  - **Immediate Interaction Deferral (3s Hard Limit)**: All Discord button interactions (`type: 3`) and slash commands (`type: 2`) with async operations or external I/O (R2, DB, KV, third-party APIs) MUST immediately return an interaction deferral (`type: 5` for commands, `type: 6` for component updates) within 50ms, deferring all heavy execution to `c.executionCtx.waitUntil()` to prevent Discord gateway timeout errors.
+- **Rule 13.19 (Dynamic RBAC Engine & Edge Cache Standard)**:
+  - **No Static/Hardcoded Privilege Checks**: Features, API routes, and Discord slash commands that are restricted by Role-Based Access Control (RBAC) MUST NEVER rely on hardcoded user IDs, Discord Snowflakes, or static arrays in source code.
+  - **Central Authority in Foundation**: Foundation serves as the Single Source of Truth for all fleet permissions, roles, and user assignments via the `/roles` and Permissions Engine.
+  - **Edge-Cached Fast Evaluation**: To ensure sub-millisecond evaluation (<1ms) and eliminate HTTP latency during high-frequency API routes and Discord interactions, active user permissions MUST be synchronized from Foundation directly to `FLEET_SECURITY_CACHE` (`fs:perms:user:<userId>` and `fs:perms:discord:<discordId>`). Project bots and services MUST evaluate permissions locally from the shared KV cache rather than performing synchronous HTTP queries to Foundation.
+  - **Discrete Permission Nodes**: Privileges must be modeled as discrete, namespaced permission nodes (e.g., `fleet:security:manage`, `maintenance:toggle`, `globot:vip:admin`, `audit:read`).
+  - **Manifest Discovery**: Projects declaring custom administrative nodes must export a structured permission manifest for automatic registration in Foundation.
 
 ## 14. Database Migration Standards 
 - **Archive Before Action**: Any destructive change (table drop, column removal, type change) MUST be preceded by an archival step. Rename the existing table to `[original_name]_archive_[timestamp]`.
@@ -436,6 +447,7 @@ To ensure absolute account integrity and forensic traceability, all identity sys
   - **`FOOD`** (Entire name in ALL CAPS)
 - **Application**: When referencing any of these projects in user-facing UI, alerts, toasts, logs, maintenance views, and documentation, always use their exact standardized display name with acronym casing.
 
+
 ## 26. Containerization, Portainer Stacks & Named Volumes Standard
 - **1Password Secret Management for Containers & Stacks**:
   - All container environment variables and stack credentials MUST be centralized in the dedicated **`Docker stacks`** 1Password vault.
@@ -453,3 +465,12 @@ To ensure absolute account integrity and forensic traceability, all identity sys
 - **Portainer Compose Manifest Declarations**:
   - Docker compose files MUST explicitly declare all functional named volumes in the top-level `volumes:` manifest block with explicit `name:` attributes.
   - Secrets and environment variables MUST be referenced via variable interpolation (`${VAR_NAME}`) rather than hardcoded credentials.
+
+## 27. Agent & AI Engineering Standards
+- **Automatic Version Bumping**: The git pre-commit hook (`scripts/prepare-commit.cjs`) automatically handles version bumping for staged commits. If manually bumping `package.json` (patch for bug fixes/refactors, minor for new features) before staging and committing, the hook preserves the manual version without double-bumping.
+- **Commit Prefixes**: The commit message must always be prefixed with the newly bumped version from `package.json` in `[vX.Y.Z]` format.
+- **Project Planning & Tracking**: Whenever plans or architectural proposals are created for GitHub, they must be posted directly as **GitHub Issues** and added to the relevant **GitHub Project Boards** rather than created as standalone internal artifacts.
+- **Opportunistic Abstract Refactoring**: Whenever logic or code is being added or modified, if it can be abstractly refactored to increase code quality, DRY principles, and modularity without introducing sacrifices in performance, readability, or complexity, always opt for abstract refactoring.
+- **No Forced Abstractions**: Never force abstract refactoring. If abstraction does not make logical sense, introduces unnecessary layers, complicates debugging, or risks stability in a specific code block, keep the implementation concrete.
+- **Engineering Principles**: Always prioritize methods of coding that are highly efficient, secure, stable, and follow best-practices.
+
