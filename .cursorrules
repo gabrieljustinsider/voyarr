@@ -260,6 +260,21 @@ All projects MUST adhere to this unified monorepo-style layout to ensure scalabi
   - **Edge-Cached Fast Evaluation**: To ensure sub-millisecond evaluation (<1ms) and eliminate HTTP latency during high-frequency API routes and Discord interactions, active user permissions MUST be synchronized from Foundation directly to `FLEET_SECURITY_CACHE` (`fs:perms:user:<userId>` and `fs:perms:discord:<discordId>`). Project bots and services MUST evaluate permissions locally from the shared KV cache rather than performing synchronous HTTP queries to Foundation.
   - **Discrete Permission Nodes**: Privileges must be modeled as discrete, namespaced permission nodes (e.g., `fleet:security:manage`, `maintenance:toggle`, `globot:vip:admin`, `audit:read`).
   - **Manifest Discovery**: Projects declaring custom administrative nodes must export a structured permission manifest for automatic registration in Foundation.
+- **Rule 13.20 (Dual-Vault 1Password & UUID Referencing Standard)**:
+  - **Vault Segmentation**:
+    - **`Fleet Services` (`6wgu5yz5yphvacdimgc64ej65i`)**: Dedicated exclusively to first-party Cloudflare Workers, PWAs, Discord bot tokens, APIs, JWT/service secrets, and Neon PostgreSQL database credentials across the GameProductions fleet.
+    - **`Self-Hosted Infrastructure` (`57s77wi4sbpj5zxxm7habzczo4`)**: Dedicated exclusively to on-premise hardware nodes (Synology, UGREEN, QNAP, TrueNAS, Unraid, Drobo, Linux VPS), Portainer environments, Docker compose stacks, media connectors (*Arr suite, Stash), and sidecar agent tokens (`foundation-agent`).
+  - **Mandatory UUID Syntax**: All `op://` secret references in codebase templates, `.dev.vars.tpl`, CI/CD workflows, and deployment scripts MUST use the exact **Vault UUID** and **Item UUID** (e.g. `op://6wgu5yz5yphvacdimgc64ej65i/<ITEM_UUID>/<FIELD>` or `op://57s77wi4sbpj5zxxm7habzczo4/<ITEM_UUID>/<FIELD>`) rather than human-readable string names. This prevents breakage from item renames and eliminates shell quoting ambiguities.
+  - **Strict Secret Isolation**: Cross-pollination between these two vaults is strictly prohibited.
+- **Rule 13.21 (Universal API Versioning, Manifest Registration & Deprecation Lifecycle)**:
+  - **Two-Dimensional Versioning Model**:
+    - **Major API Contract (`v1`, `v2`)**: Governs structural request/response breaking changes and route pathing (e.g. `/api/v1/...` or `/api/...` for current default v1).
+    - **Semantic Feature Stamping (`sinceVersion`)**: Every endpoint declared in `@shared/api-manifest` MUST specify the exact semantic release version (e.g. `1.149.0`) in which it was introduced to enable changelog tracking.
+  - **Mandatory Manifest Registration**: All new public, administrative, integration, or sidecar API endpoints implemented in any fleet project MUST be registered in `packages/shared/api-manifest/registry.ts` with explicit HTTP method, path, category, auth tier, permission node, 1Password vault reference (if applicable), and request/response examples.
+  - **Graceful Deprecation Policy**:
+    - Endpoints marked for retirement MUST set `deprecated: true`, `deprecatedSince: "X.Y.Z"`, and provide a clear `deprecationNotice` directing developers to the successor route.
+    - Deprecated endpoints MUST return a standard `Sunset` and `Deprecation: @<timestamp>` HTTP response header.
+    - Breaking changes must maintain a minimum 30-day coexistence window before obsolete routes are permanently unmounted.
 
 ## 14. Database Migration Standards 
 - **Archive Before Action**: Any destructive change (table drop, column removal, type change) MUST be preceded by an archival step. Rename the existing table to `[original_name]_archive_[timestamp]`.
