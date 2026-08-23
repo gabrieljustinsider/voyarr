@@ -481,6 +481,11 @@ To ensure absolute account integrity and forensic traceability, all identity sys
       6. *Storage & Volume Paths*
     - **Variables within Sections**: All variables inside every section MUST also be sorted alphabetically (**A–Z**) by variable name.
   - **Item Metadata**: Every stack item MUST include comprehensive documentation in its notes (architecture overview, service breakdowns, volume mappings) and relevant operational tags.
+- **Context-Aware Base Image Policy (Alpine vs. Debian Slim)**:
+  - **Alpine Base Images (`nginx:alpine`, `caddy:alpine`, `alpine:latest`)**:
+    - MUST be used for pure static web servers (SPAs), reverse proxies, multi-stage production web hosts, and lightweight maintenance/sidecar containers to minimize image size (~15–25 MB), attack surface, and CVE footprint.
+  - **Debian Slim Base Images (`node:<version>-slim`, `python:<version>-slim`)**:
+    - MUST be used for dynamic backend APIs, microservices, and any containerized runtime that depends on native C/C++ bindings (crypto, WebAuthn, PBKDF2/argon2, image rendering, SQLite/PostgreSQL drivers) to ensure `glibc` performance and avoid `musl` compilation overhead.
 - **Docker Named Volumes Policy (`{project_name}-{volume_category}`)**:
   - All **functional/runtime container volumes** (configuration, state files, databases, automated backups, TLS certs) MUST use standard Docker named volumes formatted strictly as:
     ```
