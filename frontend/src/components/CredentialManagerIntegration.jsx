@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   Box, Typography, TextField, Button, Paper, Grid, Divider, Tooltip, Chip,
-  Avatar, Autocomplete, InputAdornment, CircularProgress, IconButton, Stack
+  Avatar, Autocomplete, InputAdornment, CircularProgress, IconButton, Stack, ToggleButtonGroup, ToggleButton
 } from '@mui/material'
 import HelpIcon from '@mui/icons-material/Help'
 import AddIcon from '@mui/icons-material/Add'
@@ -13,7 +13,9 @@ import LockIcon from '@mui/icons-material/Lock'
 import ShieldIcon from '@mui/icons-material/Shield'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import ErrorIcon from '@mui/icons-material/Error'
-import ContentCopyIcon from '@mui/icons-material/ContentCopy'
+import HubIcon from '@mui/icons-material/Hub'
+import KeyIcon from '@mui/icons-material/Key'
+import StorageIcon from '@mui/icons-material/Storage'
 import { apiFetch } from '../api'
 
 const STORAGE_KEY = 'voyarr_credential_managers'
@@ -196,7 +198,7 @@ const SelectField = ({ field, items, loading, error, value, onChange, accent, co
 const MANAGERS = [
   {
     key: '1password',
-    label: '1Password Connect',
+    label: '1Password & Fleet Hub',
     favicon: '1password.com',
     syncProvider: '1password',
     accent: '#818cf8',
@@ -215,29 +217,7 @@ const MANAGERS = [
       const list = Array.isArray(data?.vaults) ? data.vaults : []
       return list.map(v => ({ id: v.id, name: v.name || v.id, label: `${v.name || v.id} (${v.id})` }))
     },
-    fields: [
-      {
-        kind: 'help', name: 'op_connect_host', label: '1Password Connect Host',
-        placeholder: 'e.g. http://localhost:8080 or https://connect.mycompany.com',
-        helperText: 'Deploy via 1Password Connect Docker or Kubernetes.',
-        help: 'The URL of your running 1Password Connect API server (e.g. http://localhost:8080). Deploy via 1Password Connect Docker or Kubernetes.'
-      },
-      {
-        kind: 'help', name: 'op_connect_token', label: '1Password Connect Token', type: 'password',
-        placeholder: 'Generated API Access Token',
-        helperText: 'Generate in 1Password.com -> Developer Settings',
-        help: 'Your 1Password Connect API Access Token. Generate this in 1Password.com -> Developer Settings -> Connect Services -> Create Access Token.'
-      },
-      {
-        kind: 'select', name: 'op_vault_id', label: '1Password Vault ID',
-        placeholder: 'Select or paste 26-character Vault ID',
-        loadingText: 'Loading account vaults...',
-        emptyText: 'The 26-character ID of vault to sync with.',
-        foundText: (n) => `Select or type vault ID (${n} vaults found)`,
-        help: 'The 26-character unique ID of your 1Password vault. Search and select from the dropdown when host & token are valid, or paste manually.'
-      }
-    ],
-    saveKeys: ['op_connect_host', 'op_connect_token', 'op_vault_id']
+    saveKeys: ['op_auth_mode', 'op_service_account_token', 'foundation_url', 'fleet_app_key', 'op_connect_host', 'op_connect_token', 'op_vault_id']
   },
   {
     key: 'bitwarden',
@@ -287,35 +267,35 @@ const readStored = () => {
 }
 const writeStored = (list) => localStorage.setItem(STORAGE_KEY, JSON.stringify(list))
 
-const hostOf = (m) => m.fields.find(f => f.kind === 'help')
-const tokenOf = (m) => m.fields.filter(f => f.kind === 'help')[1]
-const selectOf = (m) => m.fields.find(f => f.kind === 'select')
-
 export default function CredentialManagerIntegration({ settings, handleChange, notify, handleSyncManager }) {
   const [added, setAdded] = useState(readStored)
   const [itemsMap, setItemsMap] = useState({})
   const [loadingMap, setLoadingMap] = useState({})
   const [errorMap, setErrorMap] = useState({})
   const [syncingMap, setSyncingMap] = useState({})
+  const [opAuthMode, setOpAuthMode] = useState(settings.op_auth_mode || 'service_account')
 
   const visible = useManagerList(added, settings)
   const available = MANAGERS.filter(m => !visible.includes(m.key))
 
   useEffect(() => {
+    if (settings.op_auth_mode) {
+      setOpAuthMode(settings.op_auth_mode)
+    }
+  }, [settings.op_auth_mode])
+
+  useEffect(() => {
     visible.forEach((key) => {
       const manager = MANAGERS.find(m => m.key === key)
       if (!manager) return
-      const host = settings[hostOf(manager).name]
-      const token = settings[tokenOf(manager).name]
-      if (!host || !token) { setItemsMap(p => ({ ...p, [key]: [] })); return }
       setLoadingMap(p => ({ ...p, [key]: true }))
       setErrorMap(p => ({ ...p, [key]: null }))
-      manager.loadItems(host, token)
+      manager.loadItems(settings.bw_connect_host, settings.bw_session_token)
         .then((items) => setItemsMap(p => ({ ...p, [key]: items })))
-        .catch(() => { setItemsMap(p => ({ ...p, [key]: [] })); setErrorMap(p => ({ ...p, [key]: `Couldn't reach ${manager.label}. Check the host and token.` })) })
+        .catch(() => { setItemsMap(p => ({ ...p, [key]: [] })); setErrorMap(p => ({ ...p, [key]: `Couldn't reach ${manager.label}. Check configuration.` })) })
         .finally(() => setLoadingMap(p => ({ ...p, [key]: false })))
     })
-  }, [visible.join('|'), JSON.stringify([settings.op_connect_host, settings.op_connect_token, settings.bw_connect_host, settings.bw_session_token])])
+  }, [visible.join('|'), JSON.stringify([settings.op_service_account_token, settings.fleet_app_key, settings.op_connect_token, settings.bw_session_token])])
 
   const addManager = (key) => {
     const next = [...new Set([...added, key])]
@@ -336,7 +316,8 @@ export default function CredentialManagerIntegration({ settings, handleChange, n
   }
 
   const saveManager = (manager) => {
-    Promise.all(manager.saveKeys.map(k =>
+    const keysToSave = manager.saveKeys
+    Promise.all(keysToSave.map(k =>
       apiFetch('/settings', { method: 'POST', body: JSON.stringify({ key: k, value: String(settings[k] ?? '') }) })
     )).then(results => {
       if (results.every(r => r.ok)) notify(`${manager.label} settings saved successfully!`, 'success')
@@ -384,7 +365,7 @@ export default function CredentialManagerIntegration({ settings, handleChange, n
           </Typography>
         </Stack>
         <Typography variant="body2" sx={{ color: '#94a3b8', maxWidth: 650, mx: 'auto', lineHeight: 1.6 }}>
-          Securely synchronize Voyarr application credentials, tokens, and storage secrets directly with enterprise password managers (1Password Connect or Bitwarden / Vaultwarden CLI server).
+          Synchronize Voyarr provider credentials directly with 1Password (Service Account Option A, Foundation Fleet Gateway, or Connect Server) and Bitwarden / Vaultwarden.
         </Typography>
       </Box>
 
@@ -445,9 +426,312 @@ export default function CredentialManagerIntegration({ settings, handleChange, n
           {visible.map((key) => {
             const manager = MANAGERS.find(m => m.key === key)
             if (!manager) return null
-            const hostField = hostOf(manager)
-            const tokenField = tokenOf(manager)
-            const selectField = selectOf(manager)
+
+            if (key === '1password') {
+              const isConfigured = Boolean(
+                (opAuthMode === 'service_account' && settings.op_service_account_token) ||
+                ((opAuthMode === 'fleet_gateway' || opAuthMode === 'satellite_gateway') && (settings.fleet_app_key || settings.satellite_app_key)) ||
+                (opAuthMode === 'connect' && settings.op_connect_host && settings.op_connect_token)
+              )
+
+              return (
+                <Grid item xs={12} md={visible.length === 1 ? 12 : 6} key={key}>
+                  <Box sx={{
+                    p: { xs: 2.5, sm: 3 },
+                    borderRadius: '20px',
+                    position: 'relative',
+                    background: manager.background,
+                    border: `1px solid ${manager.border}`,
+                    boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 2,
+                    height: '100%',
+                    transition: 'transform 0.3s ease, border-color 0.3s ease',
+                    '&:hover': { borderColor: manager.accent }
+                  }}>
+                    {/* Remove Button */}
+                    <IconButton
+                      size="small"
+                      onClick={() => removeManager(manager)}
+                      sx={{
+                        position: 'absolute',
+                        top: 12,
+                        right: 12,
+                        color: 'rgba(255,255,255,0.4)',
+                        bgcolor: 'rgba(0,0,0,0.2)',
+                        border: '1px solid rgba(255,255,255,0.05)',
+                        '&:hover': { color: '#ef4444', bgcolor: 'rgba(239, 68, 68, 0.15)' }
+                      }}
+                      title="Remove 1Password Integration"
+                    >
+                      <CloseIcon sx={{ fontSize: 18 }} />
+                    </IconButton>
+
+                    {/* Header */}
+                    <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ pr: 4 }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: '800', color: manager.accent, display: 'flex', alignItems: 'center', gap: 1.25, fontSize: '1.05rem' }}>
+                        <Avatar src={`https://www.google.com/s2/favicons?domain=${manager.favicon}&sz=128`} alt={manager.label} sx={{ width: 28, height: 28, borderRadius: '8px', bgcolor: 'transparent' }} />
+                        {manager.label}
+                      </Typography>
+                      <Chip
+                        icon={isConfigured ? <CheckCircleIcon sx={{ fontSize: '14px !important', color: '#34d399 !important' }} /> : <ErrorIcon sx={{ fontSize: '14px !important', color: '#cbd5e1 !important' }} />}
+                        label={isConfigured ? 'Ready' : 'Setup required'}
+                        size="small"
+                        sx={{
+                          height: 22,
+                          fontSize: '0.68rem',
+                          fontWeight: '800',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                          bgcolor: isConfigured ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255,255,255,0.05)',
+                          color: isConfigured ? '#34d399' : '#94a3b8',
+                          border: `1px solid ${isConfigured ? 'rgba(16, 185, 129, 0.3)' : 'rgba(255,255,255,0.1)'}`
+                        }}
+                      />
+                    </Stack>
+
+                    <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.06)', my: 0.5 }} />
+
+                    {/* Strategy Selector Toggle */}
+                    <Box sx={{ mb: 1 }}>
+                      <Typography variant="caption" sx={{ fontWeight: '700', color: '#94a3b8', display: 'block', mb: 1, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        Integration Strategy
+                      </Typography>
+                      <ToggleButtonGroup
+                        value={opAuthMode === 'satellite_gateway' ? 'fleet_gateway' : opAuthMode}
+                        exclusive
+                        onChange={(e, next) => {
+                          if (next) {
+                            setOpAuthMode(next)
+                            handleChange({ target: { name: 'op_auth_mode', value: next } })
+                          }
+                        }}
+                        fullWidth
+                        size="small"
+                        sx={{
+                          bgcolor: 'rgba(0,0,0,0.3)',
+                          borderRadius: '12px',
+                          p: 0.5,
+                          '& .MuiToggleButton-root': {
+                            border: 'none',
+                            borderRadius: '8px',
+                            color: '#94a3b8',
+                            fontSize: '0.72rem',
+                            fontWeight: '700',
+                            textTransform: 'none',
+                            py: 0.75,
+                            '&.Mui-selected': {
+                              bgcolor: 'rgba(99, 102, 241, 0.25)',
+                              color: '#ffffff',
+                              border: '1px solid rgba(99, 102, 241, 0.4)'
+                            }
+                          }
+                        }}
+                      >
+                        <ToggleButton value="service_account">
+                          <Stack direction="row" spacing={0.75} alignItems="center">
+                            <KeyIcon sx={{ fontSize: 14 }} />
+                            <span>Option A: Service Account</span>
+                          </Stack>
+                        </ToggleButton>
+                        <ToggleButton value="fleet_gateway">
+                          <Stack direction="row" spacing={0.75} alignItems="center">
+                            <HubIcon sx={{ fontSize: 14 }} />
+                            <span>Foundation Fleet Gateway</span>
+                          </Stack>
+                        </ToggleButton>
+                        <ToggleButton value="connect">
+                          <Stack direction="row" spacing={0.75} alignItems="center">
+                            <StorageIcon sx={{ fontSize: 14 }} />
+                            <span>Connect Server</span>
+                          </Stack>
+                        </ToggleButton>
+                      </ToggleButtonGroup>
+                    </Box>
+
+                    {/* Dynamic Fields Based on Mode */}
+                    {opAuthMode === 'service_account' && (
+                      <HelpField
+                        field={{
+                          name: 'op_service_account_token',
+                          label: 'Service Account Token (OP_SERVICE_ACCOUNT_TOKEN)',
+                          type: 'password',
+                          placeholder: 'opsa_xxxxxxxxxxxxxxxxxxxxxxxx',
+                          helperText: 'Direct Option A token from 1Password Developer Settings.',
+                          help: 'Your 1Password Service Account Token (Option A). Communicates directly with official 1Password cloud without needing Connect containers.'
+                        }}
+                        value={settings.op_service_account_token}
+                        onChange={handleChange}
+                        accent={manager.accent}
+                        color={manager.color}
+                      />
+                    )}
+
+                    {(opAuthMode === 'fleet_gateway' || opAuthMode === 'satellite_gateway') && (
+                      <>
+                        <HelpField
+                          field={{
+                            name: 'foundation_url',
+                            label: 'Foundation Hub URL',
+                            placeholder: 'https://foundation.gpnet.dev',
+                            helperText: 'Central Foundation Fleet Gateway URL.',
+                            help: 'The base URL of your Foundation instance providing the zero-trust credential proxy.'
+                          }}
+                          value={settings.foundation_url || 'https://foundation.gpnet.dev'}
+                          onChange={handleChange}
+                          accent={manager.accent}
+                          color={manager.color}
+                        />
+                        <HelpField
+                          field={{
+                            name: 'fleet_app_key',
+                            label: 'Fleet Application Secret Key',
+                            type: 'password',
+                            placeholder: 'ffa_xxxxxxxxxxxxxxxxxxxxxx',
+                            helperText: 'Generated in Foundation > 1Password & Fleet Hub > Fleet Applications.',
+                            help: 'The zero-trust Fleet Application key generated for Voyarr in Foundation.'
+                          }}
+                          value={settings.fleet_app_key || settings.satellite_app_key}
+                          onChange={handleChange}
+                          accent={manager.accent}
+                          color={manager.color}
+                        />
+                      </>
+                    )}
+
+                    {opAuthMode === 'connect' && (
+                      <>
+                        <HelpField
+                          field={{
+                            name: 'op_connect_host',
+                            label: '1Password Connect Host',
+                            placeholder: 'e.g. http://localhost:8080 or https://connect.mycompany.com',
+                            helperText: 'Connect API instance URL.',
+                            help: 'The URL of your running 1Password Connect API server container.'
+                          }}
+                          value={settings.op_connect_host}
+                          onChange={handleChange}
+                          accent={manager.accent}
+                          color={manager.color}
+                        />
+                        <HelpField
+                          field={{
+                            name: 'op_connect_token',
+                            label: '1Password Connect Token',
+                            type: 'password',
+                            placeholder: 'Connect Access Token',
+                            helperText: 'Connect JWT access token.',
+                            help: 'Your 1Password Connect Access Token.'
+                          }}
+                          value={settings.op_connect_token}
+                          onChange={handleChange}
+                          accent={manager.accent}
+                          color={manager.color}
+                        />
+                      </>
+                    )}
+
+                    {/* Vault Selector */}
+                    <SelectField
+                      field={{
+                        name: 'op_vault_id',
+                        label: 'Target Vault ID',
+                        placeholder: '6wgu5yz5yphvacdimgc64ej65i (Fleet Services)',
+                        loadingText: 'Loading vaults...',
+                        emptyText: 'Default: 6wgu5yz5yphvacdimgc64ej65i (Fleet Services)',
+                        foundText: (n) => `Select vault (${n} vaults available)`,
+                        help: 'The 1Password vault containing Voyarr credentials (defaults to Fleet Services).'
+                      }}
+                      items={itemsMap[key] || []}
+                      loading={loadingMap[key]}
+                      error={errorMap[key]}
+                      value={settings.op_vault_id || '6wgu5yz5yphvacdimgc64ej65i'}
+                      onChange={handleChange}
+                      accent={manager.accent}
+                      color={manager.color}
+                    />
+
+                    {/* Action Bar */}
+                    <Box sx={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 1.5,
+                      mt: 'auto',
+                      pt: 2,
+                      borderTop: '1px solid rgba(255, 255, 255, 0.06)'
+                    }}>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        startIcon={<SaveIcon />}
+                        onClick={() => saveManager(manager)}
+                        sx={{
+                          borderRadius: '10px',
+                          textTransform: 'none',
+                          fontWeight: '800',
+                          py: 1,
+                          bgcolor: manager.accent,
+                          color: '#0f172a',
+                          boxShadow: `0 4px 14px rgba(${manager.color}, 0.3)`,
+                          '&:hover': { bgcolor: manager.accent, filter: 'brightness(1.1)' }
+                        }}
+                      >
+                        Save 1Password Settings
+                      </Button>
+
+                      <Stack direction="row" spacing={1.5} justifyContent="center">
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          disabled={!isConfigured || syncingMap[`${manager.key}_push`]}
+                          startIcon={syncingMap[`${manager.key}_push`] ? <CircularProgress size={14} color="inherit" /> : <CloudUploadIcon sx={{ fontSize: 16 }} />}
+                          onClick={() => triggerSync(manager, 'push')}
+                          sx={{
+                            flex: 1,
+                            borderRadius: '10px',
+                            textTransform: 'none',
+                            fontWeight: '700',
+                            fontSize: '0.78rem',
+                            color: '#f8fafc',
+                            borderColor: 'rgba(255,255,255,0.15)',
+                            bgcolor: 'rgba(255,255,255,0.03)',
+                            '&:hover': { borderColor: manager.accent, bgcolor: `rgba(${manager.color}, 0.1)` }
+                          }}
+                        >
+                          Push to Vault
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          disabled={!isConfigured || syncingMap[`${manager.key}_pull`]}
+                          startIcon={syncingMap[`${manager.key}_pull`] ? <CircularProgress size={14} color="inherit" /> : <CloudDownloadIcon sx={{ fontSize: 16 }} />}
+                          onClick={() => triggerSync(manager, 'pull')}
+                          sx={{
+                            flex: 1,
+                            borderRadius: '10px',
+                            textTransform: 'none',
+                            fontWeight: '700',
+                            fontSize: '0.78rem',
+                            color: '#f8fafc',
+                            borderColor: 'rgba(255,255,255,0.15)',
+                            bgcolor: 'rgba(255,255,255,0.03)',
+                            '&:hover': { borderColor: manager.accent, bgcolor: `rgba(${manager.color}, 0.1)` }
+                          }}
+                        >
+                          Pull from Vault
+                        </Button>
+                      </Stack>
+                    </Box>
+                  </Box>
+                </Grid>
+              )
+            }
+
+            // Bitwarden default render
+            const hostField = manager.fields[0]
+            const tokenField = manager.fields[1]
+            const selectField = manager.fields[2]
             const hostConfigured = !!(settings[hostField.name] && settings[tokenField.name])
             const isError = !!errorMap[key]
 
@@ -465,11 +749,8 @@ export default function CredentialManagerIntegration({ settings, handleChange, n
                   gap: 2,
                   height: '100%',
                   transition: 'transform 0.3s ease, border-color 0.3s ease',
-                  '&:hover': {
-                    borderColor: manager.accent
-                  }
+                  '&:hover': { borderColor: manager.accent }
                 }}>
-                  {/* Remove Manager Button */}
                   <IconButton
                     size="small"
                     onClick={() => removeManager(manager)}
@@ -487,7 +768,6 @@ export default function CredentialManagerIntegration({ settings, handleChange, n
                     <CloseIcon sx={{ fontSize: 18 }} />
                   </IconButton>
 
-                  {/* Header Row */}
                   <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ pr: 4 }}>
                     <Typography variant="subtitle1" sx={{ fontWeight: '800', color: manager.accent, display: 'flex', alignItems: 'center', gap: 1.25, fontSize: '1.05rem' }}>
                       <Avatar src={`https://www.google.com/s2/favicons?domain=${manager.favicon}&sz=128`} alt={manager.label} sx={{ width: 28, height: 28, borderRadius: '8px', bgcolor: 'transparent' }} />
@@ -512,7 +792,6 @@ export default function CredentialManagerIntegration({ settings, handleChange, n
 
                   <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.06)', my: 0.5 }} />
 
-                  {/* Input Fields */}
                   <HelpField field={hostField} value={settings[hostField.name]} onChange={handleChange} accent={manager.accent} color={manager.color} />
                   <HelpField field={tokenField} value={settings[tokenField.name]} onChange={handleChange} accent={manager.accent} color={manager.color} />
                   <SelectField
@@ -526,7 +805,6 @@ export default function CredentialManagerIntegration({ settings, handleChange, n
                     color={manager.color}
                   />
 
-                  {/* Action Bar */}
                   <Box sx={{
                     display: 'flex',
                     flexDirection: 'column',
@@ -548,10 +826,7 @@ export default function CredentialManagerIntegration({ settings, handleChange, n
                         bgcolor: manager.accent,
                         color: '#0f172a',
                         boxShadow: `0 4px 14px rgba(${manager.color}, 0.3)`,
-                        '&:hover': {
-                          bgcolor: manager.accent,
-                          filter: 'brightness(1.1)'
-                        }
+                        '&:hover': { bgcolor: manager.accent, filter: 'brightness(1.1)' }
                       }}
                     >
                       Save {manager.label} Settings
@@ -573,10 +848,7 @@ export default function CredentialManagerIntegration({ settings, handleChange, n
                           color: '#f8fafc',
                           borderColor: 'rgba(255,255,255,0.15)',
                           bgcolor: 'rgba(255,255,255,0.03)',
-                          '&:hover': {
-                            borderColor: manager.accent,
-                            bgcolor: `rgba(${manager.color}, 0.1)`
-                          }
+                          '&:hover': { borderColor: manager.accent, bgcolor: `rgba(${manager.color}, 0.1)` }
                         }}
                       >
                         Push to Vault
@@ -596,10 +868,7 @@ export default function CredentialManagerIntegration({ settings, handleChange, n
                           color: '#f8fafc',
                           borderColor: 'rgba(255,255,255,0.15)',
                           bgcolor: 'rgba(255,255,255,0.03)',
-                          '&:hover': {
-                            borderColor: manager.accent,
-                            bgcolor: `rgba(${manager.color}, 0.1)`
-                          }
+                          '&:hover': { borderColor: manager.accent, bgcolor: `rgba(${manager.color}, 0.1)` }
                         }}
                       >
                         Pull from Vault
@@ -626,8 +895,16 @@ export default function CredentialManagerIntegration({ settings, handleChange, n
 }
 
 function useManagerList(added, settings) {
-  const configured = MANAGERS.filter(m =>
-    settings[hostOf(m).name] || settings[tokenOf(m).name]
-  ).map(m => m.key)
+  const configured = MANAGERS.filter(m => {
+    if (m.key === '1password') {
+      return Boolean(
+        settings.op_service_account_token ||
+        settings.fleet_app_key ||
+        settings.satellite_app_key ||
+        (settings.op_connect_host && settings.op_connect_token)
+      )
+    }
+    return Boolean(settings[m.fields?.[0]?.name] || settings[m.fields?.[1]?.name])
+  }).map(m => m.key)
   return [...new Set([...added, ...configured])]
 }

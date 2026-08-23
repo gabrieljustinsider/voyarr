@@ -24,6 +24,9 @@ SECURE_SETTINGS = [
     "stashdb_api_key",
     "extension_secret",
     "op_connect_token",
+    "op_service_account_token",
+    "fleet_app_key",
+    "satellite_app_key",
     "bw_session_token",
     "global_proxy_url",
 ]
@@ -36,44 +39,12 @@ class SettingUpdate(BaseModel):
 
 @router.get("/op/vaults")
 def list_op_vaults(db: Session = Depends(get_db)):
-    host, token, _ = OnePasswordService.get_config(db)
-    if not all([host, token]):
-        raise HTTPException(status_code=400, detail="1Password Connect host and token must be configured first.")
-
     try:
-        res = requests.get(
-            f"{host.rstrip('/')}/v1/vaults",
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=10,
-        )
+        vaults = OnePasswordService.list_accessible_vaults(db)
+        return {"vaults": vaults}
     except Exception as e:
-        logger.warning("Failed to reach 1Password Connect: %s", e)
-        raise HTTPException(status_code=503, detail="Could not reach the 1Password Connect server.")
-
-    if not res.ok:
-        logger.warning("1Password Connect returned %s: %s", res.status_code, res.text[:500])
-        detail = "1Password Connect rejected the request (check host and token)."
-        if res.status_code in (401, 403):
-            detail = "1Password Connect rejected the token. Double-check the Connect Access Token."
-        elif res.status_code in (400, 404):
-            detail = "1Password Connect couldn't find the resource (check the host URL)."
-        raise HTTPException(status_code=502, detail=detail)
-
-    try:
-        data = res.json()
-    except Exception as e:
-        logger.warning("1Password Connect returned a non-JSON response: %s", e)
-        raise HTTPException(
-            status_code=502,
-            detail="1Password Connect returned an unexpected response. Check the host URL.",
-        )
-
-    vaults = [
-        {"id": v.get("id"), "name": v.get("name") or v.get("id")}
-        for v in data
-        if isinstance(v, dict) and v.get("id")
-    ]
-    return {"vaults": vaults}
+        logger.warning("Failed to retrieve 1Password vaults: %s", e)
+        raise HTTPException(status_code=502, detail=str(e))
 
 
 @router.get("/op/items")
