@@ -501,6 +501,73 @@ To ensure absolute account integrity and forensic traceability, all identity sys
 - **No Forced Abstractions**: Never force abstract refactoring. If abstraction does not make logical sense, introduces unnecessary layers, complicates debugging, or risks stability in a specific code block, keep the implementation concrete.
 - **Engineering Principles**: Always prioritize methods of coding that are highly efficient, secure, stable, and follow best-practices.
 
+## 28. Cookie Governance & Granular User Consent
+- **Scope & Exclusions**:
+  - Essential authentication cookies (such as `FOUNDATION_SESSION` or isolated media auth cookies like Voyarr) are strictly necessary for platform operation and zero-trust security.
+  - All non-essential client-side cookies, local storage state trackers, functional preference cookies (e.g. `active_guild_id`), and telemetry trackers MUST provide explicit **Opt-In / Opt-Out** controls for end-users.
+- **Consent Architecture**:
+  - The shared consent manager is defined in `packages/shared/cookie-consent` exporting `getCookieConsent()`, `saveCookieConsent()`, and `isCookieCategoryAllowed()`.
+  - Applications MUST mount the universal `CookieConsentBanner` component in their root layout.
+  - Users MUST have the ability to accept all, choose essential only, or customize granular categories (`strictly essential`, `functional preferences`, `analytics & telemetry`).
+  - An event (`gp-open-cookie-preferences`) MUST be dispatched to allow opening the preferences manager from footers, settings, or legal pages.
+
+## 29. Technical Documentation & Legal Alignment Standard
+- **Scope of Technical Documentation**:
+  - Technical documentation includes root markdown specifications (`API.md`, `KNOWLEDGE.md`, `PROJECTS.md`), developer guides (`/api-guide`, `ServiceGuide.tsx`), interactive help centers and walkthrough modals (`TechStackModal.tsx`, `SetupGuideModal.tsx`, `AgentEnrollmentModal.tsx`), how-to articles, and component registry definitions.
+- **Scope of Legal Disclosures**:
+  - Legal disclosures include the unified Trust Center (`apps/web/pages/Legal.tsx`) covering **Terms of Service** (`/legal/terms`), **Privacy Policy** (`/legal/privacy`), **Security Protocol** (`/legal/security`), **Safety & Trust** (`/legal/safety`), and **Cookie Governance** (`/legal/cookies`).
+- **Continuous Documentation Sync**:
+  - All technical documentation, help articles, guides, and legal pages MUST remain in 100% active alignment with the live codebase.
+  - Whenever new endpoints, authentication mechanisms, passkey workflows, background workers, cookies, storage mechanisms, telemetry channels, microservices, or admin tools are introduced, modified, or decommissioned:
+    1. Update all developer and architecture specifications (`API.md`, `KNOWLEDGE.md`, `PROJECTS.md`).
+    2. Synchronize technical descriptions, interactive help center dialogs, how-to guides, and API documentation in `apps/web/`.
+    3. Update the legal disclosures and Trust Center tabs (`/legal/terms`, `/legal/privacy`, `/legal/security`, `/legal/safety`, `/legal/cookies`) with clear, plain-language explanations of operational practices.
+
+## 30. Brand Asset Suite & Multi-Version Directory Structure
+- **Mandatory Full Asset Suite**: Whenever creating or updating application branding, logos, or icon assets for any project in the fleet, you MUST produce a complete, multi-resolution asset suite rather than a single standalone image.
+  - **Required Core Assets Per Version**:
+    1. Master Logo / App Icon (`logo.png` / `icon-512.png` — 512×512)
+    2. PWA App Icons (`icon-192.png` — 192×192, `apple-touch-icon.png` — 180×180)
+    3. Web Favicons (`favicon.png` — 32×32, `favicon.ico` — 32×32)
+    4. Marketing Hero Banner (`marketing_hero.png` — 16:9 widescreen showcase banner)
+    5. Discord / Community Banner (`discord_banner.png` — 16:9 server header banner)
+    6. Directory / App Store Listing Card (`app_listing.png` — 1:1 square formatted listing card)
+
+- **Design Consistency & Motif Purity**:
+  - **Unaltered Master Logo Requirement**: Every individual asset within a given version suite (`v1/`, `v2/`, etc.) MUST feature the **exact same master logo motif without alterations** across the entire suite. No stylistic divergence, emblem deformation, or color deviation is permitted across the assets of that version.
+  - **Wide Asset Rule (16:9 Banners & Marketing Heroes)**: Wide assets must retain the exact same unaltered master logo motif. To optimize widescreen composition, wide assets may be **off-centered** with the unaltered logo anchored on the left side and the official application display name and tagline arranged on the right.
+  - **Transparent Background Law**: Application icons, logos, and badges MUST NEVER have an artificial border background or solid box canvas — the outer background MUST remain **transparent**. The icon artwork itself may feature curved edges, rounded geometry, or organic contours, but must float cleanly without an outer bounding card.
+
+- **Subfolder Layering & Multi-Design Versioning**:
+  - Assets MUST NOT be placed flatly in the root public directory.
+  - They MUST be organized in a dedicated branding subfolder (`public/assets/branding/`) structured to support multiple design iterations and variations.
+  - **Versioned Folder Hierarchy**:
+    ```
+    public/
+      assets/
+        branding/
+          v1/               <-- Design Option / Iteration 1 (Consistent Suite with Unaltered Master Motif)
+            logo.png
+            favicon.png
+            favicon.ico
+            apple-touch-icon.png
+            icon-192.png
+            icon-512.png
+            marketing_hero.png  (16:9 off-centered: unaltered logo left, name/tagline right)
+            discord_banner.png  (16:9 off-centered: unaltered logo left, name/tagline right)
+            app_listing.png     (1:1 transparent background / curved emblem)
+          v2/               <-- Design Option / Iteration 2 (created alongside v1)
+            ...
+          v3/               <-- Design Option / Iteration 3
+            ...
+    ```
+
+- **Dynamic Brand Asset Versioning & Selection Engine**:
+  - **Single Source of Truth**: The active brand version is tracked per project in Foundation's database (`projectThemes` / `platform_settings.activeBrandVersion`, e.g., `'v1'`, `'v2'`, `'v3'`).
+  - **Universal Resolver Helper (`getBrandAsset`)**: All frontend components, themes, and views MUST reference brand assets using the shared `@shared/branding` resolver `getBrandAsset('logo.png')` which evaluates the project's active version path `/assets/branding/${activeVersion}/logo.png`, falling back gracefully to `/assets/branding/v1/logo.png` and root `/logo.png`.
+  - **Administrative Version Switcher**: Foundation's Theme Manager (`/admin/themes`) serves as the central control plane for previewing design iterations and switching the active brand suite across projects with 1-click.
+  - **Edge Fallback Routing**: Edge worker routes MUST intercept requests for root static assets (`/logo.png`, `/favicon.ico`, `/manifest.json`) and route them to the active brand suite.
+
 ## 31. Biometric Passkey Step-Up Gate for Destructive Operations & Deletions
 - **Zero Automatic Deletions**: Under NO circumstances should any deletion, revocation, or destructive mutation of credentials, environment variables, containers, stacks, users, groups, or database records occur automatically or silently.
 - **Mandatory Passkey Challenge Before Confirmation**:
