@@ -360,15 +360,19 @@ To ensure absolute account integrity and forensic traceability, all identity sys
 - **Reactive CRUD**: All security management architecture (Rename, Revoke, Enroll) MUST utilize optimistic UI updates or immediate state refreshes to reflect changes without requiring a full page reload.
 - **Passkey Enrollment**: Enrollment logic MUST generate and display 10 high-entropy recovery codes immediately upon successful binding, with a mandatory "Saved" verification and download option.
 
-## 17. Centralized Secret Management (Fleet Security v6.1)
-- **Zero-GitHub-Secret Policy**: The use of GitHub Repository Secrets for application-level keys is strictly prohibited. The ONLY exception is `OP_SERVICE_ACCOUNT_TOKEN`, which is required for vault access.
-- **1Password Single Source of Truth**: All secrets (API keys, JWT secrets, database credentials) and sensitive metadata MUST be stored in the central 1Password vault (`6wgu5yz5yphvacdimgc64ej65i`).
+## 17. Centralized Secret, Credential & Environment Variable Governance (Foundation & 1Password SSoT)
+- **1Password & Foundation as the Single Source of Truth**:
+  - All credentials, API tokens, service keys, JWT secrets, database connection strings, container environment variables, and stack configuration across every fleet project MUST be managed exclusively through **1Password** and **Foundation**.
+  - All CRUD operations (Create, Read, Update, Delete) for credentials, environment variables, and configurations must be executed via Foundation's **1Password & Fleet Hub** (`/vaults`) or the **Fleet Application Gateway** (`/api/v1/fleet`).
+  - Storing, hardcoding, or staging plaintext credentials in `.env` files, source code, dockerfiles, or git repositories is strictly prohibited.
+- **Strict Two-Vault Segmentation & UUID Law**:
+  - **`Fleet Services` (`6wgu5yz5yphvacdimgc64ej65i`)**: Dedicated exclusively to first-party Cloudflare Workers, PWAs, Discord bot tokens, web APIs, JWT/service secrets, and Neon PostgreSQL database credentials across the fleet.
+  - **`Self-Hosted Infrastructure` (`57s77wi4sbpj5zxxm7habzczo4`)**: Dedicated exclusively to on-premise hardware nodes (Synology, UGREEN, TrueNAS, VPS), Portainer environments, Docker compose stacks, container environment variables, media connectors (*Arr suite, Stash), and `foundation-agent` tokens.
+  - **Mandatory UUID Syntax**: All `op://` secret references in codebase templates, `.dev.vars.tpl`, compose files, and CI/CD workflows MUST use the exact **Vault UUID** and **Item UUID** (e.g. `op://6wgu5yz5yphvacdimgc64ej65i/<ITEM_UUID>/<FIELD>` or `op://57s77wi4sbpj5zxxm7habzczo4/<ITEM_UUID>/<FIELD>`) rather than human-readable string names.
+  - **Strict Secret Isolation**: Cross-pollination between these two vaults is strictly prohibited.
 - **Item Categorization & Tagging**: Every 1Password item MUST adhere to the following metadata standard:
   - **Title Pattern**: `[Project Name] - [Service]` (e.g., `GloBot - Discord`).
-  - **Mandatory Tags**:
-    - `[Project Name]` (e.g., `food`, `ledger`).
-    - `[Service Provider]` (e.g., `Discord`, `Cloudflare`, `Twitch`).
-    - `Bot` (for all bot-related integrations).
+  - **Mandatory Tags**: `[Project Name]`, `[Service Provider]`, `Bot` (for all bot-related integrations), `fleet`.
   - **Detailed Notes**: Items must include detailed notes describing the purpose, associated project routes, and service provider links.
 - **Sensitive Metadata Storage**: Non-secret but sensitive infrastructure metadata (Application IDs, Public Keys, Client IDs) MUST be stored as **Secure Notes** in 1Password with the same tagging standard.
 - **Proactive Hardening**: 
@@ -465,9 +469,17 @@ To ensure absolute account integrity and forensic traceability, all identity sys
 
 ## 26. Containerization, Portainer Stacks & Named Volumes Standard
 - **1Password Secret Management for Containers & Stacks**:
-  - All container environment variables and stack credentials MUST be centralized in the dedicated **`Docker stacks`** 1Password vault.
+  - All container environment variables and stack credentials MUST be centralized in the **`Self-Hosted Infrastructure`** (`57s77wi4sbpj5zxxm7habzczo4`) 1Password vault.
   - Stack items MUST be created with the **`API Credential`** category (e.g., `Voyarr Stack`, `RomM Stack`).
-  - **Categorization & Sorting**: Variables within stack items MUST be categorized into distinct, logical sections (e.g., *Authentication & Security*, *Database*, *Container Settings*, *Storage & Volume Paths*, *Integrations & Cloudflare*) and sorted alphabetically (**A–Z**) within each section.
+  - **Two-Tier Alphabetical Categorization & Sorting (A–Z)**:
+    - **Section Categories**: All section categories within a stack item MUST be sorted alphabetically (**A–Z**), for example:
+      1. *Authentication & Security*
+      2. *Container Settings*
+      3. *Database*
+      4. *Integrations & Cloudflare*
+      5. *Network & Ports*
+      6. *Storage & Volume Paths*
+    - **Variables within Sections**: All variables inside every section MUST also be sorted alphabetically (**A–Z**) by variable name.
   - **Item Metadata**: Every stack item MUST include comprehensive documentation in its notes (architecture overview, service breakdowns, volume mappings) and relevant operational tags.
 - **Docker Named Volumes Policy (`{project_name}-{volume_category}`)**:
   - All **functional/runtime container volumes** (configuration, state files, databases, automated backups, TLS certs) MUST use standard Docker named volumes formatted strictly as:
@@ -489,3 +501,27 @@ To ensure absolute account integrity and forensic traceability, all identity sys
 - **No Forced Abstractions**: Never force abstract refactoring. If abstraction does not make logical sense, introduces unnecessary layers, complicates debugging, or risks stability in a specific code block, keep the implementation concrete.
 - **Engineering Principles**: Always prioritize methods of coding that are highly efficient, secure, stable, and follow best-practices.
 
+## 31. Biometric Passkey Step-Up Gate for Destructive Operations & Deletions
+- **Zero Automatic Deletions**: Under NO circumstances should any deletion, revocation, or destructive mutation of credentials, environment variables, containers, stacks, users, groups, or database records occur automatically or silently.
+- **Mandatory Passkey Challenge Before Confirmation**:
+  - Before any deletion confirmation dialog is offered to the administrator in the UI or processed via API, the system MUST enforce a **WebAuthn Biometric Passkey Challenge** (Face ID, Touch ID, or FIDO2 hardware key) verifying a freshness window of $\le 15\text{ minutes}$.
+  - The API endpoint MUST enforce `requirePasskeyFreshness(15)` middleware before processing any `DELETE` or destructive `PUT/PATCH` requests.
+  - If passkey authentication fails or is cancelled, the deletion action is immediately aborted and logged as a denied security event.
+
+## 32. Application, Container & Integration Provisioning Lifecycle
+- **Centralized Credential & Key Lifecycle in Foundation**:
+  - Whenever a new application, container, Portainer stack, Discord bot, or third-party integration is created or modified that requires:
+    1. Credential creation or modification
+    2. High-entropy random key/token generation (API keys, session secrets, salts, encryption keys)
+    3. Environment variable configuration
+    4. Service-to-service credential exchange
+  - It MUST be provisioned, registered, and managed centrally through **Foundation** and **1Password**.
+- **Fleet Application Gateway Standard**:
+  - Connected fleet services (Voyarr, Butlarr, Food, Globot, Groupcord, I-AM, LEDGER, LETS Draw-Down) must authenticate to Foundation's Fleet Gateway (`/api/v1/fleet`) using scoped `X-Fleet-Key` tokens (`ffa_<app>_<uuid>`).
+  - Random key generation must utilize cryptographically secure Web Crypto (`crypto.getRandomValues` / `crypto.randomUUID`) with SHA-256 key hashing in Foundation's database.
+  - Granular scopes (permitted vaults, allowed categories, allowed tags, rate limits, and read/write permission levels) must be enforced at the gateway layer.
+- **Hardening & Zero-Downtime Principles**:
+  - **Immutable Audit Logging**: Every secret read, write, rotation, and revocation MUST record an audit event in `fleetAccessLogs` capturing the actor, IP, timestamp, and target resource.
+  - **Zero-Downtime Key Rotation**: Key rotation procedures must allow graceful overlap during container/service restarts.
+  - **Ephemeral In-Memory Decryption**: Subordinate apps must never cache decrypted vault credentials to persistent disk or localStorage; credentials must only reside in volatile memory or be fetched dynamically via `FleetVaultClient`.
+  - **Drift Detection**: Routine diagnostic checks between Portainer container environment variables and the `Self-Hosted Infrastructure` vault must be performed to detect and alert on unsanctioned out-of-band changes.
