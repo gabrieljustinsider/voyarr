@@ -6,4 +6,5 @@ export type { FleetProxyClientOptions } from './proxy/client'
 export * from './portainer'
 export * from './rbac/client'
 export * from './cookie-consent'
-
+export * from './discord';
+export * from './roles';
