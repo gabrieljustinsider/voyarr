@@ -37,11 +37,11 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
 export function RoleGate({ children, minRole }: { children: React.ReactNode; minRole: string }) {
   const { user } = useAuth()
-  const roleRank: Record<string, number> = { owner: 100, admin: 80, mod: 60, user: 40 }
+  const roleRank: Record<string, number> = { owner: 0, admin: 1, administrator: 1, mod: 2, moderator: 2, user: 3, participant: 3, guest: 4 }
   const userRank = roleRank[user?.globalRole?.toLowerCase() || ''] || 0
   const minRank = roleRank[minRole.toLowerCase()] || 0
 
-  if (userRank < minRank) {
+  if (userRank > minRank) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="text-center space-y-4">

@@ -597,3 +597,28 @@ To ensure absolute account integrity and forensic traceability, all identity sys
   - **Zero-Downtime Key Rotation**: Key rotation procedures must allow graceful overlap during container/service restarts.
   - **Ephemeral In-Memory Decryption**: Subordinate apps must never cache decrypted vault credentials to persistent disk or localStorage; credentials must only reside in volatile memory or be fetched dynamically via `FleetVaultClient`.
   - **Drift Detection**: Routine diagnostic checks between Portainer container environment variables and the `Self-Hosted Infrastructure` vault must be performed to detect and alert on unsanctioned out-of-band changes.
+
+## 33. Text Casing and Typography Purity Standard
+- **No Default ALL CAPS Text**:
+  - Under NO circumstances should UI headers, navigation links, menu items, table column titles, role names, usernames, project titles, modal titles, or general typography default to `ALL CAPS` / uppercase (e.g. avoid `LEDGER`, `OWNER`, `USER MANAGEMENT`, `DASHBOARD`, `CREATE ROLE`).
+  - Use standard **Title Case** (e.g., *User Management*, *Permissions & Roles*, *Spreadsheet Import*) or **Sentence case** (e.g., *Create new role*, *Active sessions*) for headers, buttons, navigation items, and labels.
+- **Strict Exceptions for ALL CAPS**:
+  - `ALL CAPS` is permitted ONLY for:
+    1. **Established Acronyms, Initialisms & Acronym-Based Project Names**:
+       - Technical acronyms: `API`, `SDK`, `UI`, `PWA`, `RBAC`, `SSO`, `2FA`, `TOTP`, `CORS`, `IP`, `SQL`, `DNS`, `URL`, `JSON`, `DOM`, `UUID`, `DWD`.
+       - Fleet Application Brands & Projects intentionally stylized or defined as acronyms/initialisms: `I-AM`, `LEDGER` (when defined as an acronym), `LETS` in `LETS Draw-Down`, etc.
+    2. **HTTP Verbs & Database Methods**: `GET`, `POST`, `PUT`, `DELETE`, `PATCH`, `OPTIONS`.
+    3. **Micro-Labels & Status Badges with Letter Spacing**: Micro-pills and technical telemetry tags with explicit wide tracking (e.g., `tracking-[0.2em]`, `tracking-widest`) when styled as micro-tags (e.g., `ACTIVE`, `LIVE`, `BETA`).
+    4. **Contextual Syntactic Constants**: Enums, environment variable keys (`DATABASE_URL`), and code constants.
+- **Role Display Names & Presentation**:
+  - Role titles and display badges MUST be formatted in Title Case (*Owner*, *Administrator*, *Moderator*, *Participant*, *Guest*) rather than screaming uppercase (`OWNER`, `ADMIN`).
+
+## 34. Universal Alphabetical (A–Z) Sorting Standard
+- **Default Deterministic Alphabetical Ordering**:
+  - All lists, markdown tables, registry manifests, UI dropdown selectors, navigation catalogs, tool listings, and configuration arrays MUST be dynamically or statically sorted alphabetically (**A–Z**) by their primary key, title, or label.
+- **Strict Exceptions for Canonical & Semantic Orders**:
+  - Alphabetical ordering is waived ONLY for:
+    1. **Privilege & Role Hierarchy**: Ordered by numerical rank (`Owner: 0` → `Admin: 1` → `Moderator: 2` → `User: 3` → `Guest: 4`).
+    2. **Chronological Timelines**: Event streams, activity/audit logs, transactions, and notification feeds ordered by timestamp (`descending / newest first`).
+    3. **Sequential Execution & Migration Workflows**: Step-by-step installation instructions or migration sequences (`0000_...` → `0001_...`).
+    4. **Route Precedence & Relevance Scoring**: Static route precedence over wildcards, or search queries sorted by relevance score.

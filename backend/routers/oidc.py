@@ -310,23 +310,25 @@ async def oidc_login(request: Request, provider: str = "oidc", token: Optional[s
 
 
 @router.get("/callback")
-async def oidc_callback(request: Request, provider: str = "oidc", db: Session = Depends(get_db)):
+@router.get("/callback/{provider_name}")
+async def oidc_callback(request: Request, provider: str = "oidc", provider_name: str = None, db: Session = Depends(get_db)):
     """Handles the callback from the OIDC/OAuth provider after user authorization."""
-    oauth = await asyncio.to_thread(_require_oidc, db, provider)
+    actual_provider = provider_name or provider
+    oauth = await asyncio.to_thread(_require_oidc, db, actual_provider)
     
     redirect_uri = request.url_for("oidc_callback")
     if request.headers.get("x-forwarded-proto") == "https":
         redirect_uri = redirect_uri.replace(scheme="https")
-    redirect_uri = f"{redirect_uri}?provider={provider}"
+    redirect_uri = f"{redirect_uri}?provider={actual_provider}"
 
-    client = getattr(oauth, provider, None)
+    client = getattr(oauth, actual_provider, None)
     if not client:
-        raise HTTPException(status_code=400, detail=f"Provider '{provider}' is not supported.")
+        raise HTTPException(status_code=400, detail=f"Provider '{actual_provider}' is not supported.")
 
     try:
         token = await client.authorize_access_token(request, redirect_uri=str(redirect_uri))
     except Exception as e:
-        logger.error(f"{provider} token exchange failed: {e}")
+        logger.error(f"{actual_provider} token exchange failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"{provider} authentication error: {str(e)}",

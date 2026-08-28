@@ -505,6 +505,19 @@ def _process_discord_command(db: Session, interaction_type: int, data: dict):
     return JSONResponse({"type": 4, "data": {"content": "Unknown command or interaction type."}})
 
 
+@router.get("")
+@router.get("/")
+@router.get("/interactions")
+async def discord_handshake():
+    return JSONResponse({
+        "status": "HANDSHAKE_READY",
+        "endpoint": "/api/v1/discord/interactions",
+        "service": "voyarr"
+    })
+
+
+@router.post("")
+@router.post("/")
 @router.post("/interactions")
 async def discord_interactions(request: Request, db: Session = Depends(get_db)):
     body = await request.body()

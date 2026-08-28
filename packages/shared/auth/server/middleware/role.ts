@@ -1,8 +1,5 @@
 const ROLE_RANK: Record<string, number> = {
-  owner: 100,
-  admin: 80,
-  mod: 60,
-  user: 40,
+  owner: 0, admin: 1, administrator: 1, mod: 2, moderator: 2, user: 3, participant: 3, guest: 4,
 }
 
 export function requireRole(minRole: string) {
@@ -16,7 +13,7 @@ export function requireRole(minRole: string) {
     const minRank = ROLE_RANK[minRole.toLowerCase()] || 0
     const userRank = ROLE_RANK[userRole.toLowerCase()] || 0
 
-    if (userRank < minRank) {
+    if (userRank > minRank) {
       return c.json({ success: false, error: 'Insufficient permissions.' }, 403)
     }
 
