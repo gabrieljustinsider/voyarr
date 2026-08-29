@@ -237,7 +237,14 @@ All projects MUST adhere to this unified monorepo-style layout to ensure scalabi
 - **Rule 13.4 (Automated Testing)**: Projects must deploy Vitest for core pathway integrity checking.
 - **Rule 13.5 (Disaster Recovery)**: Leverage Cloudflare Cron triggers and endpoints to export disaster-recovery binary or JSON structural dumps to securely attached R2 buckets.
 - **Rule 13.6 (Foreign Indexing)**: Explicitly map native database indexing via `index()` usage inside `drizzle-orm` mappings for heavily queried foreign keys (`userId`) to prevent full table scans.
-- **Rule 13.7 (PWA Offline First)**: Implement `sw.js` offline caching logic for primary static assets to ensure absolute network independence and instant WebUI visual resolution upon disconnected state.
+- **Rule 13.7 (PWA Modern Manifest & Offline Standards)**:
+  - **Web App Manifest Specification**: All applications MUST declare a modern `manifest.json` / `manifest.webmanifest` containing:
+    - **`id` & `scope`**: Explicit `id` attribute (e.g. `/?source=pwa` or `https://<app>.gpnet.dev/`) to prevent duplicate installs, and bounded `scope: "/"`.
+    - **Display & Window Overrides**: `display: "standalone"` with `display_override: ["window-controls-overlay", "standalone", "minimal-ui"]` to support modern custom draggable titlebars and desktop window controls.
+    - **Rich Installation Descriptors**: Define high-resolution desktop (`form_factor: "wide"`) and mobile (`form_factor: "narrow"`) screenshots in the `screenshots` array to unlock rich native browser app-store install prompts.
+    - **Maskable & Monochrome Icon Suite**: In addition to standard icons, provide adaptive Android icons with `purpose: "maskable any"` and monochrome badge icons (`purpose: "monochrome"`).
+    - **Quick OS Shortcuts**: Provide a `shortcuts` array for high-frequency deep-link actions (e.g., *Security Hub*, *New Transaction*, *Settings*) directly from the device home screen/app launcher.
+  - **Service Worker Lifecycle & Offline Cache**: Implement `sw.js` offline caching logic with active `skipWaiting()` and `clients.claim()` protocols for instant WebUI visual resolution and seamless version transitions upon disconnected state.
 - **Rule 13.8 (E2E Validation)**: Advanced projects must configure robust end-to-end user-flow validations simulating human navigation via the `Playwright` engine.
 - **Rule 13.9 (Error Sanitization)**: API handlers MUST implement production-aware error catching. In `production`, sensitive identifiers, raw database errors, and internal configuration keys must be stripped from the response body and replaced with generic error messages (e.g., "An internal error occurred") to prevent information disclosure.
 - **Rule 13.10 (Shared KV Partitioning)**: To prevent crosstalk in shared KV namespaces (e.g., `FLEET_SECURITY_CACHE`), all project-specific keys MUST be prefixed with the unique identifier derived from the `APP_NAME` environment variable. Standard patterns: `fs:bot:${APP_NAME}:...` for service state, and `fs:config:${APP_NAME}:...` for service-specific overrides. Global keys (e.g., `fs:block:${ip}`) must be used exclusively for cross-platform forensic data.
@@ -249,11 +256,17 @@ All projects MUST adhere to this unified monorepo-style layout to ensure scalabi
 - **Rule 13.15 (KV Write Coalescing)**: To prevent hitting Cloudflare's hard limit of 1 write per second per key, all high-frequency KV updates (specifically rate-limit counters) MUST implement a **write-coalescing** mechanism. State updates occurring within 1000ms of a previous write to the same key MUST be dropped unless the update is a security-critical state change (e.g., a "Shield Active" block trigger).
 - **Rule 13.16 (Fleet Activity Queue)**: All projects acting as producers MUST bind to the `fleet-activity` queue via the `FLEET_ACTIVITY` environment variable. High-volume audit trails and forensic telemetry MUST be offloaded to this queue to ensure zero-latency for the end-user and centralized durability in the Foundation database.
 - **Rule 13.17 (PII Redaction & Forensic Purity)**: Before any data is committed to the `FLEET_ACTIVITY` queue or local `audit_logs`, the `redactSensitiveData` utility MUST be executed on all `oldValues`, `newValues`, and `metadata` payloads. Keys including `password`, `token`, `secret`, `key`, `email`, and `phone` MUST be masked to ensure forensic logs remain free of PII and security credentials.
-- **Rule 13.18 (Discord Slash Command Taxonomy & Subcommand Hierarchy)**:
-  - **Category Rooting**: Slash commands sharing a logical domain (e.g. `security`, `maintenance`, `admin`, `verse`, `vip`, `giveaway`) MUST be registered under a single root command category utilizing native Discord **Subcommands (`type: 1`)** or **Subcommand Groups (`type: 2`)** rather than fragmented flat root commands (e.g. `/admin-stats`, `/admin-logs` $\rightarrow$ `/admin stats`, `/admin logs`).
+- **Rule 13.18 (Discord Slash Command Taxonomy, Interactions & User-App Standards)**:
+  - **Category Rooting & Subcommand Hierarchy**: Slash commands sharing a logical domain (e.g. `security`, `maintenance`, `admin`, `verse`, `vip`, `giveaway`) MUST be registered under a single root command category utilizing native Discord **Subcommands (`type: 1`)** or **Subcommand Groups (`type: 2`)** rather than fragmented flat root commands (e.g. `/admin-stats`, `/admin-logs` $\rightarrow$ `/admin stats`, `/admin logs`).
   - **Contextual Option Prompting**: Subcommands must define only the specific options required for that exact action. Flat commands with generic `action` dropdowns that clutter the user with unused optional arguments are prohibited.
-  - **Permission Scoping**: Sensitive categories (e.g., `security`, `maintenance`, `admin`) MUST set default member permission constraints (`default_member_permissions: "8"` for Administrator or `"32"` for Manage Server) at the root command level.
-  - **Immediate Interaction Deferral (3s Hard Limit)**: All Discord button interactions (`type: 3`) and slash commands (`type: 2`) with async operations or external I/O (R2, DB, KV, third-party APIs) MUST immediately return an interaction deferral (`type: 5` for commands, `type: 6` for component updates) within 50ms, deferring all heavy execution to `c.executionCtx.waitUntil()` to prevent Discord gateway timeout errors.
+  - **Permission Scoping & Installation Contexts**:
+    - Sensitive categories (e.g., `security`, `maintenance`, `admin`) MUST set default member permission constraints (`default_member_permissions: "8"` for Administrator or `"32"` for Manage Server) at the root command level.
+    - Global utilities and consumer bots MUST explicitly declare `integration_types` (`0` for Guild Install, `1` for User Install) and `contexts` (`0` for Guilds, `1` for Bot DMs, `2` for Private Channels / Group DMs) to support user-installable app functionality where appropriate.
+  - **Immediate Interaction Deferral (3s Hard Limit)**: All Discord button interactions (`type: 3`), select menus, and slash commands (`type: 2`) with async operations or external I/O (R2, DB, KV, third-party APIs) MUST immediately return an interaction deferral (`type: 5` for commands, `type: 6` for component updates) within 50ms, deferring all heavy execution to `c.executionCtx.waitUntil()` to prevent Discord gateway timeout errors.
+  - **Edge-Optimized Dynamic Autocomplete (`type: 4`)**: Autocomplete interactions (`type: 4`) MUST return responses synchronously within 1.5s capped at 25 choices (`choices: Array<{ name: string, value: string | number }>`). Autocomplete resolvers MUST leverage local in-memory lookup or `FLEET_SECURITY_CACHE` / KV caching to avoid slow database scans on each keystroke.
+  - **Interactive Modals & Advanced Select Components**:
+    - Complex text inputs, multi-line notes, and custom feedback dialogs MUST utilize native Discord **Modal Submissions (`type: 9`)** containing `text_input` (`type: 4`) components.
+    - User/role/channel selections MUST leverage native specialized select components (`type: 5` User Select, `type: 6` Role Select, `type: 7` Mentionable Select, `type: 8` Channel Select with `channel_types` filters) instead of raw text snowflake inputs.
 - **Rule 13.19 (Dynamic RBAC Engine & Edge Cache Standard)**:
   - **No Static/Hardcoded Privilege Checks**: Features, API routes, and Discord slash commands that are restricted by Role-Based Access Control (RBAC) MUST NEVER rely on hardcoded user IDs, Discord Snowflakes, or static arrays in source code.
   - **Central Authority in Foundation**: Foundation serves as the Single Source of Truth for all fleet permissions, roles, and user assignments via the `/roles` and Permissions Engine.
@@ -622,3 +635,25 @@ To ensure absolute account integrity and forensic traceability, all identity sys
     2. **Chronological Timelines**: Event streams, activity/audit logs, transactions, and notification feeds ordered by timestamp (`descending / newest first`).
     3. **Sequential Execution & Migration Workflows**: Step-by-step installation instructions or migration sequences (`0000_...` → `0001_...`).
     4. **Route Precedence & Relevance Scoring**: Static route precedence over wildcards, or search queries sorted by relevance score.
+
+
+## 35. Modern CSS, Layout & Animation Standards
+- **CSS Anchor Positioning (`anchor()`, `position-anchor`)**:
+  - Temporary floating overlays, contextual tooltips, action popovers, and combobox menus SHOULD leverage native CSS Anchor Positioning where supported, reducing reliance on heavy JavaScript layout measurement loops.
+- **Native Discrete Transitions (`@starting-style` & `transition-behavior: allow-discrete`)**:
+  - Modal entries, drawer slides, and popover animations MUST utilize native CSS `@starting-style` paired with `transition-behavior: allow-discrete` (or modern Framer Motion / Tailwind equivalents) to ensure clean entry/exit transitions without manual JavaScript timeouts.
+- **Fluid Container Queries (`@container`)**:
+  - Reusable cards, telemetry gauges, metric stats widgets, and table viewports MUST implement Container Queries (`@container`) so internal typography and layouts reflow gracefully based on container width rather than full-viewport breakpoints (`@media`).
+
+## 36. Web Performance, Resource Prioritization & View Transitions
+- **Native View Transitions API (`document.startViewTransition`)**:
+  - Fullstack routing and SPA page navigations MUST support the native View Transitions API (`document.startViewTransition()` / React Router `unstable_viewTransition: true` or view transition hooks) for smooth layout and hero-element morphing between route changes.
+- **Resource Hints & Fetch Priority**:
+  - Critical Largest Contentful Paint (LCP) assets (hero graphics, primary logos) MUST declare `fetchpriority="high"`.
+  - External CDN origins and upstream proxy endpoints MUST declare `<link rel="preconnect">` and `<link rel="dns-prefetch">` in the root document to eliminate DNS handshake delays.
+
+## 37. Edge AI, Vector Intelligence & Distributed Tracing
+- **Cloudflare Workers AI & Vectorize Integration**:
+  - Edge intelligence features (semantic search, embedding generation, content summaries, bot intent parsing) MUST utilize native Cloudflare Workers AI (`c.env.AI`) and Vectorize (`c.env.VECTORIZE`) to execute directly at the edge without external API roundtrip overhead.
+- **OpenTelemetry & Distributed Trace Propagation**:
+  - All inter-service communications through the Fleet Application Gateway (`/api/v1/fleet`) and webhook dispatches MUST propagate standard W3C Trace Context headers (`traceparent`, `tracestate`) to maintain end-to-end request visibility across the fleet.
