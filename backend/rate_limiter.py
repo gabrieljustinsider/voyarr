@@ -2,9 +2,13 @@ import os
 from fastapi import HTTPException, Request
 import redis.asyncio as aioredis
 
-redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
-# decode_responses=True ensures we get strings back from Redis instead of bytes
-redis_client = aioredis.from_url(redis_url, decode_responses=True)
+redis_url = os.getenv("REDIS_URL")
+redis_client = None
+if redis_url and (redis_url.startswith("redis://") or redis_url.startswith("rediss://") or redis_url.startswith("unix://")):
+    try:
+        redis_client = aioredis.from_url(redis_url, decode_responses=True)
+    except Exception:
+        redis_client = None
 
 
 def rate_limit(max_requests: int = 10, window_seconds: int = 60):
@@ -24,6 +28,9 @@ def rate_limit(max_requests: int = 10, window_seconds: int = 60):
         route_path = getattr(request.scope.get("route"), "path", request.url.path)
         key = f"rate_limit:{client_ip}:{route_path}"
 
+        if not redis_client:
+            return
+
         try:
             # SECURITY: Use a transaction block and nx=True to ensure key creation and expiration
             # are completely atomic, eliminating race conditions and permanent orphaned keys.
@@ -37,7 +44,9 @@ def rate_limit(max_requests: int = 10, window_seconds: int = 60):
                 raise HTTPException(
                     status_code=429, detail="Too many requests. Please slow down."
                 )
-        except aioredis.RedisError:
+        except HTTPException:
+            raise
+        except Exception:
             pass  # Fail open if Redis is down so we don't block legitimate API traffic
 
     return dependency

@@ -50,7 +50,7 @@ const DiscordSvg = () => (
   </svg>
 )
 
-export default function Login() {
+export default function Login({ isModal = false, isOpen = true, onClose = null }) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -607,41 +607,52 @@ export default function Login() {
     window.location.href = `${API_BASE}/auth/oidc/login?provider=${provider}`
   }
 
-  return (
-    <Box sx={{ 
-      display: 'flex', 
-      justifyContent: 'center', 
-      alignItems: 'center', 
-      height: '100vh',
-      background: 'linear-gradient(135deg, #090a0f 0%, #121420 100%)',
-      px: 2
-    }}>
-      <Paper sx={{ 
-        p: 4, 
-        width: '100%', 
-        maxWidth: setupStep === 'passkey_setup' ? 760 : 420,
-        transition: 'max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-        borderRadius: '20px',
-        background: 'linear-gradient(135deg, rgba(28, 37, 65, 0.4) 0%, rgba(10, 11, 16, 0.6) 100%)',
-        backdropFilter: 'blur(16px)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
-        boxShadow: '0 12px 40px rgba(0, 0, 0, 0.55)',
-        position: 'relative',
-        overflow: 'hidden'
-      }}>
-        {/* Top glowing ambient accent */}
-        <Box sx={{
-          position: 'absolute',
-          top: 0,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: '60%',
-          height: '4px',
-          background: 'linear-gradient(90deg, transparent, #6366f1, #a855f7, transparent)',
-          opacity: 0.7
-        }} />
+  if (isModal && !isOpen) return null;
 
-        <Box sx={{ mb: 3, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+  const cardContent = (
+    <Paper sx={{ 
+      p: { xs: 3, sm: 4.5 }, 
+      width: '100%', 
+      maxWidth: setupStep === 'passkey_setup' ? 780 : 520,
+      maxHeight: isModal ? '92vh' : 'none',
+      overflowY: isModal ? 'auto' : 'visible',
+      transition: 'max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+      borderRadius: '24px',
+      background: 'linear-gradient(135deg, rgba(28, 37, 65, 0.5) 0%, rgba(10, 11, 16, 0.75) 100%)',
+      backdropFilter: 'blur(20px)',
+      border: '1px solid rgba(255, 255, 255, 0.1)',
+      boxShadow: '0 20px 60px rgba(0, 0, 0, 0.65)',
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      {isModal && onClose && (
+        <IconButton
+          onClick={onClose}
+          sx={{
+            position: 'absolute',
+            top: 12,
+            right: 12,
+            color: 'rgba(255,255,255,0.6)',
+            '&:hover': { color: '#fff', backgroundColor: 'rgba(255,255,255,0.08)' }
+          }}
+          size="small"
+        >
+          ✕
+        </IconButton>
+      )}
+      {/* Top glowing ambient accent */}
+      <Box sx={{
+        position: 'absolute',
+        top: 0,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: '60%',
+        height: '4px',
+        background: 'linear-gradient(90deg, transparent, #6366f1, #a855f7, transparent)',
+        opacity: 0.7
+      }} />
+
+      <Box sx={{ mb: 3, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <Box
             component="img"
             src="/app_icon.png"
@@ -1169,6 +1180,51 @@ export default function Login() {
         </>
       )}
       </Paper>
+  );
+
+  if (isModal) {
+    return (
+      <Box sx={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 1300,
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(9, 10, 15, 0.8)',
+        backdropFilter: 'blur(8px)',
+        p: 2
+      }}>
+        {cardContent}
+        {/* Global notifications toast feedback */}
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={4000}
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+          <Alert 
+            onClose={() => setSnackbar({ ...snackbar, open: false })} 
+            severity={snackbar.severity} 
+            sx={{ width: '100%', borderRadius: '10px' }}
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ 
+      display: 'flex', 
+      justifyContent: 'center', 
+      alignItems: 'center', 
+      height: '100vh',
+      background: 'linear-gradient(135deg, #090a0f 0%, #121420 100%)',
+      px: 2
+    }}>
+      {cardContent}
 
       {/* Global notifications toast feedback */}
       <Snackbar

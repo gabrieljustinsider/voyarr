@@ -96,14 +96,6 @@ def get_rp_id(request: Request, db: Optional[Session] = None) -> str:
     If the host is an IP address, localhost, or empty, we fall back to "localhost"
     as WebAuthn RP IDs must be valid domain names excluding ports.
     """
-    if db:
-        try:
-            setting = db.query(Settings).filter(Settings.key == "passkeys_rp_id").first()
-            if setting and setting.value and setting.value.strip():
-                return setting.value.strip()
-        except Exception:
-            pass
-
     def extract_hostname(value: str | None) -> str | None:
         if not value:
             return None
@@ -124,14 +116,22 @@ def get_rp_id(request: Request, db: Optional[Session] = None) -> str:
         request.url.hostname
     )
 
-    if not hostname:
+    if not hostname or hostname == "localhost" or hostname == "127.0.0.1":
         return "localhost"
-    
-    # Check if the hostname is a raw IPv4 address or contains colons (IPv6) or is 'localhost'
+
+    if db:
+        try:
+            setting = db.query(Settings).filter(Settings.key == "passkeys_rp_id").first()
+            if setting and setting.value and setting.value.strip():
+                return setting.value.strip()
+        except Exception:
+            pass
+
+    # Check if the hostname is a raw IPv4 address or contains colons (IPv6)
     import re
     is_ip = re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", hostname) or ":" in hostname
     
-    if is_ip or hostname == "localhost":
+    if is_ip:
         return "localhost"
         
     return hostname

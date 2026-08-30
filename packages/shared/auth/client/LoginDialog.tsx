@@ -1,26 +1,41 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { LogIn, Mail, Shield, Key, Tv, Smartphone, RefreshCw, CheckCircle2, AlertCircle, X, ArrowLeft, Send, KeyRound, Copy, Clock, ShieldCheck, QrCode, WifiOff, Sparkles } from 'lucide-react'
-import { startAuthentication } from '@simplewebauthn/browser'
+import { LogIn, Mail, Shield, Key, Tv, Smartphone, RefreshCw, CheckCircle2, AlertCircle, X, ArrowLeft, Send, KeyRound, Copy, Clock, ShieldCheck, QrCode, WifiOff, Sparkles, Mic, MicOff, Server, UserCheck, Zap, Lock, HelpCircle } from 'lucide-react'
+import { startAuthentication, startRegistration } from '@simplewebauthn/browser'
+import { PasswordChecklist, isPasswordValid } from './PasswordChecklist'
 
 interface LoginDialogProps {
   appName: string
   appLogo?: string
   appDescription?: string
+  appVersion?: string
   brandGradient?: string
   providers?: Array<'discord' | 'google' | 'github' | 'microsoft'>
   onSuccess?: () => void
+  isModal?: boolean
+  isOpen?: boolean
+  onClose?: () => void
+  allowFirstUserSetup?: boolean
+  mode?: 'login' | 'reauth'
+  reauthActionName?: string
 }
 
 export function LoginDialog({
   appName,
-  appLogo = '/icons/foundation.png',
-  appDescription = 'Authenticate to access your fleet console',
+  appLogo,
+  appDescription = 'Authenticate to access your workspace',
+  appVersion,
   brandGradient,
   providers = ['discord', 'google', 'github'],
-  onSuccess
+  onSuccess,
+  isModal = false,
+  isOpen = true,
+  onClose,
+  allowFirstUserSetup = false,
+  mode = 'login',
+  reauthActionName = 'proceed with this action'
 }: LoginDialogProps) {
-  const [tab, setTab] = useState<'sso' | 'passkey' | 'password' | 'companion'>('sso')
+  const [tab, setTab] = useState<'sso' | 'passkey' | 'password' | 'otp' | 'companion'>('sso')
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [persistent, setPersistent] = useState(true)
@@ -28,10 +43,72 @@ export function LoginDialog({
   const [error, setError] = useState('')
   const [passkeyLoading, setPasskeyLoading] = useState(false)
 
-  // Network Offline / Online State
-  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true)
+  // Last-Used Authentication Quick-Switch State
+  const [lastUsedMethod, setLastUsedMethod] = useState<{ method: string; identifier?: string; label: string } | null>(null)
 
-  // Resolve default brand gradient based on appName if not explicitly provided
+  // Rate-Limit & Exponential Backoff Visualizer
+  const [rateLimitSeconds, setRateLimitSeconds] = useState(0)
+  const [failedAttempts, setFailedAttempts] = useState(0)
+
+  // Magic Link / Email 6-Digit OTP State
+  const [otpEmail, setOtpEmail] = useState('')
+  const [otpCode, setOtpCode] = useState('')
+  const [otpSent, setOtpSent] = useState(false)
+  const [otpSending, setOtpSending] = useState(false)
+  const [otpVerifying, setOtpVerifying] = useState(false)
+  const [otpCountdown, setOtpCountdown] = useState(0)
+
+  // Hardware Security Key Troubleshooting Card
+  const [showSecurityKeyTroubleshooter, setShowSecurityKeyTroubleshooter] = useState(false)
+
+  // Voice / Speech Recognition state
+  const [isListening, setIsListening] = useState(false)
+  const speechRecognitionRef = useRef<any>(null)
+
+  // MFA Recovery Code / Step-up Challenge state
+  const [mfaRequired, setMfaRequired] = useState(false)
+  const [mfaCode, setMfaCode] = useState('')
+  const [mfaSubmitting, setMfaSubmitting] = useState(false)
+
+  // Forward Auth / Reverse Proxy Auto-Bypass Detection
+  const [proxyUser, setProxyUser] = useState<string | null>(null)
+  const [proxyBypassChecking, setProxyBypassChecking] = useState(false)
+
+  // First-User Initial Admin Setup State
+  const [isFirstUserSetup, setIsFirstUserSetup] = useState(false)
+  const [setupStep, setSetupStep] = useState<'credentials' | 'passkey'>('credentials')
+  const [setupAdminEmail, setSetupAdminEmail] = useState('')
+  const [setupAdminUsername, setSetupAdminUsername] = useState('')
+  const [setupAdminPassword, setSetupAdminPassword] = useState('')
+  const [setupAdminConfirmPassword, setSetupAdminConfirmPassword] = useState('')
+  const [setupLoading, setSetupLoading] = useState(false)
+
+  // Network Offline / Online State (Hydration safe)
+  const [isOnline, setIsOnline] = useState(true)
+
+  // Resolve default logo and brand gradient based on appName if not explicitly provided
+  const resolvedLogo = appLogo || (() => {
+    const key = appName.toLowerCase()
+    if (key.includes('ledger')) return '/assets/icon-512.png'
+    if (key.includes('food')) return '/brand/logo.png'
+    if (key.includes('globot')) return '/logo.png'
+    if (key.includes('groupcord')) return '/assets/groupcord_app_emblem_v2_transparent.png'
+    if (key.includes('draw')) return '/assets/logo.png'
+    if (key.includes('voyarr')) return '/app_icon.png'
+    if (key.includes('i-am') || key.includes('i am')) return '/brand/app-icon-minimalist-transparent.png'
+    if (key.includes('butlarr')) return '/assets/logo-transparent.png'
+    return '/icons/foundation.png'
+  })()
+
+  const resolvedVersion = appVersion || (() => {
+    try {
+      if (typeof import.meta !== 'undefined' && (import.meta as any).env?.PACKAGE_VERSION) {
+        return (import.meta as any).env.PACKAGE_VERSION
+      }
+    } catch {}
+    return null
+  })()
+
   const resolvedGradient = brandGradient || (() => {
     const key = appName.toLowerCase()
     if (key.includes('ledger')) return 'from-emerald-400 via-teal-300 to-cyan-400'
@@ -72,8 +149,19 @@ export function LoginDialog({
     return () => authChannel.close()
   }, [onSuccess])
 
-  // 2. Network Online / Offline Detection
+  // 2. Network Online / Offline Detection & Local Storage Last-Used Method
   useEffect(() => {
+    try {
+      const saved = localStorage.getItem('last_auth_method')
+      if (saved) {
+        setLastUsedMethod(JSON.parse(saved))
+      }
+    } catch {}
+
+    if (typeof navigator !== 'undefined') {
+      setIsOnline(navigator.onLine)
+    }
+
     const handleOnline = () => setIsOnline(true)
     const handleOffline = () => setIsOnline(false)
     window.addEventListener('online', handleOnline)
@@ -83,6 +171,26 @@ export function LoginDialog({
       window.removeEventListener('offline', handleOffline)
     }
   }, [])
+
+  // Rate-Limit Backoff Countdown Timer
+  useEffect(() => {
+    if (rateLimitSeconds > 0) {
+      const timer = setInterval(() => {
+        setRateLimitSeconds((prev) => Math.max(0, prev - 1))
+      }, 1000)
+      return () => clearInterval(timer)
+    }
+  }, [rateLimitSeconds])
+
+  // Email OTP Resend Countdown Timer
+  useEffect(() => {
+    if (otpCountdown > 0) {
+      const timer = setInterval(() => {
+        setOtpCountdown((prev) => Math.max(0, prev - 1))
+      }, 1000)
+      return () => clearInterval(timer)
+    }
+  }, [otpCountdown])
 
   // 3. WebAuthn Conditional UI (Passkey Autofill on Mount)
   useEffect(() => {
@@ -124,12 +232,163 @@ export function LoginDialog({
     return () => { active = false }
   }, [onSuccess])
 
-  // Cleanup polling timer on unmount
+  // 4. Forward Auth / Reverse Proxy Auto-Detection Check
   useEffect(() => {
-    return () => {
-      if (pollTimerRef.current) clearInterval(pollTimerRef.current)
+    async function checkProxyBypass() {
+      try {
+        setProxyBypassChecking(true)
+        const res = await fetch('/api/auth/proxy-user', { method: 'GET' })
+        if (res.ok) {
+          const data: any = await res.json()
+          if (data.success && data.username) {
+            setProxyUser(data.username)
+          }
+        }
+      } catch {}
+      finally {
+        setProxyBypassChecking(false)
+      }
     }
+    checkProxyBypass()
   }, [])
+
+  // 5. First-User Initial Check (if allowed by app)
+  useEffect(() => {
+    if (!allowFirstUserSetup) return
+    async function checkFirstUser() {
+      try {
+        const res = await fetch('/api/auth/setup-status')
+        if (res.ok) {
+          const data: any = await res.json()
+          if (data.success && data.hasUsers === false) {
+            setIsFirstUserSetup(true)
+          }
+        }
+      } catch {}
+    }
+    checkFirstUser()
+  }, [allowFirstUserSetup])
+
+  // Voice Input (Web Speech API) Toggle
+  const toggleSpeechRecognition = () => {
+    if (typeof window === 'undefined') return
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (!SpeechRecognition) {
+      setError('Voice recognition is not supported in this browser.')
+      return
+    }
+
+    if (isListening) {
+      if (speechRecognitionRef.current) {
+        speechRecognitionRef.current.stop()
+      }
+      setIsListening(false)
+      return
+    }
+
+    try {
+      const recognition = new SpeechRecognition()
+      recognition.continuous = false
+      recognition.interimResults = false
+      recognition.lang = 'en-US'
+
+      recognition.onstart = () => {
+        setIsListening(true)
+        setError('')
+      }
+
+      recognition.onresult = (event: any) => {
+        const spokenText = event.results[0][0].transcript
+        if (spokenText) {
+          setIdentifier(spokenText.trim())
+        }
+      }
+
+      recognition.onerror = (event: any) => {
+        console.warn('Speech recognition error:', event.error)
+        setIsListening(false)
+      }
+
+      recognition.onend = () => {
+        setIsListening(false)
+      }
+
+      speechRecognitionRef.current = recognition
+      recognition.start()
+    } catch (err: any) {
+      setError('Could not initialize speech recognition.')
+      setIsListening(false)
+    }
+  }
+
+  // Handle MFA / Step-up Code Verification
+  async function handleMfaVerify(e: React.FormEvent) {
+    e.preventDefault()
+    if (!mfaCode.trim()) return
+    setMfaSubmitting(true)
+    setError('')
+    try {
+      const res = await fetch('/api/auth/mfa/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier, code: mfaCode.trim(), persistent })
+      })
+      const data: any = await res.json()
+      if (data.success) {
+        if (data.sessionId || data.sessionToken) {
+          localStorage.setItem('foundation_session', data.sessionId || data.sessionToken)
+        }
+        if (typeof BroadcastChannel !== 'undefined') {
+          const bc = new BroadcastChannel('fleet_auth_channel')
+          bc.postMessage({ type: 'LOGIN_SUCCESS' })
+          bc.close()
+        }
+        if (onSuccess) onSuccess()
+        window.location.href = '/directory'
+      } else {
+        setError(data.error || 'Invalid authentication code or recovery key.')
+      }
+    } catch {
+      setError('Connection error during MFA verification.')
+    } finally {
+      setMfaSubmitting(false)
+    }
+  }
+
+  // Handle First-User Initial Admin Setup
+  async function handleFirstUserSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (setupAdminPassword !== setupAdminConfirmPassword) {
+      setError('Passwords do not match.')
+      return
+    }
+    setSetupLoading(true)
+    setError('')
+    try {
+      const res = await fetch('/api/auth/initial-setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: setupAdminEmail.trim(),
+          username: setupAdminUsername.trim(),
+          password: setupAdminPassword
+        })
+      })
+      const data: any = await res.json()
+      if (data.success) {
+        setIsFirstUserSetup(false)
+        setIdentifier(setupAdminUsername || setupAdminEmail)
+        setPassword(setupAdminPassword)
+        setTab('password')
+      } else {
+        setError(data.error || 'Failed to initialize administrator account.')
+      }
+    } catch {
+      setError('Connection error during initial system initialization.')
+    } finally {
+      setSetupLoading(false)
+    }
+  }
 
   // Auto-countdown for device PIN
   useEffect(() => {
@@ -224,6 +483,7 @@ export function LoginDialog({
 
   async function handlePasskeyLogin() {
     setError('')
+    setShowSecurityKeyTroubleshooter(false)
     setPasskeyLoading(true)
     try {
       const optRes = await fetch('/api/auth/passkeys/generate-authentication', { method: 'POST' })
@@ -242,12 +502,22 @@ export function LoginDialog({
 
       const verifyData: any = await verifyRes.json()
       if (verifyData.success) {
+        try {
+          localStorage.setItem('last_auth_method', JSON.stringify({ method: 'passkey', label: 'Touch ID / Passkey' }))
+        } catch {}
         if (onSuccess) onSuccess()
+        if (mode === 'reauth') {
+          if (onClose) onClose()
+          return
+        }
         window.location.href = '/directory'
       } else {
         setError(verifyData.error || 'Passkey verification failed.')
       }
     } catch (err: any) {
+      if (err.name === 'NotAllowedError' || (err.message && err.message.toLowerCase().includes('cancel'))) {
+        setShowSecurityKeyTroubleshooter(true)
+      }
       setError(err.message || 'Passkey authentication failed.')
     } finally {
       setPasskeyLoading(false)
@@ -256,6 +526,7 @@ export function LoginDialog({
 
   async function handlePasswordLogin(e: React.FormEvent) {
     e.preventDefault()
+    if (rateLimitSeconds > 0) return
     setError('')
     setLoggingIn(true)
     try {
@@ -265,19 +536,108 @@ export function LoginDialog({
         body: JSON.stringify({ identifier, password, persistent }),
       })
       const data: any = await res.json()
+      if (data.mfaRequired) {
+        setMfaRequired(true)
+        return
+      }
       if (data.success) {
+        setFailedAttempts(0)
+        try {
+          localStorage.setItem('last_auth_method', JSON.stringify({ method: 'password', identifier, label: `Password (${identifier})` }))
+        } catch {}
         if (data.sessionId || data.sessionToken) {
           localStorage.setItem('foundation_session', data.sessionId || data.sessionToken)
         }
+        if (typeof BroadcastChannel !== 'undefined') {
+          const bc = new BroadcastChannel('fleet_auth_channel')
+          bc.postMessage({ type: 'LOGIN_SUCCESS' })
+          bc.close()
+        }
         if (onSuccess) onSuccess()
+        if (mode === 'reauth') {
+          if (onClose) onClose()
+          return
+        }
         window.location.href = '/directory'
       } else {
+        const nextAttempts = failedAttempts + 1
+        setFailedAttempts(nextAttempts)
+        if (nextAttempts >= 3) {
+          const backoff = Math.min(60, Math.pow(2, nextAttempts - 2) * 5)
+          setRateLimitSeconds(backoff)
+        }
         setError(data.error || 'Login failed.')
       }
     } catch {
       setError('Connection error.')
     } finally {
       setLoggingIn(false)
+    }
+  }
+
+  // Magic Link / 6-Digit Email OTP Handlers
+  async function handleSendOtp(e: React.FormEvent) {
+    e.preventDefault()
+    if (!otpEmail) return
+    setOtpSending(true)
+    setError('')
+    try {
+      const res = await fetch('/api/auth/otp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: otpEmail.trim() })
+      })
+      const data: any = await res.json()
+      if (data.success) {
+        setOtpSent(true)
+        setOtpCountdown(60)
+      } else {
+        setError(data.error || 'Failed to send one-time authentication code.')
+      }
+    } catch {
+      setError('Network error while requesting one-time code.')
+    } finally {
+      setOtpSending(false)
+    }
+  }
+
+  async function handleVerifyOtp(e: React.FormEvent) {
+    e.preventDefault()
+    if (!otpCode.trim() || !otpEmail) return
+    setOtpVerifying(true)
+    setError('')
+    try {
+      const res = await fetch('/api/auth/otp/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: otpEmail.trim(), code: otpCode.trim(), persistent })
+      })
+      const data: any = await res.json()
+      if (data.success) {
+        try {
+          localStorage.setItem('last_auth_method', JSON.stringify({ method: 'otp', identifier: otpEmail, label: `Email Code (${otpEmail})` }))
+        } catch {}
+        if (data.sessionId || data.sessionToken) {
+          localStorage.setItem('foundation_session', data.sessionId || data.sessionToken)
+        }
+        if (typeof BroadcastChannel !== 'undefined') {
+          const bc = new BroadcastChannel('fleet_auth_channel')
+          bc.postMessage({ type: 'LOGIN_SUCCESS' })
+          bc.close()
+        }
+        if (onSuccess) onSuccess()
+        if (mode === 'reauth') {
+          if (onClose) onClose()
+          return
+        }
+        window.location.href = '/directory'
+      } else {
+        setError(data.error || 'Invalid or expired one-time code.')
+      }
+    } catch {
+      setError('Connection error during one-time code verification.')
+    } finally {
+      setOtpVerifying(false)
     }
   }
 
@@ -300,60 +660,128 @@ export function LoginDialog({
     </div>
   )
 
-  return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 sm:p-6 font-sans">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="bg-slate-900 border border-white/10 rounded-3xl sm:rounded-[2.5rem] w-full max-w-md p-6 sm:p-10 shadow-2xl space-y-6"
-      >
-        <div className="text-center space-y-3">
-          <div className="w-16 h-16 bg-slate-950/90 rounded-2xl flex items-center justify-center mx-auto border border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.5)] overflow-hidden p-2.5 group">
-            {appLogo ? (
-              <img src={appLogo} alt={appName} className="w-full h-full object-contain drop-shadow-md group-hover:scale-105 transition-transform" onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }} />
-            ) : (
-              <Shield className="w-8 h-8 text-cyan-400" />
-            )}
-          </div>
-          <div>
-            <h2 className={`text-2xl font-black tracking-tight bg-gradient-to-r ${resolvedGradient} bg-clip-text text-transparent`}>
-              {appName}
-            </h2>
-            <p className="text-xs text-slate-400 mt-1 font-medium">{appDescription}</p>
-          </div>
-        </div>
+  if (isModal && !isOpen) return null;
 
-        {/* Auth Mode Tabs */}
-        <div className="grid grid-cols-4 gap-1 p-1 bg-slate-950/60 rounded-2xl border border-white/5">
+  const content = (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      className={`bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-3xl sm:rounded-[2.5rem] w-full max-w-lg md:max-w-xl p-6 sm:p-10 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)] space-y-6 relative transition-all ${isModal ? 'max-h-[92vh] overflow-y-auto' : ''}`}
+    >
+      {isModal && onClose && (
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute top-6 right-6 p-2 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
+          aria-label="Close dialog"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      )}
+      <div className="text-center space-y-3">
+        <div className="w-16 h-16 bg-slate-950/90 rounded-2xl flex items-center justify-center mx-auto border border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.5)] overflow-hidden p-2.5 group">
+          {resolvedLogo ? (
+            <img src={resolvedLogo} alt={appName} className="w-full h-full object-contain drop-shadow-md group-hover:scale-105 transition-transform" onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }} />
+          ) : (
+            <Shield className="w-8 h-8 text-cyan-400" />
+          )}
+        </div>
+        <div>
+          {mode === 'reauth' ? (
+            <div className="space-y-1">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-wider mb-1">
+                <Lock className="w-3 h-3" />
+                <span>Security Verification</span>
+              </div>
+              <h2 className="text-xl font-black text-white tracking-tight">Confirm Identity</h2>
+              <p className="text-xs text-slate-400 font-medium">Please authenticate to {reauthActionName}</p>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-center gap-2">
+                <h2 className={`text-2xl font-black tracking-tight bg-gradient-to-r ${resolvedGradient} bg-clip-text text-transparent`}>
+                  {appName}
+                </h2>
+                {resolvedVersion && (
+                  <span className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[10px] font-black tracking-widest text-slate-300 uppercase">
+                    v{resolvedVersion}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-400 mt-1 font-medium">{appDescription}</p>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Quick-Switch Last-Used Authentication Banner */}
+      {lastUsedMethod && (
+        <div className="p-3 bg-gradient-to-r from-blue-600/15 via-indigo-600/15 to-purple-600/15 border border-blue-500/20 rounded-2xl flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <Zap className="w-4 h-4 text-blue-400 shrink-0" />
+            <div className="truncate">
+              <span className="text-[10px] font-black uppercase tracking-wider text-blue-400 block">Quick Sign-In</span>
+              <span className="text-xs text-slate-200 font-semibold truncate block">{lastUsedMethod.label}</span>
+            </div>
+          </div>
           <button
             type="button"
-            onClick={() => { setTab('sso'); setError(''); }}
-            className={`py-2 text-[10px] font-bold rounded-xl transition-all cursor-pointer ${tab === 'sso' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+            onClick={() => {
+              if (lastUsedMethod.method === 'passkey') handlePasskeyLogin();
+              else if (lastUsedMethod.method === 'password') {
+                setTab('password');
+                if (lastUsedMethod.identifier) setIdentifier(lastUsedMethod.identifier);
+              } else if (lastUsedMethod.method === 'otp') {
+                setTab('otp');
+                if (lastUsedMethod.identifier) setOtpEmail(lastUsedMethod.identifier);
+              }
+            }}
+            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[11px] font-bold shrink-0 shadow-md shadow-blue-600/20 active:scale-95 transition-all cursor-pointer"
           >
-            SSO
-          </button>
-          <button
-            type="button"
-            onClick={() => { setTab('passkey'); setError(''); }}
-            className={`py-2 text-[10px] font-bold rounded-xl transition-all cursor-pointer ${tab === 'passkey' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
-          >
-            Passkey
-          </button>
-          <button
-            type="button"
-            onClick={() => { setTab('password'); setError(''); }}
-            className={`py-2 text-[10px] font-bold rounded-xl transition-all cursor-pointer ${tab === 'password' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
-          >
-            Password
-          </button>
-          <button
-            type="button"
-            onClick={() => { setTab('companion'); setError(''); if (!devicePin) generatePairingCode(); }}
-            className={`py-2 text-[10px] font-bold rounded-xl transition-all cursor-pointer ${tab === 'companion' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
-          >
-            Device
+            Authenticate
           </button>
         </div>
+      )}
+
+      {/* Auth Mode Tabs (5-Tab Layout) */}
+      <div className="grid grid-cols-5 gap-1 p-1 bg-slate-950/60 rounded-2xl border border-white/5">
+        <button
+          type="button"
+          onClick={() => { setTab('sso'); setError(''); }}
+          className={`py-2 text-[10px] font-bold rounded-xl transition-all cursor-pointer ${tab === 'sso' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+        >
+          SSO
+        </button>
+        <button
+          type="button"
+          onClick={() => { setTab('passkey'); setError(''); }}
+          className={`py-2 text-[10px] font-bold rounded-xl transition-all cursor-pointer ${tab === 'passkey' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+        >
+          Passkey
+        </button>
+        <button
+          type="button"
+          onClick={() => { setTab('password'); setError(''); }}
+          className={`py-2 text-[10px] font-bold rounded-xl transition-all cursor-pointer ${tab === 'password' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+        >
+          Password
+        </button>
+        <button
+          type="button"
+          onClick={() => { setTab('otp'); setError(''); }}
+          className={`py-2 text-[10px] font-bold rounded-xl transition-all cursor-pointer ${tab === 'otp' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+        >
+          Code
+        </button>
+        <button
+          type="button"
+          onClick={() => { setTab('companion'); setError(''); if (!devicePin) generatePairingCode(); }}
+          className={`py-2 text-[10px] font-bold rounded-xl transition-all cursor-pointer ${tab === 'companion' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+        >
+          Device
+        </button>
+      </div>
 
         {!isOnline && (
           <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-2.5 text-xs text-amber-300">
@@ -369,132 +797,382 @@ export function LoginDialog({
           </div>
         )}
 
-        {/* Tab 1: Single Sign-On (SSO) */}
-        {tab === 'sso' && (
-          <div className="space-y-3">
-            {providers.includes('discord') && (
-              <button
-                type="button"
-                onClick={() => startOAuth('discord')}
-                className="w-full flex items-center justify-center gap-3 px-5 py-3.5 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded-2xl text-xs font-bold transition-all shadow-[0_4px_15px_rgba(88,101,242,0.3)] active:scale-[0.98] cursor-pointer"
-              >
-                <svg className="w-5 h-5 fill-current" viewBox="0 0 127.14 96.36">
-                  <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,0,106,106,0,0,0,22.77,8.07C2.79,37.66-.57,66.49.16,94.82a106.35,106.35,0,0,0,32.32,16.34A77.49,77.49,0,0,0,39.38,98a68.68,68.68,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,13.15,105.73,105.73,0,0,0,32.35-16.34C127.84,66.49,124.47,37.66,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,45.91,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,45.91,96.12,53,91.08,65.69,84.69,65.69Z" />
-                </svg>
-                <span>Continue with Discord</span>
-              </button>
-            )}
-
-            {providers.includes('google') && (
-              <button
-                type="button"
-                onClick={() => startOAuth('google')}
-                className="w-full flex items-center justify-center gap-3 px-5 py-3.5 bg-white hover:bg-slate-100 text-slate-800 rounded-2xl text-xs font-bold transition-all shadow-[0_4px_15px_rgba(255,255,255,0.1)] active:scale-[0.98] cursor-pointer"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                </svg>
-                <span>Continue with Google</span>
-              </button>
-            )}
-
-            {providers.includes('github') && (
-              <button
-                type="button"
-                onClick={() => startOAuth('github')}
-                className="w-full flex items-center justify-center gap-3 px-5 py-3.5 bg-[#24292F] hover:bg-[#1B1F23] text-white border border-white/10 rounded-2xl text-xs font-bold transition-all shadow-[0_4px_15px_rgba(0,0,0,0.3)] active:scale-[0.98] cursor-pointer"
-              >
-                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                  <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
-                </svg>
-                <span>Continue with GitHub</span>
-              </button>
-            )}
-
-            {renderPersistenceSelector()}
-          </div>
-        )}
-
-        {/* Tab 2: Passkey / Biometric Authentication */}
-        {tab === 'passkey' && (
-          <div className="space-y-4 text-center">
-            <div className="w-12 h-12 bg-cyan-500/10 rounded-2xl flex items-center justify-center mx-auto border border-cyan-500/20">
-              <Key className="w-6 h-6 text-cyan-400" />
+        {/* Reverse-Proxy / Forward-Auth Auto-Detection Banner */}
+        {proxyUser && (
+          <div className="p-3.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-between gap-2 text-xs text-indigo-300">
+            <div className="flex items-center gap-2 min-w-0">
+              <Server className="w-4 h-4 text-indigo-400 shrink-0" />
+              <span className="truncate">Proxy authenticated as <strong className="text-white">@{proxyUser}</strong></span>
             </div>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Authenticate passwordlessly using your device's Touch ID, Face ID, Windows Hello, or FIDO2 Security Key.
-            </p>
             <button
               type="button"
-              onClick={handlePasskeyLogin}
-              disabled={passkeyLoading}
-              className="w-full flex items-center justify-center gap-2 px-5 py-3.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-2xl text-xs font-bold transition-all shadow-[0_4px_15px_rgba(88,101,242,0.3)] active:scale-[0.98] cursor-pointer disabled:opacity-50"
+              onClick={() => {
+                if (onSuccess) onSuccess()
+                window.location.href = '/directory'
+              }}
+              className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold shrink-0 transition-all cursor-pointer"
             >
-              {passkeyLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Key className="w-4 h-4" />}
-              <span>{passkeyLoading ? 'Authenticating...' : 'Sign in with Passkey'}</span>
+              Continue
             </button>
-
-            {renderPersistenceSelector()}
           </div>
         )}
 
-        {/* Tab 3: Password Authentication */}
-        {tab === 'password' && (
-          <form onSubmit={handlePasswordLogin} className="space-y-4">
+        {/* First-User Initial Setup Wizard Screen */}
+        {isFirstUserSetup ? (
+          <form onSubmit={handleFirstUserSubmit} className="space-y-4">
+            <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>Initial Setup Mode: Create the primary administrator account.</span>
+            </div>
+
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase text-slate-400">Email or Username</label>
+              <label className="text-[10px] font-black uppercase text-slate-400">Admin Email</label>
+              <input
+                type="email"
+                value={setupAdminEmail}
+                onChange={e => setSetupAdminEmail(e.target.value)}
+                className="w-full bg-slate-950 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white focus:outline-none focus:border-blue-500"
+                placeholder="admin@domain.com"
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black uppercase text-slate-400">Admin Username</label>
               <input
                 type="text"
-                value={identifier}
-                onChange={e => setIdentifier(e.target.value)}
-                autoComplete="username webauthn"
-                className="w-full bg-slate-950 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white focus:outline-none focus:border-blue-500"
-                placeholder="username or name@domain.com"
-                required
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase text-slate-400">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                autoComplete="current-password"
+                value={setupAdminUsername}
+                onChange={e => setSetupAdminUsername(e.target.value)}
                 className="w-full bg-slate-950 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
-                placeholder="••••••••"
+                placeholder="admin"
                 required
               />
             </div>
-            <div className="flex items-center justify-between pt-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowForgotModal(true);
-                  setForgotEmail(identifier.includes('@') ? identifier : '');
-                  setForgotSent(false);
-                  setForgotError('');
-                }}
-                className="text-[11px] font-bold text-blue-400 hover:text-blue-300 transition-colors cursor-pointer"
-              >
-                Forgot or need to recover password?
-              </button>
+
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase text-slate-400">Master Password</label>
+                <input
+                  type="password"
+                  value={setupAdminPassword}
+                  onChange={e => setSetupAdminPassword(e.target.value)}
+                  className="w-full bg-slate-950 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
+                  placeholder="••••••••"
+                  required
+                />
+                <PasswordChecklist password={setupAdminPassword} minLength={12} checkBreaches={true} />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase text-slate-400">Confirm Master Password</label>
+                <input
+                  type="password"
+                  value={setupAdminConfirmPassword}
+                  onChange={e => setSetupAdminConfirmPassword(e.target.value)}
+                  className="w-full bg-slate-950 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
+                  placeholder="••••••••"
+                  required
+                />
+              </div>
             </div>
 
             <button
               type="submit"
-              disabled={loggingIn}
-              className="w-full flex items-center justify-center gap-2 px-5 py-3.5 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl text-xs font-bold transition-all disabled:opacity-50 active:scale-[0.98] cursor-pointer"
+              disabled={setupLoading || !setupAdminEmail || !setupAdminPassword || !isPasswordValid(setupAdminPassword, 12)}
+              className="w-full flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-2xl text-xs font-bold transition-all disabled:opacity-50 active:scale-[0.98] cursor-pointer shadow-lg shadow-blue-600/20"
             >
-              {loggingIn ? <RefreshCw className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
-              <span>{loggingIn ? 'Signing in...' : 'Sign in'}</span>
+              {setupLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
+              <span>{setupLoading ? 'Initializing Administrator...' : 'Initialize System & Sign In'}</span>
             </button>
-
-            {renderPersistenceSelector()}
           </form>
-        )}
+          ) : mfaRequired ? (
+            /* MFA Challenge / Step-Up Verification Screen */
+            <form onSubmit={handleMfaVerify} className="space-y-4">
+              <div className="p-3.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-xs text-cyan-300 flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-cyan-400 shrink-0" />
+                <span>Multi-Factor Authentication required. Enter your 6-digit TOTP code or backup recovery key.</span>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase text-slate-400">Security Code or Recovery Key</label>
+                <input
+                  type="text"
+                  value={mfaCode}
+                  onChange={e => setMfaCode(e.target.value)}
+                  placeholder="123456 or XXXX-XXXX"
+                  className="w-full bg-slate-950 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white text-center font-mono tracking-widest text-base focus:outline-none focus:border-blue-500"
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => { setMfaRequired(false); setMfaCode(''); }}
+                  className="w-1/3 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-2xl text-xs font-bold transition-all cursor-pointer"
+                >
+                  Back
+                </button>
+                <button
+                  type="submit"
+                  disabled={mfaSubmitting || !mfaCode.trim()}
+                  className="w-2/3 flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl text-xs font-bold transition-all disabled:opacity-50 active:scale-[0.98] cursor-pointer shadow-lg shadow-blue-600/20"
+                >
+                  {mfaSubmitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                  <span>{mfaSubmitting ? 'Verifying...' : 'Verify MFA'}</span>
+                </button>
+              </div>
+            </form>
+          ) : (
+            <>
+              {/* Tab 1: Single Sign-On (SSO) */}
+              {tab === 'sso' && (
+                <div className="space-y-3">
+                  {providers.includes('discord') && (
+                    <button
+                      type="button"
+                      onClick={() => startOAuth('discord')}
+                      className="w-full flex items-center justify-center gap-3 px-5 py-3.5 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded-2xl text-xs font-bold transition-all shadow-[0_4px_15px_rgba(88,101,242,0.3)] active:scale-[0.98] cursor-pointer"
+                    >
+                      <svg className="w-5 h-5 fill-current" viewBox="0 0 127.14 96.36">
+                        <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,0,106,106,0,0,0,22.77,8.07C2.79,37.66-.57,66.49.16,94.82a106.35,106.35,0,0,0,32.32,16.34A77.49,77.49,0,0,0,39.38,98a68.68,68.68,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,13.15,105.73,105.73,0,0,0,32.35-16.34C127.84,66.49,124.47,37.66,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,45.91,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,45.91,96.12,53,91.08,65.69,84.69,65.69Z" />
+                      </svg>
+                      <span>Continue with Discord</span>
+                    </button>
+                  )}
+
+                  {providers.includes('google') && (
+                    <button
+                      type="button"
+                      onClick={() => startOAuth('google')}
+                      className="w-full flex items-center justify-center gap-3 px-5 py-3.5 bg-white hover:bg-slate-100 text-slate-800 rounded-2xl text-xs font-bold transition-all shadow-[0_4px_15px_rgba(255,255,255,0.1)] active:scale-[0.98] cursor-pointer"
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                      </svg>
+                      <span>Continue with Google</span>
+                    </button>
+                  )}
+
+                  {providers.includes('github') && (
+                    <button
+                      type="button"
+                      onClick={() => startOAuth('github')}
+                      className="w-full flex items-center justify-center gap-3 px-5 py-3.5 bg-[#24292F] hover:bg-[#1B1F23] text-white border border-white/10 rounded-2xl text-xs font-bold transition-all shadow-[0_4px_15px_rgba(0,0,0,0.3)] active:scale-[0.98] cursor-pointer"
+                    >
+                      <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                        <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+                      </svg>
+                      <span>Continue with GitHub</span>
+                    </button>
+                  )}
+
+                  {renderPersistenceSelector()}
+                </div>
+              )}
+
+              {/* Tab 2: Passkey / Biometric Authentication */}
+              {tab === 'passkey' && (
+                <div className="space-y-4 text-center">
+                  <div className="w-12 h-12 bg-cyan-500/10 rounded-2xl flex items-center justify-center mx-auto border border-cyan-500/20">
+                    <Key className="w-6 h-6 text-cyan-400" />
+                  </div>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Authenticate passwordlessly using your device's Touch ID, Face ID, Windows Hello, or FIDO2 Security Key.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handlePasskeyLogin}
+                    disabled={passkeyLoading}
+                    className="w-full flex items-center justify-center gap-2 px-5 py-3.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-2xl text-xs font-bold transition-all shadow-[0_4px_15px_rgba(88,101,242,0.3)] active:scale-[0.98] cursor-pointer disabled:opacity-50"
+                  >
+                    {passkeyLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Key className="w-4 h-4" />}
+                    <span>{passkeyLoading ? 'Authenticating...' : 'Sign in with Passkey'}</span>
+                  </button>
+
+                  {/* Physical Key Troubleshooter Card */}
+                  {showSecurityKeyTroubleshooter && (
+                    <div className="p-3.5 rounded-2xl bg-slate-950 border border-cyan-500/20 text-left space-y-2 text-xs">
+                      <div className="flex items-center gap-1.5 text-cyan-400 font-bold">
+                        <HelpCircle className="w-4 h-4 shrink-0" />
+                        <span>Using a Hardware Key or Synced Passkey?</span>
+                      </div>
+                      <p className="text-slate-400 leading-relaxed text-[11px]">
+                        Ensure your USB/NFC key (e.g. YubiKey) is plugged in, tap its gold sensor when prompted by your browser, or verify your device is connected to iCloud Keychain / Google Password Manager.
+                      </p>
+                    </div>
+                  )}
+
+                  {renderPersistenceSelector()}
+                </div>
+              )}
+
+              {/* Tab 3: Password Authentication */}
+              {tab === 'password' && (
+                <form onSubmit={handlePasswordLogin} className="space-y-4">
+                  {rateLimitSeconds > 0 && (
+                    <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center gap-2 text-xs text-amber-300">
+                      <Clock className="w-4 h-4 shrink-0 animate-spin" />
+                      <span>Security Cool-down Active: Please wait {rateLimitSeconds}s before retrying.</span>
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-black uppercase text-slate-400">Email or Username</label>
+                      <button
+                        type="button"
+                        onClick={toggleSpeechRecognition}
+                        title="Dictate identifier using speech recognition"
+                        className={`text-[10px] font-bold flex items-center gap-1 transition-colors ${isListening ? 'text-rose-400 animate-pulse' : 'text-slate-400 hover:text-white'}`}
+                      >
+                        {isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+                        <span>{isListening ? 'Listening...' : 'Voice Input'}</span>
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={identifier}
+                        onChange={e => setIdentifier(e.target.value)}
+                        autoComplete="username webauthn"
+                        className="w-full bg-slate-950 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white focus:outline-none focus:border-blue-500"
+                        placeholder="username or name@domain.com"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase text-slate-400">Password</label>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      autoComplete="current-password"
+                      className="w-full bg-slate-950 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
+                      placeholder="••••••••"
+                      required
+                    />
+                  </div>
+                  <div className="flex items-center justify-between pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowForgotModal(true);
+                        setForgotEmail(identifier.includes('@') ? identifier : '');
+                        setForgotSent(false);
+                        setForgotError('');
+                      }}
+                      className="text-[11px] font-bold text-blue-400 hover:text-blue-300 transition-colors cursor-pointer"
+                    >
+                      Forgot or need to recover password?
+                    </button>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loggingIn || !identifier || !password || rateLimitSeconds > 0}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl text-xs font-bold transition-all disabled:opacity-50 active:scale-[0.98] cursor-pointer shadow-lg shadow-blue-600/20"
+                  >
+                    {loggingIn ? <RefreshCw className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
+                    <span>{rateLimitSeconds > 0 ? `Try again in ${rateLimitSeconds}s` : loggingIn ? 'Authenticating...' : 'Sign In with Password'}</span>
+                  </button>
+
+                  {renderPersistenceSelector()}
+                </form>
+              )}
+
+              {/* Tab 4: Email 6-Digit One-Time Code (OTP) */}
+              {tab === 'otp' && (
+                <div className="space-y-4">
+                  {!otpSent ? (
+                    <form onSubmit={handleSendOtp} className="space-y-4">
+                      <div className="p-3.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-300 flex items-center gap-2">
+                        <Mail className="w-4 h-4 text-indigo-400 shrink-0" />
+                        <span>Sign in passwordlessly with a one-time verification code sent to your email.</span>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase text-slate-400">Registered Email Address</label>
+                        <input
+                          type="email"
+                          value={otpEmail}
+                          onChange={e => setOtpEmail(e.target.value)}
+                          placeholder="name@domain.com"
+                          className="w-full bg-slate-950 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white focus:outline-none focus:border-blue-500"
+                          required
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={otpSending || !otpEmail}
+                        className="w-full flex items-center justify-center gap-2 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-xs font-bold transition-all disabled:opacity-50 active:scale-[0.98] cursor-pointer shadow-lg shadow-indigo-600/20"
+                      >
+                        {otpSending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                        <span>{otpSending ? 'Sending Code...' : 'Send Verification Code'}</span>
+                      </button>
+                    </form>
+                  ) : (
+                    <form onSubmit={handleVerifyOtp} className="space-y-4">
+                      <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <span>Code sent to <strong>{otpEmail}</strong>. Enter 6-digit code below:</span>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase text-slate-400">6-Digit Email Code</label>
+                        <input
+                          type="text"
+                          value={otpCode}
+                          onChange={e => setOtpCode(e.target.value)}
+                          placeholder="123456"
+                          maxLength={6}
+                          className="w-full bg-slate-950 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white text-center font-mono tracking-widest text-lg focus:outline-none focus:border-blue-500"
+                          required
+                          autoFocus
+                        />
+                      </div>
+
+                      <div className="flex gap-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => { setOtpSent(false); setOtpCode(''); }}
+                          className="w-1/3 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-2xl text-xs font-bold transition-all cursor-pointer"
+                        >
+                          Back
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={otpVerifying || !otpCode.trim()}
+                          className="w-2/3 flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-xs font-bold transition-all disabled:opacity-50 active:scale-[0.98] cursor-pointer shadow-lg shadow-indigo-600/20"
+                        >
+                          {otpVerifying ? <RefreshCw className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
+                          <span>{otpVerifying ? 'Verifying...' : 'Verify Code & Sign In'}</span>
+                        </button>
+                      </div>
+
+                      <div className="text-center pt-2">
+                        <button
+                          type="button"
+                          disabled={otpCountdown > 0 || otpSending}
+                          onClick={handleSendOtp}
+                          className="text-[11px] font-bold text-indigo-400 hover:text-indigo-300 disabled:opacity-50 transition-colors"
+                        >
+                          {otpCountdown > 0 ? `Resend code in ${otpCountdown}s` : 'Resend code'}
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  {renderPersistenceSelector()}
+                </div>
+              )}
+            </>
+          )}
 
         {tab === 'companion' && (
           <div className="space-y-4">
@@ -585,8 +1263,12 @@ export function LoginDialog({
           </div>
         )}
       </motion.div>
+  );
 
-      {/* Forgot Password Recovery Modal */}
+  const modalBackdrop = (
+    <>
+      {content}
+      {/* Forgot Password Modal */}
       <AnimatePresence>
         {showForgotModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
@@ -676,6 +1358,20 @@ export function LoginDialog({
           </div>
         )}
       </AnimatePresence>
+    </>
+  );
+
+  if (isModal) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-950/80 backdrop-blur-md font-sans">
+        {modalBackdrop}
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 sm:p-6 font-sans">
+      {modalBackdrop}
     </div>
-  )
+  );
 }
