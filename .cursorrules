@@ -680,9 +680,10 @@ To ensure absolute account integrity and forensic traceability, all identity sys
     - *I-AM*: Amber $\rightarrow$ Yellow $\rightarrow$ Gold (`from-amber-300 via-yellow-400 to-amber-500`)
     - *Lets-Draw-Down*: Yellow $\rightarrow$ Amber $\rightarrow$ Orange (`from-yellow-400 via-amber-400 to-orange-400`)
     - *Voyarr*: Fuchsia $\rightarrow$ Purple $\rightarrow$ Indigo (`from-fuchsia-400 via-purple-400 to-indigo-400`)
-- **Integrated Dual-Mode Device Companion**:
-  - The modal MUST support 4 core authentication methods: **SSO** (OAuth), **Passkey** (FIDO2/WebAuthn), **Password**, and **Device** (Companion Pairing).
-  - The **Device** tab MUST offer both:
-    1. **Approve Screen**: Auto-hyphenated 8-character PIN entry (`WDJX-7829`) to authorize TVs, Consoles, or Headsets.
-    2. **Pair This Device**: Generates a live one-time PIN with 300s expiration and automated background polling (`/api/auth/device/poll`) for frictionless login via phone or secondary laptop.
+- **Unauthenticated Device Pairing (`LoginDialog.tsx`)**:
+  - The unauthenticated sign-in modal's **Device** tab is dedicated exclusively to **Pair This Device**: generating an 8-character one-time pairing PIN (`WDJX-7829`), displaying a live 300s countdown, an instant mobile QR code for camera scans, and running automated background polling (`/api/auth/device/poll`).
+- **Authenticated Device Approval (`DeviceApprovalCard.tsx`)**:
+  - Authorizing and approving remote screens MUST be located within the authenticated user's **Security Settings** (`/settings?tab=security` / `UserSettings.tsx` / `DeviceApprovalCard.tsx`).
+  - An authenticated user enters the 8-character PIN displayed on the remote TV, Console, or VR Headset to verify and grant session access via `/api/auth/device/approve`.
+
 

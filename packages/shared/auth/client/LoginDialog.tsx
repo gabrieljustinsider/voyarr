@@ -45,12 +45,6 @@ export function LoginDialog({
     return 'from-cyan-400 via-blue-400 to-indigo-400'
   })()
 
-  // Remote Companion State & Dual Mode
-  const [companionMode, setCompanionMode] = useState<'approve' | 'request'>('approve')
-  const [userCode, setUserCode] = useState('')
-  const [approvingCode, setApprovingCode] = useState(false)
-  const [approvalSuccess, setApprovalSuccess] = useState(false)
-
   // Device Pairing Request State (Pair This Device)
   const [devicePin, setDevicePin] = useState('')
   const [generatingCode, setGeneratingCode] = useState(false)
@@ -139,11 +133,11 @@ export function LoginDialog({
 
   // Auto-countdown for device PIN
   useEffect(() => {
-    if (tab === 'companion' && companionMode === 'request' && devicePin && codeTimeLeft > 0) {
+    if (tab === 'companion' && devicePin && codeTimeLeft > 0) {
       const t = setInterval(() => setCodeTimeLeft((prev) => prev - 1), 1000)
       return () => clearInterval(t)
     }
-  }, [tab, companionMode, devicePin, codeTimeLeft])
+  }, [tab, devicePin, codeTimeLeft])
 
   async function generatePairingCode() {
     setGeneratingCode(true)
@@ -287,33 +281,6 @@ export function LoginDialog({
     }
   }
 
-  async function handleApproveCompanion(e: React.FormEvent) {
-    e.preventDefault()
-    if (!userCode || userCode.length < 8) {
-      setError('Please enter a valid 8-character device code.')
-      return
-    }
-    setError('')
-    setApprovingCode(true)
-    try {
-      const res = await fetch('/api/auth/device/approve', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userCode: userCode.toUpperCase().trim() })
-      })
-      const data: any = await res.json()
-      if (data.success) {
-        setApprovalSuccess(true)
-      } else {
-        setError(data.error || 'Device approval failed.')
-      }
-    } catch {
-      setError('Connection error.')
-    } finally {
-      setApprovingCode(false)
-    }
-  }
-
   const renderPersistenceSelector = () => (
     <div className="p-3 bg-slate-950/40 border border-white/5 rounded-2xl flex items-center justify-between mt-4">
       <div className="space-y-0.5">
@@ -381,7 +348,7 @@ export function LoginDialog({
           </button>
           <button
             type="button"
-            onClick={() => { setTab('companion'); setError(''); }}
+            onClick={() => { setTab('companion'); setError(''); if (!devicePin) generatePairingCode(); }}
             className={`py-2 text-[10px] font-bold rounded-xl transition-all cursor-pointer ${tab === 'companion' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
           >
             Device
@@ -531,170 +498,90 @@ export function LoginDialog({
 
         {tab === 'companion' && (
           <div className="space-y-4">
-            {/* Device Mode Toggle: Approve Screen Code vs Pair This Device */}
-            <div className="grid grid-cols-2 gap-1 p-1 bg-slate-950 rounded-xl border border-white/5">
-              <button
-                type="button"
-                onClick={() => { setCompanionMode('approve'); setError(''); }}
-                className={`py-1.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${companionMode === 'approve' ? 'bg-purple-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
-              >
-                <Tv className="w-3.5 h-3.5" />
-                <span>Approve Screen</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => { setCompanionMode('request'); setError(''); generatePairingCode(); }}
-                className={`py-1.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${companionMode === 'request' ? 'bg-purple-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
-              >
-                <Smartphone className="w-3.5 h-3.5" />
-                <span>Pair This Device</span>
-              </button>
+            <div className="p-3.5 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-start gap-2.5">
+              <Tv className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+              <p className="text-xs text-purple-200/90 leading-relaxed font-medium">
+                To sign in on this screen, open your logged-in device, navigate to <strong>Settings &gt; Security &gt; Authorize Device</strong>, or scan the QR code below:
+              </p>
             </div>
 
-            {/* Mode A: Approve Remote Device (TV / Console / Headset) */}
-            {companionMode === 'approve' && (
-              <>
-                {approvalSuccess ? (
-                  <div className="p-6 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-center space-y-2">
-                    <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
-                    <h3 className="text-sm font-bold text-white">Device Authorized!</h3>
-                    <p className="text-xs text-slate-400">Your companion device has been successfully signed in.</p>
+            <div className="p-6 bg-slate-950 rounded-2xl border border-white/10 text-center space-y-3">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block">Your One-Time Pairing PIN</span>
+              {generatingCode ? (
+                <div className="flex items-center justify-center py-2 text-purple-400">
+                  <RefreshCw className="w-6 h-6 animate-spin" />
+                </div>
+              ) : (
+                <div className="flex items-center justify-center gap-3">
+                  <span className="text-2xl sm:text-3xl font-black font-mono tracking-widest text-white">
+                    {devicePin || '---- ----'}
+                  </span>
+                  {devicePin && (
                     <button
                       type="button"
-                      onClick={() => { setApprovalSuccess(false); setUserCode(''); }}
-                      className="mt-3 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                      onClick={() => {
+                        navigator.clipboard.writeText(devicePin);
+                        setCopiedPin(true);
+                        setTimeout(() => setCopiedPin(false), 2000);
+                      }}
+                      className="p-2 bg-slate-900 hover:bg-slate-800 border border-white/10 rounded-xl text-slate-400 hover:text-white transition-all cursor-pointer"
+                      title="Copy Code"
                     >
-                      Authorize Another Device
+                      {copiedPin ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                     </button>
-                  </div>
-                ) : (
-                  <form onSubmit={handleApproveCompanion} className="space-y-4">
-                    <div className="p-3.5 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-start gap-2.5">
-                      <Tv className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
-                      <p className="text-xs text-purple-200/90 leading-relaxed font-medium">
-                        Enter the 8-character pairing code shown on your Smart TV, Console, or VR Headset to authorize access.
-                      </p>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Companion Security Code</label>
-                      <input
-                        type="text"
-                        maxLength={9}
-                        placeholder="WDJX-7829"
-                        value={userCode}
-                        onChange={(e) => {
-                          const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-                          if (val.length > 4) {
-                            setUserCode(`${val.slice(0, 4)}-${val.slice(4, 8)}`);
-                          } else {
-                            setUserCode(val);
-                          }
-                        }}
-                        className="w-full bg-slate-950 border border-white/10 rounded-2xl px-4 py-3 text-center text-lg tracking-widest font-mono font-black text-purple-300 focus:outline-none focus:border-purple-500"
-                        required
-                      />
-                    </div>
-                    <button
-                      type="submit"
-                      disabled={approvingCode || userCode.replace(/[^A-Z0-9]/g, '').length < 8}
-                      className="w-full flex items-center justify-center gap-2 px-5 py-3.5 bg-purple-600 hover:bg-purple-500 text-white rounded-2xl text-xs font-bold transition-all disabled:opacity-50 active:scale-[0.98] cursor-pointer shadow-lg shadow-purple-600/20"
-                    >
-                      {approvingCode ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
-                      <span>{approvingCode ? 'Authorizing Device...' : 'Authorize Device Access'}</span>
-                    </button>
-                  </form>
-                )}
-              </>
-            )}
-
-            {/* Mode B: Pair This Device (Generate PIN to approve on phone/laptop) */}
-            {companionMode === 'request' && (
-              <div className="space-y-4">
-                <div className="p-3.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-start gap-2.5">
-                  <Smartphone className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
-                  <p className="text-xs text-cyan-200/90 leading-relaxed font-medium">
-                    Open your signed-in phone or computer, go to <strong>Sign In &gt; Device</strong>, and enter this code:
-                  </p>
-                </div>
-
-                <div className="p-6 bg-slate-950 rounded-2xl border border-white/10 text-center space-y-3">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block">Your One-Time Pairing PIN</span>
-                  {generatingCode ? (
-                    <div className="flex items-center justify-center py-2 text-cyan-400">
-                      <RefreshCw className="w-6 h-6 animate-spin" />
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center gap-3">
-                      <span className="text-2xl sm:text-3xl font-black font-mono tracking-widest text-white">
-                        {devicePin || '---- ----'}
-                      </span>
-                      {devicePin && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            navigator.clipboard.writeText(devicePin);
-                            setCopiedPin(true);
-                            setTimeout(() => setCopiedPin(false), 2000);
-                          }}
-                          className="p-2 bg-slate-900 hover:bg-slate-800 border border-white/10 rounded-xl text-slate-400 hover:text-white transition-all cursor-pointer"
-                          title="Copy Code"
-                        >
-                          {copiedPin ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                        </button>
-                      )}
-                    </div>
                   )}
-
-                  <div className="flex items-center justify-center gap-2 text-[10px] text-slate-400 font-mono pt-1">
-                    <Clock className="w-3.5 h-3.5 text-slate-500" />
-                    <span>Expires in {codeTimeLeft}s · Auto-authenticating...</span>
-                  </div>
-
-                  {/* QR Code Instant Mobile Action */}
-                  <div className="pt-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowQrCode(!showQrCode)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-850 border border-white/5 text-[11px] font-bold text-cyan-400 hover:text-cyan-300 transition-all cursor-pointer"
-                    >
-                      <QrCode className="w-3.5 h-3.5" />
-                      <span>{showQrCode ? 'Hide Instant QR' : 'Scan with Phone Camera'}</span>
-                    </button>
-
-                    <AnimatePresence>
-                      {showQrCode && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          className="mt-3 p-4 bg-white rounded-2xl flex flex-col items-center justify-center space-y-2 shadow-xl"
-                        >
-                          <img
-                            src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`https://${typeof window !== 'undefined' ? window.location.host : 'foundation.gpnet.dev'}/auth/device?code=${devicePin.replace('-', '')}`)}`}
-                            alt="Pairing QR Code"
-                            className="w-36 h-36 rounded-lg"
-                          />
-                          <span className="text-[10px] font-bold text-slate-900 font-sans">
-                            Scan to authenticate instantly
-                          </span>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
                 </div>
+              )}
 
+              <div className="flex items-center justify-center gap-2 text-[10px] text-slate-400 font-mono pt-1">
+                <Clock className="w-3.5 h-3.5 text-slate-500" />
+                <span>Expires in {codeTimeLeft}s · Auto-authenticating...</span>
+              </div>
+
+              {/* QR Code Instant Mobile Action */}
+              <div className="pt-2">
                 <button
                   type="button"
-                  onClick={generatePairingCode}
-                  disabled={generatingCode}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                  onClick={() => setShowQrCode(!showQrCode)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-850 border border-white/5 text-[11px] font-bold text-purple-400 hover:text-purple-300 transition-all cursor-pointer"
                 >
-                  <RefreshCw className={`w-3.5 h-3.5 ${generatingCode ? 'animate-spin' : ''}`} />
-                  <span>Generate New PIN</span>
+                  <QrCode className="w-3.5 h-3.5" />
+                  <span>{showQrCode ? 'Hide Instant QR' : 'Scan with Phone Camera'}</span>
                 </button>
+
+                <AnimatePresence>
+                  {showQrCode && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="mt-3 p-4 bg-white rounded-2xl flex flex-col items-center justify-center space-y-2 shadow-xl"
+                    >
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`https://${typeof window !== 'undefined' ? window.location.host : 'foundation.gpnet.dev'}/settings?action=approve_device&code=${devicePin.replace('-', '')}`)}`}
+                        alt="Pairing QR Code"
+                        className="w-36 h-36 rounded-lg"
+                      />
+                      <span className="text-[10px] font-bold text-slate-900 font-sans">
+                        Scan to authorize on your phone
+                      </span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-            )}
+            </div>
+
+            <button
+              type="button"
+              onClick={generatePairingCode}
+              disabled={generatingCode}
+              className="w-full flex items-center justify-center gap-2 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${generatingCode ? 'animate-spin' : ''}`} />
+              <span>Generate New Code</span>
+            </button>
+
+            {renderPersistenceSelector()}
           </div>
         )}
       </motion.div>
