@@ -734,8 +734,8 @@ To ensure absolute account integrity and forensic traceability, all identity sys
      - **Qualifying Criteria & Behavior**:
        - Search filtering is enabled (`searchable={true}`) to navigate large ingested datasets.
        - Displays a prominent `🔒 Scraped Source (Read-Only)` badge banner with `Immutable` indicator.
-       - Item creation (`onCreate`) and inline editing are strictly locked (`isScrapedSource={true}`).
-       - Foundation and upstream microservices MUST emit `isScrapedSource: true` / `X-Data-Source: scraped` HTTP headers so downstream child applications automatically lock the dropdown.
+       - Item creation (`onCreate`) is strictly locked (`isScrapedSource={true}`).
+       - Foundation and upstream microservices MUST emit `isScrapedSource: true` / `X-Data-Source: scraped` HTTP headers so downstream child applications automatically lock the dropdown creation behavior.
 
 
 
