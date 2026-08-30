@@ -690,85 +690,53 @@ To ensure absolute account integrity and forensic traceability, all identity sys
 - **Total Prohibition of Native HTML `<select>`**:
   - Native HTML `<select>` and `<option>` elements are **STRICTLY PROHIBITED** across all user interfaces, forms, modals, filter toolbars, and settings views in the entire fleet.
   - All selection controls MUST use the custom, keyboard-accessible, motion-aware `SearchableSelect` component from `@shared/ui/SearchableSelect` or `components/ui/SearchableSelect.tsx`.
-- **The 4 Standardized Dropdown Tiers & Code Examples**:
-  1. **Tier 1 — Database-Linked Entity Lists (Searchable + Async Inline Create)**:
-     - For records stored in and queried from a database (users, channels, categories, tags, scope profiles).
-     - **Implementation Rule**: `SearchableSelect` with search enabled AND `onCreate={(search) => handleCreate(search)}`.
-     ```tsx
-     // Example: Database-Linked Tag Selector with Dynamic Creation
-     <SearchableSelect
-       options={tagOptions}
-       value={selectedTagId}
-       onChange={setSelectedTagId}
-       onCreate={async (newTagName) => {
-         const res = await fetch('/api/tags', {
-           method: 'POST',
-           headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify({ name: newTagName }),
-         });
-         const created = await res.json();
-         setTagOptions(prev => [...prev, { value: created.id, label: created.name }]);
-         return created.id;
-       }}
-       placeholder="Select or create a tag..."
-       icon={<Tag className="w-4 h-4 text-emerald-400" />}
-       size="md"
-     />
-     ```
 
-  2. **Tier 2 — Static Pre-Configured Lists (Searchable Only, No Create)**:
-     - For fixed lists of constants (domain names, timezones, themes, supported currencies, country codes).
-     - **Implementation Rule**: `SearchableSelect` with search enabled and `onCreate` omitted.
-     ```tsx
-     // Example: Static Domain Selector
-     <SearchableSelect
-       options={[
-         { value: 'corp.example.com', label: 'corp.example.com', metadata: { subtext: 'Primary Org Domain' } },
-         { value: 'support.example.com', label: 'support.example.com', metadata: { subtext: 'Secondary Routing' } },
-       ]}
-       value={selectedDomain}
-       onChange={setSelectedDomain}
-       placeholder="Select verified domain..."
-       icon={<Globe className="w-4 h-4 text-sky-400" />}
-       size="sm"
-     />
-     ```
+- **The 4 Standardized Dropdown Tiers & Qualification Criteria**:
+  1. **Tier 1 — Database-Linked Entity Lists (Searchable + Async Inline Creation)**:
+     - **Definition**: Selection controls whose option records originate from a dynamic, user-modifiable relational/document database store where entities are subject to growth, tagging, categorization, or tenant provisioning.
+     - **What Qualifies**:
+       - *Organization Resources & Taxonomy*: Project Tags, Task Categories, Department Labels, Scope Profiles, Custom Roles, Folder Collections, Workspace Channels.
+       - *User & Group Directories*: Tenant Users, Assignees, Notification Recipients, Team Rosters, Customer Profiles.
+       - *Financial & Operational Ledgers*: Budget Categories, Custom Expense Types, Vendor Accounts, Inventory SKU Classifications.
+     - **Qualifying Criteria & Behavior**:
+       - Options are dynamically fetched from an API endpoint or database query.
+       - Full search filtering is enabled (`searchable={true}`).
+       - Inline entity creation is enabled (`onCreate`) whenever the user has write/creation permissions, letting administrators type a new value and persist it directly without leaving the form.
 
-  3. **Tier 3 — Action, Policy & Function Selectors (No Search, No Create)**:
-     - For operational actions, posting policies, visibility toggles, view filters, or sort modes ("Who Can Post", "Sort By", "Status Filter").
-     - **Implementation Rule**: `SearchableSelect` with `searchable={false}` (custom floating styling without search box or create action).
-     ```tsx
-     // Example: Group Posting Policy Selector
-     <SearchableSelect
-       searchable={false}
-       options={[
-         { value: 'ALL_MEMBERS', label: 'All Group Members' },
-         { value: 'MANAGERS_ONLY', label: 'Managers & Owners Only' },
-         { value: 'PUBLIC_WEB', label: 'Public / Anyone on the Web' },
-       ]}
-       value={postingPolicy}
-       onChange={setPostingPolicy}
-       placeholder="Select posting rule..."
-       icon={<ShieldCheck className="w-4 h-4 text-violet-400" />}
-       size="sm"
-     />
-     ```
+  2. **Tier 2 — Static Pre-Configured System Lists (Searchable Only, No Creation)**:
+     - **Definition**: Selection controls whose items represent fixed system constants, platform-wide configurations, or standardized enumerations defined by protocols, standards, or system administrators.
+     - **What Qualifies**:
+       - *Domain & Network Assets*: Verified Domain Names (`@example.com`), DNS Nameserver Presets, IP Subnet Ranges.
+       - *Localization & Formatting*: IANA Timezones (`America/New_York`), ISO Country Codes, Supported Currencies (`USD`, `EUR`, `CAD`), Locale Languages (`en-US`, `es-ES`).
+       - *Application Themes & Presets*: UI Color Palettes, Brand Iteration Suites (`v1`, `v2`, `v3`), Font Families, Number Formatting Standards.
+     - **Qualifying Criteria & Behavior**:
+       - Options are fixed arrays or system-level configuration tables.
+       - Full search filtering is enabled (`searchable={true}`) for rapid lookups across large sets (e.g. 400+ timezones or 200+ countries).
+       - Arbitrary entity creation is strictly disabled (`onCreate` omitted) to protect system referential integrity.
+
+  3. **Tier 3 — Action, Policy & Operational Function Selectors (No Search, No Creation)**:
+     - **Definition**: Selection controls that toggle operational behaviors, permission policies, display sortings, view filters, or dispatch workflow actions.
+     - **What Qualifies**:
+       - *Access & Posting Policies*: Who Can Post (`ALL_MEMBERS`, `MANAGERS_ONLY`, `PUBLIC_WEB`), Who Can View Conversations, External Member Permissions.
+       - *Roster & Member Roles*: Role Assignment Pickers (`MEMBER`, `MANAGER`, `OWNER`, `AUDITOR`), Affix Target Scopes (`all`, `groups`, `users`, `aliases`).
+       - *View Controls & Toolbars*: Sort Directions (`Newest First`, `Highest Amount`), Filter States (`All`, `Active`, `Suspended`, `Archived`), Page Size Selectors (`25`, `50`, `100`).
+     - **Qualifying Criteria & Behavior**:
+       - Options are small, finite enum sets (typically $\le 6$ mutually exclusive options).
+       - Search filtering is disabled (`searchable={false}`) to preserve a compact, lightweight floating popover without unnecessary text inputs.
+       - Creation is strictly disabled.
 
   4. **Tier 4 — Scraped & Externally Ingested Read-Only Sources (Immutable Lock)**:
-     - For data populated via web scrapers, crawler jobs, or external read-only sources (e.g. WWE Superstars directory, external roster feeds).
-     - **Implementation Rule**: `SearchableSelect` with `isScrapedSource={true}`. Disables inline creation and displays an immutable badge banner.
-     ```tsx
-     // Example: Scraped Superstar Directory Selector
-     <SearchableSelect
-       isScrapedSource={true}
-       options={scrapedRosterData}
-       value={selectedAthleteId}
-       onChange={setSelectedAthleteId}
-       placeholder="Search scraped superstar directory..."
-       icon={<Database className="w-4 h-4 text-amber-400" />}
-       size="md"
-     />
-     ```
+     - **Definition**: Selection controls populated by external web scrapers, automated background crawlers, upstream sync pipelines, or third-party read-only data feeds.
+     - **What Qualifies**:
+       - *External Directory Feeds*: WWE / Athletic Superstar Directories, Wikipedia Media Lists, IMDB Filmographies, Public Roster Feeds.
+       - *Upstream Ingested Market & Data Feeds*: Financial Market Tickers, Weather Sensor Feeds, Public Transit Route Schedules, Upstream Provider Catalogs.
+       - *Third-Party Federation Feeds*: Synced Discord Server Roles, External OIDC Provider Claims.
+     - **Qualifying Criteria & Behavior**:
+       - Search filtering is enabled (`searchable={true}`) to navigate large ingested datasets.
+       - Displays a prominent `🔒 Scraped Source (Read-Only)` badge banner with `Immutable` indicator.
+       - Item creation (`onCreate`) and inline editing are strictly locked (`isScrapedSource={true}`).
+       - Foundation and upstream microservices MUST emit `isScrapedSource: true` / `X-Data-Source: scraped` HTTP headers so downstream child applications automatically lock the dropdown.
+
 
 
 
