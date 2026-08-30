@@ -7,6 +7,7 @@ interface LoginDialogProps {
   appName: string
   appLogo?: string
   appDescription?: string
+  brandGradient?: string
   providers?: Array<'discord' | 'google' | 'github' | 'microsoft'>
   onSuccess?: () => void
 }
@@ -15,6 +16,7 @@ export function LoginDialog({
   appName,
   appLogo = '/icons/foundation.png',
   appDescription = 'Authenticate to access your fleet console',
+  brandGradient,
   providers = ['discord', 'google', 'github'],
   onSuccess
 }: LoginDialogProps) {
@@ -25,6 +27,20 @@ export function LoginDialog({
   const [loggingIn, setLoggingIn] = useState(false)
   const [error, setError] = useState('')
   const [passkeyLoading, setPasskeyLoading] = useState(false)
+
+  // Resolve default brand gradient based on appName if not explicitly provided
+  const resolvedGradient = brandGradient || (() => {
+    const key = appName.toLowerCase()
+    if (key.includes('ledger')) return 'from-emerald-400 via-teal-300 to-cyan-400'
+    if (key.includes('food')) return 'from-amber-400 via-orange-400 to-red-400'
+    if (key.includes('globot')) return 'from-red-400 via-rose-400 to-pink-500'
+    if (key.includes('groupcord')) return 'from-indigo-400 via-purple-400 to-[#5865F2]'
+    if (key.includes('draw')) return 'from-yellow-400 via-amber-400 to-orange-400'
+    if (key.includes('voyarr')) return 'from-fuchsia-400 via-purple-400 to-indigo-400'
+    if (key.includes('i-am') || key.includes('i am')) return 'from-amber-300 via-yellow-400 to-amber-500'
+    if (key.includes('butlarr')) return 'from-blue-400 via-indigo-400 to-violet-400'
+    return 'from-cyan-400 via-blue-400 to-indigo-400'
+  })()
 
   // Remote Companion State & Dual Mode
   const [companionMode, setCompanionMode] = useState<'approve' | 'request'>('approve')
@@ -255,16 +271,20 @@ export function LoginDialog({
         animate={{ opacity: 1, scale: 1 }}
         className="bg-slate-900 border border-white/10 rounded-3xl sm:rounded-[2.5rem] w-full max-w-md p-6 sm:p-10 shadow-2xl space-y-6"
       >
-        <div className="text-center">
-          <div className="w-16 h-16 bg-slate-950/80 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.5)] overflow-hidden p-2.5">
+        <div className="text-center space-y-3">
+          <div className="w-16 h-16 bg-slate-950/90 rounded-2xl flex items-center justify-center mx-auto border border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.5)] overflow-hidden p-2.5 group">
             {appLogo ? (
-              <img src={appLogo} alt={appName} className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }} />
+              <img src={appLogo} alt={appName} className="w-full h-full object-contain drop-shadow-md group-hover:scale-105 transition-transform" onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }} />
             ) : (
-              <Shield className="w-8 h-8 text-blue-400" />
+              <Shield className="w-8 h-8 text-cyan-400" />
             )}
           </div>
-          <h2 className="text-xl font-bold text-white tracking-tight">{appName} Access Gate</h2>
-          <p className="text-xs text-slate-400 mt-1">{appDescription}</p>
+          <div>
+            <h2 className={`text-2xl font-black tracking-tight bg-gradient-to-r ${resolvedGradient} bg-clip-text text-transparent`}>
+              {appName}
+            </h2>
+            <p className="text-xs text-slate-400 mt-1 font-medium">{appDescription}</p>
+          </div>
         </div>
 
         {/* Auth Mode Tabs */}

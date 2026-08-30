@@ -89,7 +89,14 @@ This document serves as the absolute source of truth for all projects within the
 
 ## 5. UI/UX Standards 
 - **Jargon-Free Language**: All user-facing text (labels, messages, notifications, descriptions, error messages) MUST be written in plain, non-technical language. Avoid developer terminology, internal system names, error codes, or implementation details unless the intended audience is explicitly technical (e.g., API documentation, developer guides, webhook configuration pages). If a non-technical user would need to guess what a message means, rewrite it.
+- **Rendered Text & Zero Raw JSON (Fleet-Wide Law)**: Unless the UI is explicitly and intentionally designed as a developer code editor, JSON viewer, or code block, all user-facing content — especially within activity logs, notifications, notification history, audit trails, and status inspectors — MUST ALWAYS be fully rendered into human-readable text, structured key-value attributes, and styled UI badges. Raw JSON strings, unparsed serialized blobs, or unformatted dump blocks are strictly prohibited in user-facing components.
+- **User & Entity Display Name Resolution (Fleet-Wide Law)**: Whenever user accounts or entity/record types are referenced in UI components, logs, notifications, audit trails, activity chronicles, or inspectors, they MUST ALWAYS be resolved and displayed as their human-readable **Display Names** (e.g. `Jane Doe`, with their username optionally following in parentheses such as `Jane Doe (@janedoe)` instead of raw UUIDs like `01a01b9b-...` or `user_123`) and formatted **Entity Titles** (e.g. `Household Budget`, `Checking Account`, `Subscription Renewal` instead of raw database table/column identifiers like `household_budgets` or `accounts`). Raw IDs or technical snake_case keys should only appear as subtle auxiliary badges when forensically necessary.
+- **Modal Centering & Background Scroll Lock (Fleet-Wide Law)**: All interactive modals, dialogs, full-history inspectors, and popups MUST be mounted at the root DOM layer (via `createPortal` to `document.body` or fixed full-viewport overlays) with **true viewport centering** (`fixed inset-0 z-50 flex items-center justify-center`). When any modal or dialog is open, background page scrolling MUST be strictly locked (`document.body.style.overflow = 'hidden'`). If the modal's contents exceed the viewable vertical space, internal scrolling MUST be handled strictly within the modal container's body (`overflow-y-auto max-h-[85vh]`) with styled custom scrollbars, preventing any outer page scrolling or unwanted backdrop shifts.
+- **Overlay Stacking Context & Viewport Edge Clamping (Fleet-Wide Law)**: All temporary overlay objects (dropdown menus, pop-up panels, tooltips, flyouts, comboboxes, and floating select menus) MUST be position-aware, elevated above all static page elements (cards, sticky headers, table rows, navigation bars) via elevated z-index tiers (`z-[1000]` or higher, or mounted directly to `document.body` via `createPortal`), and strictly clamped within viewport boundaries. Temporary overlays MUST NEVER extend beyond or be clipped by the edge of the screen, card borders, or `overflow: hidden` parent containers. When rendered near a screen boundary, overlays must automatically flip axis or clamp coordinates (`max-w-[calc(100vw-24px)]`, dynamic top/bottom placement) so they remain 100% visible and unobscured.
 - **PWA Status**: All applications must be fully progressive and configured as a Progressive Web App (PWA).
+
+
+
 - **High-Fidelity Utilities**:
     - **Scrollable Lists**: Use a standardized `.scrollable-list` class with `max-height: 65vh; overflow-y: auto; overflow-x: hidden;`.
     - **Custom Scrollbars**: Implement a sleek, custom-designed scrollbar for all scrollable containers.
@@ -657,3 +664,25 @@ To ensure absolute account integrity and forensic traceability, all identity sys
   - Edge intelligence features (semantic search, embedding generation, content summaries, bot intent parsing) MUST utilize native Cloudflare Workers AI (`c.env.AI`) and Vectorize (`c.env.VECTORIZE`) to execute directly at the edge without external API roundtrip overhead.
 - **OpenTelemetry & Distributed Trace Propagation**:
   - All inter-service communications through the Fleet Application Gateway (`/api/v1/fleet`) and webhook dispatches MUST propagate standard W3C Trace Context headers (`traceparent`, `tracestate`) to maintain end-to-end request visibility across the fleet.
+
+## 38. Unified Fleet Authentication & Default Sign-In Modal Standards
+- **Default Fleet Sign-In Modal (`LoginDialog.tsx`)**:
+  - All micro-applications across the fleet MUST use the standardized `LoginDialog.tsx` from `@shared/auth/client` as their primary authentication gate modal.
+- **Header Icon & Brand Uniformity**:
+  - **App Icon**: The modal header MUST render the application's unique branding icon (`appLogo` / `public/icons/<app>.png` or `public/brand/logo.png`) inside a styled, elevated container with subtle interactive hover scaling.
+  - **Gradient Shaded App Name**: Below the icon, the application's name MUST be rendered in prominent bold Title Case header typography with brand gradient text shading (`bg-gradient-to-r ... bg-clip-text text-transparent`) aligned with the application's theme colors to maintain brand uniformity:
+    - *Foundation*: Cyan $\rightarrow$ Blue $\rightarrow$ Indigo (`from-cyan-400 via-blue-400 to-indigo-400`)
+    - *GloBot*: Red $\rightarrow$ Rose $\rightarrow$ Pink (`from-red-400 via-rose-400 to-pink-500`)
+    - *Groupcord*: Indigo $\rightarrow$ Purple $\rightarrow$ Discord Blurple (`from-indigo-400 via-purple-400 to-[#5865F2]`)
+    - *Ledger*: Emerald $\rightarrow$ Teal $\rightarrow$ Cyan (`from-emerald-400 via-teal-300 to-cyan-400`)
+    - *Food*: Amber $\rightarrow$ Orange $\rightarrow$ Red (`from-amber-400 via-orange-400 to-red-400`)
+    - *Butlarr*: Blue $\rightarrow$ Indigo $\rightarrow$ Violet (`from-blue-400 via-indigo-400 to-violet-400`)
+    - *I-AM*: Amber $\rightarrow$ Yellow $\rightarrow$ Gold (`from-amber-300 via-yellow-400 to-amber-500`)
+    - *Lets-Draw-Down*: Yellow $\rightarrow$ Amber $\rightarrow$ Orange (`from-yellow-400 via-amber-400 to-orange-400`)
+    - *Voyarr*: Fuchsia $\rightarrow$ Purple $\rightarrow$ Indigo (`from-fuchsia-400 via-purple-400 to-indigo-400`)
+- **Integrated Dual-Mode Device Companion**:
+  - The modal MUST support 4 core authentication methods: **SSO** (OAuth), **Passkey** (FIDO2/WebAuthn), **Password**, and **Device** (Companion Pairing).
+  - The **Device** tab MUST offer both:
+    1. **Approve Screen**: Auto-hyphenated 8-character PIN entry (`WDJX-7829`) to authorize TVs, Consoles, or Headsets.
+    2. **Pair This Device**: Generates a live one-time PIN with 300s expiration and automated background polling (`/api/auth/device/poll`) for frictionless login via phone or secondary laptop.
+
