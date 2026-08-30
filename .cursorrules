@@ -687,3 +687,22 @@ To ensure absolute account integrity and forensic traceability, all identity sys
   - An authenticated user enters the 8-character PIN displayed on the remote TV, Console, or VR Headset to verify and grant session access via `/api/auth/device/approve`.
 
 
+
+
+## 39. Fleet-Wide Dropdown Component Standard (Native `<select>` Prohibition)
+- **Total Prohibition of Native HTML `<select>`**:
+  - Native HTML `<select>` and `<option>` elements are **STRICTLY PROHIBITED** across all user interfaces, forms, modals, filter toolbars, and settings views in the entire fleet.
+  - All selection controls MUST use the custom, keyboard-accessible, motion-aware `SearchableSelect` component from `@shared/ui/SearchableSelect` or `components/ui/SearchableSelect.tsx`.
+- **The 4 Standardized Dropdown Tiers**:
+  1. **Tier 1 — Database-Linked Entity Lists**:
+     - For selection of records stored in and queried from a database (e.g. users, channels, categories, tags, scope profiles).
+     - **Implementation**: `SearchableSelect` with search enabled AND inline creation enabled via `onCreate={(search) => handleCreate(search)}` (provided the user has write/creation permissions).
+  2. **Tier 2 — Static Pre-Configured Lists**:
+     - For fixed lists of options (e.g. supported domain names, timezones, themes, supported currencies).
+     - **Implementation**: `SearchableSelect` with search enabled and `onCreate` omitted (search-only, no inline item creation).
+  3. **Tier 3 — Action, Policy & Function Selectors**:
+     - For operational actions, posting policies, visibility toggles, view filters, or sort modes (e.g. "External Allowed", "Who Can Post", "Sort By").
+     - **Implementation**: `SearchableSelect` with `searchable={false}` (renders the custom floating dropdown styling without the search input box or create action).
+  4. **Tier 4 — Scraped & Externally Ingested Read-Only Sources**:
+     - For data lists populated via web scrapers, crawler jobs, or external read-only sources (e.g. WWE Superstars directory, external roster feeds).
+     - **Implementation**: `SearchableSelect` with `isScrapedSource={true}`. Inline editing and item creation are strictly disabled with an immutable visual indicator banner. Parent applications (Foundation) MUST explicitly transmit `isScrapedSource: true` / `X-Data-Source: scraped` headers so downstream child applications automatically lock the dropdown.
