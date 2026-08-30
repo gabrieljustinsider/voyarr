@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { LogIn, Mail, Shield, Key, Tv, Smartphone, RefreshCw, CheckCircle2, AlertCircle, X, ArrowLeft, Send, KeyRound, Copy, Clock, ShieldCheck } from 'lucide-react'
+import { LogIn, Mail, Shield, Key, Tv, Smartphone, RefreshCw, CheckCircle2, AlertCircle, X, ArrowLeft, Send, KeyRound, Copy, Clock, ShieldCheck, QrCode, WifiOff, Sparkles } from 'lucide-react'
 import { startAuthentication } from '@simplewebauthn/browser'
 
 interface LoginDialogProps {
@@ -28,6 +28,9 @@ export function LoginDialog({
   const [error, setError] = useState('')
   const [passkeyLoading, setPasskeyLoading] = useState(false)
 
+  // Network Offline / Online State
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true)
+
   // Resolve default brand gradient based on appName if not explicitly provided
   const resolvedGradient = brandGradient || (() => {
     const key = appName.toLowerCase()
@@ -53,6 +56,7 @@ export function LoginDialog({
   const [generatingCode, setGeneratingCode] = useState(false)
   const [codeTimeLeft, setCodeTimeLeft] = useState(300)
   const [copiedPin, setCopiedPin] = useState(false)
+  const [showQrCode, setShowQrCode] = useState(false)
   const pollTimerRef = useRef<any>(null)
 
   const [showForgotModal, setShowForgotModal] = useState(false)
@@ -60,6 +64,71 @@ export function LoginDialog({
   const [requestingReset, setRequestingReset] = useState(false)
   const [forgotSent, setForgotSent] = useState(false)
   const [forgotError, setForgotError] = useState('')
+
+  // 1. Cross-Tab Single Sign-On Sync (BroadcastChannel)
+  useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined') return
+    const authChannel = new BroadcastChannel('fleet_auth_channel')
+    authChannel.onmessage = (event) => {
+      if (event.data?.type === 'LOGIN_SUCCESS') {
+        if (onSuccess) onSuccess()
+        window.location.href = '/directory'
+      }
+    }
+    return () => authChannel.close()
+  }, [onSuccess])
+
+  // 2. Network Online / Offline Detection
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true)
+    const handleOffline = () => setIsOnline(false)
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
+  // 3. WebAuthn Conditional UI (Passkey Autofill on Mount)
+  useEffect(() => {
+    let active = true
+    async function initConditionalPasskey() {
+      if (typeof window === 'undefined' || !window.PublicKeyCredential) return
+      try {
+        if (window.PublicKeyCredential.isConditionalMediationAvailable) {
+          const isAvailable = await window.PublicKeyCredential.isConditionalMediationAvailable()
+          if (isAvailable && active) {
+            const optRes = await fetch('/api/auth/passkeys/generate-authentication', { method: 'POST' })
+            if (!optRes.ok) return
+            const { options, challengeId }: any = await optRes.json()
+            if (!active) return
+
+            const authResp = await startAuthentication({ optionsJSON: options, useBrowserAutofill: true })
+            if (!active) return
+
+            const verifyRes = await fetch(`/api/auth/passkeys/verify-authentication?challengeId=${encodeURIComponent(challengeId || '')}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...authResp, challengeId })
+            })
+            const verifyData: any = await verifyRes.json()
+            if (verifyData.success) {
+              if (typeof BroadcastChannel !== 'undefined') {
+                const bc = new BroadcastChannel('fleet_auth_channel')
+                bc.postMessage({ type: 'LOGIN_SUCCESS' })
+                bc.close()
+              }
+              if (onSuccess) onSuccess()
+              window.location.href = '/directory'
+            }
+          }
+        }
+      } catch {}
+    }
+    initConditionalPasskey()
+    return () => { active = false }
+  }, [onSuccess])
 
   // Cleanup polling timer on unmount
   useEffect(() => {
@@ -319,6 +388,13 @@ export function LoginDialog({
           </button>
         </div>
 
+        {!isOnline && (
+          <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-2.5 text-xs text-amber-300">
+            <WifiOff className="w-4 h-4 shrink-0 text-amber-400" />
+            <span>Offline mode active. You can authenticate locally using cached passkeys.</span>
+          </div>
+        )}
+
         {error && (
           <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center gap-2.5 text-xs text-rose-300">
             <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
@@ -407,7 +483,7 @@ export function LoginDialog({
                 type="text"
                 value={identifier}
                 onChange={e => setIdentifier(e.target.value)}
-                autoComplete="username"
+                autoComplete="username webauthn"
                 className="w-full bg-slate-950 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white focus:outline-none focus:border-blue-500"
                 placeholder="username or name@domain.com"
                 required
@@ -573,6 +649,38 @@ export function LoginDialog({
                   <div className="flex items-center justify-center gap-2 text-[10px] text-slate-400 font-mono pt-1">
                     <Clock className="w-3.5 h-3.5 text-slate-500" />
                     <span>Expires in {codeTimeLeft}s · Auto-authenticating...</span>
+                  </div>
+
+                  {/* QR Code Instant Mobile Action */}
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowQrCode(!showQrCode)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-850 border border-white/5 text-[11px] font-bold text-cyan-400 hover:text-cyan-300 transition-all cursor-pointer"
+                    >
+                      <QrCode className="w-3.5 h-3.5" />
+                      <span>{showQrCode ? 'Hide Instant QR' : 'Scan with Phone Camera'}</span>
+                    </button>
+
+                    <AnimatePresence>
+                      {showQrCode && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="mt-3 p-4 bg-white rounded-2xl flex flex-col items-center justify-center space-y-2 shadow-xl"
+                        >
+                          <img
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`https://${typeof window !== 'undefined' ? window.location.host : 'foundation.gpnet.dev'}/auth/device?code=${devicePin.replace('-', '')}`)}`}
+                            alt="Pairing QR Code"
+                            className="w-36 h-36 rounded-lg"
+                          />
+                          <span className="text-[10px] font-bold text-slate-900 font-sans">
+                            Scan to authenticate instantly
+                          </span>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </div>
 
