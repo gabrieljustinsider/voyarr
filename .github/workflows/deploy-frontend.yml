@@ -27,7 +27,7 @@ jobs:
 
       - name: Load secrets from 1Password
         id: op-secrets
-        uses: 1password/load-secrets-action@v4.1.1
+        uses: 1password/load-secrets-action@5.0.1
         with:
           export-env: true
         env:
