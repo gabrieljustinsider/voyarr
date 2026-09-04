@@ -1,7 +1,7 @@
 {
   "name": "frontend",
   "private": true,
-  "version": "1.191.0",
+  "version": "1.191.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -15,6 +15,7 @@
     "@mui/icons-material": "^9.2.0",
     "@mui/material": "^9.2.0",
     "@simplewebauthn/browser": "^14.0.0",
+    "fast-uri": "^3.1.7",
     "framer-motion": "^12.42.2",
     "lucide-react": "^1.27.0",
     "qrcode.react": "^4.2.0",
