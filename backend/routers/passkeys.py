@@ -215,11 +215,13 @@ def register_verify(
         
     return {"status": "success", "message": "Passkey registered successfully!"}
 
+@router.post("/generate-authentication")
+@router.post("/login-options")
 @router.post("/login/options")
-def login_options(req: LoginOptionsRequest, request: Request, db: Session = Depends(get_db)):
+def login_options(req: Optional[LoginOptionsRequest] = None, request: Request = None, db: Session = Depends(get_db)):
     _check_passkeys_enabled(db)
     allowed_credentials = []
-    if req.username:
+    if req and req.username:
         user = db.query(User).filter(User.username == req.username).first()
         if user:
             passkeys = db.query(Passkey).filter(Passkey.user_id == user.id).all()
@@ -240,20 +242,38 @@ def login_options(req: LoginOptionsRequest, request: Request, db: Session = Depe
         timeout=timeout_sec * 1000
     )
     LOGIN_CHALLENGES[options["challenge"]] = datetime.now(timezone.utc)
-    return options
+    return {
+        "options": options,
+        "challengeId": options["challenge"],
+        **options
+    }
 
+@router.post("/verify-authentication")
 @router.post("/login/verify")
-def login_verify(
-    req: LoginVerifyRequest,
+async def login_verify(
     request: Request,
     response: Response,
     db: Session = Depends(get_db),
 ):
     _check_passkeys_enabled(db)
+    body = await request.json()
+    
+    # Support both flat LoginVerifyRequest and { assertion: ... } wrappers
+    assertion_data = body.get("assertion", body)
+    resp = assertion_data.get("response", {})
+    
+    credential_id = assertion_data.get("credential_id") or assertion_data.get("id")
+    client_data_json = resp.get("clientDataJSON") or assertion_data.get("client_data_json")
+    authenticator_data = resp.get("authenticatorData") or assertion_data.get("authenticator_data")
+    signature = resp.get("signature") or assertion_data.get("signature")
+
+    if not credential_id or not client_data_json:
+        raise HTTPException(status_code=400, detail="Missing credential ID or clientDataJSON in assertion.")
+
     # Verify the challenge exists in active challenges
     try:
         # Decode clientDataJSON to read the challenge first
-        padded = req.client_data_json + "=" * (-len(req.client_data_json) % 4)
+        padded = client_data_json + "=" * (-len(client_data_json) % 4)
         client_data_bytes = base64.b64decode(padded)
         client_data = json.loads(client_data_bytes.decode("utf-8"))
         client_challenge = client_data.get("challenge")
@@ -267,7 +287,7 @@ def login_verify(
     LOGIN_CHALLENGES.pop(client_challenge, None)
     
     # Retrieve passkey record by credential_id
-    passkey = db.query(Passkey).filter(Passkey.credential_id == req.credential_id).first()
+    passkey = db.query(Passkey).filter(Passkey.credential_id == credential_id).first()
     if not passkey:
         raise HTTPException(status_code=404, detail="Passkey credential not recognized.")
         
@@ -281,9 +301,9 @@ def login_verify(
     # Verify the signature
     verified = verify_assertion_signature(
         public_key_der_b64=passkey.public_key,
-        authenticator_data_b64=req.authenticator_data,
-        client_data_json_b64=req.client_data_json,
-        signature_b64=req.signature
+        authenticator_data_b64=authenticator_data,
+        client_data_json_b64=client_data_json,
+        signature_b64=signature
     )
     
     if not verified:
@@ -323,10 +343,18 @@ def login_verify(
     )
     
     return {
+        "success": True,
+        "token": access_token,
+        "sessionToken": access_token,
         "access_token": access_token,
         "token_type": "bearer",
         "role": user.role,
-        "username": user.username
+        "username": user.username,
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "role": user.role
+        }
     }
 
 @router.put("/{passkey_id}")

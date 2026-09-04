@@ -1,6 +1,7 @@
 /* global process, __dirname */
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import fs from 'fs';
 import path from 'path';
@@ -50,6 +51,7 @@ export default defineConfig(({ mode }) => {
       '__APP_VERSION__': JSON.stringify(getAppVersion()),
     },
     plugins: [
+      tailwindcss(),
       react(),
       VitePWA({
         registerType: 'autoUpdate',

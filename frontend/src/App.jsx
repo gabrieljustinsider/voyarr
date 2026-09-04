@@ -10,8 +10,8 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import { LogOut, SlidersHorizontal, Bell, CircleHelp, Clapperboard, Key, Download, Bot, Wrench } from 'lucide-react'
 
-// Synchronously load Login to keep initial login paint instant
-import Login from './components/Login'
+// Synchronously load LoginDialog to keep initial login paint instant
+import { LoginDialog } from './components/auth/LoginDialog'
 
 // Automatic retry helper for lazy loading components across production builds with new chunk hashes
 const lazyWithRetry = (componentImport) =>
@@ -1148,7 +1148,18 @@ function App() {
       <ErrorBoundary title="Authentication Error">
         <ThemeProvider theme={currentMuiTheme}>
           <CssBaseline />
-          <Login onLogin={() => setIsLoggedIn(true)} />
+          <LoginDialog
+            appName="Voyarr"
+            appLogo="/app_icon.png"
+            appDescription="Sign in to access your media manager and scraper controls"
+            brandGradient="from-fuchsia-400 via-purple-400 to-indigo-400"
+            providers={['discord', 'google']}
+            allowFirstUserSetup={true}
+            onSuccess={() => {
+              setIsLoggedIn(true)
+              window.location.hash = '#dashboard'
+            }}
+          />
         </ThemeProvider>
       </ErrorBoundary>
     )

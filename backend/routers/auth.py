@@ -190,6 +190,74 @@ def register_user(user: UserCreate, request: Request, db: Session = Depends(get_
     }
 
 
+class JsonLoginRequest(BaseModel):
+    identifier: Optional[str] = None
+    username: Optional[str] = None
+    password: str
+    persistent: Optional[bool] = True
+
+@router.post(
+    "/login", dependencies=[Depends(rate_limit(max_requests=15, window_seconds=60))]
+)
+def json_login(
+    req: JsonLoginRequest,
+    response: Response,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    login_user = req.identifier or req.username
+    if not login_user:
+        raise HTTPException(status_code=400, detail="Username or identifier required")
+
+    user = db.query(User).filter(func.lower(User.username) == login_user.lower()).first()
+    if not user or not verify_password(req.password, str(user.password_hash)):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+        )
+
+    if not bool(user.is_active):
+        raise HTTPException(status_code=400, detail="Inactive user account")
+
+    update_user_last_login(db, user)
+    session_data = create_user_session(user, response)
+    return {
+        "success": True,
+        "token": session_data["access_token"],
+        "sessionToken": session_data["access_token"],
+        "sessionId": session_data["access_token"],
+        "access_token": session_data["access_token"],
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "role": user.role,
+        }
+    }
+
+@router.get("/proxy-user")
+def get_proxy_user(request: Request, db: Session = Depends(get_db)):
+    proxy_user = (
+        request.headers.get("x-forwarded-user")
+        or request.headers.get("x-auth-request-user")
+        or request.headers.get("remote-user")
+        or request.headers.get("x-webauth-user")
+    )
+    if proxy_user:
+        return {"success": True, "username": proxy_user}
+    return {"success": False, "user": None}
+
+@router.get("/setup-status")
+def get_setup_status(db: Session = Depends(get_db)):
+    count = db.query(User).count()
+    return {"success": True, "hasUsers": count > 0, "has_users": count > 0}
+
+@router.post("/initial-setup")
+def initial_setup(user: UserCreate, request: Request, db: Session = Depends(get_db)):
+    user_count = db.query(User).count()
+    if user_count > 0:
+        raise HTTPException(status_code=403, detail="Initial administrator setup is already completed.")
+    user.role = "admin"
+    return register_user(user, request, db)
+
 @router.post(
     "/token", dependencies=[Depends(rate_limit(max_requests=10, window_seconds=60))]
 )

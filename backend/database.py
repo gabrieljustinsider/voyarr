@@ -5,8 +5,17 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# If DATABASE_URL is missing or contains unresolved 1Password references (op://), load local dev env
 db_url = os.getenv("DATABASE_URL")
-if not db_url:
+if not db_url or db_url.startswith("op://"):
+    load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "../.env.dev.local"), override=True)
+    db_url = os.getenv("DATABASE_URL")
+
+if not db_url or db_url.startswith("op://"):
+    load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "../.env.portainer"), override=True)
+    db_url = os.getenv("DATABASE_URL")
+
+if not db_url or db_url.startswith("op://"):
     db_user = os.getenv("POSTGRES_USER") or "voyarr_user"
     db_pass = os.getenv("POSTGRES_PASSWORD") or "password"
     db_host = os.getenv("POSTGRES_HOST") or "db"
