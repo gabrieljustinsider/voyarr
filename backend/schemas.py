@@ -253,6 +253,29 @@ class SubscriptionTierResponse(SubscriptionTierBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ProviderBillerBase(BaseModel):
+    provider_id: int
+    biller_id: int
+    merchant_account_label: Optional[str] = None
+    supported_cycles: Optional[List[str]] = ["monthly", "annual"]
+    is_default: bool = False
+
+class ProviderBillerCreate(ProviderBillerBase):
+    pass
+
+class ProviderBillerUpdate(BaseModel):
+    merchant_account_label: Optional[str] = None
+    supported_cycles: Optional[List[str]] = None
+    is_default: Optional[bool] = None
+
+class ProviderBillerResponse(ProviderBillerBase):
+    id: int
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    biller: Optional[BillerResponse] = None
+    model_config = ConfigDict(from_attributes=True)
+
+
 class SubscriptionBase(BaseModel):
     provider_id: int
     tier_id: Optional[int] = None
@@ -264,6 +287,7 @@ class SubscriptionBase(BaseModel):
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     biller_id: Optional[int] = None
+    provider_biller_id: Optional[int] = None
     billing_cycle: Optional[str] = None
     cost: Optional[float] = None
     charge_type: Optional[str] = "bulk"
@@ -283,6 +307,7 @@ class SubscriptionUpdate(BaseModel):
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     biller_id: Optional[int] = None
+    provider_biller_id: Optional[int] = None
     billing_cycle: Optional[str] = None
     cost: Optional[float] = None
     charge_type: Optional[str] = None
@@ -295,6 +320,7 @@ class SubscriptionResponse(SubscriptionBase):
     biller: Optional[BillerResponse] = None
     provider: Optional[ProviderResponse] = None
     tier: Optional[SubscriptionTierResponse] = None
+    provider_biller: Optional[ProviderBillerResponse] = None
     model_config = ConfigDict(from_attributes=True)
 
 

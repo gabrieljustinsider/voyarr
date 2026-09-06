@@ -97,6 +97,7 @@ class Provider(Base):
     )
 
     default_biller = relationship("Biller", foreign_keys=[default_biller_id])
+    billers = relationship("ProviderBiller", back_populates="provider", cascade="all, delete-orphan")
 
 
 class Biller(Base):
@@ -110,6 +111,27 @@ class Biller(Base):
     description = Column(Text, nullable=True)
     created_at = Column(TIMESTAMP, default=func.current_timestamp())
     updated_at = Column(TIMESTAMP, default=func.current_timestamp(), onupdate=func.current_timestamp())
+
+    provider_billers = relationship("ProviderBiller", back_populates="biller", cascade="all, delete-orphan")
+
+
+class ProviderBiller(Base):
+    __tablename__ = "provider_billers"
+    __table_args__ = (
+        UniqueConstraint("provider_id", "biller_id", name="uix_provider_biller"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    provider_id = Column(Integer, ForeignKey("providers.id", ondelete="CASCADE"), nullable=False, index=True)
+    biller_id = Column(Integer, ForeignKey("billers.id", ondelete="CASCADE"), nullable=False, index=True)
+    merchant_account_label = Column(String(255), nullable=True)
+    supported_cycles = Column(JSON().with_variant(JSONB, "postgresql"), default=lambda: ["monthly", "annual"])
+    is_default = Column(Boolean, default=False)
+    created_at = Column(TIMESTAMP, default=func.current_timestamp())
+    updated_at = Column(TIMESTAMP, default=func.current_timestamp(), onupdate=func.current_timestamp())
+
+    provider = relationship("Provider", back_populates="billers")
+    biller = relationship("Biller", back_populates="provider_billers")
 
 
 class SubscriptionTier(Base):
@@ -140,6 +162,7 @@ class Subscription(Base):
     start_date = Column(TIMESTAMP, nullable=True)
     end_date = Column(TIMESTAMP, nullable=True)
     biller_id = Column(Integer, ForeignKey("billers.id", ondelete="SET NULL"), nullable=True, index=True)
+    provider_biller_id = Column(Integer, ForeignKey("provider_billers.id", ondelete="SET NULL"), nullable=True, index=True)
     billing_cycle = Column(String(50), nullable=True) # monthly, yearly
     cost = Column(DECIMAL(10, 2), nullable=True)
     charge_type = Column(String(50), default="bulk") # bulk, installments
@@ -152,6 +175,7 @@ class Subscription(Base):
     provider = relationship("Provider")
     tier = relationship("SubscriptionTier")
     biller = relationship("Biller")
+    provider_biller = relationship("ProviderBiller")
 
     def get_secure_card_info(self, db_session):
         """Helper method to decrypt and retrieve card info from the secure Vault."""

@@ -19,4 +19,8 @@ The following internal engineering, infrastructure, and technical terms MUST NEV
 
 - **Opportunistic Abstract Refactoring**: Whenever logic or code is being added or modified, if it can be abstractly refactored to increase code quality, DRY principles, and modularity without introducing sacrifices in performance, readability, or complexity, always opt for abstract refactoring.
 - **No Forced Abstractions**: Never force abstract refactoring. If abstraction does not make logical sense, introduces unnecessary layers, complicates debugging, or risks stability in a specific code block, keep the implementation concrete.
+- **Zero Native Browser Dialogs (Fleet-Wide Law)**: Under NO circumstances should native blocking browser dialogs (`window.alert()`, `window.confirm()`, or `window.prompt()`) ever be used.
+  - **Informational Notices**: Use dismissable toasts (`toast.success()`, `toast.error()`, `toast.info()`).
+  - **Destructive & Operational Confirmations**: Confirmation prompts (deleting resources, revoking credentials, rebooting nodes, or unlinking records) MUST use styled **action snackbars** or in-app confirmation dialogs equipped with explicit inline `[Cancel]` and `[Confirm]` action triggers.
+  - **User Input & Prompts**: Never use `window.prompt()`. Always collect user input via styled modal dialogs or inline form components.
 - **Engineering Principles**: Always prioritize methods of coding that are highly efficient, secure, stable, and follow best-practices.

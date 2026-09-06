@@ -6,7 +6,9 @@ import {
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import ScheduleIcon from '@mui/icons-material/Schedule';
 import { apiFetch } from '../api';
+import { describeCron, formatScheduleDisplay } from '../utils/cron';
 
 export default function ScheduleManager() {
   const [schedules, setSchedules] = useState([]);
@@ -19,6 +21,7 @@ export default function ScheduleManager() {
     action: 'metadata_and_download',
     is_active: true
   });
+  const [displayMode, setDisplayMode] = useState(() => localStorage.getItem('fleet_schedule_display_mode') || 'hybrid');
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, scheduleId: null });
   const [scrapingEnabled, setScrapingEnabled] = useState(true);
@@ -32,12 +35,15 @@ export default function ScheduleManager() {
       if (schedRes.ok) setSchedules(await schedRes.json());
       if (provRes.ok) setProviders(await provRes.json());
 
-      // Check global scraping setting
+      // Check global scraping setting and schedule display mode
       const settingsRes = await apiFetch('/settings');
       if (settingsRes.ok) {
         const settings = await settingsRes.json();
         if (settings && settings.scraping_enabled === 'false') {
           setScrapingEnabled(false);
+        }
+        if (settings?.schedule_display_mode) {
+          setDisplayMode(settings.schedule_display_mode);
         }
       }
     } catch (e) {
@@ -213,10 +219,15 @@ export default function ScheduleManager() {
             </Grid>
             <Grid xs={12}>
               <TextField 
-                fullWidth size="small" name="cron_expression" label="Cron Expression" 
+                fullWidth size="small" name="cron_expression" 
+                label={displayMode === 'human_only' ? 'Schedule Cadence' : 'Cron Expression'} 
                 slotProps={{ inputLabel: { shrink: true } }}
                 value={formData.cron_expression} onChange={handleChange} required 
-                helperText="e.g. 0 0 * * * (Daily at midnight)"
+                helperText={
+                  displayMode === 'human_only'
+                    ? `Current Cadence: ${describeCron(formData.cron_expression)}`
+                    : `e.g. 0 0 * * * — Translates to: ${describeCron(formData.cron_expression)}`
+                }
                 disabled={!scrapingEnabled}
               />
             </Grid>
@@ -252,7 +263,7 @@ export default function ScheduleManager() {
               <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Target URL</TableCell>
               <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Provider</TableCell>
               <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Action</TableCell>
-              <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Cron</TableCell>
+              <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Schedule Cadence</TableCell>
               <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Active</TableCell>
               <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Last Run</TableCell>
               <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>Next Run</TableCell>
@@ -275,7 +286,18 @@ export default function ScheduleManager() {
                   <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                     <Chip size="small" label={row.action.replace(/_/g, ' ')} />
                   </TableCell>
-                  <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>{row.cron_expression}</TableCell>
+                  <TableCell align="center">
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                        {describeCron(row.cron_expression)}
+                      </Typography>
+                      {displayMode === 'hybrid' && (
+                        <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'text.secondary', bgcolor: 'rgba(255,255,255,0.05)', px: 1, py: 0.25, borderRadius: 1, fontSize: '0.7rem' }}>
+                          {row.cron_expression}
+                        </Typography>
+                      )}
+                    </Box>
+                  </TableCell>
                   <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
                     <Switch size="small" checked={row.is_active} onChange={() => handleToggle(row.id, row.is_active)} disabled={!scrapingEnabled} />
                   </TableCell>

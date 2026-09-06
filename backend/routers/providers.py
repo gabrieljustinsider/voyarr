@@ -2,8 +2,11 @@ from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from database import get_db
-from models import Provider
-from schemas import ProviderResponse, ProviderCreate
+from models import Provider, Biller, ProviderBiller
+from schemas import (
+    ProviderResponse, ProviderCreate,
+    ProviderBillerCreate, ProviderBillerUpdate, ProviderBillerResponse
+)
 from pydantic import BaseModel
 
 from dependencies import verify_api_key
@@ -243,3 +246,91 @@ def scrape_provider_site_details(provider_id: int, db: Session = Depends(get_db)
         return ScrapedSiteDetails(**result)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Failed to reach provider site: {e}")
+
+
+# ==================== PROVIDER BILLER JUNCTION CRUD ====================
+
+@router.get("/{provider_id}/billers", response_model=List[ProviderBillerResponse])
+def get_provider_billers(provider_id: int, db: Session = Depends(get_db)):
+    """List all billers associated with this provider."""
+    provider = db.query(Provider).filter(Provider.id == provider_id).first()
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    
+    return db.query(ProviderBiller).options(joinedload(ProviderBiller.biller)).filter(
+        ProviderBiller.provider_id == provider_id
+    ).all()
+
+
+@router.post("/{provider_id}/billers", response_model=ProviderBillerResponse)
+def add_provider_biller(provider_id: int, pb_in: ProviderBillerCreate, db: Session = Depends(get_db)):
+    """Attach a biller instance to this provider with custom cycles/options."""
+    provider = db.query(Provider).filter(Provider.id == provider_id).first()
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    
+    biller = db.query(Biller).filter(Biller.id == pb_in.biller_id).first()
+    if not biller:
+        raise HTTPException(status_code=404, detail="Biller not found")
+
+    existing = db.query(ProviderBiller).filter(
+        ProviderBiller.provider_id == provider_id,
+        ProviderBiller.biller_id == pb_in.biller_id
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Biller is already linked to this provider")
+
+    if pb_in.is_default:
+        db.query(ProviderBiller).filter(ProviderBiller.provider_id == provider_id).update({"is_default": False})
+
+    new_pb = ProviderBiller(
+        provider_id=provider_id,
+        biller_id=pb_in.biller_id,
+        merchant_account_label=pb_in.merchant_account_label,
+        supported_cycles=pb_in.supported_cycles or ["monthly", "annual"],
+        is_default=pb_in.is_default or False
+    )
+    db.add(new_pb)
+    db.commit()
+    db.refresh(new_pb)
+    return new_pb
+
+
+@router.put("/{provider_id}/billers/{pb_id}", response_model=ProviderBillerResponse)
+def update_provider_biller(provider_id: int, pb_id: int, pb_in: ProviderBillerUpdate, db: Session = Depends(get_db)):
+    """Update custom options, cycles, or default status for a provider-biller instance."""
+    pb = db.query(ProviderBiller).filter(
+        ProviderBiller.id == pb_id,
+        ProviderBiller.provider_id == provider_id
+    ).first()
+    if not pb:
+        raise HTTPException(status_code=404, detail="Provider biller link not found")
+
+    if pb_in.is_default:
+        db.query(ProviderBiller).filter(
+            ProviderBiller.provider_id == provider_id,
+            ProviderBiller.id != pb_id
+        ).update({"is_default": False})
+
+    for key, val in pb_in.model_dump(exclude_unset=True).items():
+        setattr(pb, key, val)
+
+    db.commit()
+    db.refresh(pb)
+    return pb
+
+
+@router.delete("/{provider_id}/billers/{pb_id}")
+def delete_provider_biller(provider_id: int, pb_id: int, db: Session = Depends(get_db)):
+    """Remove a biller association from a provider."""
+    pb = db.query(ProviderBiller).filter(
+        ProviderBiller.id == pb_id,
+        ProviderBiller.provider_id == provider_id
+    ).first()
+    if not pb:
+        raise HTTPException(status_code=404, detail="Provider biller link not found")
+
+    db.delete(pb)
+    db.commit()
+    return {"message": "Provider biller removed successfully"}
+

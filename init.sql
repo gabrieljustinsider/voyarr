@@ -9,7 +9,8 @@ CREATE TABLE providers (
     separator VARCHAR(10) DEFAULT '_',
     space_replacement VARCHAR(10) DEFAULT '_',
     logo_url VARCHAR(500),
-    automatic_limits JSONB
+    automatic_limits JSONB,
+    default_biller_id INTEGER
 );
 
 -- Studios table
@@ -562,6 +563,34 @@ CREATE TABLE IF NOT EXISTS subscription_tiers (
 );
 CREATE INDEX IF NOT EXISTS idx_subscription_tiers_provider_id ON subscription_tiers(provider_id);
 
+-- Billers table
+CREATE TABLE IF NOT EXISTS billers (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    url VARCHAR(500),
+    support_email VARCHAR(255),
+    support_phone VARCHAR(50),
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_billers_name ON billers(name);
+
+-- Provider Billers junction table
+CREATE TABLE IF NOT EXISTS provider_billers (
+    id SERIAL PRIMARY KEY,
+    provider_id INTEGER NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+    biller_id INTEGER NOT NULL REFERENCES billers(id) ON DELETE CASCADE,
+    merchant_account_label VARCHAR(255),
+    supported_cycles JSONB DEFAULT '["monthly", "annual"]'::jsonb,
+    is_default BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uix_provider_biller UNIQUE (provider_id, biller_id)
+);
+CREATE INDEX IF NOT EXISTS idx_provider_billers_provider_id ON provider_billers(provider_id);
+CREATE INDEX IF NOT EXISTS idx_provider_billers_biller_id ON provider_billers(biller_id);
+
 -- Subscriptions table
 CREATE TABLE IF NOT EXISTS subscriptions (
     id SERIAL PRIMARY KEY,
@@ -575,14 +604,22 @@ CREATE TABLE IF NOT EXISTS subscriptions (
     start_date TIMESTAMP,
     end_date TIMESTAMP,
     biller VARCHAR(255),
+    biller_id INTEGER REFERENCES billers(id) ON DELETE SET NULL,
+    provider_biller_id INTEGER REFERENCES provider_billers(id) ON DELETE SET NULL,
     billing_cycle VARCHAR(50),
     cost DECIMAL(10, 2),
+    charge_type VARCHAR(50) DEFAULT 'bulk',
+    installment_frequency VARCHAR(50),
+    subscription_id VARCHAR(255),
+    order_number VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_subscriptions_provider_id ON subscriptions(provider_id);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_tier_id ON subscriptions(tier_id);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_provider_biller_id ON subscriptions(provider_biller_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_biller_id ON subscriptions(biller_id);
 
 -- Seed default adult providers
 INSERT INTO providers (name, base_url, naming_pattern, separator, space_replacement, automatic_limits) VALUES

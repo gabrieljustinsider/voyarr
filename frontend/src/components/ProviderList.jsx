@@ -139,6 +139,23 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
   const [cookieText, setCookieText] = useState('')
   const [cookieLimit, setCookieLimit] = useState('')
 
+  // Provider Billers state
+  const [providerBillers, setProviderBillers] = useState([])
+  const [newBillerId, setNewBillerId] = useState(null)
+  const [newBillerLabel, setNewBillerLabel] = useState('')
+
+  const fetchProviderBillers = useCallback(async (provId) => {
+    if (!provId) return
+    try {
+      const res = await apiFetch(`/providers/${provId}/billers`)
+      if (res.ok) {
+        setProviderBillers(await res.json())
+      }
+    } catch (e) {
+      console.error('Failed to fetch provider billers:', e)
+    }
+  }, [])
+
   // Provider CRUD Form State
   const [openProviderForm, setOpenProviderForm] = useState(false)
   const [editProviderMode, setEditProviderMode] = useState(false)
@@ -456,6 +473,10 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
     setHasTotp(false)
     setSelectedOpItem(null)
     setTestResult(null)
+    setNewBillerId(null)
+    setNewBillerLabel('')
+
+    fetchProviderBillers(provider.id)
 
     try {
       const response = await apiFetch(`/credentials/${provider.id}`)
@@ -1473,13 +1494,128 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
           sx={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}
         >
           <Tab label="Details" />
+          <Tab label="Billers" />
           <Tab label="Credentials" />
           <Tab label="Session Cookies" />
         </Tabs>
 
         <DialogContent dividers>
           {dialogTab === 0 && renderProviderFormDetails()}
+          
           {dialogTab === 1 && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                Configure payment gateways and billers supported by this provider. Subscriptions for this provider can link to any of these billing instances.
+              </Typography>
+
+              <TableContainer component={Paper} sx={{ maxHeight: 200, overflowX: 'auto' }}>
+                <Table size="small" stickyHeader>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Biller</TableCell>
+                      <TableCell>Merchant Account Label</TableCell>
+                      <TableCell align="center">Default</TableCell>
+                      <TableCell align="right">Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {providerBillers.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} align="center">No billers linked to this provider yet.</TableCell>
+                      </TableRow>
+                    ) : (
+                      providerBillers.map((pb) => (
+                        <TableRow key={pb.id}>
+                          <TableCell sx={{ fontWeight: 'bold' }}>{pb.biller?.name || `Biller #${pb.biller_id}`}</TableCell>
+                          <TableCell>{pb.merchant_account_label || 'Direct / Standard'}</TableCell>
+                          <TableCell align="center">
+                            {pb.is_default && <Chip label="Default" size="small" color="primary" sx={{ height: 20, fontSize: '0.7rem' }} />}
+                          </TableCell>
+                          <TableCell align="right">
+                            <IconButton 
+                              size="small" 
+                              color="error" 
+                              onClick={async () => {
+                                const confirmed = await window.appConfirm('Remove this biller from this provider?')
+                                if (!confirmed) return
+                                try {
+                                  const res = await apiFetch(`/providers/${activeProvider.id}/billers/${pb.id}`, { method: 'DELETE' })
+                                  if (res.ok) {
+                                    fetchProviderBillers(activeProvider.id)
+                                    window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Biller removed.', severity: 'success' } }))
+                                  }
+                                } catch (err) {
+                                  window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: err.message, severity: 'error' } }))
+                                }
+                              }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+
+              <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mt: 1 }}>
+                Link New Biller
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
+                <Autocomplete
+                  options={billersList}
+                  getOptionLabel={(o) => o?.name || ''}
+                  value={billersList.find(b => b.id === newBillerId) || null}
+                  onChange={(e, val) => setNewBillerId(val ? val.id : null)}
+                  renderInput={(params) => <TextField {...params} label="Select Biller" size="small" />}
+                  sx={{ minWidth: 200, flex: 1 }}
+                />
+                <TextField
+                  label="Merchant Label (e.g. CCB*PROVIDER)"
+                  size="small"
+                  value={newBillerLabel}
+                  onChange={e => setNewBillerLabel(e.target.value)}
+                  sx={{ flex: 1 }}
+                />
+                <Button
+                  variant="contained"
+                  size="small"
+                  startIcon={<AddIcon />}
+                  disabled={!newBillerId}
+                  onClick={async () => {
+                    if (!newBillerId || !activeProvider) return
+                    try {
+                      const res = await apiFetch(`/providers/${activeProvider.id}/billers`, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                          provider_id: activeProvider.id,
+                          biller_id: newBillerId,
+                          merchant_account_label: newBillerLabel.trim() || null,
+                          is_default: providerBillers.length === 0
+                        })
+                      })
+                      if (res.ok) {
+                        setNewBillerId(null)
+                        setNewBillerLabel('')
+                        fetchProviderBillers(activeProvider.id)
+                        window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Biller linked to provider!', severity: 'success' } }))
+                      } else {
+                        const err = await res.json()
+                        window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: err.detail || 'Failed to link biller.', severity: 'error' } }))
+                      }
+                    } catch (err) {
+                      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: err.message, severity: 'error' } }))
+                    }
+                  }}
+                >
+                  Link
+                </Button>
+              </Box>
+            </Box>
+          )}
+
+          {dialogTab === 2 && (
             <Box component="form" onSubmit={handleSaveCredentials} sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               <Typography variant="body2" color="text.secondary" paragraph>
                 Configure credentials to let Voyarr query metadata, index search categories, and authenticate API connections contextually.
@@ -1636,7 +1772,7 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
             </Box>
           )}
 
-          {dialogTab === 2 && (
+          {dialogTab === 3 && (
             <Box>
               <Typography variant="body2" color="text.secondary" paragraph>
                 Add session cookie text to authenticate downloads, bypassed links, or rate-limited direct feeds securely.

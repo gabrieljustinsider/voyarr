@@ -456,6 +456,26 @@ export default function Settings() {
               </Select>
             </FormControl>
           </Box>
+
+          <Box sx={{ flex: 1, maxWidth: 300, minWidth: 0 }}>
+            <FormControl fullWidth size="small">
+              <InputLabel id="schedule-display-mode-label">Schedule Display Mode</InputLabel>
+              <Select
+                labelId="schedule-display-mode-label"
+                value={settings.schedule_display_mode || localStorage.getItem('fleet_schedule_display_mode') || 'hybrid'}
+                label="Schedule Display Mode"
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSettings(prev => ({ ...prev, schedule_display_mode: val }));
+                  localStorage.setItem('fleet_schedule_display_mode', val);
+                  handleSave('schedule_display_mode', val);
+                }}
+              >
+                <MenuItem value="hybrid">Plain Text + Cron Badge (Hybrid)</MenuItem>
+                <MenuItem value="human_only">Plain Language Only (Hide Cron)</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
         </Box>
       </Paper>
 

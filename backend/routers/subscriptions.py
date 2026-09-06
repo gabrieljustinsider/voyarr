@@ -75,11 +75,11 @@ def delete_tier(tier_id: int, db: Session = Depends(get_db), current_user: User 
 
 @router.get("", response_model=List[SubscriptionResponse])
 def get_subscriptions(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    # PERFORMANCE: Prevent 3x N+1 queries per subscription row
     stmt = select(Subscription).options(
         joinedload(Subscription.provider),
         joinedload(Subscription.tier),
-        joinedload(Subscription.biller)
+        joinedload(Subscription.biller),
+        joinedload(Subscription.provider_biller)
     )
     # if admin, can see all? Let's just return for current_user if regular
     if current_user.role == "admin":
@@ -92,7 +92,12 @@ def get_subscriptions(db: Session = Depends(get_db), current_user: User = Depend
 def get_subscription(sub_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     sub = db.execute(
         select(Subscription)
-        .options(joinedload(Subscription.provider), joinedload(Subscription.tier), joinedload(Subscription.biller))
+        .options(
+            joinedload(Subscription.provider),
+            joinedload(Subscription.tier),
+            joinedload(Subscription.biller),
+            joinedload(Subscription.provider_biller)
+        )
         .where(Subscription.id == sub_id)
     ).scalar_one_or_none()
     if not sub:

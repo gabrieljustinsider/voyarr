@@ -86,6 +86,7 @@ export default function SubscriptionManager() {
   const [tiers, setTiers] = useState([])
   const [providers, setProviders] = useState([])
   const [billers, setBillers] = useState([])
+  const [providerBillers, setProviderBillers] = useState([])
   
   // Email Parser State
   const [emailText, setEmailText] = useState('')
@@ -107,6 +108,7 @@ export default function SubscriptionManager() {
     start_date: '',
     end_date: '',
     biller_id: '',
+    provider_biller_id: '',
     billing_cycle: 'monthly',
     cost: 0.00,
     charge_type: 'bulk',
@@ -149,6 +151,24 @@ export default function SubscriptionManager() {
     fetchData()
   }, [])
 
+  useEffect(() => {
+    if (subForm.provider_id) {
+      const fetchPb = async () => {
+        try {
+          const res = await apiFetch(`/providers/${subForm.provider_id}/billers`)
+          if (res.ok) {
+            setProviderBillers(await res.json())
+          }
+        } catch (err) {
+          console.error("Failed to fetch provider billers", err)
+        }
+      }
+      fetchPb()
+    } else {
+      setProviderBillers([])
+    }
+  }, [subForm.provider_id])
+
   const formatDatetimeForInput = (dateStr) => {
     if (!dateStr) return ''
     try {
@@ -184,6 +204,7 @@ export default function SubscriptionManager() {
       provider_id: parseInt(subForm.provider_id, 10),
       tier_id: subForm.tier_id ? parseInt(subForm.tier_id, 10) : null,
       biller_id: subForm.biller_id ? parseInt(subForm.biller_id, 10) : null,
+      provider_biller_id: subForm.provider_biller_id ? parseInt(subForm.provider_biller_id, 10) : null,
       cost: parseFloat(subForm.cost) || 0,
       trial_start: subForm.is_trial && subForm.trial_start ? new Date(subForm.trial_start).toISOString() : null,
       trial_end: subForm.is_trial && subForm.trial_end ? new Date(subForm.trial_end).toISOString() : null,
@@ -241,6 +262,7 @@ export default function SubscriptionManager() {
       start_date: formatDatetimeForInput(sub.start_date),
       end_date: formatDatetimeForInput(sub.end_date),
       biller_id: sub.biller_id || '',
+      provider_biller_id: sub.provider_biller_id || '',
       billing_cycle: sub.billing_cycle || 'monthly',
       cost: sub.cost || 0.00,
       charge_type: sub.charge_type || 'bulk',
@@ -261,6 +283,7 @@ export default function SubscriptionManager() {
       start_date: '',
       end_date: '',
       biller_id: '',
+      provider_biller_id: '',
       billing_cycle: 'monthly',
       cost: 0.00,
       charge_type: 'bulk',
@@ -574,7 +597,8 @@ export default function SubscriptionManager() {
                   {filteredSubscriptions.map(sub => {
                     const provider = providers.find(p => p.id === sub.provider_id)
                     const tier = tiers.find(t => t.id === sub.tier_id)
-                    const biller = billers.find(b => b.id === sub.biller_id)
+                    const billerName = sub.provider_biller?.biller?.name || billers.find(b => b.id === sub.biller_id)?.name || 'Direct'
+                    const merchantLabel = sub.provider_biller?.merchant_account_label
                     return (
                       <Paper key={sub.id} variant="outlined" sx={{ 
                         p: 2, 
@@ -601,13 +625,22 @@ export default function SubscriptionManager() {
                                 {provider?.name ? provider.name.slice(0, 2) : 'SP'}
                               </Box>
                               <Box>
-                                <Typography variant="subtitle2" fontWeight="bold">
+                                <Typography variant="subtitle2" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                                   {provider?.name || `Provider ID: ${sub.provider_id}`}
-                                  {tier && <Chip label={tier.name} size="small" variant="outlined" sx={{ ml: 1, height: 18, fontSize: '0.65rem' }} />}
+                                  {tier && <Chip label={tier.name} size="small" variant="outlined" sx={{ height: 18, fontSize: '0.65rem' }} />}
+                                  {billerName && billerName !== 'Direct' && (
+                                    <Chip 
+                                      label={`via ${billerName}`} 
+                                      size="small" 
+                                      color="secondary" 
+                                      variant="outlined" 
+                                      sx={{ height: 18, fontSize: '0.65rem' }} 
+                                    />
+                                  )}
                                 </Typography>
                                 <Typography variant="caption" color="textSecondary" display="block">
-                                Biller: {biller?.name || 'Manual'} &bull; Timeframe: <span style={{ textTransform: 'capitalize' }}>{sub.billing_cycle.replace('_', ' ')}</span>
-                                {['3_months', '6_months', 'yearly'].includes(sub.billing_cycle) ? ` (${sub.charge_type === 'installments' ? sub.installment_frequency + ' installments' : 'bulk charge'})` : ''}
+                                  {merchantLabel ? `Channel: ${merchantLabel} • ` : ''}Timeframe: <span style={{ textTransform: 'capitalize' }}>{sub.billing_cycle.replace('_', ' ')}</span>
+                                  {['3_months', '6_months', 'yearly'].includes(sub.billing_cycle) ? ` (${sub.charge_type === 'installments' ? sub.installment_frequency + ' installments' : 'bulk charge'})` : ''}
                                 </Typography>
                               </Box>
                             </Box>
@@ -908,30 +941,68 @@ export default function SubscriptionManager() {
                       />
                     </Grid>
                     <Grid xs={12}>
-                      <Autocomplete
-                        options={billers}
-                        getOptionLabel={(option) => option?.name || ''}
-                        isOptionEqualToValue={(option, value) => option?.id === value?.id}
-                        value={billers.find(b => b.id === subForm.biller_id) || null}
-                        onChange={(e, newValue) => setSubForm({ ...subForm, biller_id: newValue ? newValue.id : '' })}
-                        renderInput={(params) => (
-                          <TextField 
-                            {...params} 
-                            label="Biller / Gateway" 
-                            size="small" 
-                            InputProps={{
-                              ...(params.InputProps || {}),
-                              startAdornment: (
-                                <>
-                                  <InputAdornment position="start" sx={{ pl: 1 }}><CreditCard size={16} /></InputAdornment>
-                                  {params.InputProps?.startAdornment}
-                                </>
-                              )
-                            }}
-                          />
-                        )}
-                        fullWidth
-                      />
+                      {providerBillers.length > 0 ? (
+                        <Autocomplete
+                          options={providerBillers}
+                          getOptionLabel={(pb) => {
+                            const bName = pb.biller?.name || billers.find(b => b.id === pb.biller_id)?.name || `Biller #${pb.biller_id}`
+                            return pb.merchant_account_label ? `${bName} (${pb.merchant_account_label})` : bName
+                          }}
+                          isOptionEqualToValue={(option, value) => option?.id === value?.id}
+                          value={providerBillers.find(pb => pb.id === subForm.provider_biller_id) || null}
+                          onChange={(e, newValue) => {
+                            setSubForm({
+                              ...subForm,
+                              provider_biller_id: newValue ? newValue.id : '',
+                              biller_id: newValue ? newValue.biller_id : ''
+                            })
+                          }}
+                          renderInput={(params) => (
+                            <TextField 
+                              {...params} 
+                              label="Payment Gateway / Biller Channel" 
+                              size="small" 
+                              helperText="Configured specifically for this provider"
+                              InputProps={{
+                                ...(params.InputProps || {}),
+                                startAdornment: (
+                                  <>
+                                    <InputAdornment position="start" sx={{ pl: 1 }}><CreditCard size={16} /></InputAdornment>
+                                    {params.InputProps?.startAdornment}
+                                  </>
+                                )
+                              }}
+                            />
+                          )}
+                          fullWidth
+                        />
+                      ) : (
+                        <Autocomplete
+                          options={billers}
+                          getOptionLabel={(option) => option?.name || ''}
+                          isOptionEqualToValue={(option, value) => option?.id === value?.id}
+                          value={billers.find(b => b.id === subForm.biller_id) || null}
+                          onChange={(e, newValue) => setSubForm({ ...subForm, biller_id: newValue ? newValue.id : '', provider_biller_id: '' })}
+                          renderInput={(params) => (
+                            <TextField 
+                              {...params} 
+                              label="Biller / Gateway" 
+                              size="small" 
+                              helperText="Select from global billers catalog"
+                              InputProps={{
+                                ...(params.InputProps || {}),
+                                startAdornment: (
+                                  <>
+                                    <InputAdornment position="start" sx={{ pl: 1 }}><CreditCard size={16} /></InputAdornment>
+                                    {params.InputProps?.startAdornment}
+                                  </>
+                                )
+                              }}
+                            />
+                          )}
+                          fullWidth
+                        />
+                      )}
                     </Grid>
                     {['3_months', '6_months', 'yearly'].includes(subForm.billing_cycle) && (
                       <>

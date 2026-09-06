@@ -11,8 +11,10 @@ import apiFetch from '../api';
 export default function SubscriptionForm({ existingSubscription, onSave }) {
   const [billers, setBillers] = useState([]);
   const [billerId, setBillerId] = useState(existingSubscription?.biller_id || null);
+  const [providerBillerId, setProviderBillerId] = useState(existingSubscription?.provider_biller_id || null);
+  const [providerBillers, setProviderBillers] = useState([]);
 
-  // 1. Fetch the list of billers when the form loads
+  // 1. Fetch the list of billers and provider-billers when the form loads
   useEffect(() => {
     const fetchBillers = async () => {
       try {
@@ -25,14 +27,29 @@ export default function SubscriptionForm({ existingSubscription, onSave }) {
       }
     };
     fetchBillers();
-  }, []);
+
+    if (existingSubscription?.provider_id) {
+      const fetchProviderBillers = async () => {
+        try {
+          const res = await apiFetch(`/providers/${existingSubscription.provider_id}/billers`);
+          if (res.ok) {
+            setProviderBillers(await res.json());
+          }
+        } catch (error) {
+          console.error("Failed to fetch provider billers", error);
+        }
+      };
+      fetchProviderBillers();
+    }
+  }, [existingSubscription?.provider_id]);
 
   // 2. Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     const payload = {
-      biller_id: billerId
+      biller_id: billerId,
+      provider_biller_id: providerBillerId
     };
 
     try {

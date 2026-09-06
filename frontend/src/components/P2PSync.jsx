@@ -8,6 +8,7 @@ import {
 } from '@mui/material'
 import { Trash2, RefreshCw, Plus, Edit2, Wifi, History, CheckCircle, TriangleAlert, Hourglass, ChevronDown, ChevronUp } from 'lucide-react'
 import { apiFetch } from '../api'
+import { describeCron, formatScheduleDisplay } from '../utils/cron'
 
 export default function P2PSync() {
   const [nodes, setNodes] = useState([])
@@ -406,8 +407,8 @@ export default function P2PSync() {
                         </Grid>
                         <Grid xs={6} sx={{ mt: 1 }}>
                           <Typography variant="caption" color="text.secondary" display="block">Sync Schedule</Typography>
-                          <Typography variant="body2" fontWeight="500" sx={{ textTransform: 'capitalize' }}>
-                            {node.sync_schedule}
+                          <Typography variant="body2" fontWeight="500">
+                            {formatScheduleDisplay(node.sync_schedule, localStorage.getItem('fleet_schedule_display_mode') || 'hybrid')}
                           </Typography>
                         </Grid>
                         <Grid xs={6} sx={{ mt: 1 }}>
@@ -689,12 +690,12 @@ export default function P2PSync() {
                   <MenuItem value="weekly">Weekly (Sundays at 2:00 AM)</MenuItem>
                   {/* Allow edit schedules that were already custom */}
                   {formSchedule !== 'manual' && formSchedule !== 'daily' && formSchedule !== 'weekly' && (
-                    <MenuItem value={formSchedule}>Custom: {formSchedule}</MenuItem>
+                    <MenuItem value={formSchedule}>Custom: {describeCron(formSchedule)} ({formSchedule})</MenuItem>
                   )}
                 </Select>
               </FormControl>
               <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                Note: Advanced cron scheduler is supported.
+                Note: Advanced cron scheduler is supported. Current: {describeCron(formSchedule)}
               </Typography>
             </Grid>
 

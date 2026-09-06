@@ -10,8 +10,10 @@ export default function SubscriptionCard({ subscription, onEdit, onDelete }) {
     ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(subscription.cost)
     : 'Free';
 
-  // Safely extract the Biller's name, defaulting to 'Direct' if no biller is associated
-  const billerName = subscription.biller ? subscription.biller.name : 'Direct';
+  // Safely extract the Biller's name, checking provider_biller first, then direct biller
+  const billerObj = subscription.provider_biller?.biller || subscription.biller;
+  const billerName = billerObj ? billerObj.name : 'Direct';
+  const merchantLabel = subscription.provider_biller?.merchant_account_label;
   
   // Safely extract Provider and Tier names
   const providerName = subscription.provider ? subscription.provider.name : 'Unknown Provider';
@@ -32,9 +34,25 @@ export default function SubscriptionCard({ subscription, onEdit, onDelete }) {
     <Card sx={{ minWidth: 275, mb: 2, background: 'rgba(255, 255, 255, 0.02)' }}>
       <CardContent>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-          <Typography variant="h6" gutterBottom>
-            {cardTitle}
-          </Typography>
+          <Box>
+            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+              {cardTitle}
+              {billerName && billerName !== 'Direct' && (
+                <Chip 
+                  label={`via ${billerName}`} 
+                  size="small" 
+                  color="secondary" 
+                  variant="outlined" 
+                  sx={{ height: 20, fontSize: '0.7rem' }} 
+                />
+              )}
+            </Typography>
+            {merchantLabel && (
+              <Typography variant="caption" color="textSecondary" display="block">
+                Merchant: {merchantLabel}
+              </Typography>
+            )}
+          </Box>
           {(onEdit || onDelete) && (
             <Box>
               {onEdit && (

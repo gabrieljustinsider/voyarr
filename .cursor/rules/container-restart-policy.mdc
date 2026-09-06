@@ -1,0 +1,14 @@
+---
+description: Container Restart Policy Standard
+globs: ["**/docker-compose*.yml", "**/docker-compose*.yaml", "**/compose*.yml", "**/compose*.yaml", "Dockerfile*", "**/deploy/**"]
+alwaysApply: false
+---
+
+# Container Restart Policy Standard
+
+All containers, background services, and daemon tasks within Docker Compose manifests MUST explicitly define their restart state as `unless-stopped` (`restart: unless-stopped`).
+
+## Standards & Enforcement
+- **Mandatory Value**: `restart: unless-stopped`
+- **Prohibited Value**: `restart: always` is strictly prohibited across all network services. `restart: always` prevents containers that were manually or intentionally stopped by an administrator from remaining stopped across Docker daemon or host reboots.
+- **Exceptions**: Ephemeral, batch, or one-shot migration tasks may omit the restart policy or specify `restart: "no"`.

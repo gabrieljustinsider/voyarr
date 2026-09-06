@@ -24,6 +24,7 @@ export const providers = pgTable('providers', {
   spaceReplacement: text('space_replacement').default('_'),
   logoUrl: text('logo_url'),
   automaticLimits: jsonb('automatic_limits'),
+  defaultBillerId: integer('default_biller_id'),
 }, (table) => ({
   nameIdx: index('idx_providers_name').on(table.name),
 }));
@@ -601,7 +602,37 @@ export const subscriptionTiers = pgTable('subscription_tiers', {
   providerIdx: index('idx_subscription_tiers_provider_id').on(table.providerId),
 }));
 
-// 40. Subscriptions
+// 40. Billers
+export const billers = pgTable('billers', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull().unique(),
+  url: text('url'),
+  supportEmail: text('support_email'),
+  supportPhone: text('support_phone'),
+  description: text('description'),
+  createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: timestamp('updated_at').default(sql`CURRENT_TIMESTAMP`),
+}, (table) => ({
+  nameIdx: index('idx_billers_name').on(table.name),
+}));
+
+// 41. Provider Billers
+export const providerBillers = pgTable('provider_billers', {
+  id: serial('id').primaryKey(),
+  providerId: integer('provider_id').notNull().references(() => providers.id, { onDelete: 'cascade' }),
+  billerId: integer('biller_id').notNull().references(() => billers.id, { onDelete: 'cascade' }),
+  merchantAccountLabel: text('merchant_account_label'),
+  supportedCycles: jsonb('supported_cycles').default(sql`'["monthly", "annual"]'::jsonb`),
+  isDefault: boolean('is_default').default(false),
+  createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: timestamp('updated_at').default(sql`CURRENT_TIMESTAMP`),
+}, (table) => ({
+  providerBillerUix: unique('uix_provider_biller').on(table.providerId, table.billerId),
+  providerIdx: index('idx_provider_billers_provider_id').on(table.providerId),
+  billerIdx: index('idx_provider_billers_biller_id').on(table.billerId),
+}));
+
+// 42. Subscriptions
 export const subscriptions = pgTable('subscriptions', {
   id: serial('id').primaryKey(),
   providerId: integer('provider_id').notNull().references(() => providers.id, { onDelete: 'cascade' }),
@@ -614,12 +645,20 @@ export const subscriptions = pgTable('subscriptions', {
   startDate: timestamp('start_date'),
   endDate: timestamp('end_date'),
   biller: text('biller'),
+  billerId: integer('biller_id').references(() => billers.id, { onDelete: 'set null' }),
+  providerBillerId: integer('provider_biller_id').references(() => providerBillers.id, { onDelete: 'set null' }),
   billingCycle: text('billing_cycle'),
   cost: decimal('cost', { precision: 10, scale: 2 }),
+  chargeType: text('charge_type').default('bulk'),
+  installmentFrequency: text('installment_frequency'),
+  subscriptionId: text('subscription_id'),
+  orderNumber: text('order_number'),
   createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
   updatedAt: timestamp('updated_at').default(sql`CURRENT_TIMESTAMP`),
 }, (table) => ({
   providerIdx: index('idx_subscriptions_provider_id').on(table.providerId),
   tierIdx: index('idx_subscriptions_tier_id').on(table.tierId),
   userIdx: index('idx_subscriptions_user_id').on(table.userId),
+  providerBillerIdx: index('idx_subscriptions_provider_biller_id').on(table.providerBillerId),
+  billerIdx: index('idx_subscriptions_biller_id').on(table.billerId),
 }));

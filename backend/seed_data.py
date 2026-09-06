@@ -1,6 +1,6 @@
 import logging
 from sqlalchemy.orm import Session
-from models import Provider, SubscriptionTier, Biller, Studio
+from models import Provider, SubscriptionTier, Biller, Studio, ProviderBiller
 
 logger = logging.getLogger(__name__)
 
@@ -192,6 +192,22 @@ def seed_default_data(engine):
                     # Update biller reference if missing
                     if biller_inst and not provider.default_biller_id:
                         provider.default_biller_id = biller_inst.id
+                
+                # Seed provider_biller relationship if default biller exists
+                if biller_inst:
+                    existing_pb = session.query(ProviderBiller).filter(
+                        ProviderBiller.provider_id == provider.id,
+                        ProviderBiller.biller_id == biller_inst.id
+                    ).first()
+                    if not existing_pb:
+                        pb = ProviderBiller(
+                            provider_id=provider.id,
+                            biller_id=biller_inst.id,
+                            merchant_account_label=f"{biller_inst.name} *{provider.name.upper()}",
+                            supported_cycles=["monthly", "annual"],
+                            is_default=True
+                        )
+                        session.add(pb)
                 
                 seeded_providers.append(provider)
 
