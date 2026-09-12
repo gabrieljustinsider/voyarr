@@ -119,13 +119,11 @@ This document serves as the absolute source of truth for all projects within the
   - Content: 
     - Top Row: App Name + Version Badge (Left), Legal Links (Terms of Service, Privacy Policy, Cookie Policy) (Right)
     - Bottom Row (Standard): `{new Date().getFullYear()} GameProductions™. All rights reserved.`
-    - Bottom Row (GloBot): GloBot uniquely presents dual publisher attribution: `{new Date().getFullYear()} GameProductions™ | Gloson Production™. All rights reserved.`
 - **Notifications, Alerts & Confirmations (Fleet-Wide Law)**:
   - **Zero Native Browser Dialogs**: Under NO circumstances should native blocking browser dialogs (`window.alert()`, `window.confirm()`, or `window.prompt()`) ever be used. All notices and interactions must be non-blocking and styled within the application design system.
   - **Informational Notices**: Use dismissable toasts (`toast.success()`, `toast.error()`, `toast.info()`).
   - **Destructive & Operational Action Confirmations**: Action confirmations (such as deleting resources, revoking credentials, rebooting nodes, or unlinking accounts) MUST use styled **action snackbars** or in-app confirmation dialogs equipped with explicit inline `[Cancel]` and `[Confirm]` action triggers.
   - **User Input & Prompts**: Never use `window.prompt()`. Always collect user input via styled modal dialogs, drawers, or inline form components.
-- **What's New Modals**: All update/release notes modals MUST use a vertical, scrollable list (`.scrollable-list`). They must track the last version viewed by the user so that upon their next visit, they see an aggregated view of all versions and changes released since their last recorded view.
 
 - **Reactive Data Synchronization**: All data-driven components (Lists, Ledgers, Summaries) MUST implement a global mutation listener. When a data-modifying action occurs (Add, Edit, Delete), the component MUST broadcast a global mutation event (e.g., `[app-name]-api-mutate`) to notify all active hooks watching that resource path to refetch data immediately. This ensures application-wide state consistency without requiring manual page refreshes.
 - **Searchable & Actionable Data Dropdowns**: Any time a dropdown menu is used, if the menu is connected to a data source (instead of being a list to control functions or actions), that list shall be searchable. In addition to that, if the menu is connected to a data source that uses CRUD logic, that searchable list shall also allow creating new items that are not found in the list.
@@ -448,7 +446,13 @@ To ensure absolute account integrity and forensic traceability, all identity sys
 
 ## 22. Operational Transparency & Rule Attribution
 - **Rule Attribution Requirement**: When performing any operation that is directly triggered by, required by, or executed in compliance with any of the Global Laws defined in this document, you MUST explicitly state the rule number(s) and brief justification before executing the operation. For example: `[Rule 22 — Transparency] I'm performing this operation because of Rule X (Name) — brief reason.`
-- **Scope**: This applies to all operations including but not limited to: code changes, file modifications, database migrations, security fixes, configuration updates, and architectural decisions.
+- **Rule References in User Interfaces & Documentation (Admin-Only Restriction)**:
+  - **Strict Admin-Only Scope**: Referencing rule sections, categories, numbers, or standard identifiers in UI elements, alerts, badges, modals, help center articles, compliance checklists, or audit tables is **STRICTLY RESTRICTED to admin-only-facing interfaces** (e.g. `/tools`, `/admin/*`, authenticated administrative panels, operator management dashboards, internal technical developer guides).
+  - **Prohibition in Non-Admin Areas**: Rule sections, numbers, or internal compliance citations MUST NEVER appear anywhere in consumer-, member-, or public-facing areas (e.g. landing pages, user settings, public legal trust centers, normal member dashboards, public error states).
+  - **No Bare Reference Numbers**: Even within authorized admin-only interfaces, UIs and documentation MUST NEVER display an isolated or bare rule reference alone (e.g. displaying just `"Rule 41"`, `"Section 41"`, or `"[41]"`). Every admin-facing reference MUST be accompanied by either:
+    1. A plain-English description of what the standard mandates (e.g. `"Section 41: Dynamic Integration Connections (Zero Hard-Coded Targets & Dual Enrollment)"`), or
+    2. At minimum, the official descriptive title/name of the referenced rule or section (e.g. `"Rule 26 — Containerization & Named Volumes"` or `"Section 41 — Dynamic Integration Standard"`).
+- **Scope**: This applies to all operations including but not limited to: code changes, file modifications, database migrations, security fixes, configuration updates, user interface elements, and architectural decisions.
 - **Exceptions**: Routine operations that are not specifically triggered by a rule (e.g., running a standard build, responding to a direct user request unrelated to a rule) do not require attribution.
 
 ## 23. Versioning & Health Endpoints Standard
@@ -516,14 +520,46 @@ To ensure absolute account integrity and forensic traceability, all identity sys
     {project_name}-{volume_category}
     ```
     *(e.g., `voyarr-config`, `voyarr-backups`, `voyarr-certs`, `voyarr-db-data`, `voyarr-tailscale-state`, `romm-config`, `romm-db-data`)*.
-  - **Host Media Mounts Exemption**: Under NO circumstances should volumes hosting user media, library files, game ROMs, downloads, or external datasets (e.g. `/media/storage`, `/volume1/downloads`, `/romm/roms`) be converted into named volumes. These MUST remain strictly host bind mounts.
-  - **Zero-Loss Data Migration**: When migrating legacy host bind paths to named volumes, existing data MUST be safely transferred into the initialized named volume via a transient copy container before deprecating the host path.
+  - **Host Media & Storage Mounts Standard**:
+    - **Local Driver Bind Named Volumes (Recommended Standard)**: To ensure consistent Docker volume abstraction, visibility across Portainer fleet management, and zero risk of data loss on large host datasets, storage mounts (both functional config/databases and large media pools such as `/video`, `/series`, `/volume1/downloads`) SHOULD be declared as top-level named volumes backed by the `local` driver with `o: bind` options:
+      ```yaml
+      volumes:
+        {project_name}-config:
+          driver: local
+          driver_opts:
+            type: none
+            o: bind
+            device: ${PATH_CONFIG}
+        {project_name}-media-{category}:
+          driver: local
+          driver_opts:
+            type: none
+            o: bind
+            device: ${PATH_MEDIA}
+      ```
+    - **Zero-Loss Data Safety**: Local bind named volumes map directly to existing host paths without copying, relocating files, or risking storage wipes. If migrating standard local Docker managed volumes (`/var/lib/docker/volumes`), existing data MUST be transferred into the initialized volume before deprecating the old path.
+    - **Ephemeral Scratch Mounts (`tmpfs`)**: Ephemeral caches, transcode directories, and scratch folders (such as Plex transcoder, temporary unpack/scrape folders) MUST be mounted into memory using `tmpfs` (e.g. `tmpfs: - /transcode:size=8G,uid=${PUID},gid=${PGID},mode=0755`) to eliminate SSD/HDD write wear, eliminate storage latency, and avoid I/O contention with SQLite/PostgreSQL databases.
 - **Portainer Compose Manifest Declarations**:
+  - **Mandatory `unless-stopped` Restart Policy**: Every deployable container service across the fleet MUST explicitly declare `restart: "${RESTART_POLICY:-unless-stopped}"` (with fallback default `unless-stopped`). The restart policy MUST always resolve to `unless-stopped`. Under no circumstances should `always`, `on-failure`, or no restart policy be used.
   - Docker compose files MUST explicitly declare all functional named volumes in the top-level `volumes:` manifest block with explicit `name:` attributes.
   - Secrets and environment variables MUST be referenced via variable interpolation (`${VAR_NAME}`) rather than hardcoded credentials.
-- **Container Restart Policy Standard (`unless-stopped`)**:
-  - All containers, background services, and daemon tasks within Docker Compose manifests MUST explicitly define their restart state as `restart: unless-stopped`.
-  - The use of `restart: always` is strictly prohibited across all network services to ensure that containers manually stopped by an administrator remain stopped across Docker daemon and host reboots.
+- **Fully Environment-Variable Parameterized Compose Standard**:
+  - **Zero Hardcoded Environment-Specific Values**: Every deployable Docker Compose stack across the fleet MUST be 100% environment-variable parameterized. Hardcoding host paths, container port mappings, external network names, image tags, user/group IDs, or credentials directly in compose files is strictly prohibited.
+  - **Defensive Parameterization Syntax**:
+    - **Required Secrets & Sensitive Keys**: MUST use mandatory variable interpolation (`${VAR_NAME}`) without fallback defaults, failing fast if the variable is omitted from the deployment environment or 1Password injection.
+    - **Configurable Operational Attributes**: MUST use fallback interpolation syntax (`${VAR_NAME:-default_value}`) for non-sensitive operational attributes (e.g. ports: `"${APP_PORT:-8080}:8080"`, user IDs: `"${PUID:-1000}:${PGID:-1000}"`, restart policies: `restart: "${RESTART_POLICY:-unless-stopped}"`, image tags: `"${IMAGE_TAG:-latest}"`, timezones: `"${TZ:-UTC}"`).
+    - **Host Volume Bind Mounts**: MUST parameterize the host-side path (e.g. `"${HOST_MEDIA_PATH:-/media/storage}:/media/storage"` or `"${HOST_BACKUP_PATH:-./backups}:/var/backups"`).
+  - **1Password & `.env.example` Synchronization**:
+    - Every parameterized compose stack MUST have an accompanying `.env.example` (or `.env.template`) file checked into source control documenting every declared variable, its default value, and its intended purpose.
+    - Every variable declared in the compose stack MUST map directly to an entry within the corresponding stack item in the **`Self-Hosted Infrastructure`** (`57s77wi4sbpj5zxxm7habzczo4`) 1Password vault, organized alphabetically (A–Z) by section.
+    - Deployment commands MUST inject secrets dynamically using 1Password CLI reference syntax (`op run --env-file=.env ...` or `op inject`) rather than committing or storing persistent unencrypted `.env` files on host disks.
+- **Rule 26.1 (Downloader Fleet & VPN Gateway Standard - Gluetun)**:
+  - **Mandatory VPN Tunneling for Download Clients**: Any container or stack categorized as a download client (including `qbittorrent`, `nzbget`, `jdownloader2`, `transmission`, `deluge`, `sabnzbd`, or any P2P/Usenet downloader) MUST route its network traffic exclusively through a dedicated, isolated VPN gateway container powered by **Gluetun** (`qmcgaw/gluetun:latest`).
+  - **Dedicated Gateway Architecture**: Gluetun MUST be deployed as its own independent stack (e.g., `gluetun` / Stack #316 on Env #2) so that updating, restarting, or reconfiguring downloaders never terminates or disrupts the underlying VPN tunnel.
+  - **Network Attachment Mode**: All downloader containers MUST declare `network_mode: "container:gluetun"` (or `network_mode: "service:vpn"` when co-located in a dedicated single stack). Downloader service definitions MUST NOT declare independent `ports:` or `networks:` blocks.
+  - **Centralized Port Publishing**: All external port forwards required for downloader WebUIs (e.g., qBittorrent WebUI `49175->8080`, NZBGet WebUI `49183->6789`, JDownloader 2 WebUI `32768->5800`) and incoming peer connections (e.g., torrent peer port `49177/tcp+udp`) MUST be published exclusively on the `gluetun` service definition.
+  - **Fail-Safe Kill Switch**: Gluetun's built-in firewall rules MUST remain enabled to ensure a zero-leak kill switch: if the VPN tunnel drops, all non-VPN outbound traffic from all attached containers MUST be blocked immediately.
+  - **Local LAN Whitelisting**: The Gluetun configuration MUST declare `FIREWALL_OUTBOUND_SUBNETS` covering all local LAN subnets and Docker bridge networks (e.g. `172.19.0.0/16,172.20.0.0/16,192.168.0.0/16,10.0.0.0/8`) to ensure WebUI access, local reverse proxy routing, and cross-stack communication remain accessible from local networks.
 
 ## 27. Agent & AI Engineering Standards
 - **Automatic Version Bumping**: The git pre-commit hook (`scripts/prepare-commit.cjs`) automatically handles version bumping for staged commits. If manually bumping `package.json` (patch for bug fixes/refactors, minor for new features) before staging and committing, the hook preserves the manual version without double-bumping.
@@ -689,6 +725,9 @@ To ensure absolute account integrity and forensic traceability, all identity sys
     - *Voyarr*: Fuchsia $\rightarrow$ Purple $\rightarrow$ Indigo (`from-fuchsia-400 via-purple-400 to-indigo-400`)
 - **Unauthenticated Device Pairing (`LoginDialog.tsx`)**:
   - The unauthenticated sign-in modal's **Device** tab is dedicated exclusively to **Pair This Device**: generating an 8-character one-time pairing PIN (`WDJX-7829`), displaying a live 300s countdown, an instant mobile QR code for camera scans, and running automated background polling (`/api/auth/device/poll`).
+- **In-Line Password Visibility (Reveal Option)**:
+  - All password input fields across the fleet (including `LoginDialog.tsx`, admin setup forms, user settings, and credential management modals) MUST provide an in-line reveal toggle (`Eye` / `EyeOff` action button) allowing users to view the typed value on demand.
+  - Toggling this reveal option switches the input element type between `"password"` and `"text"`, retaining keyboard focus, accessibility labels (`aria-label`), and styling without disrupting input submission.
 - **Authenticated Device Approval (`DeviceApprovalCard.tsx`)**:
   - Authorizing and approving remote screens MUST be located within the authenticated user's **Security Settings** (`/settings?tab=security` / `UserSettings.tsx` / `DeviceApprovalCard.tsx`).
   - An authenticated user enters the 8-character PIN displayed on the remote TV, Console, or VR Headset to verify and grant session access via `/api/auth/device/approve`.
@@ -699,52 +738,132 @@ To ensure absolute account integrity and forensic traceability, all identity sys
   - All selection controls MUST use the custom, keyboard-accessible, motion-aware `SearchableSelect` component from `@shared/ui/SearchableSelect` or `components/ui/SearchableSelect.tsx`.
 
 - **The 4 Standardized Dropdown Tiers & Qualification Criteria**:
-  1. **Tier 1 — Database-Linked Entity Lists (Searchable + Async Inline Creation)**:
-     - **Definition**: Selection controls whose option records originate from a dynamic, user-modifiable relational/document database store where entities are subject to growth, tagging, categorization, or tenant provisioning.
-     - **What Qualifies**:
-       - *Organization Resources & Taxonomy*: Project Tags, Task Categories, Department Labels, Scope Profiles, Custom Roles, Folder Collections, Workspace Channels.
-       - *User & Group Directories*: Tenant Users, Assignees, Notification Recipients, Team Rosters, Customer Profiles.
-       - *Financial & Operational Ledgers*: Budget Categories, Custom Expense Types, Vendor Accounts, Inventory SKU Classifications.
-     - **Qualifying Criteria & Behavior**:
-       - Options are dynamically fetched from an API endpoint or database query.
-       - Full search filtering is enabled (`searchable={true}`).
-       - Inline entity creation is enabled (`onCreate`) whenever the user has write/creation permissions, letting administrators type a new value and persist it directly without leaving the form.
 
-  2. **Tier 2 — Static Pre-Configured System Lists (Searchable Only, No Creation)**:
-     - **Definition**: Selection controls whose items represent fixed system constants, platform-wide configurations, or standardized enumerations defined by protocols, standards, or system administrators.
-     - **What Qualifies**:
-       - *Domain & Network Assets*: Verified Domain Names (`@example.com`), DNS Nameserver Presets, IP Subnet Ranges.
-       - *Localization & Formatting*: IANA Timezones (`America/New_York`), ISO Country Codes, Supported Currencies (`USD`, `EUR`, `CAD`), Locale Languages (`en-US`, `es-ES`).
-       - *Application Themes & Presets*: UI Color Palettes, Brand Iteration Suites (`v1`, `v2`, `v3`), Font Families, Number Formatting Standards.
-     - **Qualifying Criteria & Behavior**:
-       - Options are fixed arrays or system-level configuration tables.
-       - Full search filtering is enabled (`searchable={true}`) for rapid lookups across large sets (e.g. 400+ timezones or 200+ countries).
-       - Arbitrary entity creation is strictly disabled (`onCreate` omitted) to protect system referential integrity.
+  - **Alignment with API Call Types & Backends**:
+    When a dropdown is connected to or triggers an API call, its tier classification and component behavior MUST directly match the HTTP method and data contract of the corresponding endpoint:
+    - **Tier 1 (Mutating / Entity Creation API)**: Linked to endpoints like `POST /api/entities`, `POST /api/.../tags` that support resource creation alongside listing. Options are populated from a `GET` list query, and the `onCreate` handler executes an authorized `POST` request to create and immediately select the new entity.
+    - **Tier 2 (Static System / Read-Only Lookup API)**: Linked to read-only endpoints like `GET /api/options`, `GET /api/timezones`, or static enum config routes. Search is enabled for fast querying, but mutation (`onCreate`) is strictly omitted.
+    - **Tier 3 (State Transition / Action Dispatch API)**: Linked to action routes like `PUT /api/.../policy`, `PATCH /api/.../status`, or direct operational triggers. These represent finite state machine selections without search or creation overhead.
+    - **Tier 4 (Scraped & Ingested Feed API)**: Linked to crawler/ingestion sync endpoints emitting read-only feeds (often flagged with `X-Data-Source: scraped` or `isScrapedSource: true`). Displays the immutable lock banner and prohibits manual creation.
 
-  3. **Tier 3 — Action, Policy & Operational Function Selectors (No Search, No Creation)**:
-     - **Definition**: Selection controls that toggle operational behaviors, permission policies, display sortings, view filters, or dispatch workflow actions.
-     - **What Qualifies**:
-       - *Access & Posting Policies*: Who Can Post (`ALL_MEMBERS`, `MANAGERS_ONLY`, `PUBLIC_WEB`), Who Can View Conversations, External Member Permissions.
-       - *Roster & Member Roles*: Role Assignment Pickers (`MEMBER`, `MANAGER`, `OWNER`, `AUDITOR`), Affix Target Scopes (`all`, `groups`, `users`, `aliases`).
-       - *View Controls & Toolbars*: Sort Directions (`Newest First`, `Highest Amount`), Filter States (`All`, `Active`, `Suspended`, `Archived`), Page Size Selectors (`25`, `50`, `100`).
-     - **Qualifying Criteria & Behavior**:
-       - Options are small, finite enum sets (typically $\le 6$ mutually exclusive options).
-       - Search filtering is disabled (`searchable={false}`) to preserve a compact, lightweight floating popover without unnecessary text inputs.
-       - Creation is strictly disabled.
+- **1. Tier 1 — Database-Linked Entity Lists (Searchable + Async Inline Creation)**:
+  - **Definition**: Selection controls whose option records originate from a dynamic, user-modifiable relational/document database store where entities are subject to growth, tagging, categorization, or tenant provisioning.
+  - **API Call Alignment**: Backed by `GET` (for listing) and `POST` (for inline creation) endpoints.
+  - **What Qualifies**:
+    - *Organization Resources & Taxonomy*: Project Tags, Task Categories, Department Labels, Scope Profiles, Custom Roles, Folder Collections, Workspace Channels.
+    - *User & Group Directories*: Tenant Users, Assignees, Notification Recipients, Team Rosters, Customer Profiles.
+    - *Financial & Operational Ledgers*: Budget Categories, Custom Expense Types, Vendor Accounts, Inventory SKU Classifications.
+  - **Qualifying Criteria & Behavior**:
+    - Options are dynamically fetched from an API endpoint or database query.
+    - Full search filtering is enabled (`searchable={true}`).
+    - Inline entity creation is enabled (`onCreate`) whenever the user has write/creation permissions, letting administrators type a new value and persist it directly via an authorized `POST` request without leaving the form.
 
-  4. **Tier 4 — Scraped & Externally Ingested Read-Only Sources (Immutable Lock)**:
-     - **Definition**: Selection controls populated by external web scrapers, automated background crawlers, upstream sync pipelines, or third-party read-only data feeds.
-     - **What Qualifies**:
-       - *External Directory Feeds*: WWE / Athletic Superstar Directories, Wikipedia Media Lists, IMDB Filmographies, Public Roster Feeds.
-       - *Upstream Ingested Market & Data Feeds*: Financial Market Tickers, Weather Sensor Feeds, Public Transit Route Schedules, Upstream Provider Catalogs.
-       - *Third-Party Federation Feeds*: Synced Discord Server Roles, External OIDC Provider Claims.
-     - **Qualifying Criteria & Behavior**:
-       - Search filtering is enabled (`searchable={true}`) to navigate large ingested datasets.
-       - Displays a prominent `🔒 Scraped Source (Read-Only)` badge banner with `Immutable` indicator.
-       - Item creation (`onCreate`) is strictly locked (`isScrapedSource={true}`).
-       - Foundation and upstream microservices MUST emit `isScrapedSource: true` / `X-Data-Source: scraped` HTTP headers so downstream child applications automatically lock the dropdown creation behavior.
+- **2. Tier 2 — Static Pre-Configured System Lists (Searchable Only, No Creation)**:
+  - **Definition**: Selection controls whose items represent fixed system constants, platform-wide configurations, or standardized enumerations defined by protocols, standards, or system administrators.
+  - **API Call Alignment**: Backed by read-only `GET` query endpoints or static in-memory enum dictionaries.
+  - **What Qualifies**:
+    - *Domain & Network Assets*: Verified Domain Names (`@example.com`), DNS Nameserver Presets, IP Subnet Ranges.
+    - *Localization & Formatting*: IANA Timezones (`America/New_York`), ISO Country Codes, Supported Currencies (`USD`, `EUR`, `CAD`), Locale Languages (`en-US`, `es-ES`).
+    - *Application Themes & Presets*: UI Color Palettes, Brand Iteration Suites (`v1`, `v2`, `v3`), Font Families, Number Formatting Standards.
+  - **Qualifying Criteria & Behavior**:
+    - Options are fixed arrays or system-level configuration tables.
+    - Full search filtering is enabled (`searchable={true}`) for rapid lookups across large sets (e.g. 400+ timezones or 200+ countries).
+    - Arbitrary entity creation is strictly disabled (`onCreate` omitted) to protect system referential integrity.
 
+- **3. Tier 3 — Action, Policy & Operational Function Selectors (No Search, No Creation)**:
+  - **Definition**: Selection controls that toggle operational behaviors, permission policies, display sortings, view filters, or dispatch workflow actions.
+  - **API Call Alignment**: Triggers `PUT`, `PATCH`, or `POST` action calls (e.g. `PUT /api/admin/.../policy`).
+  - **What Qualifies**:
+    - *Access & Posting Policies*: Who Can Post (`ALL_MEMBERS`, `MANAGERS_ONLY`, `PUBLIC_WEB`), Who Can View Conversations, External Member Permissions.
+    - *Roster & Member Roles*: Role Assignment Pickers (`MEMBER`, `MANAGER`, `OWNER`, `AUDITOR`), Affix Target Scopes (`all`, `groups`, `users`, `aliases`).
+    - *View Controls & Toolbars*: Sort Directions (`Newest First`, `Highest Amount`), Filter States (`All`, `Active`, `Suspended`, `Archived`), Page Size Selectors (`25`, `50`, `100`).
+  - **Qualifying Criteria & Behavior**:
+    - Options are small, finite enum sets (typically $\le 6$ mutually exclusive options).
+    - Search filtering is disabled (`searchable={false}`) to preserve a compact, lightweight floating popover without unnecessary text inputs.
+    - Creation is strictly disabled.
 
+- **4. Tier 4 — Scraped & Externally Ingested Read-Only Sources (Immutable Lock)**:
+  - **Definition**: Selection controls populated by external web scrapers, automated background crawlers, upstream sync pipelines, or third-party read-only data feeds.
+  - **API Call Alignment**: Backed by downstream ingestion `GET` endpoints with headers like `X-Data-Source: scraped` or payload flags `{ isScrapedSource: true }`.
+  - **What Qualifies**:
+    - *External Directory Feeds*: WWE / Athletic Superstar Directories, Wikipedia Media Lists, IMDB Filmographies, Public Roster Feeds.
+    - *Upstream Ingested Market & Data Feeds*: Financial Market Tickers, Weather Sensor Feeds, Public Transit Route Schedules, Upstream Provider Catalogs.
+    - *Third-Party Federation Feeds*: Synced Discord Server Roles, External OIDC Provider Claims.
+  - **Qualifying Criteria & Behavior**:
+    - Search filtering is enabled (`searchable={true}`) to navigate large ingested datasets.
+    - Displays a prominent `🔒 Scraped Source (Read-Only)` badge banner with `Immutable` indicator.
+    - Item creation (`onCreate`) is strictly locked (`isScrapedSource={true}`).
+    - Foundation and upstream microservices MUST emit `isScrapedSource: true` / `X-Data-Source: scraped` HTTP headers so downstream child applications automatically lock the dropdown creation behavior.
 
+- **5. Pre-Defined Multi-Value Form Fields (Themed Dropdown Standard)**:
+  - Any form item, filter, or configuration field that accepts multiple values—whether added individually (as tags/chips) or selected multiple at once—where the permitted options are pre-defined, **MUST ALWAYS** be rendered as a themed custom dropdown.
+  - **Plain Text Input Prohibition**: Plain text inputs, comma-separated text boxes, or raw text areas are strictly prohibited for pre-defined multi-values.
+  - **Dropdown Tier Matching**:
+    - If multi-values are user/organization entities supporting runtime creation: Use **Tier 1** (`DatabaseEntitySelect` or `SearchableSelect` with `multiple={true}` + `onCreate`).
+    - If multi-values are fixed system constants (subnets, ports, roles, protocols): Use **Tier 2** (`StaticOptionsSelect` or `SearchableSelect` with `multiple={true}`).
+    - If multi-values are finite operational action/policy toggles: Use **Tier 3** (`ActionPolicySelect` with `multiple={true}`).
+    - If multi-values originate from scraped sources: Use **Tier 4** (`ScrapedSourceSelect` with `multiple={true}`).
+  - Multi-value selections must display dismissable themed chips with animated removal triggers (`X`) and full keyboard navigation.
 
+## 40. Help Center & Technical Documentation Standards
+
+This section governs how integration setup documentation MUST be written, structured, and maintained within the Help Center (`/docs`) and any technical setup guide inside any administration portal. Every supported third-party integration, platform service, or internal infrastructure component MUST comply with each standard below.
+
+### 40.1 Mandatory Integration Documentation Coverage
+Every integration listed in the Help Center MUST include all of the following:
+
+- **Quick-Copy Blueprint Header**: A visually distinct card at the top of each integration guide displaying:
+  - All required environment variable / secret names (exact convention, e.g. `DISCORD_CLIENT_ID`).
+  - Required OAuth2 scopes, API permissions bitfields, or IAM roles — no vague references allowed.
+  - All production and local dev callback, webhook, and health endpoint URIs with one-click copy buttons.
+- **Accordion-Sectioned Setup Steps**: Every multi-step configuration guide MUST use animated, collapsible accordion sections (one accordion per logical setup phase). Acceptable phases: *Console Registration*, *OAuth & Scopes*, *Secrets & Environment Vaulting*, *Webhook & Callback Verification*, *Testing & Health Check*. A top-level "Expand All / Collapse All" trigger is mandatory.
+- **Exact Values — No Assumptions**: All documented values MUST be precisely specified:
+  - Environment variable names MUST match the exact convention used in `wrangler.jsonc`, `.dev.vars`, and `packages/shared/`.
+  - OAuth scopes MUST list every individual scope string (e.g. `identify`, `email`, `guilds.members.read` — not just "standard scopes").
+  - Redirect/callback URIs MUST include both the production URI (`https://[project].gpnet.dev/...`) AND the local dev URI (`http://localhost:[port]/...`).
+  - API token permission sets MUST list every individual permission (e.g. `Account.Workers Scripts:Edit`, not "workers permissions").
+- **Environment Separation Notes**: Where a service distinguishes sandbox/development/production modes, the guide MUST explicitly document each key name and how to select the active environment (e.g. `PLAID_ENV=sandbox|production`).
+- **Security Caveats & Key Safety Warnings**: Any integration step that involves a secret, private key, or credential that cannot be recovered after initial display MUST be accompanied by a prominent amber warning card specifying the one-time disclosure rule and the correct vaulting procedure (1Password → Wrangler secret).
+
+### 40.2 Categorization & Navigation Law
+- **Mandatory Two-Tier Alphabetical Sorting (A–Z)**:
+  - **Category Ordering**: All high-level integration domain categories in navigation sidebars, indices, and selectors MUST be sorted strictly alphabetically (**A–Z**):
+    1. **DevOps & Messaging** (e.g. Email Engine, GitHub CI/CD)
+    2. **Financial Services** (e.g. Arcadia Power, Finance [Plaid], Method FI, Privacy.com)
+    3. **Identity & Authentication** (e.g. Discord, Google Cloud, GroupMe, Microsoft Entra ID, Twitch)
+    4. **Infrastructure & Database** (e.g. Cloudflare, Neon Database, Portainer & Stacks, Service Directory)
+    5. **Productivity & Media** (e.g. Google Drive, Voyarr, YouTube)
+  - **Section & Guide Ordering**: All integration sections and setup guides within every category MUST also be sorted strictly alphabetically (**A–Z**) by their display name (e.g. inside *DevOps & Messaging*, *Email Engine* precedes *GitHub CI/CD*; inside *Financial Services*, *Arcadia Power* precedes *Finance [Plaid]* which precedes *Method FI* which precedes *Privacy.com*).
+- The navigation sidebar or category selector MUST include a live search/filter input that narrows visible integrations by name, secret key name, or category keyword.
+- **Prohibition of Native `<select>`**: Integration navigation controls (desktop sidebar, mobile selector, category picker) MUST comply with Section 39 (Fleet-Wide Dropdown Standard) — native HTML `<select>` elements are strictly prohibited. Mobile integration pickers must use a custom overlay or bottom-sheet-style component.
+
+### 40.3 Documentation Freshness & Maintenance Law
+- When any integration's credentials, API version, OAuth flow, required scopes, endpoint URLs, or permission model changes, the corresponding Help Center section MUST be updated in the same PR/commit as the functional code change. Documentation updates MUST NEVER be deferred to a follow-up task.
+- When a new third-party integration is added to any GameProductions application (Ledger, GloBot, Groupcord, Food, I-AM, Lets-Draw-Down, Butlarr, Voyarr), its full setup guide MUST be added to Foundation's Help Center in the same release as the feature.
+- All environment variable and secret names documented in the Help Center MUST remain in sync with the names declared in `wrangler.jsonc` bindings, `.dev.vars.tpl`, and `packages/shared/` type definitions. Divergence between documentation and code is treated as a critical defect.
+
+### 40.4 Ecosystem Port & Callback Matrix Maintenance
+- The **Ecosystem Callback, Interaction & Port Matrix** (the table showing all apps, their local dev ports, and production callback URLs) MUST be updated every time a new app is added, a port changes, or a domain is reassigned.
+- The matrix MUST always cover all services in the active network at the time of the release.
+
+### 40.5 Prohibited Documentation Anti-Patterns
+The following are strictly prohibited in all Help Center and technical documentation:
+
+- Vague references such as "add required permissions", "configure your environment", "set up standard scopes" — all must be replaced with exact, specific values.
+- Step descriptions that say "save your keys" without specifying the exact environment variable names.
+- Missing local dev callback URLs (only documenting production endpoints).
+- Documenting an integration's existence in the sidebar navigation without providing a corresponding setup guide.
+- Using the word "exhaustive" when describing feature or scope lists.
+- Native browser dialogs (`alert`, `confirm`, `prompt`) for any copy confirmation or status feedback — use toasts or styled inline indicators.
+
+## 41. Dynamic Integration & Tool Connection Standard (Zero Hard-Coded Connections)
+- **Prohibition of Hard-Coded Integration Connections**:
+  - Whenever an integration, service connector, or management tool is added to Foundation or across the ecosystem, the connection between the integration's items, endpoints, nodes, or targets **MUST NEVER BE HARD-CODED**.
+  - Target hosts, ports, IP addresses, container IDs, stack names, credentials, or target application links must never be locked in static source code or rigid static configurations.
+- **Mandatory Dual-Method Enrollment (Manual and Automatic)**:
+  - Every integration tool MUST provide administrators and operators with two clear methods to enroll and manage items:
+    1. **Manual Entry**: Interactive configuration modals/forms to manually enter hosts, ports, protocols, authentication tokens, credentials, or network paths, equipped with in-line pre-flight test connection buttons.
+    2. **Automatic Discovery**: Automated scanning or detection mechanisms to identify and enroll targets automatically (e.g. Portainer stack discovery, Docker socket inspection, subnet/mDNS network sweeps, or Tailscale API device sync).
+- **Persistent State & Runtime Mutability**:
+  - All registered integration items must be persisted in relational tables (or secure state vaults), supporting runtime health monitoring, credential rotation, status verification, and safe deletion.
 

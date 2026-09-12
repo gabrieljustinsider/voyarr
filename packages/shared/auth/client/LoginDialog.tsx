@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { LogIn, Mail, Shield, Key, Tv, Smartphone, RefreshCw, CheckCircle2, AlertCircle, X, ArrowLeft, Send, KeyRound, Copy, Clock, ShieldCheck, QrCode, WifiOff, Sparkles, Mic, MicOff, Server, UserCheck, Zap, Lock, HelpCircle } from 'lucide-react'
+import { LogIn, Mail, Shield, Key, Tv, Smartphone, RefreshCw, CheckCircle2, AlertCircle, X, ArrowLeft, Send, KeyRound, Copy, Clock, ShieldCheck, QrCode, WifiOff, Sparkles, Mic, MicOff, Server, UserCheck, Zap, Lock, HelpCircle, Eye, EyeOff } from 'lucide-react'
 import { startAuthentication, startRegistration } from '@simplewebauthn/browser'
 import { PasswordChecklist, isPasswordValid } from './PasswordChecklist'
 
@@ -42,6 +42,7 @@ export function LoginDialog({
   const [tab, setTab] = useState<'sso' | 'passkey' | 'password' | 'otp' | 'companion'>('sso')
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [persistent, setPersistent] = useState(true)
   const [loggingIn, setLoggingIn] = useState(false)
   const [error, setError] = useState('')
@@ -85,6 +86,8 @@ export function LoginDialog({
   const [setupAdminUsername, setSetupAdminUsername] = useState('')
   const [setupAdminPassword, setSetupAdminPassword] = useState('')
   const [setupAdminConfirmPassword, setSetupAdminConfirmPassword] = useState('')
+  const [showSetupAdminPassword, setShowSetupAdminPassword] = useState(false)
+  const [showSetupAdminConfirmPassword, setShowSetupAdminConfirmPassword] = useState(false)
   const [setupLoading, setSetupLoading] = useState(false)
 
   // Network Offline / Online State (Hydration safe)
@@ -975,26 +978,48 @@ export function LoginDialog({
             <div className="space-y-3">
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black uppercase text-slate-400">Master Password</label>
-                <input
-                  type="password"
-                  value={setupAdminPassword}
-                  onChange={e => setSetupAdminPassword(e.target.value)}
-                  className="w-full bg-slate-950 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
-                  placeholder="••••••••"
-                  required
-                />
+                <div className="relative">
+                  <input
+                    type={showSetupAdminPassword ? 'text' : 'password'}
+                    value={setupAdminPassword}
+                    onChange={e => setSetupAdminPassword(e.target.value)}
+                    className="w-full bg-slate-950 border border-white/10 rounded-2xl px-4 py-3 pr-10 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
+                    placeholder="••••••••"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowSetupAdminPassword(!showSetupAdminPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                    aria-label={showSetupAdminPassword ? 'Hide master password' : 'Show master password'}
+                    title={showSetupAdminPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showSetupAdminPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
                 <PasswordChecklist password={setupAdminPassword} minLength={12} checkBreaches={true} />
               </div>
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black uppercase text-slate-400">Confirm Master Password</label>
-                <input
-                  type="password"
-                  value={setupAdminConfirmPassword}
-                  onChange={e => setSetupAdminConfirmPassword(e.target.value)}
-                  className="w-full bg-slate-950 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
-                  placeholder="••••••••"
-                  required
-                />
+                <div className="relative">
+                  <input
+                    type={showSetupAdminConfirmPassword ? 'text' : 'password'}
+                    value={setupAdminConfirmPassword}
+                    onChange={e => setSetupAdminConfirmPassword(e.target.value)}
+                    className="w-full bg-slate-950 border border-white/10 rounded-2xl px-4 py-3 pr-10 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
+                    placeholder="••••••••"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowSetupAdminConfirmPassword(!showSetupAdminConfirmPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                    aria-label={showSetupAdminConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                    title={showSetupAdminConfirmPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showSetupAdminConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1170,15 +1195,26 @@ export function LoginDialog({
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black uppercase text-slate-400">Password</label>
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      autoComplete="current-password"
-                      className="w-full bg-slate-950 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
-                      placeholder="••••••••"
-                      required
-                    />
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        autoComplete="current-password"
+                        className="w-full bg-slate-950 border border-white/10 rounded-2xl px-4 py-3 pr-10 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
+                        placeholder="••••••••"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                        title={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
                   <div className="flex items-center justify-between pt-1">
                     <button

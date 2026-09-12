@@ -1,0 +1,35 @@
+---
+description: Any form item accepting multiple pre-defined values must always be a themed dropdown matching the Tier criteria.
+globs: **/*.tsx, **/*.jsx, **/*.vue, **/*.html
+alwaysApply: true
+---
+
+# Pre-Defined Multi-Value Form Fields (Themed Dropdown Tier Standard)
+
+Across the entire ecosystem, any form item or configuration field that accepts multiple values—whether added individually (e.g. tag-by-tag, chip inputs) or selected multiple at once—where the set of values or permitted options are pre-defined, **MUST ALWAYS** be implemented as a themed dropdown.
+
+## Requirements
+
+1. **Total Prohibition of Plain Text Inputs for Pre-Defined Multi-Values**:
+   - Never use plain text inputs, comma-separated text boxes, or raw text areas for entering or collecting multiple pre-defined options, categories, permissions, devices, tags, or system constants.
+   - All multi-value selections must provide visual themed chips/badges with instant removal triggers (`X`) and a custom dropdown picker.
+
+2. **Dropdown Tier Criteria Selection**:
+   The type and behavior of the dropdown used for multi-value fields MUST strictly adhere to the 4-Tier Dropdown System:
+   - **Tier 1 — Dynamic Database / Entity Lists (`DatabaseEntitySelect` or `SearchableSelect` with `multiple={true}` + `onCreate`)**:
+     - *Use When*: Values are backed by relational/document entities, custom categories, or user-created tags where admins can asynchronously create new entries.
+     - *Behavior*: Searchable, multi-chip rendering, with an inline creation trigger (`onCreate`) for authorized users.
+   - **Tier 2 — Static System Constants (`StaticOptionsSelect` or `SearchableSelect` with `multiple={true}`)**:
+     - *Use When*: Values represent fixed platform enums, ISO codes, port assignments, network subnets, protocol lists, or preset dictionaries.
+     - *Behavior*: Searchable for rapid filtering across options, multi-chip rendering, no creation (`onCreate={undefined}`).
+   - **Tier 3 — Action, Policy & Status Selectors (`ActionPolicySelect` or `SearchableSelect` with `multiple={true}` + `searchable={false}`)**:
+     - *Use When*: Values represent small finite sets of operational actions, states, or permissions (e.g. `['READ', 'WRITE', 'ADMIN']`).
+     - *Behavior*: Compact popover, search input omitted, no creation, multi-check selection.
+   - **Tier 4 — Scraped / External Read-Only Feeds (`ScrapedSourceSelect` or `SearchableSelect` with `multiple={true}` + `isScrapedSource={true}`)**:
+     - *Use When*: Values originate from external scrapers or third-party feeds.
+     - *Behavior*: Searchable, immutable lock banner displayed, no manual item creation.
+
+3. **UI & Keyboard Accessibility**:
+   - Selected items must render as high-fidelity dismissable pills with smooth animations.
+   - The dropdown menu must remain clamped within viewport boundaries and support keyboard navigation (`ArrowDown`, `ArrowUp`, `Enter`, `Escape`, `Backspace` to remove last chip).
+   - Never use native HTML `<select multiple>`.

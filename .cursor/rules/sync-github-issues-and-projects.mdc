@@ -1,0 +1,67 @@
+---
+description: Plan, create, and sync GitHub issues and projects with auto-assignment
+globs: *
+alwaysApply: false
+---
+
+# GitHub Issues & Projects Synchronization Rule
+
+Follow this workflow whenever planning tasks, features, refactors, or bugs that involve creating or managing GitHub issues and project boards.
+
+## 1. Plan & Approval Gate (Mandatory)
+- **Never create or modify GitHub issues/projects autonomously.**
+- Present a clear, structured plan to the user first, including:
+  - Proposed issue title(s)
+  - Detailed description with background/context
+  - Actionable markdown checklist of acceptance criteria (`- [ ]`)
+  - Relevant labels and milestone (if applicable)
+  - Target project board
+- Wait for explicit user confirmation or edits before running any `gh` commands.
+
+## 2. Default Assignee Requirement
+- **Always assign created issues to the user:**
+  - Pass `--assignee "@me"` on all `gh issue create` commands.
+  - If creating/editing issues via script or API, ensure the authenticated user (`@me`) is included in `assignees`.
+
+## 3. Repository & Project Auto-Discovery
+- Detect the repository context using the GitHub CLI:
+  ```bash
+  gh repo view --json nameWithOwner,owner,name
+  ```
+- Identify relevant projects:
+  ```bash
+  # List user or repo/org projects
+  gh project list
+  ```
+
+## 4. Issue Creation Standard
+Create issues using `gh issue create`:
+```bash
+gh issue create \
+  --title "<Clear, concise title>" \
+  --body "<Context + Acceptance Criteria checklist>" \
+  --assignee "@me" \
+  --label "<label1>,<label2>"
+```
+
+### Issue Body Template:
+```markdown
+## Summary
+<Brief description of the work and rationale>
+
+## Acceptance Criteria
+- [ ] <Specific testable requirement 1>
+- [ ] <Specific testable requirement 2>
+
+## References / Context
+- Relates to #<issue_number>
+```
+
+## 5. GitHub Project Syncing
+- Once an issue is created, immediately link it to the target project board:
+  ```bash
+  gh project item-create <project-number> --owner <owner> --url <issue-url>
+  ```
+- Keep the project board synchronized as work progresses:
+  - Move items to `In Progress` when starting work.
+  - Update to `Done` upon closing issues or merging associated PRs.

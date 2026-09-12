@@ -1,0 +1,35 @@
+---
+description: Never hard-code connections between integration items. Always provide manual and automatic methods to add items.
+globs: **/*
+alwaysApply: true
+---
+
+# Dynamic Integration & Tool Connection Standard
+
+Whenever an integration, service connector, or management tool is added to Foundation or across the wider ecosystem, the connections between the integration's items, endpoints, nodes, or targets **MUST NEVER be hard-coded**.
+
+## Requirements
+
+1. **Zero Hard-Coded Integration Connections**:
+   - Connection targets (such as remote hosts, IP addresses, ports, container names, stack IDs, credentials, or target downstream apps) must never be statically hard-coded into client logic, server routers, or environment files.
+   - All integration resources must be represented as dynamically managed items in the database or runtime configuration store.
+
+2. **Dual Enrollment Capability (Manual and Automatic)**:
+   Every integration tool must support both methods of item enrollment:
+   - **Manual Configuration**:
+     - Provide interactive forms/dialogs allowing operators to manually specify target hosts, ports, base URLs, API keys/secrets, Tailscale nodes, or custom parameters.
+     - Include an in-line pre-flight test connection trigger before saving to verify endpoint reachability.
+   - **Automatic Discovery**:
+     - Provide automated detection mechanisms to discover and enroll items automatically without manual typing.
+     - Examples: Portainer stack inspection (e.g. detecting Gluetun stack #316, Postgres, or Nginx containers), local Docker engine socket inspection, subnet/mDNS sweeps, or Tailscale API device sync.
+
+3. **Runtime Mutability & Management**:
+   - Every registered item must support status monitoring (online/offline/latency), credential updates, reconnection tests, and clean deletion with proper confirmation dialogs.
+   - The UI must render human-readable telemetry, connection details, and provide one-click actions to connect ecosystem applications to the integration items.
+
+4. **Rule References in User Interfaces & Documentation (Admin-Only Restriction)**:
+   - **Admin-Only Surfaces**: Referencing rule sections, numbers, or compliance standards is strictly restricted to **admin-only interfaces** (e.g. `/tools`, `/admin/*`, operator dashboards, internal audit tables) for compliance and governance purposes.
+   - **Prohibition in Non-Admin Areas**: Rule numbers, section numbers, or internal compliance citations MUST NEVER appear in non-admin, member-facing, or public areas.
+   - **No Bare Reference Numbers**: Even in authorized admin areas, never display isolated rule references (such as `"Rule 41"` or `"Section 41"` alone) without accompanying context. Always pair the reference with a plain-English explanation or at minimum the official title/name of the reference (e.g., `"Section 41 — Dynamic Integration Standard: Zero Hard-Coded Targets & Dual Enrollment"`).
+
+
