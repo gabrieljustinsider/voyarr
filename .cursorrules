@@ -288,6 +288,12 @@ All projects MUST adhere to this unified monorepo-style layout to ensure scalabi
     - **`Self-Hosted Infrastructure` (`57s77wi4sbpj5zxxm7habzczo4`)**: Dedicated exclusively to on-premise hardware nodes (Synology, UGREEN, QNAP, TrueNAS, Unraid, Drobo, Linux VPS), Portainer environments, Docker compose stacks, media connectors (*Arr suite, Stash), and sidecar agent tokens (`foundation-agent`).
   - **Mandatory UUID Syntax**: All `op://` secret references in codebase templates, `.dev.vars.tpl`, CI/CD workflows, and deployment scripts MUST use the exact **Vault UUID** and **Item UUID** (e.g. `op://6wgu5yz5yphvacdimgc64ej65i/<ITEM_UUID>/<FIELD>` or `op://57s77wi4sbpj5zxxm7habzczo4/<ITEM_UUID>/<FIELD>`) rather than human-readable string names. This prevents breakage from item renames and eliminates shell quoting ambiguities.
   - **Strict Secret Isolation**: Cross-pollination between these two vaults is strictly prohibited.
+- **Delegated & Multi-Tenant Infrastructure Isolation (Ro's Environment)**:
+  - Whenever working with or referencing **Ro**, his items, devices, stacks, containers, or services:
+    - **Portainer Environment Target**: Exclusively **Environment 11** (`dxp4800pro-da44`). Never touch, link, or deploy to personal Portainer endpoints.
+    - **1Password Vault Target**: Exclusively **`Ro - Infrastructure`** (`mmfnfxmwexvglqo3g4winlkdmy`).
+    - **Prohibition on Cross-Pollination**: Credentials, stacks, and configurations for Environment 11 MUST NEVER be stored in or retrieved from `Self-Hosted Infrastructure` or `Fleet Services`.
+    - **Detailed Governance**: All specific path conventions (`/volume1/docker/...`, `/volume1/data/...`), UID/GID (`1000:1000`), RAM sizing (8G–10G tmpfs), and naming formats are codified in `.cursor/rules/ro-environment.mdc`.
 - **Rule 13.21 (Universal API Versioning, Manifest Registration & Deprecation Lifecycle)**:
   - **Two-Dimensional Versioning Model**:
     - **Major API Contract (`v1`, `v2`)**: Governs structural request/response breaking changes and route pathing (e.g. `/api/v1/...` or `/api/...` for current default v1).
@@ -392,6 +398,12 @@ To ensure absolute account integrity and forensic traceability, all identity sys
   - **`Self-Hosted Infrastructure` (`57s77wi4sbpj5zxxm7habzczo4`)**: Dedicated exclusively to on-premise hardware nodes (Synology, UGREEN, TrueNAS, VPS), Portainer environments, Docker compose stacks, container environment variables, media connectors (*Arr suite, Stash), and `foundation-agent` tokens.
   - **Mandatory UUID Syntax**: All `op://` secret references in codebase templates, `.dev.vars.tpl`, compose files, and CI/CD workflows MUST use the exact **Vault UUID** and **Item UUID** (e.g. `op://6wgu5yz5yphvacdimgc64ej65i/<ITEM_UUID>/<FIELD>` or `op://57s77wi4sbpj5zxxm7habzczo4/<ITEM_UUID>/<FIELD>`) rather than human-readable string names.
   - **Strict Secret Isolation**: Cross-pollination between these two vaults is strictly prohibited.
+- **Delegated & Multi-Tenant Infrastructure Isolation (Ro's Environment)**:
+  - Whenever working with or referencing **Ro**, his items, devices, stacks, containers, or services:
+    - **Portainer Environment Target**: Exclusively **Environment 11** (`dxp4800pro-da44`). Never touch, link, or deploy to personal Portainer endpoints.
+    - **1Password Vault Target**: Exclusively **`Ro - Infrastructure`** (`mmfnfxmwexvglqo3g4winlkdmy`).
+    - **Prohibition on Cross-Pollination**: Credentials, stacks, and configurations for Environment 11 MUST NEVER be stored in or retrieved from `Self-Hosted Infrastructure` or `Fleet Services`.
+    - **Detailed Governance**: All specific path conventions (`/volume1/docker/...`, `/volume1/data/...`), UID/GID (`1000:1000`), RAM sizing (8G–10G tmpfs), and naming formats are codified in `.cursor/rules/ro-environment.mdc`.
 - **Item Categorization & Tagging**: Every 1Password item MUST adhere to the following metadata standard:
   - **Title Pattern**: `[Project Name] - [Service]` (e.g., `GloBot - Discord`).
   - **Mandatory Tags**: `[Project Name]`, `[Service Provider]`, `Bot` (for all bot-related integrations), `fleet`.

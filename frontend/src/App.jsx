@@ -73,6 +73,7 @@ const Tags = lazyWithRetry(() => import('./components/Tags'))
 import { apiFetch, getAuthHeaders } from './api'
 import ErrorBoundary from './ErrorBoundary'
 import DevLayoutShell from './components/DevLayoutShell'
+import RomMLayoutShell from './components/RomMLayoutShell'
 import './App.css'
 
 // 7 Premium Theme Configurations
@@ -153,6 +154,16 @@ const themeConfigs = {
       background: { default: '#000000', paper: '#111111' },
       text: { primary: '#ffffff', secondary: '#888888' }
     }
+  },
+  romm: {
+    palette: {
+      mode: 'dark',
+      primary: { main: '#6366f1' }, // RomM indigo
+      secondary: { main: '#ec4899' }, // vibrant pink accent
+      background: { default: '#121418', paper: '#1a1d24' },
+      text: { primary: '#f3f4f6', secondary: '#9ca3af' }
+    },
+    isRomm: true
   }
 }
 
@@ -362,15 +373,17 @@ function App() {
         }
       },
       shape: {
-        borderRadius: baseConfig.isTailwind ? 8 : (baseConfig.isMaterial ? 4 : 16)
+        borderRadius: baseConfig.isRomm ? 12 : (baseConfig.isTailwind ? 8 : (baseConfig.isMaterial ? 4 : 16))
       },
       typography: {
         ...getTypography(isTvMode),
-        fontFamily: baseConfig.isTailwind ? '"Inter", system-ui, -apple-system, sans-serif' : undefined,
+        fontFamily: baseConfig.isRomm 
+          ? '"Roboto", "Segoe UI", system-ui, -apple-system, sans-serif'
+          : (baseConfig.isTailwind ? '"Inter", system-ui, -apple-system, sans-serif' : undefined),
         button: {
           ...(getTypography(isTvMode).button || {}),
           textTransform: 'none',
-          fontWeight: baseConfig.isTailwind ? 500 : 'bold'
+          fontWeight: (baseConfig.isTailwind || baseConfig.isRomm) ? 600 : 'bold'
         }
       },
       components: {
@@ -406,6 +419,20 @@ function App() {
                     : '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
                   border: theme.palette.mode === 'dark' ? '1px solid #334155' : '1px solid #e2e8f0',
                   background: theme.palette.background.paper,
+                };
+              }
+              if (baseConfig.isRomm) {
+                return {
+                  borderRadius: '12px',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  background: '#1a1d24',
+                  transition: 'transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    borderColor: 'rgba(99, 102, 241, 0.4)',
+                    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)'
+                  }
                 };
               }
               if (baseConfig.isMaterial) {
@@ -542,6 +569,18 @@ function App() {
                   }
                 };
               }
+              if (baseConfig.isRomm) {
+                return {
+                  borderRadius: '8px',
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  boxShadow: 'none',
+                  padding: isTvMode ? '12px 24px' : '7px 16px',
+                  '&:hover': {
+                    boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)'
+                  }
+                };
+              }
               return {
                 borderRadius: '10px',
                 textTransform: 'none',
@@ -584,7 +623,7 @@ function App() {
           styleOverrides: {
             root: ({ theme, ownerState }) => {
               const styles = {
-                borderRadius: baseConfig.isTailwind ? '8px' : (baseConfig.isMaterial ? '4px' : '10px'),
+                borderRadius: baseConfig.isRomm ? '8px' : (baseConfig.isTailwind ? '8px' : (baseConfig.isMaterial ? '4px' : '10px')),
                 backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
                 transition: 'border-color 0.2s, box-shadow 0.2s, background-color 0.2s',
                 '& .MuiOutlinedInput-notchedOutline': {
@@ -1169,42 +1208,81 @@ function App() {
     <ErrorBoundary title="Voyarr Interface Error">
       <ThemeProvider theme={currentMuiTheme}>
         <CssBaseline />
-        <DevLayoutShell
-          currentTab={currentTabId}
-          onSelectTab={(tabId) => {
-            const targetLabel = tabIdMap[tabId] || 'Dashboard'
-            const idx = visibleTabs.findIndex(t => t.label === targetLabel)
-            if (idx >= 0) setTabValue(idx)
-          }}
-          onLogout={handleLogout}
-          onOpenSettings={() => {
-            setPrefTab(0)
-            handleOpenPrefDialog()
-          }}
-          activeDownloadsCount={queue.filter(q => q.status === 'downloading' || q.status === 'queued').length}
-          user={{ username: userName }}
-          uiConfig={uiConfig}
-        >
-          <ErrorBoundary title="Tab Rendering Error">
-            <Suspense fallback={
-              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
-                <CircularProgress />
-              </Box>
-            }>
-              <AnimatePresence mode="wait">
-                <motion.div 
-                  key={tabValue}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.25, ease: "easeOut" }}
-                >
-                  {visibleTabs[tabValue >= visibleTabs.length ? 0 : tabValue]?.component}
-                </motion.div>
-              </AnimatePresence>
-            </Suspense>
-          </ErrorBoundary>
-        </DevLayoutShell>
+        {themeName === 'romm' ? (
+          <RomMLayoutShell
+            currentTab={currentTabId}
+            onSelectTab={(tabId) => {
+              const targetLabel = tabIdMap[tabId] || 'Dashboard'
+              const idx = visibleTabs.findIndex(t => t.label === targetLabel)
+              if (idx >= 0) setTabValue(idx)
+            }}
+            onLogout={handleLogout}
+            onOpenSettings={() => {
+              setPrefTab(0)
+              handleOpenPrefDialog()
+            }}
+            activeDownloadsCount={queue.filter(q => q.status === 'downloading' || q.status === 'queued').length}
+            user={{ username: userName }}
+            uiConfig={uiConfig}
+          >
+            <ErrorBoundary title="Tab Rendering Error">
+              <Suspense fallback={
+                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
+                  <CircularProgress />
+                </Box>
+              }>
+                <AnimatePresence mode="wait">
+                  <motion.div 
+                    key={tabValue}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.25, ease: "easeOut" }}
+                  >
+                    {visibleTabs[tabValue >= visibleTabs.length ? 0 : tabValue]?.component}
+                  </motion.div>
+                </AnimatePresence>
+              </Suspense>
+            </ErrorBoundary>
+          </RomMLayoutShell>
+        ) : (
+          <DevLayoutShell
+            currentTab={currentTabId}
+            onSelectTab={(tabId) => {
+              const targetLabel = tabIdMap[tabId] || 'Dashboard'
+              const idx = visibleTabs.findIndex(t => t.label === targetLabel)
+              if (idx >= 0) setTabValue(idx)
+            }}
+            onLogout={handleLogout}
+            onOpenSettings={() => {
+              setPrefTab(0)
+              handleOpenPrefDialog()
+            }}
+            activeDownloadsCount={queue.filter(q => q.status === 'downloading' || q.status === 'queued').length}
+            user={{ username: userName }}
+            uiConfig={uiConfig}
+          >
+            <ErrorBoundary title="Tab Rendering Error">
+              <Suspense fallback={
+                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
+                  <CircularProgress />
+                </Box>
+              }>
+                <AnimatePresence mode="wait">
+                  <motion.div 
+                    key={tabValue}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.25, ease: "easeOut" }}
+                  >
+                    {visibleTabs[tabValue >= visibleTabs.length ? 0 : tabValue]?.component}
+                  </motion.div>
+                </AnimatePresence>
+              </Suspense>
+            </ErrorBoundary>
+          </DevLayoutShell>
+        )}
 
         <Dialog 
           open={prefDialogOpen} 
@@ -1247,6 +1325,7 @@ function App() {
                     <MenuItem value="emerald_obsidian">Emerald Obsidian (Emerald/Deep dark)</MenuItem>
                     <MenuItem value="ocean_glass">Ocean Glassmorphism (Ocean/Translucent)</MenuItem>
                     <MenuItem value="crimson_obsidian">Crimson Obsidian (High contrast Red/Black)</MenuItem>
+                    <MenuItem value="romm">RomM (Console Layout &amp; Vuetify Theme)</MenuItem>
                     <MenuItem value="custom">Custom Theme</MenuItem>
                   </Select>
                 </FormControl>
