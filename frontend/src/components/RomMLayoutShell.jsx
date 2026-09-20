@@ -72,8 +72,7 @@ export default function RomMLayoutShell({
   onLogout,
   onOpenSettings,
   activeDownloadsCount = 0,
-  user,
-  uiConfig
+  user
 }) {
   const [isAdminDrawerOpen, setIsAdminDrawerOpen] = useState(false)
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
@@ -157,7 +156,7 @@ export default function RomMLayoutShell({
               VOYARR
             </Typography>
             <Chip 
-              label="ROMM" 
+              label={`v${__APP_VERSION__}`} 
               size="small" 
               sx={{ 
                 height: 18, 

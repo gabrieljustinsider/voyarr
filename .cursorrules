@@ -68,6 +68,11 @@ This document serves as the absolute source of truth for all projects within the
         - `POST /admin/webauthn/verify-registration` (Enrollment Verification)
     - All routes in this namespace MUST be protected by `sessionGuard` + `requirePasskeyFreshness`.
   - **Step-Up State Machine**: Passkey step-up state is stored in the `sessions.passkeyVerifiedAt` column. `requirePasskeyFreshness(N)` in `packages/shared/auth/server/middleware/stepup.ts` returns `403 { requireWebAuthn: true }` for administrative routes until a successful verification refreshes the timestamp. The `passkey_verified` cookie from earlier versions is deprecated — the column-based freshness window is the single source of truth.
+  - **Development Mode Passkey & Step-Up Bypass**:
+    - **Environment Gating**: The dev bypass MUST ONLY be accessible in local development (`import.meta.env.DEV` or `window.location.hostname === 'localhost' || '127.0.0.1'`, and backend `ENVIRONMENT !== 'production'`). It MUST NEVER execute or be exposed in staging or production.
+    - **Backend Endpoint**: Every service supporting WebAuthn step-up exposes `POST /admin/webauthn/dev-bypass` (or `POST /api/admin/webauthn/dev-bypass`). When called in non-production, this endpoint updates the active user session's `passkeyVerifiedAt = new Date()` (or stamps the active session store) and returns `{ success: true, bypassed: true }`.
+    - **Frontend Integration**: UI step-up modals (`PasskeyChallenge`) render a discreet, styled bypass button in dev environments. On click, it triggers the dev-bypass endpoint, persists the bypass flag in `sessionStorage` (`[app]_dev_passkey_bypassed = 'true'`), marks the client state as verified, and invokes `onSuccess()`.
+    - **Resilience**: The frontend bypass call must be non-fatal (`.catch(() => {})`) so local development can proceed uninterrupted even during offline testing or before backend database initialization.
 - **Role Hierarchy**: 
   - **Owner**: Full global control via the **Administration** suite.
   - **Admin**: Project-specific administrative access.
