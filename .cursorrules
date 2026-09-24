@@ -29,6 +29,10 @@ This document serves as the absolute source of truth for all projects within the
   ```
 
 ## 2. Path-Based Routing Architecture
+- **Domain Separation & Governance Law**:
+  - `gabrieljustinsider.com`: STRICTLY RESERVED for Voyarr and its related services/tunnels. No other application or shared infrastructure may route through or define records on this domain.
+  - `glosonproduction.com`: STRICTLY RESERVED for GloBot (`glosonproduction.com`, `api.glosonproduction.com`). (Note: The domain is strictly `glosonproduction.com` without an 's').
+  - `gpnet.dev`: The default primary domain for all other ecosystem applications, shared microservices, and network infrastructure (`foundation`, `food`, `groupcord`, `i-am`, `ledger`, `lets-draw-down`, `butlarr`, database cluster tunnels).
 - **Domain Pattern**: Every project is assigned a sub-domain on `gpnet.dev` (e.g., `project-name.gpnet.dev`).
 - **DNS Automation**: Cloudflare Workers automatically register DNS records for `gpnet.dev` subdomains when the `routes` property is defined in `wrangler.jsonc`.
   - All projects MUST define their custom domain route: `"{project-name}.gpnet.dev/*"`.
@@ -41,7 +45,7 @@ This document serves as the absolute source of truth for all projects within the
   - `/admin/*`: Dedicated directory for project-level administrative tools.
   - `/*`: Rendered via React Router v8 fullstack SSR with edge loaders and client hydration.
 - **Webhook Exemption**: Any Bearer/Token auth guards or strict middlewares acting globally on the `/api/*` blanket must explicitly whitelist routes containing `/discord` or `/interactions`. Failure to do this will block native webhook validation tools from remote platforms (e.g., Discord) causing 401s that break server-to-server operations.
-- **CORS Consolidation**: CORS MUST be handled at the entry-point layer: `apps/api/worker.ts` for the `/api/*` namespace (dynamic allowlist of `*.gpnet.dev`, `*.glosonproductions.com`, localhost) and `apps/api/server.ts` for the local dev/deploy socket. Secondary CORS middlewares in sub-routers are strictly prohibited as they cause preflight (`OPTIONS`) request failures.
+- **CORS Consolidation**: CORS MUST be handled at the entry-point layer: `apps/api/worker.ts` for the `/api/*` namespace (dynamic allowlist of `*.gpnet.dev`, `*.glosonproduction.com`, localhost) and `apps/api/server.ts` for the local dev/deploy socket. Secondary CORS middlewares in sub-routers are strictly prohibited as they cause preflight (`OPTIONS`) request failures.
 
 ## 3. Database & Persistence (SQL)
 - **Standard**: Use **Neon Postgres** via the serverless HTTP client (`drizzle-orm/neon-http` + `@neondatabase/serverless`) orchestrated purely through Drizzle ORM. The connection string is injected via the `DATABASE_URL` binding.
@@ -226,6 +230,10 @@ All projects MUST adhere to this unified monorepo-style layout to ensure scalabi
   - **Integration**: Must use the native @tailwindcss/vite plugin in vite.config.ts.
   - **Prohibition**: The use of legacy postcss.config.js or tailwind.config.js is strictly prohibited for standard CSS processing to ensure maximum build-time performance and absolute structural purity.
   - **Entry Point**: The primary CSS file (e.g., src/index.css) MUST use the modern @import "tailwindcss"; directive.
+
+- **Law 131 (Toggle Switch Alignment Standard)**:
+  - Whenever building toggle switches using checkbox inputs and Tailwind pseudo-elements (`after:absolute`, `after:top-...`, `after:left-...`), the toggle track pill element (`<div>`) MUST ALWAYS explicitly include `relative`.
+  - Without `relative` on the track itself, the indicator dot / knob positions relative to an outer parent container rather than staying confined within the toggle track pill.
 
 ## 12. Naming Conventions & Code Style 
 - **Database (Drizzle/SQL)**:
@@ -821,6 +829,12 @@ To ensure absolute account integrity and forensic traceability, all identity sys
     - If multi-values are finite operational action/policy toggles: Use **Tier 3** (`ActionPolicySelect` with `multiple={true}`).
     - If multi-values originate from scraped sources: Use **Tier 4** (`ScrapedSourceSelect` with `multiple={true}`).
   - Multi-value selections must display dismissable themed chips with animated removal triggers (`X`) and full keyboard navigation.
+
+- **6. Clearable & Option Unselect Standard (Opportunistic Dropdown Modernization)**:
+  - **Standard**: All dropdown selection controls MUST allow users to unselect options and clear active selections unless explicitly configured with `clearable={false}` (e.g. mandatory non-empty sort controls or fixed non-nullable enum states).
+  - **Unselect via Dropdown Menu**: Clicking on the currently selected option within the open dropdown menu MUST toggle it off and invoke `onChange('')` (or the equivalent empty state callback).
+  - **Inline Clear Trigger**: When a value is selected and `clearable` is true (default: `true`), the dropdown trigger button MUST display an accessible `X` icon button adjacent to the chevron. Clicking this clear trigger MUST immediately clear the selection without opening or toggling the dropdown menu.
+  - **Opportunistic Refactoring Standard**: Whenever touching or working on tasks involving dropdown lists, filters, or entity selectors across any workspace, developers and agents MUST verify and opportunistically add/ensure support for unselect and clear options.
 
 ## 40. Help Center & Technical Documentation Standards
 

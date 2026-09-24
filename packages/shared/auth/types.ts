@@ -13,6 +13,7 @@ export interface AuthEnv {
   Variables: {
     user_id: string
     session_id: string
+    global_role: string
     [key: string]: any
   }
 }

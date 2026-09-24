@@ -65,6 +65,15 @@ if (mode === 'pre-commit') {
     );
 
     const addedLines = diff.split('\n').filter(l => l.startsWith('+') && !l.startsWith('+++'));
+
+    // Enforce Law 131: Toggle Switch Alignment Standard
+    const toggleViolations = addedLines.filter(line => !line.includes('knob:') && !line.includes('registry.json') && /after:(?:absolute|top|left|start)/.test(line) && !line.includes('relative'));
+    if (toggleViolations.length > 0) {
+      console.error('\n❌ [Lint Error - Law 131] Toggle switch container missing relative:');
+      toggleViolations.slice(0, 3).forEach(v => console.error('  ' + v.trim()));
+      console.error('\nTailwind after:absolute pseudo-elements require relative on the track pill element to prevent indicator knob detachment.\n');
+      process.exit(1);
+    }
     const hasFeatureKeywords = /\b(feat|feature)\b/i.test(addedLines.join('\n'));
     const isMinor = hasNewFeatureFiles || hasFeatureKeywords;
 

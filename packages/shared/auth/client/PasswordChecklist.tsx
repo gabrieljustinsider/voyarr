@@ -75,13 +75,21 @@ export const getPasswordStrength = (password: string): {
   };
 };
 
-export function PasswordChecklist({ password }: { password: string }) {
+export function PasswordChecklist({ 
+  password, 
+  minLength = 12, 
+  checkBreaches = true 
+}: { 
+  password: string; 
+  minLength?: number; 
+  checkBreaches?: boolean; 
+}) {
   const strength = getPasswordStrength(password);
   const [breachResult, setBreachResult] = useState<BreachCheckResult | null>(null);
   const [isCheckingBreach, setIsCheckingBreach] = useState(false);
 
   useEffect(() => {
-    if (!password || password.length < 6) {
+    if (!checkBreaches || !password || password.length < 6) {
       setBreachResult(null);
       setIsCheckingBreach(false);
       return;

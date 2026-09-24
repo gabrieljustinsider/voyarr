@@ -25,7 +25,7 @@ export function DeviceApprovalCard({ appName = 'Fleet Console', notify }: Device
       const res = await fetch('/api/auth/device/approve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userCode: cleanCode })
+        body: JSON.stringify({ code: cleanCode, action: 'approve' })
       })
       const data: any = await res.json()
       if (data.success) {
