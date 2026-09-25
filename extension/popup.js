@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const newServerNameInput = document.getElementById('newServerNameInput');
   const newServerUrlInput = document.getElementById('newServerUrlInput');
   const addServerBtn = document.getElementById('addServerBtn');
+  const scanPortInput = document.getElementById('scanPortInput');
   const scanNetworkBtn = document.getElementById('scanNetworkBtn');
   const localScanResultsContainer = document.getElementById('localScanResultsContainer');
   const settingsToast = document.getElementById('settingsToast');
@@ -238,8 +239,19 @@ document.addEventListener('DOMContentLoaded', () => {
         'voyarrSecret',
         'pendingSelector',
         'pendingSelectorCount',
-        'savedField'
+        'savedField',
+        'scanPort'
       ]);
+
+      if (scanPortInput) {
+        scanPortInput.value = config.scanPort || 8000;
+        scanPortInput.addEventListener('change', async () => {
+          const p = parseInt(scanPortInput.value, 10);
+          if (p && p > 0 && p <= 65535) {
+            await chrome.storage.local.set({ scanPort: p });
+          }
+        });
+      }
 
       servers = config.voyarrServers || [];
       activeServerId = config.activeServerId || "";
@@ -629,10 +641,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Local network subnet discovery scan
   async function scanLocalNetwork() {
+    let port = 8000;
+    if (scanPortInput && scanPortInput.value) {
+      const parsed = parseInt(scanPortInput.value, 10);
+      if (parsed && parsed > 0 && parsed <= 65535) {
+        port = parsed;
+        await chrome.storage.local.set({ scanPort: port });
+      }
+    }
+
     scanNetworkBtn.disabled = true;
     scanNetworkBtn.innerHTML = '<span class="spinner"></span> Scanning...';
-
-    const port = 8000;
     
     // Clear and display results container
     localScanResultsContainer.innerHTML = `<div style="font-size: 10px; color: var(--text-muted); text-align: center; padding: 6px 0;">Pinging local IP ranges on port ${port}...</div>`;

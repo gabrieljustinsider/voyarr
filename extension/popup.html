@@ -628,7 +628,10 @@
 
       <div style="display: flex; gap: 8px; align-items: stretch;">
         <button id="addServerBtn" class="btn" style="flex: 2; padding: 9px; font-size: 14px;">Add & Test Server</button>
-        <button id="scanNetworkBtn" class="btn btn-secondary" style="flex: 1.2; padding: 9px; font-size: 13px;">Scan Local</button>
+        <div style="flex: 1.4; display: flex; gap: 4px; align-items: stretch;">
+          <input type="number" id="scanPortInput" placeholder="Port" value="8000" min="1" max="65535" style="width: 58px; padding: 6px 4px; font-size: 12px; text-align: center;" title="Port to scan on local network" />
+          <button id="scanNetworkBtn" class="btn btn-secondary" style="flex: 1; padding: 9px 6px; font-size: 12px; white-space: nowrap;">Scan</button>
+        </div>
       </div>
 
       <!-- Scan Network Results Container -->
