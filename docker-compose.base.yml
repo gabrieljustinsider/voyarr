@@ -61,6 +61,8 @@ services:
   backend:
     image: ghcr.io/gabrieljustinsider/voyarr-backend:latest
     container_name: voyarr-backend
+    ports:
+      - "${BACKEND_PORT:-8008}:8000"
     user: "${PUID:-1000}:${PGID:-1000}"
     group_add:
       - "${SUPPLEMENTARY_GID:-1000}"
