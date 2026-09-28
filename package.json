@@ -1,6 +1,7 @@
 {
   "name": "voyarr",
-  "version": "1.198.1",
+  "version": "1.198.2",
+  "packageManager": "pnpm@11.1.2",
   "description": "Media downloader/manager and metadata scraper",
   "main": "index.js",
   "scripts": {
