@@ -15,7 +15,7 @@
     "@mui/icons-material": "^9.4.0",
     "@mui/material": "^9.2.0",
     "@simplewebauthn/browser": "^14.0.0",
-    "fast-uri": "^3.1.7",
+    "fast-uri": "^4.2.1",
     "framer-motion": "^13.1.1",
     "lucide-react": "^1.47.0",
     "qrcode.react": "^4.2.0",
