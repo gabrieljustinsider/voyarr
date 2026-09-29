@@ -459,9 +459,11 @@
           successCount++;
         } else {
           const errData = await res.json();
+          // eslint-disable-next-line no-console -- debug logging
           console.error(`Failed to map ${field}:`, errData);
         }
       } catch (err) {
+          // eslint-disable-next-line no-console -- debug logging
         console.error(`Error saving ${field}:`, err);
       }
     }
@@ -470,8 +472,10 @@
     saveBtn.disabled = false;
 
     if (successCount > 0) {
+      // eslint-disable-next-line no-alert -- user feedback
       alert(`✅ Mapped ${successCount} selector(s) directly to your server!`);
     } else {
+      // eslint-disable-next-line no-alert -- user feedback
       alert(`❌ Failed to save selectors. Check CORS/secrets or use the 📋 Copy button to paste manually!`);
     }
   });

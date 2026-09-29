@@ -104,7 +104,7 @@ def test_global_feature_controls_blocking():
 
     # 2. Try scraping as Master Key (super admin)
     active_auth_info = {"type": "master_key"}
-    response = client.post("/external-api/scrape", json={"url": "https://example.com/item", "recipe_id": 1})
+    response = client.post("/api/external-api/scrape", json={"url": "https://example.com/item", "recipe_id": 1})
     assert response.status_code == 403
     assert "Access denied" in response.json()["detail"]
 
@@ -112,7 +112,7 @@ def test_global_feature_controls_blocking():
     setting.value = "true"
     db.commit()
 
-    response = client.post("/external-api/scrape", json={"url": "https://example.com/item", "recipe_id": 1})
+    response = client.post("/api/external-api/scrape", json={"url": "https://example.com/item", "recipe_id": 1})
     # Since SSRF or recipe validation fails, we should expect either 200 or SSRF block (e.g. 200 or 400), but NOT 403
     assert response.status_code != 403
 
@@ -143,19 +143,19 @@ def test_granular_per_user_permissions():
     active_auth_info = {"type": "jwt", "user": "normal_user", "role": "user"}
 
     # 1. Try scraping (should be blocked since can_scrape is False)
-    response = client.post("/external-api/scrape", json={"url": "https://example.com/item", "recipe_id": 1})
+    response = client.post("/api/external-api/scrape", json={"url": "https://example.com/item", "recipe_id": 1})
     assert response.status_code == 403
 
     # 2. Try ripping / start download (should be allowed since can_rip is True)
     # Since provider doesn't exist, it should return 404, but NOT 403!
-    response = client.post("/download/start", json={"provider_id": 1, "url": "https://example.com/item"})
+    response = client.post("/api/download/start", json={"provider_id": 1, "url": "https://example.com/item"})
     assert response.status_code == 404
 
     # 3. Grant scraping to this user, verify allowed
     user.permissions = {"can_stream": True, "can_scrape": True, "can_rip": True}
     db.commit()
 
-    response = client.post("/external-api/scrape", json={"url": "https://example.com/item", "recipe_id": 1})
+    response = client.post("/api/external-api/scrape", json={"url": "https://example.com/item", "recipe_id": 1})
     assert response.status_code != 403
 
     db.close()
@@ -185,7 +185,7 @@ def test_admin_logs_creation_and_listing():
         "role": "user",
         "permissions": {"can_stream": True, "can_scrape": True, "can_rip": True}
     }
-    response = client.put("/auth/users/usr_normal_2/permissions", json=payload)
+    response = client.put("/api/auth/users/usr_normal_2/permissions", json=payload)
     assert response.status_code == 200
 
     # 3. Verify admin log was created
@@ -198,7 +198,7 @@ def test_admin_logs_creation_and_listing():
     db.close()
 
     # 4. Fetch logs through API
-    response = client.get("/auth/admin-logs")
+    response = client.get("/api/auth/admin-logs")
     assert response.status_code == 200
     logs = response.json()
     assert len(logs) > 0
@@ -238,24 +238,24 @@ def test_library_scheme_and_metadata_filters():
     active_auth_info = {"type": "master_key"}
 
     # 1. Filter by adheres_to_naming_scheme=True
-    resp = client.get("/library/?adheres_to_naming_scheme=true")
+    resp = client.get("/api/library/?adheres_to_naming_scheme=true")
     assert resp.status_code == 200
     assert resp.json()["total"] == 1
     assert resp.json()["items"][0]["title"] == "Valid video"
 
     # 2. Filter by adheres_to_naming_scheme=False
-    resp = client.get("/library/?adheres_to_naming_scheme=false")
+    resp = client.get("/api/library/?adheres_to_naming_scheme=false")
     assert resp.status_code == 200
     assert resp.json()["total"] == 1
     assert resp.json()["items"][0]["title"] == "Invalid video"
 
     # 3. Filter by has_metadata_match=True
-    resp = client.get("/library/?has_metadata_match=true")
+    resp = client.get("/api/library/?has_metadata_match=true")
     assert resp.status_code == 200
     assert resp.json()["total"] == 1
 
     # 4. Filter by has_chapters=True
-    resp = client.get("/library/?has_chapters=true")
+    resp = client.get("/api/library/?has_chapters=true")
     assert resp.status_code == 200
     assert resp.json()["total"] == 1
 
@@ -289,7 +289,7 @@ def test_library_file_naming_history_and_revert():
     try:
         # 1. Rename the file via API
         payload = {"new_filename": "corrected_video_file_123.mp4"}
-        resp = client.post("/library/42/rename", json=payload)
+        resp = client.post("/api/library/42/rename", json=payload)
         assert resp.status_code == 200
         data = resp.json()
         assert data["old_filename"] == "initial_video_file_123.mp4"
@@ -301,7 +301,7 @@ def test_library_file_naming_history_and_revert():
         assert not os.path.exists(initial_path)
 
         # 2. Query the naming history trace
-        resp = client.get("/library/42/naming-history")
+        resp = client.get("/api/library/42/naming-history")
         assert resp.status_code == 200
         history = resp.json()
         assert len(history) == 1
@@ -310,7 +310,7 @@ def test_library_file_naming_history_and_revert():
         assert history[0]["reason"] == "manual_correction"
 
         # 3. Revert the rename via API
-        resp = client.post("/library/42/revert-rename")
+        resp = client.post("/api/library/42/revert-rename")
         assert resp.status_code == 200
         assert resp.json()["reverted_to"] == "initial_video_file_123.mp4"
 
@@ -319,7 +319,7 @@ def test_library_file_naming_history_and_revert():
         assert not os.path.exists(expected_new_path)
 
         # 4. Check the updated naming history trace showing the revert action
-        resp = client.get("/library/42/naming-history")
+        resp = client.get("/api/library/42/naming-history")
         assert resp.status_code == 200
         history = resp.json()
         assert len(history) == 2
@@ -366,7 +366,7 @@ def test_admin_lockout_protection():
             "role": "user",
             "permissions": {"can_stream": True, "can_scrape": False, "can_rip": False}
         }
-        resp = client.put("/auth/users/usr_admin_lockout_test/permissions", json=payload)
+        resp = client.put("/api/auth/users/usr_admin_lockout_test/permissions", json=payload)
         
         # Must fail with 400 Bad Request
         assert resp.status_code == 400
@@ -398,7 +398,7 @@ def test_bookmarklet_generation():
 
     active_auth_info = {"type": "master_key"}
     try:
-        resp = client.get("/scraper/bookmarklet")
+        resp = client.get("/api/scraper/bookmarklet")
         assert resp.status_code == 200
         data = resp.json()
         assert "bookmarklet" in data

@@ -38,7 +38,7 @@ def test_settings_browse_endpoint(
     mock_listdir.return_value = ["movies", "downloads", "readme.txt"]
     mock_getsize.return_value = 1024
 
-    response = client.get("/settings/browse?path=/media")
+    response = client.get("/api/settings/browse?path=/media")
     assert response.status_code == 200
 
     data = response.json()
@@ -61,7 +61,7 @@ def test_settings_autocomplete_endpoint(
     mock_abspath.side_effect = lambda path: path
     mock_listdir.return_value = ["movies", "music", "readme.txt"]
 
-    response = client.get("/settings/autocomplete?q=/media/m")
+    response = client.get("/api/settings/autocomplete?q=/media/m")
     assert response.status_code == 200
 
     data = response.json()
@@ -76,7 +76,7 @@ def test_settings_autocomplete_endpoint(
 def test_validate_path_endpoint():
     import tempfile
     with tempfile.TemporaryDirectory() as tmpdir:
-        response = client.get(f"/settings/validate-path?path={tmpdir}")
+        response = client.get(f"/api/settings/validate-path?path={tmpdir}")
         assert response.status_code == 200
         data = response.json()
         assert data["valid"] is True
@@ -87,7 +87,7 @@ def test_validate_path_endpoint():
     # Test with non-existing path under valid parent
     non_existing = os.path.join(tempfile.gettempdir(), "non_existing_perm_test_dir")
     try:
-        response = client.get(f"/settings/validate-path?path={non_existing}")
+        response = client.get(f"/api/settings/validate-path?path={non_existing}")
         assert response.status_code == 200
         data = response.json()
         assert data["exists"] is False

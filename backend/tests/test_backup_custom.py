@@ -37,7 +37,7 @@ def test_backup_export_and_verify_cycle():
     app.dependency_overrides[get_db] = lambda: mock_db
 
     # 1. Export plaintext
-    response = client.get("/backup/export?type=full")
+    response = client.get("/api/backup/export?type=full")
     assert response.status_code == 200
     export_json = response.json()
     assert export_json["encrypted"] is False
@@ -50,14 +50,14 @@ def test_backup_export_and_verify_cycle():
     file_payload = {
         "file": ("backup.json", json.dumps(export_json), "application/json")
     }
-    verify_response = client.post("/backup/verify", files=file_payload)
+    verify_response = client.post("/api/backup/verify", files=file_payload)
     assert verify_response.status_code == 200
     verify_json = verify_response.json()
     assert verify_json["valid"] is True
     assert verify_json["encrypted"] is False
 
     # 3. Export encrypted
-    response_enc = client.get("/backup/export?type=full&password=mypassword123")
+    response_enc = client.get("/api/backup/export?type=full&password=mypassword123")
     assert response_enc.status_code == 200
     export_enc_json = response_enc.json()
     assert export_enc_json["encrypted"] is True
@@ -68,7 +68,7 @@ def test_backup_export_and_verify_cycle():
     file_enc_payload = {
         "file": ("backup_enc.json", json.dumps(export_enc_json), "application/json")
     }
-    verify_enc_response = client.post("/backup/verify", files=file_enc_payload)
+    verify_enc_response = client.post("/api/backup/verify", files=file_enc_payload)
     assert verify_enc_response.status_code == 200
     verify_enc_json = verify_enc_response.json()
     assert verify_enc_json["valid"] is True
@@ -77,7 +77,7 @@ def test_backup_export_and_verify_cycle():
 
     # 5. Verify encrypted backup (succeeds with password)
     verify_enc_pw_response = client.post(
-        "/backup/verify?password=mypassword123", files=file_enc_payload
+        "/api/backup/verify?password=mypassword123", files=file_enc_payload
     )
     assert verify_enc_pw_response.status_code == 200
     verify_enc_pw_json = verify_enc_pw_response.json()
@@ -92,7 +92,7 @@ def test_backup_export_and_verify_cycle():
     file_tampered_payload = {
         "file": ("backup_tampered.json", json.dumps(tampered_json), "application/json")
     }
-    verify_tampered_response = client.post("/backup/verify", files=file_tampered_payload)
+    verify_tampered_response = client.post("/api/backup/verify", files=file_tampered_payload)
     assert verify_tampered_response.status_code == 200
     verify_tampered_json = verify_tampered_response.json()
     assert verify_tampered_json["valid"] is False

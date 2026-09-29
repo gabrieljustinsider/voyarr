@@ -83,7 +83,7 @@ def setup_db_and_dependencies():
 
 def test_auth_config_defaults():
     """GET /auth/config returns correct defaults when no settings exist."""
-    response = client.get("/auth/config")
+    response = client.get("/api/auth/config")
     assert response.status_code == 200
     data = response.json()
     assert data["passkeys_enabled"] is True
@@ -104,7 +104,7 @@ def test_auth_config_custom():
     db.commit()
     db.close()
 
-    response = client.get("/auth/config")
+    response = client.get("/api/auth/config")
     assert response.status_code == 200
     data = response.json()
     assert data["passkeys_enabled"] is False
@@ -124,7 +124,7 @@ def test_sso_disabled_blocks_link():
         "provider_user_id": "google_111",
         "email": "test@gmail.com",
     }
-    response = client.post("/auth/sso/link", json=payload)
+    response = client.post("/api/auth/sso/link", json=payload)
     assert response.status_code == 400
     assert "disabled" in response.json()["detail"].lower()
 
@@ -141,7 +141,7 @@ def test_sso_enabled_allows_link():
         "provider_user_id": "google_222",
         "email": "test@gmail.com",
     }
-    response = client.post("/auth/sso/link", json=payload)
+    response = client.post("/api/auth/sso/link", json=payload)
     assert response.status_code == 200
     assert "linked successfully" in response.json()["message"]
 
@@ -156,7 +156,7 @@ def test_passkeys_disabled_blocks_register():
     db.commit()
     db.close()
 
-    response = client.post("/auth/passkeys/register/options")
+    response = client.post("/api/auth/passkeys/register/options")
     assert response.status_code == 400
     assert "disabled" in response.json()["detail"].lower()
 
@@ -166,7 +166,7 @@ def test_passkeys_disabled_blocks_register():
 
 def test_autologin_no_bypass():
     """POST /auth/autologin returns 401 when bypass is disabled (default)."""
-    response = client.post("/auth/autologin")
+    response = client.post("/api/auth/autologin")
     assert response.status_code == 401
     assert "criteria not met" in response.json()["detail"].lower()
 
@@ -181,7 +181,7 @@ def test_autologin_subnet_match():
     db.close()
 
     response = client.post(
-        "/auth/autologin",
+        "/api/auth/autologin",
         headers={"X-Forwarded-For": "127.0.0.1"},
     )
     assert response.status_code == 200
@@ -201,7 +201,7 @@ def test_autologin_subnet_no_match():
     db.close()
 
     response = client.post(
-        "/auth/autologin",
+        "/api/auth/autologin",
         headers={"X-Forwarded-For": "192.168.1.50"},
     )
     assert response.status_code == 401
@@ -217,7 +217,7 @@ def test_autologin_proxy_header():
     db.close()
 
     response = client.post(
-        "/auth/autologin",
+        "/api/auth/autologin",
         headers={"Remote-User": "policy_user"},
     )
     assert response.status_code == 200

@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-voyarr}
       POSTGRES_USER: ${POSTGRES_USER:-voyarr_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-voyarr_password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       TZ: ${TZ:-UTC}
     volumes:
       - voyarr-db-data:/var/lib/postgresql/data
@@ -22,12 +22,12 @@ services:
 
   backend:
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:5432/${POSTGRES_DB:-voyarr}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-voyarr}
 
   celery_worker:
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:5432/${POSTGRES_DB:-voyarr}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-voyarr}
 
   celery_beat:
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@db:5432/${POSTGRES_DB:-voyarr}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-voyarr}

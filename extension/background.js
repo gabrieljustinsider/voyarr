@@ -1,3 +1,6 @@
+import { startProactiveDiscovery } from './proactive-discovery.js';
+import { requestHostPermission } from './rfc1918.js';
+
 chrome.runtime.onInstalled.addListener(() => {
     chrome.contextMenus.create({
         id: "voyarr-parent",
@@ -18,6 +21,14 @@ chrome.runtime.onInstalled.addListener(() => {
         title: "Extract Live Stream",
         contexts: ["all"]
     });
+
+    startConnectivityChecker();
+    startProactiveDiscovery();
+});
+
+chrome.runtime.onStartup.addListener(() => {
+    startConnectivityChecker();
+    startProactiveDiscovery();
 });
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
@@ -72,7 +83,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 // Strip trailing slash if the user added one
                 const baseUrl = config.voyarrApiUrl.replace(/\/$/, '');
 
-                const response = await fetch(`${baseUrl}/scraper/map-mode`, {
+                const response = await fetch(`${baseUrl}/api/scraper/map-mode`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -106,9 +117,17 @@ async function extractLiveStream(tab) {
         }
 
         const baseUrl = config.voyarrApiUrl.replace(/\/$/, '');
+        
+        // Check host permission before making fetch requests
+        const hasPermission = await requestHostPermission(baseUrl);
+        if (!hasPermission) {
+            await showToastInTab(tab.id, "Error: Host permission not granted for backend URL.", "error");
+            return;
+        }
+        
         await showToastInTab(tab.id, "Connecting to yt-dlp to extract the stream URL...", "info");
 
-        const extractRes = await fetch(`${baseUrl}/download/extract-stream`, {
+        const extractRes = await fetch(`${baseUrl}/api/download/extract-stream`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -130,7 +149,7 @@ async function extractLiveStream(tab) {
         }
 
         // Save it directly!
-        const saveRes = await fetch(`${baseUrl}/download/save-stream`, {
+        const saveRes = await fetch(`${baseUrl}/api/download/save-stream`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -210,3 +229,100 @@ async function showToastInTab(tabId, message, type = 'info') {
         console.error("Failed to inject toast:", e);
     }
 }
+
+let connectivityCheckInterval = null;
+const CONNECTIVITY_CHECK_INTERVAL_MS = 30000;
+
+async function startConnectivityChecker() {
+    if (connectivityCheckInterval) {
+        clearInterval(connectivityCheckInterval);
+    }
+    await checkAndUpdateBadge();
+    connectivityCheckInterval = setInterval(checkAndUpdateBadge, CONNECTIVITY_CHECK_INTERVAL_MS);
+}
+
+async function checkAndUpdateBadge() {
+    try {
+        // Check if there's a pending pairing - if so, don't overwrite the pairing badge
+        const pairingState = await chrome.storage.local.get(['pendingPairing']);
+        if (pairingState.pendingPairing) {
+            // Keep the pairing badge (🔗) set by proactive-discovery
+            return;
+        }
+        
+        const config = await chrome.storage.local.get(['voyarrApiUrl', 'voyarrSecret', 'voyarrServers', 'activeServerId']);
+        
+        if (!config.voyarrApiUrl || !config.voyarrSecret) {
+            await setBadgeUnconfigured();
+            return;
+        }
+
+        const baseUrl = config.voyarrApiUrl.replace(/\/$/, '');
+        
+        // Check host permission before making fetch requests
+        const hasPermission = await requestHostPermission(baseUrl);
+        if (!hasPermission) {
+            console.warn('[Voyarr Lens] No host permission for connectivity check:', baseUrl);
+            await setBadgeDisconnected();
+            return;
+        }
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+        try {
+            const response = await fetch(`${baseUrl}/api/health`, {
+                signal: controller.signal,
+                headers: {
+                    'X-Voyarr-Api-Key': config.voyarrSecret
+                }
+            });
+            clearTimeout(timeoutId);
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data && data.status === "healthy") {
+                    await setBadgeConnected();
+                    return;
+                }
+            }
+        } catch (err) {
+            clearTimeout(timeoutId);
+        }
+
+        await setBadgeDisconnected();
+    } catch (err) {
+        console.error("Connectivity check failed:", err);
+        await setBadgeDisconnected();
+    }
+}
+
+async function setBadgeConnected() {
+    await chrome.action.setBadgeText({ text: "ON" });
+    await chrome.action.setBadgeBackgroundColor({ color: "#10b981" });
+    await chrome.action.setBadgeTextColor({ color: "#ffffff" });
+}
+
+async function setBadgeDisconnected() {
+    await chrome.action.setBadgeText({ text: "OFF" });
+    await chrome.action.setBadgeBackgroundColor({ color: "#ef4444" });
+    await chrome.action.setBadgeTextColor({ color: "#ffffff" });
+}
+
+async function setBadgeUnconfigured() {
+    await chrome.action.setBadgeText({ text: "OFF" });
+    await chrome.action.setBadgeBackgroundColor({ color: "#6b7280" });
+    await chrome.action.setBadgeTextColor({ color: "#ffffff" });
+}
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === "triggerConnectivityCheck") {
+        checkAndUpdateBadge().then(() => sendResponse({ success: true }));
+        return true;
+    }
+    
+    if (request.action === "clearPairingBadge") {
+        checkAndUpdateBadge().then(() => sendResponse({ success: true }));
+        return true;
+    }
+});

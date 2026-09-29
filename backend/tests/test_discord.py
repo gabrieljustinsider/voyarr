@@ -102,7 +102,7 @@ def setup_db_and_dependencies():
 @patch("routers.discord.is_user_authorized")
 def test_discord_interaction_ping(mock_auth, mock_verify):
     mock_verify.return_value = True
-    response = client.post("/discord/interactions", json={"type": 1})
+    response = client.post("/api/discord/interactions", json={"type": 1})
     assert response.status_code == 200
     assert response.json() == {"type": 1}
 
@@ -114,7 +114,7 @@ def test_discord_interaction_unauthorized(mock_auth, mock_verify):
     mock_auth.return_value = False
 
     response = client.post(
-        "/discord/interactions",
+        "/api/discord/interactions",
         json={
             "type": 2,
             "member": {"user": {"id": "12345", "username": "bad_user"}},
@@ -139,7 +139,7 @@ def test_discord_interaction_scrape_authorized(
     mock_delay.return_value = MagicMock(id="mock-task-123")
 
     response = client.post(
-        "/discord/interactions",
+        "/api/discord/interactions",
         json={
             "type": 2,
             "member": {"user": {"id": "99999", "username": "good_user"}},

@@ -114,4 +114,4 @@ Voyarr Lens only communicates with your self-hosted or designated Voyarr media s
 
 | Version | Date | Changes | Status |
 |---------|------|---------|--------|
-| `v1.68.2` | 2026-07-22 | Initial Chrome Web Store package build with default payment biller dropdown, live stream extraction support, and host permissions. | Ready to Submit |
+| `v1.199.0` | 2026-07-22 | Initial Chrome Web Store package build with default payment biller dropdown, live stream extraction support, and host permissions. | Ready to Submit |

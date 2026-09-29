@@ -1,5 +1,6 @@
 # Workspace Agent Rules
 
+- **GitHub Account & Identity Governance**: All git and GitHub operations (commits, pulls, pushes, releases, issue/PR creation or manipulation via `gh`) for this repository MUST exclusively use the `@gabrieljustinsider` account (`user.name = "gabrieljustinsider"`, `user.email = "163370572+gabrieljustinsider@users.noreply.github.com"`). Never execute GitHub operations under any other account or token.
 - **Automatic Version Bumping**: The git pre-commit hook (`scripts/prepare-commit.cjs`) automatically handles version bumping for staged commits. If you manually bump `package.json` (patch for bug fixes/refactors, minor for new features) before staging and committing, the pre-commit hook preserves your manual version without double-bumping.
 - **Commit Prefixes**: The commit message must always be prefixed with the newly bumped version from `package.json` in `[vX.Y.Z]` format.
 

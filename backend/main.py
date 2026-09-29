@@ -115,14 +115,18 @@ app = FastAPI(
 )
 
 # CORS
-raw_origins = os.getenv("CORS_ORIGINS", "*").split(",")
+raw_origins = os.getenv("CORS_ORIGINS", "").split(",")
 allowed_origins = [o.strip() for o in raw_origins if o.strip()]
+
+# Default to empty list (no origins allowed) if not configured
+# This prevents wildcard CORS which is a security risk
+if not allowed_origins:
+    allowed_origins = []
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins if "*" not in allowed_origins else ["*"],
-    allow_origin_regex=r"https?://.*" if "*" in allowed_origins else None,
-    allow_credentials=True if "*" not in allowed_origins else False,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -190,17 +194,17 @@ async def jwt_to_api_key_middleware(
                 path = request.url.path
 
                 admin_routes = [
-                    "/settings",
-                    "/backup",
-                    "/credentials",
-                    "/schedules",
-                    "/apikeys",
-                    "/rules",
-                    "/auth/register",
-                    "/webhooks",
-                    "/cookies",
-                    "/logs",
-                    "/transcode",
+                    "/api/settings",
+                    "/api/backup",
+                    "/api/credentials",
+                    "/api/schedules",
+                    "/api/apikeys",
+                    "/api/rules",
+                    "/api/auth/register",
+                    "/api/webhooks",
+                    "/api/cookies",
+                    "/api/logs",
+                    "/api/transcode",
                 ]
                 is_admin_route = any(path.startswith(route) for route in admin_routes)
 
@@ -212,7 +216,7 @@ async def jwt_to_api_key_middleware(
                     # Users shouldn't be able to alter providers or trigger full system scans
                     if request.method not in ["GET"] and any(
                         path.startswith(route)
-                        for route in ["/providers", "/library/scan"]
+                        for route in ["/api/providers", "/api/library/scan"]
                     ):
                         is_allowed = False
                 elif (
@@ -240,48 +244,48 @@ async def jwt_to_api_key_middleware(
     return await call_next(request)
 
 
-# Include Routers
-app.include_router(providers.router)
-app.include_router(credentials.router)
-app.include_router(progress.router)
-app.include_router(settings.router)
-app.include_router(library.router)
-app.include_router(duplicates.router)
-app.include_router(preferences.router)
-app.include_router(metadata.router)
-app.include_router(external_api.router)
-app.include_router(download.router)
-app.include_router(rules.router)
-app.include_router(schedules.router)
-app.include_router(backup.router)
-app.include_router(notifications.router)
-app.include_router(apikeys.router)
-app.include_router(cookies.router)
-app.include_router(transcode.router)
-app.include_router(auth.router)
-app.include_router(webhooks.router)
-app.include_router(requests.router)
-app.include_router(discord.router)
-app.include_router(chapters.router)
-app.include_router(favorites.router)
-app.include_router(user_stats.router)
-app.include_router(studios.router)
-app.include_router(analytics.router)
-app.include_router(live_streams.router)
-app.include_router(p2p.router)
-app.include_router(passkeys.router)
-app.include_router(sso.router)
-app.include_router(oidc.router)
-app.include_router(scraper.router)
-app.include_router(error_logs.router)
-app.include_router(scraper.parse_router)
-app.include_router(scanner.router)
-app.include_router(deovr.router)
-app.include_router(subscriptions.router)
-app.include_router(billers.router)
-app.include_router(logs.router)
-app.include_router(system_status.router)
-app.include_router(performers_tags.router)
+# Include Routers with /api prefix
+app.include_router(providers.router, prefix="/api")
+app.include_router(credentials.router, prefix="/api")
+app.include_router(progress.router, prefix="/api")
+app.include_router(settings.router, prefix="/api")
+app.include_router(library.router, prefix="/api")
+app.include_router(duplicates.router, prefix="/api")
+app.include_router(preferences.router, prefix="/api")
+app.include_router(metadata.router, prefix="/api")
+app.include_router(external_api.router, prefix="/api")
+app.include_router(download.router, prefix="/api")
+app.include_router(rules.router, prefix="/api")
+app.include_router(schedules.router, prefix="/api")
+app.include_router(backup.router, prefix="/api")
+app.include_router(notifications.router, prefix="/api")
+app.include_router(apikeys.router, prefix="/api")
+app.include_router(cookies.router, prefix="/api")
+app.include_router(transcode.router, prefix="/api")
+app.include_router(auth.router, prefix="/api")
+app.include_router(webhooks.router, prefix="/api")
+app.include_router(requests.router, prefix="/api")
+app.include_router(discord.router, prefix="/api")
+app.include_router(chapters.router, prefix="/api")
+app.include_router(favorites.router, prefix="/api")
+app.include_router(user_stats.router, prefix="/api")
+app.include_router(studios.router, prefix="/api")
+app.include_router(analytics.router, prefix="/api")
+app.include_router(live_streams.router, prefix="/api")
+app.include_router(p2p.router, prefix="/api")
+app.include_router(passkeys.router, prefix="/api")
+app.include_router(sso.router, prefix="/api")
+app.include_router(oidc.router, prefix="/api")
+app.include_router(scraper.router, prefix="/api")
+app.include_router(error_logs.router, prefix="/api")
+app.include_router(scraper.parse_router, prefix="/api")
+app.include_router(scanner.router, prefix="/api")
+app.include_router(deovr.router, prefix="/api")
+app.include_router(subscriptions.router, prefix="/api")
+app.include_router(billers.router, prefix="/api")
+app.include_router(logs.router, prefix="/api")
+app.include_router(system_status.router, prefix="/api")
+app.include_router(performers_tags.router, prefix="/api")
 
 
 @app.get("/.well-known/webauthn")
@@ -311,7 +315,6 @@ async def root(
     return {"message": "Voyarr API"}
 
 
-@app.get("/health")
 @app.get("/api/health")
 async def health():
     return {"status": "healthy"}

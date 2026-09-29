@@ -157,7 +157,7 @@ def setup_db_and_dependencies():
 def test_favorites_toggle():
     # 1. Toggle ON (not currently favorited)
     response = client.post(
-        "/favorites/toggle", json={"item_type": "scene", "item_id": "1"}
+        "/api/favorites/toggle", json={"item_type": "scene", "item_id": "1"}
     )
     assert response.status_code == 200
     assert response.json()["favorited"] is True
@@ -173,7 +173,7 @@ def test_favorites_toggle():
 
     # 2. Toggle OFF (already favorited)
     response = client.post(
-        "/favorites/toggle", json={"item_type": "scene", "item_id": "1"}
+        "/api/favorites/toggle", json={"item_type": "scene", "item_id": "1"}
     )
     assert response.status_code == 200
     assert response.json()["favorited"] is False
@@ -189,7 +189,7 @@ def test_favorites_toggle():
 
     # 3. Invalid item type
     response = client.post(
-        "/favorites/toggle", json={"item_type": "invalid_type", "item_id": "1"}
+        "/api/favorites/toggle", json={"item_type": "invalid_type", "item_id": "1"}
     )
     assert response.status_code == 400
 
@@ -216,14 +216,14 @@ def test_get_favorites():
 def test_user_stats_play():
     # 1. Entry not found
     response = client.post(
-        "/user/stats/play",
+        "/api/user/stats/play",
         json={"library_entry_id": 999, "duration": 300, "completed": True},
     )
     assert response.status_code == 404
 
     # 2. Correct play logging
     response = client.post(
-        "/user/stats/play",
+        "/api/user/stats/play",
         json={"library_entry_id": 1, "duration": 300, "completed": True},
     )
     assert response.status_code == 200
@@ -232,7 +232,7 @@ def test_user_stats_play():
 
     # Play again
     response = client.post(
-        "/user/stats/play",
+        "/api/user/stats/play",
         json={"library_entry_id": 1, "duration": 300, "completed": True},
     )
     assert response.status_code == 200
@@ -241,15 +241,15 @@ def test_user_stats_play():
 
 def test_user_stats_climax():
     # 1. Entry not found
-    response = client.post("/user/stats/climax", json={"library_entry_id": 999})
+    response = client.post("/api/user/stats/climax", json={"library_entry_id": 999})
     assert response.status_code == 404
 
     # 2. Correct climax increment
-    response = client.post("/user/stats/climax", json={"library_entry_id": 1})
+    response = client.post("/api/user/stats/climax", json={"library_entry_id": 1})
     assert response.status_code == 200
     assert response.json()["climax_count"] == 1
 
-    response = client.post("/user/stats/climax", json={"library_entry_id": 1})
+    response = client.post("/api/user/stats/climax", json={"library_entry_id": 1})
     assert response.status_code == 200
     assert response.json()["climax_count"] == 2
 
@@ -260,7 +260,7 @@ def test_user_stats_video():
     db.commit()
     db.close()
 
-    response = client.get("/user/stats/video/1")
+    response = client.get("/api/user/stats/video/1")
     assert response.status_code == 200
     assert response.json()["play_count"] == 8
     assert response.json()["climax_count"] == 4
@@ -268,13 +268,13 @@ def test_user_stats_video():
 
 def test_user_stats_preferences():
     # 1. Get default preferences (auto-creates if missing)
-    response = client.get("/user/stats/preferences")
+    response = client.get("/api/user/stats/preferences")
     assert response.status_code == 200
     assert response.json()["theme"] == "dark"
 
     # 2. Save custom preferences
     response = client.post(
-        "/user/stats/preferences",
+        "/api/user/stats/preferences",
         json={"theme": "midnight_cyber", "ui_config": {"showLive": True}},
     )
     assert response.status_code == 200
@@ -282,7 +282,7 @@ def test_user_stats_preferences():
     assert response.json()["ui_config"] == {"showLive": True}
 
     # 3. Retrieve custom preferences
-    response = client.get("/user/stats/preferences")
+    response = client.get("/api/user/stats/preferences")
     assert response.status_code == 200
     assert response.json()["theme"] == "midnight_cyber"
 
@@ -332,7 +332,7 @@ def test_studios_crud():
 
     # 4. Update Studio
     response = client.put(
-        f"/studios/{parent_id}",
+        f"/api/studios/{parent_id}",
         json={
             "name": "Studio A Updated",
             "logo_url": "http://example.com/logoA.png",
@@ -346,7 +346,7 @@ def test_studios_crud():
     assert response.json()["name"] == "Studio A Updated"
 
     # 5. Delete Studio
-    response = client.delete(f"/studios/{parent_id}")
+    response = client.delete(f"/api/studios/{parent_id}")
     assert response.status_code == 200
     assert response.json()["message"] == "Studio profile deleted successfully."
 
@@ -375,7 +375,7 @@ def test_analytics_dashboard():
     db.commit()
     db.close()
 
-    response = client.get("/analytics/dashboard")
+    response = client.get("/api/analytics/dashboard")
     assert response.status_code == 200
     assert "metrics" in response.json()
     assert response.json()["metrics"]["total_plays"] == 10
@@ -383,7 +383,7 @@ def test_analytics_dashboard():
 
 
 def test_analytics_report():
-    response = client.get("/analytics/report")
+    response = client.get("/api/analytics/report")
     assert response.status_code == 200
     assert "video_stats_breakdown" in response.json()
     assert "recent_watch_logs" in response.json()
@@ -410,7 +410,7 @@ def test_live_streams_crud_and_record():
 
     # 3. Update Live Stream
     response = client.put(
-        f"/live-streams/{stream_id}",
+        f"/api/live-streams/{stream_id}",
         json={
             "name": "CB Stream Updated",
             "url": "https://chaturbate.com/some_girl_new",
@@ -422,7 +422,7 @@ def test_live_streams_crud_and_record():
     # 4. Trigger Recording
     with patch("celery.app.task.Task.delay") as mock_delay:
         mock_delay.return_value = MagicMock(id="celery-task-id-123")
-        response = client.post(f"/live-streams/{stream_id}/record")
+        response = client.post(f"/api/live-streams/{stream_id}/record")
         assert response.status_code == 200
         assert (
             response.json()["message"]
@@ -441,7 +441,7 @@ def test_live_streams_crud_and_record():
         db.commit()
         db.close()
 
-        response = client.post(f"/live-streams/{stream_id}/stop")
+        response = client.post(f"/api/live-streams/{stream_id}/stop")
         assert response.status_code == 200
         assert (
             response.json()["message"]
@@ -452,7 +452,7 @@ def test_live_streams_crud_and_record():
         )
 
     # 6. Delete Live Stream
-    response = client.delete(f"/live-streams/{stream_id}")
+    response = client.delete(f"/api/live-streams/{stream_id}")
     assert response.status_code == 200
     assert (
         response.json()["message"] == "Live stream monitor config deleted successfully."
@@ -469,14 +469,14 @@ def test_live_stream_auth_and_stream():
     stream_id = response.json()["id"]
 
     # 2. Get Auth Status (Vault secrets exist check - initially none)
-    response = client.get(f"/live-streams/{stream_id}/auth")
+    response = client.get(f"/api/live-streams/{stream_id}/auth")
     assert response.status_code == 200
     assert response.json()["has_cookies"] is False
     assert response.json()["has_headers"] is False
 
     # 3. Save Auth Secrets
     response = client.post(
-        f"/live-streams/{stream_id}/auth",
+        f"/api/live-streams/{stream_id}/auth",
         json={"cookies": "session=abc", "headers": "X-Auth=123"},
     )
     assert response.status_code == 200
@@ -493,7 +493,7 @@ def test_live_stream_auth_and_stream():
     db.close()
 
     # Check Auth Status again
-    response = client.get(f"/live-streams/{stream_id}/auth")
+    response = client.get(f"/api/live-streams/{stream_id}/auth")
     assert response.status_code == 200
     assert response.json()["has_cookies"] is True
     assert response.json()["has_headers"] is True
@@ -507,7 +507,7 @@ def test_live_stream_auth_and_stream():
         mock_run.return_value = MagicMock(
             returncode=0, stdout="https://hls-edge-server.example.com/playlist.m3u8\n"
         )
-        response = client.get(f"/live-streams/{stream_id}/stream")
+        response = client.get(f"/api/live-streams/{stream_id}/stream")
         assert response.status_code == 200
         assert (
             response.json()["stream_url"]
@@ -567,7 +567,7 @@ def test_stash_stats_sync(mock_requests_post):
 
     # Call stash sync endpoint
     response = client.post(
-        "/external-api/stash/sync-stats",
+        "/api/external-api/stash/sync-stats",
         json={
             "stash_url": "http://example.com:9999",
             "stash_api_key": "dummy_stash_key",

@@ -423,7 +423,7 @@
         <span>🔐 Voyarr Lens Pairing Request</span>
       </div>
       <div style="color: var(--text-main); font-family: monospace; font-size: 10px; word-break: break-all;" id="pairingUrlText">http://localhost:8000</div>
-      <div style="font-size: 10px; color: var(--text-muted);">
+      <div style="font-size: 10px; color: var(--text-muted);" id="pairingDescText">
         A pairing request was initiated. Click below to automatically pair.
       </div>
       <div style="display: flex; gap: 6px; margin-top: 2px;">
@@ -629,14 +629,78 @@
       <div style="display: flex; gap: 8px; align-items: stretch;">
         <button id="addServerBtn" class="btn" style="flex: 2; padding: 9px; font-size: 14px;">Add & Test Server</button>
         <div style="flex: 1.4; display: flex; gap: 4px; align-items: stretch;">
-          <input type="number" id="scanPortInput" placeholder="Port" value="8000" min="1" max="65535" style="width: 58px; padding: 6px 4px; font-size: 12px; text-align: center;" title="Port to scan on local network" />
-          <button id="scanNetworkBtn" class="btn btn-secondary" style="flex: 1; padding: 9px 6px; font-size: 12px; white-space: nowrap;">Scan</button>
+          <input type="text" id="scanPortInput" placeholder="Port(s)" value="8000,8008,8080" style="width: 58px; padding: 6px 4px; font-size: 12px; text-align: center;" title="Port(s) to scan on local network. Comma-separated for multiple ports (e.g. 8000,8008,8080). Default: 8000,8008,8080" />
+          <button id="scanNetworkBtn" class="btn btn-secondary" style="flex: 1; padding: 9px 6px; font-size: 12px; white-space: nowrap;">Scan Local</button>
         </div>
+      </div>
+
+      <!-- Proactive Discovery Scan Button -->
+      <div style="margin-top: 6px;">
+        <button id="scanAllTabsBtn" class="btn btn-secondary" style="width: 100%; padding: 9px; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+          <span>🔍</span>
+          <span>Scan All Open Tabs for Voyarr Servers</span>
+        </button>
       </div>
 
       <!-- Scan Network Results Container -->
       <div id="localScanResultsContainer" style="display: none; margin-top: 6px; flex-direction: column; gap: 4px;">
         <!-- Dynamically loaded list of discovered local server elements -->
+      </div>
+
+      <!-- Export/Import Server Profiles -->
+      <div style="border-top: 1px dashed var(--border-color); margin: 12px 0 4px 0;"></div>
+      <div class="form-group" style="gap: 6px;">
+        <label style="font-weight: 600;">Server Profiles Backup</label>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button id="exportProfilesBtn" class="btn" style="flex: 1; min-width: 120px; padding: 9px; font-size: 13px;">Export Profiles</button>
+          <div style="flex: 1; min-width: 120px; display: flex; flex-direction: column; gap: 4px;">
+            <input type="file" id="importProfilesFile" accept=".json" style="display: none;" />
+            <button id="importProfilesBtn" class="btn btn-secondary" style="flex: 1; padding: 9px; font-size: 13px;">Import Profiles</button>
+            <span style="font-size: 9px; color: var(--text-muted); text-align: center;">Select a .json backup file</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Export Options -->
+      <div id="exportOptionsContainer" style="display: none; margin-top: 8px; padding: 10px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: 8px;">
+        <div style="font-weight: 600; font-size: 12px; margin-bottom: 8px;">Export Options</div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
+            <input type="checkbox" id="exportIncludeApiKeys" checked style="width: 16px; height: 16px; accent-color: #a855f7;" />
+            <span>Include API Keys (sensitive)</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
+            <input type="checkbox" id="exportIncludeProviders" checked style="width: 16px; height: 16px; accent-color: #a855f7;" />
+            <span>Include Custom Providers</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
+            <input type="checkbox" id="exportIncludeRecipes" checked style="width: 16px; height: 16px; accent-color: #a855f7;" />
+            <span>Include Selector Recipes</span>
+          </label>
+        </div>
+        <button id="confirmExportBtn" class="btn" style="margin-top: 8px; width: 100%; padding: 8px; font-size: 13px;">Confirm Export</button>
+        <button id="cancelExportBtn" class="btn btn-secondary" style="width: 100%; padding: 8px; font-size: 13px;">Cancel</button>
+      </div>
+
+      <!-- Import Options -->
+      <div id="importOptionsContainer" style="display: none; margin-top: 8px; padding: 10px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: 8px;">
+        <div style="font-weight: 600; font-size: 12px; margin-bottom: 8px;">Import Options</div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
+            <input type="checkbox" id="importMergeServers" checked style="width: 16px; height: 16px; accent-color: #a855f7;" />
+            <span>Merge Servers (don't replace existing)</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
+            <input type="checkbox" id="importRestoreProviders" checked style="width: 16px; height: 16px; accent-color: #a855f7;" />
+            <span>Restore Custom Providers to Server</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
+            <input type="checkbox" id="importRestoreRecipes" checked style="width: 16px; height: 16px; accent-color: #a855f7;" />
+            <span>Restore Selector Recipes to Server</span>
+          </label>
+        </div>
+        <button id="confirmImportBtn" class="btn" style="margin-top: 8px; width: 100%; padding: 8px; font-size: 13px;">Confirm Import</button>
+        <button id="cancelImportBtn" class="btn btn-secondary" style="width: 100%; padding: 8px; font-size: 13px;">Cancel</button>
       </div>
 
       <!-- SSL / Connection Troubleshooting Warning Card -->
@@ -673,7 +737,8 @@
            <div style="padding: 4px 0; font-size: 12px; color: var(--text-muted); line-height: 1.4;">
              1. Go to the Settings tab.<br/>
              2. Add your Voyarr server URL and click "Add & Test Server".<br/>
-             3. Click "Pair Now" on the pairing banner to link automatically.
+             3. Click "Pair Now" on the pairing banner to link automatically.<br/>
+             4. <strong>Auto-Pairing:</strong> Voyarr Lens automatically discovers Voyarr servers in open tabs and initiates pairing. A notification badge will appear when pairing is available.
            </div>
         </div>
         
@@ -702,6 +767,6 @@
     </div>
   </div>
 
-  <script src="popup.js"></script>
+  <script type="module" src="popup.js"></script>
 </body>
 </html>

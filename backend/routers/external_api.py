@@ -29,6 +29,23 @@ router = APIRouter(
 )
 
 
+def _make_stash_request(stash_url: str, query: str, variables: dict, headers: dict, timeout: int = 5) -> Optional[requests.Response]:
+    """
+    Make a validated request to a Stash GraphQL endpoint.
+    The URL is validated against SSRF before making the request.
+    """
+    validate_url_ssrf(stash_url)
+    try:
+        return requests.post(
+            f"{stash_url.rstrip('/')}/graphql",
+            json={"query": query, "variables": variables},
+            headers=headers,
+            timeout=timeout,
+        )
+    except Exception:
+        return None
+
+
 class QueryRequest(BaseModel):
     query: Optional[str] = None
     hash: Optional[str] = None
@@ -108,13 +125,13 @@ def query_theporndb(req: QueryRequest, x_api_key: Optional[str] = Header(None)):
         if req.hash:
             # Hash matching via REST endpoint (TPDB GraphQL fingerprinting is limited)
             res = requests.get(
-                f"https://api.theporndb.net/scenes?hash={req.hash}",
+                f"https://api.theporndb.net/scenes?hash={req.hash}",  # nosemgrep python.flask.security.injection.ssrf-requests.ssrf-requests - request to known external API
                 headers={
                     "Authorization": f"Bearer {x_api_key}",
                     "Accept": "application/json",
                 },
                 timeout=10,
-            )
+            )  # nosec B113 - request to known external API (ThePornDB), not user-controlled URL
             res.raise_for_status()
             data = res.json()
             results = []
@@ -148,7 +165,7 @@ def query_theporndb(req: QueryRequest, x_api_key: Optional[str] = Header(None)):
                 json={"query": query, "variables": variables},
                 headers=headers,
                 timeout=10,
-            )
+            )  # nosec B113 - request to known external API (ThePornDB), not user-controlled URL
             res.raise_for_status()
             data = res.json()
             results = []
@@ -223,7 +240,7 @@ def get_theporndb_performer(
             json={"query": query, "variables": variables},
             headers=headers,
             timeout=10,
-        )
+        )  # nosec B113 - request to known external API (ThePornDB), not user-controlled URL
         res.raise_for_status()
         data = res.json()
         performers = data.get("data", {}).get("searchPerformers", {}).get("data", [])
@@ -265,6 +282,7 @@ def get_theporndb_studio(
             name
           }
         }
+
       }
     }
     """
@@ -276,7 +294,7 @@ def get_theporndb_studio(
             json={"query": query, "variables": variables},
             headers=headers,
             timeout=10,
-        )
+        )  # nosec B113 - request to known external API (ThePornDB), not user-controlled URL
         res.raise_for_status()
         data = res.json()
         studios = data.get("data", {}).get("searchStudios", {}).get("data", [])
@@ -960,24 +978,16 @@ def sync_stats_with_stash(
                   }
                 }
                 """
-                try:
-                    res = requests.post(
-                        f"{req.stash_url.rstrip('/')}/graphql",
-                        json={"query": fp_query, "variables": {"hash": entry.ohash}},
-                        headers=headers,
-                        timeout=5,
+                res = _make_stash_request(req.stash_url, fp_query, {"hash": entry.ohash}, headers, 5)
+                if res and res.status_code == 200:
+                    scenes = (
+                        res.json()
+                        .get("data", {})
+                        .get("findScenes", {})
+                        .get("scenes", [])
                     )
-                    if res.status_code == 200:
-                        scenes = (
-                            res.json()
-                            .get("data", {})
-                            .get("findScenes", {})
-                            .get("scenes", [])
-                        )
-                        if scenes:
-                            stash_scene = scenes[0]
-                except Exception:
-                    pass
+                    if scenes:
+                        stash_scene = scenes[0]
 
             # Fall back to Title query if no match
             if not stash_scene and entry.title:
@@ -992,27 +1002,16 @@ def sync_stats_with_stash(
                   }
                 }
                 """
-                try:
-                    res = requests.post(
-                        f"{req.stash_url.rstrip('/')}/graphql",
-                        json={
-                            "query": title_query,
-                            "variables": {"title": entry.title},
-                        },
-                        headers=headers,
-                        timeout=5,
+                res = _make_stash_request(req.stash_url, title_query, {"title": entry.title}, headers, 5)
+                if res and res.status_code == 200:
+                    scenes = (
+                        res.json()
+                        .get("data", {})
+                        .get("findScenes", {})
+                        .get("scenes", [])
                     )
-                    if res.status_code == 200:
-                        scenes = (
-                            res.json()
-                            .get("data", {})
-                            .get("findScenes", {})
-                            .get("scenes", [])
-                        )
-                        if scenes:
-                            stash_scene = scenes[0]
-                except Exception:
-                    pass
+                    if scenes:
+                        stash_scene = scenes[0]
 
             if not stash_scene:
                 continue
@@ -1050,20 +1049,13 @@ def sync_stats_with_stash(
                 }
                 """
                 try:
-                    requests.post(
-                        f"{req.stash_url.rstrip('/')}/graphql",
-                        json={
-                            "query": update_mutation,
-                            "variables": {
-                                "id": stash_id,
-                                "play_count": merged_plays,
-                                "o_counter": merged_climaxes,
-                            },
-                        },
-                        headers=headers,
-                        timeout=5,
-                    )
-                    updated_stash += 1
+                    res = _make_stash_request(req.stash_url, update_mutation, {
+                        "id": stash_id,
+                        "play_count": merged_plays,
+                        "o_counter": merged_climaxes,
+                    }, headers, 5)
+                    if res:
+                        updated_stash += 1
                 except Exception:
                     pass
 

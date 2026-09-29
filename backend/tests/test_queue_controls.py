@@ -176,7 +176,7 @@ def test_download_pause_resume_cancel(mock_revoke):
     db.close()
 
     # 1. Pause
-    response = client.post("/progress/1/pause")
+    response = client.post("/api/progress/1/pause")
     assert response.status_code == 200
     assert response.json()["message"] == "Download paused"
     mock_revoke.assert_called_once_with("celery-123", terminate=True, signal="SIGTERM")
@@ -191,7 +191,7 @@ def test_download_pause_resume_cancel(mock_revoke):
     mock_revoke.reset_mock()
     with patch("celery.app.task.Task.delay") as mock_delay:
         mock_delay.return_value = MagicMock(id="new-celery-456")
-        response = client.post("/progress/1/resume")
+        response = client.post("/api/progress/1/resume")
         assert response.status_code == 200
         assert response.json()["message"] == "Download resumed"
         assert response.json()["celery_task_id"] == "new-celery-456"
@@ -204,7 +204,7 @@ def test_download_pause_resume_cancel(mock_revoke):
     db.close()
 
     # 3. Cancel
-    response = client.post("/progress/1/cancel")
+    response = client.post("/api/progress/1/cancel")
     assert response.status_code == 200
     assert response.json()["message"] == "Download cancelled"
     mock_revoke.assert_called_once_with(
@@ -231,12 +231,12 @@ def test_download_priority():
     db.close()
 
     # 1. Priority Up
-    response = client.post("/progress/1/priority/up")
+    response = client.post("/api/progress/1/priority/up")
     assert response.status_code == 200
     assert response.json()["priority"] == 6
 
     # 2. Priority Down
-    response = client.post("/progress/1/priority/down")
+    response = client.post("/api/progress/1/priority/down")
     assert response.status_code == 200
     assert response.json()["priority"] == 5
 
@@ -261,7 +261,7 @@ def test_transcode_pause_resume_cancel(mock_revoke, mock_kill):
     db.close()
 
     # 1. Pause
-    response = client.post("/transcode/1/pause")
+    response = client.post("/api/transcode/1/pause")
     assert response.status_code == 200
     assert "paused successfully" in response.json()["message"]
     mock_kill.assert_called_once_with(1234, signal.SIGSTOP)
@@ -273,7 +273,7 @@ def test_transcode_pause_resume_cancel(mock_revoke, mock_kill):
 
     # 2. Resume
     mock_kill.reset_mock()
-    response = client.post("/transcode/1/resume")
+    response = client.post("/api/transcode/1/resume")
     assert response.status_code == 200
     assert "resumed successfully" in response.json()["message"]
     mock_kill.assert_called_once_with(1234, signal.SIGCONT)
@@ -285,7 +285,7 @@ def test_transcode_pause_resume_cancel(mock_revoke, mock_kill):
 
     # 3. Cancel
     mock_kill.reset_mock()
-    response = client.post("/transcode/1/cancel")
+    response = client.post("/api/transcode/1/cancel")
     assert response.status_code == 200
     assert response.json()["message"] == "Transcoding job cancelled"
     mock_kill.assert_called_once_with(1234, signal.SIGKILL)
@@ -309,12 +309,12 @@ def test_transcode_priority():
     db.close()
 
     # 1. Priority Up
-    response = client.post("/transcode/1/priority/up")
+    response = client.post("/api/transcode/1/priority/up")
     assert response.status_code == 200
     assert response.json()["priority"] == 2
 
     # 2. Priority Down
-    response = client.post("/transcode/1/priority/down")
+    response = client.post("/api/transcode/1/priority/down")
     assert response.status_code == 200
     assert response.json()["priority"] == 1
 
@@ -339,7 +339,7 @@ def test_live_stream_pause_resume_stop(mock_revoke, mock_kill):
     db.close()
 
     # 1. Pause
-    response = client.post("/live-streams/1/pause")
+    response = client.post("/api/live-streams/1/pause")
     assert response.status_code == 200
     assert response.json()["status"] == "paused"
     mock_kill.assert_called_once_with(5678, signal.SIGSTOP)
@@ -351,7 +351,7 @@ def test_live_stream_pause_resume_stop(mock_revoke, mock_kill):
 
     # 2. Resume
     mock_kill.reset_mock()
-    response = client.post("/live-streams/1/resume")
+    response = client.post("/api/live-streams/1/resume")
     assert response.status_code == 200
     assert response.json()["status"] == "recording"
     mock_kill.assert_called_once_with(5678, signal.SIGCONT)
@@ -363,7 +363,7 @@ def test_live_stream_pause_resume_stop(mock_revoke, mock_kill):
 
     # 3. Stop (Cancel)
     mock_kill.reset_mock()
-    response = client.post("/live-streams/1/stop")
+    response = client.post("/api/live-streams/1/stop")
     assert response.status_code == 200
     assert response.json()["status"] == "idle"
     mock_kill.assert_called_once_with(5678, signal.SIGKILL)

@@ -79,7 +79,7 @@ def test_change_password_success():
         "current_password": "old_password_123!",
         "new_password": "new_secure_password_567!@#"
     }
-    response = client.post("/auth/change-password", json=payload)
+    response = client.post("/api/auth/change-password", json=payload)
     assert response.status_code == 200
     assert response.json()["message"] == "Password changed successfully"
 
@@ -97,7 +97,7 @@ def test_change_password_incorrect_current():
         "current_password": "wrong_old_password",
         "new_password": "new_secure_password_567!@#"
     }
-    response = client.post("/auth/change-password", json=payload)
+    response = client.post("/api/auth/change-password", json=payload)
     assert response.status_code == 400
     assert "Incorrect current password" in response.json()["detail"]
 

@@ -96,9 +96,14 @@ def approve_request(
                     )
 
     # Route the approved request directly into the mass rip/download engine
+    # INTERNAL_API_URL should be configured with HTTPS in production
     api_base = os.getenv(
         "INTERNAL_API_URL", f"http://backend:{os.getenv('PORT', '8000')}"
     )
+    # Validate the internal API URL scheme in production
+    if os.getenv("ENVIRONMENT") == "production" and api_base.startswith("http://"):
+        logger.warning("INTERNAL_API_URL is using HTTP in production; consider using HTTPS")
+    # nosemgrep python.lang.security.audit.insecure-transport.requests.request-with-http.request-with-http - internal service-to-service communication
     api_key = os.getenv("MASTER_KEY", "")
 
     try:

@@ -1,6 +1,6 @@
 # Voyarr
 
-> **v1.100.1** — Self-hosted media server and library management system for adult video collections.
+> **v1.199.0** — Self-hosted media server and library management system for adult video collections.
 
 Voyarr unifies your subscriptions, local files, and metadata into one interface. Stream from your subscriptions, organize your personal library, and automate downloads — all from a single self-hosted dashboard.
 
@@ -138,15 +138,15 @@ Load this into Portainer's environment variables, or any other deployment target
 
 4. Deploy all layers:
    ```bash
-   npm run deploy
+   pnpm run deploy
    ```
    Or deploy individual layers:
    ```bash
-   npm run deploy:database
-   npm run deploy:backend-api
-   npm run deploy:workers
-   npm run deploy:scraper
-   npm run deploy:frontend
+   pnpm run deploy:database
+   pnpm run deploy:backend-api
+   pnpm run deploy:workers
+   pnpm run deploy:scraper
+   pnpm run deploy:frontend
    ```
 
 5. Access the web UI at `http://localhost:80` (or the port configured in `FRONTEND_PORT`).
@@ -157,10 +157,10 @@ Load this into Portainer's environment variables, or any other deployment target
 
 ```bash
 # Start the full stack
-npm run up
+pnpm run up
 
 # Stop the stack
-npm run down
+pnpm run down
 ```
 
 ### Cloudflare Worker frontend + Neon database
@@ -176,12 +176,12 @@ NEON_DATABASE_URL=postgresql://...
 Then deploy:
 ```bash
 # Infrastructure first
-npm run deploy:database
-npm run deploy:backend-api
-npm run deploy:workers
+pnpm run deploy:database
+pnpm run deploy:backend-api
+pnpm run deploy:workers
 
 # Frontend last (needs backend URL for build)
-npm run deploy:frontend
+pnpm run deploy:frontend
 ```
 
 For the backend to be reachable from the Cloudflare Worker, use Cloudflare Tunnel:
@@ -196,7 +196,7 @@ cloudflared tunnel route dns voyarr api.yourdomain.com
 
 Or deploy with the tunnel automatically:
 ```bash
-npm run up  # includes cloudflared container when FRONTEND_TARGET is not docker
+pnpm run up  # includes cloudflared container when FRONTEND_TARGET is not docker
 ```
 
 ---
@@ -215,12 +215,12 @@ Voyarr uses modular Compose fragments that are assembled at runtime by the `depl
 | `docker-compose.cloudflare-tunnel.yml` | Cloudflare Tunnel sidecar (cloudflared) for exposing the backend without opening ports. Included when `BACKEND_API_TARGET=docker` and `FRONTEND_TARGET` is not docker. | `deploy/compose.sh` |
 | `docker-compose.vpn.yml` | Gluetun VPN sidecar for routing backend traffic through a VPN. | Manual include |
 | `docker-compose.tailscale.yml` | Tailscale sidecar for secure network access. | Manual include |
-| `docker-compose.dev.yml` | Development overrides: dummy DB, local source builds, Vite dev server with HMR. | `npm run dev` |
+| `docker-compose.dev.yml` | Development overrides: dummy DB, local source builds, Vite dev server with HMR. | `pnpm run dev` |
 | `docker-compose.override.yml` | Auto-loaded by Docker Compose in dev. Mounts source code and enables hot-reload for backend, Celery, and frontend. | Docker Compose (auto) |
 
-**For most users**: run `npm run up` (uses `deploy/compose.sh` which selects the right fragments) or deploy `docker-compose.deploy.yml` directly on Portainer.
+**For most users**: run `pnpm run up` (uses `deploy/compose.sh` which selects the right fragments) or deploy `docker-compose.deploy.yml` directly on Portainer.
 
-**For development**: `npm run dev` starts the full stack with hot-reload.
+**For development**: `pnpm run dev` starts the full stack with hot-reload.
 
 ---
 

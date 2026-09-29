@@ -464,9 +464,9 @@ To ensure absolute account integrity and forensic traceability, all identity sys
 - **Archiving Workflow**:
   1. **Preservation**: Move existing `.sql` files to `archive/migrations/history_[timestamp]/`.
   2. **Clean Slate**: Delete the `db/migrations/meta/` directory to force a full schema regeneration.
-  3. **Consolidation**: Run `npx drizzle-kit generate` (Postgres dialect, config in `drizzle.config.ts`) to create a clean, single-file baseline from the current `schema.ts`.
+  3. **Consolidation**: Run `pnpm drizzle-kit generate` (Postgres dialect, config in `drizzle.config.ts`) to create a clean, single-file baseline from the current `schema.ts`.
   4. **Naming**: Rename the generated `.sql` file to `0000_initial_schema.sql`.
-- **Apply Migrations**: Use `npx drizzle-kit migrate` (or `drizzle-kit push`) against the Neon `DATABASE_URL` to apply the baseline.
+- **Apply Migrations**: Use `pnpm drizzle-kit migrate` (or `drizzle-kit push`) against the Neon `DATABASE_URL` to apply the baseline.
 - **Post-Squash Verification**: Verify the schema is applied and queryable against Neon before releasing. The baseline MUST report a clean, applied state.
 
 ## 22. Operational Transparency & Rule Attribution
@@ -585,6 +585,13 @@ To ensure absolute account integrity and forensic traceability, all identity sys
   - **Centralized Port Publishing**: All external port forwards required for downloader WebUIs (e.g., qBittorrent WebUI `49175->8080`, NZBGet WebUI `49183->6789`, JDownloader 2 WebUI `32768->5800`) and incoming peer connections (e.g., torrent peer port `49177/tcp+udp`) MUST be published exclusively on the `gluetun` service definition.
   - **Fail-Safe Kill Switch**: Gluetun's built-in firewall rules MUST remain enabled to ensure a zero-leak kill switch: if the VPN tunnel drops, all non-VPN outbound traffic from all attached containers MUST be blocked immediately.
   - **Local LAN Whitelisting**: The Gluetun configuration MUST declare `FIREWALL_OUTBOUND_SUBNETS` covering all local LAN subnets and Docker bridge networks (e.g. `172.19.0.0/16,172.20.0.0/16,192.168.0.0/16,10.0.0.0/8`) to ensure WebUI access, local reverse proxy routing, and cross-stack communication remain accessible from local networks.
+
+
+- **Zero Fallback Policy for Passwords, Secrets, and Sensitive Credentials (Fleet-Wide Law)**:
+  - Under NO circumstances may default fallbacks, inline placeholders, or bash fallback syntax (`${VAR:-fallback}`) be used for passwords, secrets, API tokens, cryptographic keys, authentication credentials, or any variables classified as sensitive.
+  - In Docker Compose manifests, shell scripts, and application runtime configurations, all sensitive variables (e.g. `POSTGRES_PASSWORD`, `POSTGRES_SUPERPASS`, `JWT_SECRET`, `ENCRYPTION_KEY`, `MASTER_KEY`, `SECRET_KEY`, `DATABASE_URL` containing passwords, API keys, tokens) MUST strictly use mandatory interpolation syntax (`${VAR_NAME}`) with zero fallback values.
+  - If a required secret or password is not provided in the deployment environment or `.env` file, the container, script, or service MUST fail fast immediately rather than quietly starting with an insecure default or fallback credential.
+  - Fallback syntax (`${VAR:-default}`) is strictly restricted to non-sensitive operational attributes (e.g. ports, user/group IDs, timezones, restart policies, and host path bindings).
 
 ## 27. Agent & AI Engineering Standards
 - **Automatic Version Bumping**: The git pre-commit hook (`scripts/prepare-commit.cjs`) automatically handles version bumping for staged commits. If manually bumping `package.json` (patch for bug fixes/refactors, minor for new features) before staging and committing, the hook preserves the manual version without double-bumping.

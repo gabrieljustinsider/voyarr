@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Voyarr Lens — store assets</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; }
+  body {
+    font-family: 'Outfit', sans-serif;
+    background: #0b0f19;
+    color: #fff;
+    position: relative;
+  }
+  .glow-a, .glow-b {
+    position: absolute; border-radius: 50%; pointer-events: none;
+  }
+  .glow-a {
+    width: 900px; height: 900px; right: -200px; top: -320px;
+    background: radial-gradient(circle, rgba(99,102,241,0.38) 0%, rgba(99,102,241,0) 62%);
+  }
+  .glow-b {
+    width: 820px; height: 820px; left: -260px; bottom: -340px;
+    background: radial-gradient(circle, rgba(168,85,247,0.26) 0%, rgba(168,85,247,0) 62%);
+  }
+
+  .text {
+    position: absolute; left: 72px; top: 50%; transform: translateY(-50%);
+    width: 540px; z-index: 2;
+  }
+  .eyebrow {
+    font-size: 14px; font-weight: 600; letter-spacing: 4px;
+    background: linear-gradient(90deg, #818cf8, #c084fc);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    margin-bottom: 18px;
+  }
+  .title {
+    font-size: 46px; font-weight: 700; line-height: 1.1; letter-spacing: -0.5px;
+    margin-bottom: 18px; color: #f8fafc;
+  }
+  .body {
+    font-size: 18px; font-weight: 400; line-height: 1.55; color: #94a3b8;
+    width: 510px;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+  .chip {
+    font-size: 13px; font-weight: 500; color: #cbd5e1;
+    border: 1px solid rgba(255,255,255,0.14);
+    background: rgba(255,255,255,0.04);
+    border-radius: 999px; padding: 7px 14px;
+  }
+
+  .shot {
+    position: absolute; left: 924px; top: 50%;
+    transform: translate(-50%, -50%);
+    background-repeat: no-repeat;
+    border-radius: 16px;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.10), 0 30px 70px rgba(0,0,0,0.55);
+    z-index: 2;
+  }
+
+  /* ---- promo tiles ---- */
+  .tile-body {
+    position: absolute; inset: 0; display: flex; align-items: center;
+    justify-content: center; z-index: 2;
+  }
+  .tile-small .tile-body { gap: 22px; }
+  .tile-small .logo { height: 128px; }
+  .tile-small .name { font-size: 32px; font-weight: 700; letter-spacing: -0.5px; }
+  .tile-small .tag  { font-size: 15px; color: #94a3b8; margin-top: 6px; line-height: 1.45; }
+
+  .tile-marquee .tile-body { gap: 44px; }
+  .tile-marquee .logo { height: 190px; }
+  .tile-marquee .name {
+    font-size: 68px; font-weight: 700; letter-spacing: -1px;
+    background: linear-gradient(90deg, #a5b4fc, #e9d5ff);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .tile-marquee .tag { font-size: 25px; color: #94a3b8; margin-top: 12px; }
+  .tile-marquee .chips { margin-top: 24px; }
+  .tile-marquee .chip { font-size: 17px; padding: 9px 20px; }
+  .logo { display: block; }
+</style>
+</head>
+<body>
+<div class="glow-a"></div>
+<div class="glow-b"></div>
+
+<div class="text" id="textCol" style="display:none">
+  <div class="eyebrow" id="eyebrow"></div>
+  <div class="title" id="title"></div>
+  <div class="body" id="bodyText"></div>
+  <div class="chips" id="chips"></div>
+</div>
+
+<div class="shot" id="shot" style="display:none"></div>
+
+<div class="tile-body" id="tileBody" style="display:none">
+  <img class="logo" id="tileLogo" src="/extension/icon.png" alt="">
+  <div>
+    <div class="name" id="tileName">Voyarr Lens</div>
+    <div class="tag" id="tileTag"></div>
+    <div class="chips" id="tileChips" style="display:none"></div>
+  </div>
+</div>
+
+<script>
+const SLIDES = {
+  '1': {
+    img: '/store-assets/raw/08-pairing-banner.png', cropTop: 0, cropH: 1160,
+    eyebrow: 'AUTO PAIRING',
+    title: 'Pair your server in one tap',
+    body: 'Voyarr Lens discovers Voyarr servers on your network and drops a pairing invitation straight into the popup. Confirm the code and you are connected.',
+    chips: ['Auto-discovery', 'One-click confirm', 'Local & remote servers']
+  },
+  '2': {
+    img: '/store-assets/raw/02-map-clean.png', cropTop: 0, cropH: 1000,
+    eyebrow: 'SELECTOR MAP',
+    title: 'Map page elements visually',
+    body: 'Pick a target provider, choose the field, and enable map mode to bind selectors on the live page — no hand-written CSS guesswork.',
+    chips: ['Searchable providers', 'Per-field mapping', 'Bind on the page']
+  },
+  '3': {
+    img: '/store-assets/raw/04-export-options.png', cropTop: 1230, cropH: 570,
+    eyebrow: 'BACKUP & RESTORE',
+    title: 'Back it all up as JSON',
+    body: 'Export servers, custom providers, and selector recipes — API keys optional — then restore or merge on any machine.',
+    chips: ['Versioned JSON', 'Omit API keys', 'Merge or replace']
+  },
+  '4': {
+    img: '/store-assets/raw/05-providers.png', cropTop: 0, cropH: 1760,
+    eyebrow: 'PROVIDERS',
+    title: 'Your scraper library, organized',
+    body: 'Create and organize providers with billing gateways, naming patterns, and logos — synced to your Voyarr server.',
+    chips: ['A–Z sorting', 'Billing gateways', 'Auto-fill from tab']
+  },
+  '5': {
+    img: '/store-assets/raw/06-lens.png', cropTop: 0, cropH: 980,
+    eyebrow: 'LENS',
+    title: 'Read the page for you',
+    body: 'Scan the active tab for subscription and billing details, or extract a raw live-stream URL via yt-dlp.',
+    chips: ['Subscription scan', 'Live stream extract', 'Tab-scoped']
+  }
+};
+
+const MAX_W = 560, MAX_H = 740, CENTER_X = 924;
+
+const q = new URLSearchParams(location.search);
+
+function renderChips(el, items) {
+  el.innerHTML = '';
+  items.forEach(t => {
+    const c = document.createElement('span');
+    c.className = 'chip';
+    c.textContent = t;
+    el.appendChild(c);
+  });
+}
+
+async function main() {
+  if (q.get('tile') === 'small') {
+    document.body.classList.add('tile-small');
+    document.getElementById('tileBody').style.display = 'flex';
+    document.getElementById('tileTag').innerHTML = 'Pair servers, map selectors,<br>back up your scraping config.';
+    return;
+  }
+  if (q.get('tile') === 'marquee') {
+    document.body.classList.add('tile-marquee');
+    document.getElementById('tileBody').style.display = 'flex';
+    document.getElementById('tileTag').textContent = 'Self-hosted scraping control center — pairing, selector mapping, provider sync, and JSON backups.';
+    const chips = document.getElementById('tileChips');
+    chips.style.display = 'flex';
+    renderChips(chips, ['Auto Pairing', 'Selector Map', 'Provider Sync', 'JSON Backup']);
+    return;
+  }
+
+  const s = SLIDES[q.get('slide') || '1'];
+  if (!s) return;
+
+  document.getElementById('textCol').style.display = 'block';
+  document.getElementById('eyebrow').textContent = s.eyebrow;
+  document.getElementById('title').textContent = s.title;
+  document.getElementById('bodyText').textContent = s.body;
+  renderChips(document.getElementById('chips'), s.chips);
+
+  const src = new Image();
+  src.src = s.img;
+  await src.decode();
+
+  const scale = Math.min(MAX_W / src.naturalWidth, MAX_H / s.cropH);
+  const w = Math.round(src.naturalWidth * scale);
+  const h = Math.round(s.cropH * scale);
+
+  const shot = document.getElementById('shot');
+  shot.style.display = 'block';
+  shot.style.width = w + 'px';
+  shot.style.height = h + 'px';
+  shot.style.backgroundImage = `url("${s.img}")`;
+  shot.style.backgroundSize = w + 'px auto';
+  shot.style.backgroundPosition = `0 -${Math.round(s.cropTop * scale)}px`;
+
+  await document.fonts.ready;
+  document.body.dataset.ready = '1';
+}
+
+main();
+</script>
+</body>
+</html>

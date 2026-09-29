@@ -23,7 +23,7 @@ Use this workflow to periodically consolidate individual Drizzle ORM migrations 
 ## 2. Baseline Schema Generation
 Run `drizzle-kit generate` to construct a clean baseline from `db/schema.ts`:
 ```bash
-npx drizzle-kit generate
+pnpm drizzle-kit generate
 ```
 
 ## 3. Standard Baseline Naming
@@ -35,8 +35,8 @@ mv db/migrations/*_*.sql db/migrations/0000_initial_schema.sql
 ## 4. Verification & Testing
 1. Test the migration against the target Neon database:
    ```bash
-   npx drizzle-kit migrate
+   pnpm drizzle-kit migrate
    # or
-   npx drizzle-kit push
+   pnpm drizzle-kit push
    ```
 2. Verify database connectivity and schema integrity via `SELECT 1` or `/api/health`.

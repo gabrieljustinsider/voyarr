@@ -54,6 +54,17 @@ class AnalyzeUrlRequest(BaseModel):
 from utils import validate_url_ssrf
 
 
+def _make_validated_request(url: str, method: str = "HEAD", timeout: int = 5, **kwargs) -> Optional[requests.Response]:
+    """
+    Make an HTTP request after validating the URL against SSRF.
+    """
+    validate_url_ssrf(url)
+    try:
+        return requests.request(method, url, timeout=timeout, **kwargs)
+    except Exception:
+        return None
+
+
 def evaluate_rules(
     db: Session,
     metadata: dict,
@@ -845,14 +856,15 @@ def analyze_url(req: AnalyzeUrlRequest, db: Session = Depends(get_db), current_u
 
     # 2. Test direct HTTP protocols
     try:
-        resp = requests.head(url_str, timeout=5, allow_redirects=True)
-        content_type = resp.headers.get("Content-Type", "").lower()
-        if "video" in content_type or "mpegurl" in content_type:
-            methods.append("direct_media_link")
-        elif "json" in content_type:
-            methods.append("json_api")
-        elif "html" in content_type:
-            methods.append("html_scrape")
+        resp = _make_validated_request(url_str, method="HEAD", timeout=5, allow_redirects=True)
+        if resp:
+            content_type = resp.headers.get("Content-Type", "").lower()
+            if "video" in content_type or "mpegurl" in content_type:
+                methods.append("direct_media_link")
+            elif "json" in content_type:
+                methods.append("json_api")
+            elif "html" in content_type:
+                methods.append("html_scrape")
     except Exception:
         pass
 

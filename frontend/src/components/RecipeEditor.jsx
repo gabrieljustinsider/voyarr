@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
-import { Box, Typography, Tabs, Tab, TextField, Button, IconButton, Divider, CircularProgress, Alert, Paper } from '@mui/material'
-import { Plus, Trash2, Save, TestTube, Copy } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Box, Typography, Tabs, Tab, TextField, Button, IconButton, Divider, CircularProgress, Alert, Paper, InputAdornment } from '@mui/material'
+import { Plus, Trash2, Save, TestTube, Copy, Download, Upload, FileJson } from 'lucide-react'
 import GlassCard from './common/GlassCard'
 import { apiFetch } from '../api'
 
@@ -64,6 +64,7 @@ export default function RecipeEditor({ providerId, recipe, onSave }) {
   const [testUrl, setTestUrl] = useState('')
   const [testResult, setTestResult] = useState(null)
   const [testing, setTesting] = useState(false)
+  const fileInputRef = useRef(null)
 
   useEffect(() => {
     if (recipe) {
@@ -116,6 +117,47 @@ export default function RecipeEditor({ providerId, recipe, onSave }) {
     navigator.clipboard.writeText(JSON.stringify(payload, null, 2))
   }
 
+  const handleExportJson = () => {
+    const payload = {}
+    for (const g of GROUPS) {
+      if (data[g]) payload[g] = data[g]
+    }
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    const providerName = recipe?.provider_name || `provider-${providerId}`
+    a.download = `${providerName}-recipe-${new Date().toISOString().split('T')[0]}.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  const handleImportJson = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      try {
+        const imported = JSON.parse(event.target.result)
+        const newData = {
+          css_selectors: imported.css_selectors || null,
+          xpath_selectors: imported.xpath_selectors || null,
+          regex_patterns: imported.regex_patterns || null,
+          map_mode_data: imported.map_mode_data || null,
+        }
+        setData(newData)
+        setSaved(false)
+      } catch (err) {
+        console.error('Failed to import recipe:', err)
+        alert('Invalid recipe file format')
+      }
+    }
+    reader.readAsText(file)
+    e.target.value = ''
+  }
+
   if (!providerId) {
     return (
       <GlassCard sx={{ p: 4, textAlign: 'center' }}>
@@ -132,13 +174,48 @@ export default function RecipeEditor({ providerId, recipe, onSave }) {
           {recipe ? ` (ID: ${recipe.id})` : ' (not yet created)'}
         </Typography>
         <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button size="small" variant="outlined" startIcon={<Copy size={14} />} onClick={handleCopyJson}
-            sx={{ borderRadius: '8px', textTransform: 'none', fontSize: '0.75rem' }}>
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept=".json"
+            style={{ display: 'none' }}
+            onChange={handleImportJson}
+          />
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<Copy size={14} />}
+            onClick={handleCopyJson}
+            sx={{ borderRadius: '8px', textTransform: 'none', fontSize: '0.75rem' }}
+          >
             Copy JSON
           </Button>
-          <Button size="small" variant="contained" startIcon={saving ? <CircularProgress size={14} /> : <Save size={14} />}
-            onClick={handleSave} disabled={saving}
-            sx={{ borderRadius: '8px', textTransform: 'none', fontSize: '0.75rem', fontWeight: 'bold' }}>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<Download size={14} />}
+            onClick={handleExportJson}
+            sx={{ borderRadius: '8px', textTransform: 'none', fontSize: '0.75rem' }}
+          >
+            Export
+          </Button>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<Upload size={14} />}
+            onClick={() => fileInputRef.current?.click()}
+            sx={{ borderRadius: '8px', textTransform: 'none', fontSize: '0.75rem' }}
+          >
+            Import
+          </Button>
+          <Button
+            size="small"
+            variant="contained"
+            startIcon={saving ? <CircularProgress size={14} /> : <Save size={14} />}
+            onClick={handleSave}
+            disabled={saving}
+            sx={{ borderRadius: '8px', textTransform: 'none', fontSize: '0.75rem', fontWeight: 'bold' }}
+          >
             {saving ? 'Saving...' : saved ? 'Saved!' : 'Save'}
           </Button>
         </Box>

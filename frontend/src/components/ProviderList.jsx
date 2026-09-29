@@ -1,18 +1,19 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { 
   Card, CardContent, CardActions, Typography, Button, Grid, TextField, Box, 
   LinearProgress, Dialog, DialogTitle, DialogContent, DialogActions, Tabs, Tab, 
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, 
   IconButton, Alert, Paper, FormControlLabel, Switch, Avatar,
   Accordion, AccordionSummary, AccordionDetails, Menu, MenuItem, Checkbox, ListItemText, ListItemIcon, Autocomplete,
-  ToggleButton, ToggleButtonGroup, FormControl, InputLabel, Select, Divider
+  ToggleButton, ToggleButtonGroup, FormControl, InputLabel, Select, Divider,
+  InputAdornment
 } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import SettingsIcon from '@mui/icons-material/Settings'
-import { Globe, LayoutGrid, List as ListIcon, Edit2, Trash2, Link as LinkIcon, ArrowUpDown, Heart } from 'lucide-react'
+import { Globe, LayoutGrid, List as ListIcon, Edit2, Trash2, Link as LinkIcon, ArrowUpDown, Heart, Download, Upload } from 'lucide-react'
 import { getSafeLogoUrl, getFaviconFromUrl } from '../utils/logoHelpers'
 import { MediaEntityCard } from './common'
 import BillerList from './BillerList'
@@ -87,6 +88,8 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
   const [dialogTab, setDialogTab] = useState(0)
   const [recipeProviderId, setRecipeProviderId] = useState(null)
   const [selectedRecipe, setSelectedRecipe] = useState(null)
+  const [allRecipes, setAllRecipes] = useState([])
+  const fileInputRef = useRef(null)
 
   const fetchSelectedRecipe = useCallback(async () => {
     if (!recipeProviderId) return
@@ -97,7 +100,82 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
     } catch { setSelectedRecipe(null) }
   }, [recipeProviderId])
 
+  const fetchAllRecipes = useCallback(async () => {
+    try {
+      const res = await apiFetch('/scraper')
+      if (res.ok) {
+        const recipes = await res.json()
+        setAllRecipes(recipes)
+      }
+    } catch (e) {
+      console.error('Failed to fetch recipes:', e)
+    }
+  }, [])
+
   useEffect(() => { fetchSelectedRecipe() }, [fetchSelectedRecipe])
+
+  useEffect(() => {
+    fetchAllRecipes()
+  }, [fetchAllRecipes])
+
+  const handleExportAllRecipes = () => {
+    if (allRecipes.length === 0) {
+      alert('No recipes to export')
+      return
+    }
+    const payload = allRecipes.map(r => ({
+      provider_id: r.provider_id,
+      provider_name: r.provider_name,
+      css_selectors: r.css_selectors,
+      xpath_selectors: r.xpath_selectors,
+      regex_patterns: r.regex_patterns,
+      map_mode_data: r.map_mode_data,
+    }))
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `voyarr-all-recipes-${new Date().toISOString().split('T')[0]}.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  const handleImportAllRecipes = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = async (event) => {
+      try {
+        const imported = JSON.parse(event.target.result)
+        if (!Array.isArray(imported)) {
+          throw new Error('Invalid format: expected array of recipes')
+        }
+        for (const recipe of imported) {
+          if (recipe.provider_id && (recipe.css_selectors || recipe.xpath_selectors || recipe.regex_patterns || recipe.map_mode_data)) {
+            await apiFetch(`/scraper/by-provider/${recipe.provider_id}`, {
+              method: 'PUT',
+              body: {
+                css_selectors: recipe.css_selectors || null,
+                xpath_selectors: recipe.xpath_selectors || null,
+                regex_patterns: recipe.regex_patterns || null,
+                map_mode_data: recipe.map_mode_data || null,
+              }
+            })
+          }
+        }
+        fetchAllRecipes()
+        fetchSelectedRecipe()
+        alert(`Successfully imported ${imported.length} recipe(s)!`)
+      } catch (err) {
+        console.error('Failed to import recipes:', err)
+        alert(`Import failed: ${err.message}`)
+      }
+    }
+    reader.readAsText(file)
+    e.target.value = ''
+  }
 
   // Billers list state for searchable dropdown
   const [billersList, setBillersList] = useState([])
@@ -1451,6 +1529,38 @@ export default function ProviderList({ providers, searchQuery, setSearchQuery, o
               Configure CSS selectors, XPath patterns, and regex rules that Voyarr uses to scrape metadata from each provider's pages. Select a provider below to manage its recipe.
             </Typography>
           </Alert>
+          
+          {/* Bulk Export/Import */}
+          <Box sx={{ display: 'flex', gap: 1.5, mb: 3, flexWrap: 'wrap', alignItems: 'center' }}>
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept=".json"
+              style={{ display: 'none' }}
+              onChange={handleImportAllRecipes}
+            />
+            <Button
+              variant="outlined"
+              startIcon={<Download size={18} />}
+              onClick={handleExportAllRecipes}
+              disabled={allRecipes.length === 0}
+              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+            >
+              Export All Recipes ({allRecipes.length})
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<Upload size={18} />}
+              onClick={() => fileInputRef.current?.click()}
+              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600, color: 'text.secondary' }}
+            >
+              Import Recipes
+            </Button>
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+              Bulk backup and restore all scraping recipes
+            </Typography>
+          </Box>
+          
           <FormControl size="small" sx={{ mb: 3, minWidth: 300 }}>
             <InputLabel>Select Provider</InputLabel>
             <Select value={recipeProviderId || ''} label="Select Provider" onChange={e => setRecipeProviderId(e.target.value || null)} sx={{ borderRadius: '10px' }}>

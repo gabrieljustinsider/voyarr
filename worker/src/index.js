@@ -90,7 +90,7 @@ export default {
     const path = url.pathname;
 
     // 1. Standard Fleet Health & Status Interceptor
-    if (path === "/api/health" || path === "/health") {
+    if (path === "/api/health") {
       let isMaintenance = false;
       const isHardLocked = env.MAINTENANCE_MODE === "true";
       const kv = env.FLEET_SECURITY_CACHE;
@@ -139,7 +139,7 @@ export default {
     }
 
     // If in maintenance mode, return 503 for API or serve Maintenance HTML for UI
-    if (isLocked && !path.startsWith("/api/auth/pair") && !path.includes(".well-known")) {
+    if (isLocked && !path.startsWith("/api/auth/pair") && !path.startsWith("/.well-known")) {
       if (path.startsWith("/api")) {
         return new Response(JSON.stringify({
           status: "maintenance",
@@ -188,25 +188,7 @@ export default {
 
     const isApiRoute = 
       path.startsWith("/api") || 
-      path.startsWith("/auth") || 
-      path.startsWith("/admin") || 
-      path.startsWith("/.well-known") ||
-      path.startsWith("/providers") ||
-      path.startsWith("/billers") ||
-      path.startsWith("/studios") ||
-      path.startsWith("/subscriptions") ||
-      path.startsWith("/favorites") ||
-      path.startsWith("/download") ||
-      path.startsWith("/notifications") ||
-      path.startsWith("/library") ||
-      path.startsWith("/settings") ||
-      path.startsWith("/analytics") ||
-      path.startsWith("/schedules") ||
-      path.startsWith("/transcode") ||
-      path.startsWith("/rules") ||
-      path.startsWith("/cookies") ||
-      path.startsWith("/apikeys") ||
-      path.startsWith("/deovr");
+      path.startsWith("/.well-known");
 
     // API requests: proxy to backend
     if (isApiRoute) {

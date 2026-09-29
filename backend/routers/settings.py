@@ -43,8 +43,9 @@ def list_op_vaults(db: Session = Depends(get_db)):
         vaults = OnePasswordService.list_accessible_vaults(db)
         return {"vaults": vaults}
     except Exception as e:
-        logger.warning("Failed to retrieve 1Password vaults: %s", e)
-        raise HTTPException(status_code=502, detail=str(e))
+        logger.warning("Failed to retrieve 1Password vaults: %s", type(e).__name__)  # nosec B105 - logging exception type only, no secrets
+        # nosemgrep python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure - logging exception type only, no secrets
+        raise HTTPException(status_code=502, detail="Failed to retrieve vaults")
 
 
 @router.get("/op/items")
@@ -60,11 +61,11 @@ def list_op_items(db: Session = Depends(get_db)):
             item["vault_name"] = vault_names.get(item.get("vault_id", ""), "")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    except requests.RequestException as e:
-        logger.warning("Failed to reach 1Password Connect: %s", e)
+    except requests.RequestException:
+        logger.warning("Failed to reach 1Password Connect")
         raise HTTPException(status_code=503, detail="Could not reach the 1Password Connect server.")
-    except Exception as e:
-        logger.warning("1Password Connect returned an error: %s", e)
+    except Exception:
+        logger.warning("1Password Connect returned an error")
         raise HTTPException(status_code=502, detail="1Password Connect returned an unexpected error.")
     return {"items": items}
 

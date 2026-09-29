@@ -41,6 +41,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# Create non-root user for security
+RUN groupadd -r appgroup && useradd -r -g appgroup appuser
+
 # ffmpeg is strictly required for FFmpeg/Mutagen perceptual hashing (phash)
 # libpq5 is the runtime-only postgres client lib (no compiler needed)
 # libgomp1 is required by opencv/face_recognition at runtime
@@ -56,6 +59,12 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
 COPY --from=builder /install /usr/local
 
 COPY . .
+
+# Change ownership to non-root user
+RUN chown -R appuser:appgroup /app
+
+# Switch to non-root user
+USER appuser
 
 EXPOSE 8000
 CMD ["python", "run.py"]

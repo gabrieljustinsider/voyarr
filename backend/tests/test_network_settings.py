@@ -113,7 +113,7 @@ def test_network_diagnostic_online(mock_get):
     mock_response.json.return_value = {"ip": "192.168.1.1"}
     mock_get.return_value = mock_response
 
-    response = client.get("/settings/network/diagnostic")
+    response = client.get("/api/settings/network/diagnostic")
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "online"
@@ -126,7 +126,7 @@ def test_network_diagnostic_offline(mock_get):
     # Mock connection failure
     mock_get.side_effect = Exception("Connection timed out")
 
-    response = client.get("/settings/network/diagnostic")
+    response = client.get("/api/settings/network/diagnostic")
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "offline"

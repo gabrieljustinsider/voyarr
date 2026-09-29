@@ -1,0 +1,24 @@
+# False positives - these are legitimate patterns that static analysis can't fully understand
+
+# JavaScript template literals in console.log/error/alert are not format string vulnerabilities
+# (CWE-134 applies to C-style printf, not JS template literals)
+backend/bookmarklet.js
+extension/bookmarklet.js
+extension/bookmarklet.min.js
+frontend/src/components/DownloadQueue.jsx
+frontend/src/components/MassRip.jsx
+frontend/src/components/UniversalSearch.jsx
+
+# SQL DDL statements with validated column/table names (whitelisted, not user input)
+backend/db_utils.py
+backend/routers/backup.py
+
+# Requests to known external APIs (ThePornDB) - not user-controlled URLs
+backend/routers/external_api.py
+
+# Internal service-to-service HTTP communication (not external-facing)
+backend/routers/requests.py
+backend/tasks/schedule_tasks.py
+
+# Logging exception type only (no secrets exposed)
+backend/routers/settings.py

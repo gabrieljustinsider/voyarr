@@ -5,7 +5,7 @@ services:
     environment:
       - TIMEOUT=60000
       - MAX_CONCURRENT_SESSIONS=10
-      - TOKEN=${BROWSERLESS_TOKEN:-voyarr-secure-browserless-token}
+      - TOKEN=${BROWSERLESS_TOKEN}
     ports:
       - "3000:3000"
     restart: unless-stopped

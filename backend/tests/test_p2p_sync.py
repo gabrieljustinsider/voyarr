@@ -111,14 +111,14 @@ def setup_db_and_dependencies():
 
 
 def test_verify_p2p_token_missing_header():
-    response = client.get("/p2p/ping")
+    response = client.get("/api/p2p/ping")
     assert response.status_code == 401
     assert "Missing authentication credentials" in response.json()["detail"]
 
 
 def test_verify_p2p_token_invalid_token():
     headers = {"x-api-key": "invalid_key"}
-    response = client.get("/p2p/ping", headers=headers)
+    response = client.get("/api/p2p/ping", headers=headers)
     assert response.status_code == 401
     assert "Invalid P2P authentication token" in response.json()["detail"]
 
@@ -138,7 +138,7 @@ def test_verify_p2p_token_inactive_peer():
     db.close()
 
     headers = {"x-api-key": "inbound_secret_tkn"}
-    response = client.get("/p2p/ping", headers=headers)
+    response = client.get("/api/p2p/ping", headers=headers)
     assert response.status_code == 403
     assert "currently inactive" in response.json()["detail"]
 
@@ -158,7 +158,7 @@ def test_verify_p2p_token_success():
     db.close()
 
     headers = {"x-api-key": "inbound_secret_tkn"}
-    response = client.get("/p2p/ping", headers=headers)
+    response = client.get("/api/p2p/ping", headers=headers)
     assert response.status_code == 200
     assert response.json()["status"] == "online"
     assert response.json()["peer_name"] == "Active Peer"
@@ -205,7 +205,7 @@ def test_recipes_pull_endpoint():
     db.close()
 
     headers = {"x-api-key": "token123"}
-    response = client.post("/p2p/recipes/pull", headers=headers)
+    response = client.post("/api/p2p/recipes/pull", headers=headers)
     assert response.status_code == 200
     data = response.json()
     assert len(data["providers"]) == 1
@@ -237,7 +237,7 @@ def test_recipes_push_manual_review():
             {"provider_name": "New Provider", "css_selectors": {"title": "div.title"}}
         ],
     }
-    response = client.post("/p2p/recipes/push", headers=headers, json=payload)
+    response = client.post("/api/p2p/recipes/push", headers=headers, json=payload)
     assert response.status_code == 200
     assert response.json()["status"] == "queued"
 
@@ -281,7 +281,7 @@ def test_recipes_push_auto_merge():
             {"provider_name": "New Provider", "css_selectors": {"title": "div.title"}}
         ],
     }
-    response = client.post("/p2p/recipes/push", headers=headers, json=payload)
+    response = client.post("/api/p2p/recipes/push", headers=headers, json=payload)
     assert response.status_code == 200
     assert response.json()["status"] == "merged"
 
@@ -314,7 +314,7 @@ def test_get_proposed_recipes_endpoint():
     db.commit()
     db.close()
 
-    response = client.get("/p2p/proposed-recipes")
+    response = client.get("/api/p2p/proposed-recipes")
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 1
@@ -343,7 +343,7 @@ def test_resolve_proposed_recipe_approve():
     db.close()
 
     payload = {"peer_id": 1, "action": "approve", "provider_name": "P1"}
-    response = client.post("/p2p/proposed-recipes/resolve", json=payload)
+    response = client.post("/api/p2p/proposed-recipes/resolve", json=payload)
     assert response.status_code == 200
 
     # Verify merged in DB
@@ -382,7 +382,7 @@ def test_resolve_proposed_recipe_reject():
     db.close()
 
     payload = {"peer_id": 1, "action": "reject", "provider_name": "P1"}
-    response = client.post("/p2p/proposed-recipes/resolve", json=payload)
+    response = client.post("/api/p2p/proposed-recipes/resolve", json=payload)
     assert response.status_code == 200
 
     # Verify NOT merged in DB
@@ -456,7 +456,7 @@ def test_reconcile_library_all_entries():
             },
         ]
     }
-    response = client.post("/p2p/library/reconcile", headers=headers, json=payload)
+    response = client.post("/api/p2p/library/reconcile", headers=headers, json=payload)
     assert response.status_code == 200
     data = response.json()
 
@@ -512,7 +512,7 @@ def test_reconcile_library_specific_providers():
             },
         ]
     }
-    response = client.post("/p2p/library/reconcile", headers=headers, json=payload)
+    response = client.post("/api/p2p/library/reconcile", headers=headers, json=payload)
     assert response.status_code == 200
     data = response.json()
 
@@ -539,35 +539,35 @@ def test_crud_peer_nodes():
         "sync_schedule": "daily",
         "library_scope": "all_entries",
     }
-    response = client.post("/p2p/nodes", json=payload)
+    response = client.post("/api/p2p/nodes", json=payload)
     assert response.status_code == 200
     node_id = response.json()["id"]
     assert response.json()["name"] == "Node X"
     assert response.json()["status"] == "inactive"
 
     # 2. List
-    response = client.get("/p2p/nodes")
+    response = client.get("/api/p2p/nodes")
     assert response.status_code == 200
     assert len(response.json()) == 1
     assert response.json()[0]["id"] == node_id
 
     # 3. Update
     update_payload = {"status": "active", "sync_schedule": "weekly"}
-    response = client.put(f"/p2p/nodes/{node_id}", json=update_payload)
+    response = client.put(f"/api/p2p/nodes/{node_id}", json=update_payload)
     assert response.status_code == 200
     assert response.json()["status"] == "active"
     assert response.json()["sync_schedule"] == "weekly"
 
     # 4. Get Logs
-    response = client.get(f"/p2p/nodes/{node_id}/logs")
+    response = client.get(f"/api/p2p/nodes/{node_id}/logs")
     assert response.status_code == 200
     assert len(response.json()) == 0
 
     # 5. Delete
-    response = client.delete(f"/p2p/nodes/{node_id}")
+    response = client.delete(f"/api/p2p/nodes/{node_id}")
     assert response.status_code == 200
 
-    response = client.get("/p2p/nodes")
+    response = client.get("/api/p2p/nodes")
     assert response.json() == []
 
 
@@ -588,7 +588,7 @@ def test_trigger_peer_sync_endpoint(mock_send_task):
 
     mock_send_task.return_value = MagicMock(id="celery_task_id_123")
 
-    response = client.post("/p2p/nodes/1/sync")
+    response = client.post("/api/p2p/nodes/1/sync")
     assert response.status_code == 200
     assert "celery_task_id_123" in response.json()["task_id"]
     mock_send_task.assert_called_with("tasks.p2p_tasks.sync_with_peer_task", args=[1])
@@ -621,7 +621,7 @@ async def test_test_peer_connection_endpoint_success(mock_get):
 
     # Need to run with async-compatible test client or invoke router function directly
     # Using TestClient async/await handling is fine
-    response = client.post("/p2p/nodes/1/test-connection")
+    response = client.post("/api/p2p/nodes/1/test-connection")
     assert response.status_code == 200
     assert response.json()["connected"] is True
 

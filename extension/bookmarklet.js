@@ -478,9 +478,11 @@
           successCount++;
         } else {
           const errData = await res.json();
+          // eslint-disable-next-line no-console -- debug logging
           console.error(`Failed to map ${field}:`, errData);
         }
       } catch (err) {
+          // eslint-disable-next-line no-console -- debug logging
         console.error(`Error saving ${field}:`, err);
       }
     }

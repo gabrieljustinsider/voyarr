@@ -127,7 +127,7 @@ def setup_db_and_dependencies():
 
 def test_get_preferences_defaults():
     # If no preferences exist, should return defaults
-    response = client.get("/notifications/preferences")
+    response = client.get("/api/notifications/preferences")
     assert response.status_code == 200
     res_data = response.json()
     assert len(res_data) == 4
@@ -154,14 +154,14 @@ def test_update_preferences():
             "enabled": True,
         },
     ]
-    response = client.post("/notifications/preferences", json=payload)
+    response = client.post("/api/notifications/preferences", json=payload)
     assert response.status_code == 200
     assert (
         "Notification preferences updated successfully." in response.json()["message"]
     )
 
     # Fetch preferences and verify
-    response = client.get("/notifications/preferences")
+    response = client.get("/api/notifications/preferences")
     assert response.status_code == 200
     res_data = response.json()
 
@@ -187,12 +187,12 @@ def test_update_preferences():
 def test_get_rules_rbac():
     # If not admin, should raise 403. Let's toggle role temporarily
     mock_user.role = "user"
-    response = client.get("/notifications/rules")
+    response = client.get("/api/notifications/rules")
     assert response.status_code == 403
     assert "RBAC Forbidden" in response.json()["detail"]
 
     mock_user.role = "admin"
-    response = client.get("/notifications/rules")
+    response = client.get("/api/notifications/rules")
     assert response.status_code == 200
     assert len(response.json()) == 0
 
@@ -205,31 +205,31 @@ def test_create_and_delete_rule():
         "webhook_url": "https://discord.com/api/webhooks/123",
         "is_active": True,
     }
-    response = client.post("/notifications/rules", json=payload)
+    response = client.post("/api/notifications/rules", json=payload)
     assert response.status_code == 200
     assert "Notification rule saved successfully." in response.json()["message"]
     rule_id = response.json()["rule"]["id"]
 
     # Get rules
-    response = client.get("/notifications/rules")
+    response = client.get("/api/notifications/rules")
     assert response.status_code == 200
     assert len(response.json()) == 1
     assert response.json()[0]["discord_channel_id"] == "1234567890"
 
     # Try deleting it
-    response = client.delete(f"/notifications/rules/{rule_id}")
+    response = client.delete(f"/api/notifications/rules/{rule_id}")
     assert response.status_code == 200
     assert "Notification rule deleted successfully." in response.json()["message"]
 
     # Verify it is gone
-    response = client.get("/notifications/rules")
+    response = client.get("/api/notifications/rules")
     assert response.status_code == 200
     assert len(response.json()) == 0
 
 
 def test_delete_rule_not_found():
     mock_user.role = "admin"
-    response = client.delete("/notifications/rules/999")
+    response = client.delete("/api/notifications/rules/999")
     assert response.status_code == 404
 
 
@@ -260,7 +260,7 @@ def test_notification_history_and_read():
     db.close()
 
     # Get history
-    response = client.get("/notifications/history")
+    response = client.get("/api/notifications/history")
     assert response.status_code == 200
     res_data = response.json()
     assert len(res_data) == 2
@@ -268,11 +268,11 @@ def test_notification_history_and_read():
     assert res_data[0]["read"] is False
 
     # Mark specific notification as read
-    response = client.post("/notifications/read", json={"notification_ids": [log1.id]})
+    response = client.post("/api/notifications/read", json={"notification_ids": [log1.id]})
     assert response.status_code == 200
 
     # Verify status
-    response = client.get("/notifications/history")
+    response = client.get("/api/notifications/history")
     assert response.status_code == 200
     res_data = response.json()
     p1 = next(n for n in res_data if n["id"] == log1.id)
@@ -281,11 +281,11 @@ def test_notification_history_and_read():
     assert p2["read"] is False
 
     # Mark all as read
-    response = client.post("/notifications/read", json={})
+    response = client.post("/api/notifications/read", json={})
     assert response.status_code == 200
 
     # Verify all are read
-    response = client.get("/notifications/history")
+    response = client.get("/api/notifications/history")
     assert response.status_code == 200
     res_data = response.json()
     assert all(n["read"] is True for n in res_data)

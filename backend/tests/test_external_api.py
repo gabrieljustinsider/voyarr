@@ -53,7 +53,7 @@ def test_theporndb_query_graphql(mock_post):
     mock_post.return_value = mock_response
 
     response = client.post(
-        "/external-api/theporndb/query",
+        "/api/external-api/theporndb/query",
         json={"query": "Test Scene"},
         headers={"x-api-key": "testkey"},
     )
@@ -93,7 +93,7 @@ def test_theporndb_performer_graphql(mock_post):
     mock_post.return_value = mock_response
 
     response = client.post(
-        "/external-api/theporndb/performer",
+        "/api/external-api/theporndb/performer",
         json={"name": "Actor 1"},
         headers={"x-api-key": "testkey"},
     )
@@ -127,7 +127,7 @@ def test_stashdb_query_fingerprint(mock_post):
     mock_post.return_value = mock_response
 
     response = client.post(
-        "/external-api/stashdb/query",
+        "/api/external-api/stashdb/query",
         json={"hash": "abcdef123456"},
         headers={"x-api-key": "testkey"},
     )
@@ -146,7 +146,7 @@ def test_stashdb_query_fingerprint(mock_post):
 def test_stashdb_submit_fingerprint():
     # Test without API Key
     response = client.post(
-        "/external-api/stashdb/submit-fingerprint",
+        "/api/external-api/stashdb/submit-fingerprint",
         json={
             "scene_id": "stash-123",
             "hash": "abcdef123456",
@@ -159,7 +159,7 @@ def test_stashdb_submit_fingerprint():
 
     # Test with API Key
     response = client.post(
-        "/external-api/stashdb/submit-fingerprint",
+        "/api/external-api/stashdb/submit-fingerprint",
         json={
             "scene_id": "stash-123",
             "hash": "abcdef123456",
@@ -222,7 +222,7 @@ def test_universal_search():
         Base.metadata.create_all(bind=db_session.get_bind())
     # Test query searching OnlyFans and other sites
     response = client.post(
-        "/external-api/universal-search",
+        "/api/external-api/universal-search",
         json={"query": "Eva Elfie"},
     )
     assert response.status_code == 200
@@ -257,7 +257,7 @@ def test_theporndb_studio_and_site_endpoints(mock_post):
     mock_post.return_value = mock_response
 
     res = client.post(
-        "/external-api/theporndb/studio",
+        "/api/external-api/theporndb/studio",
         json={"name": "Brazzers"},
         headers={"x-api-key": "testkey"}
     )
@@ -279,7 +279,7 @@ def test_stashdb_studio_and_performer_endpoints(mock_post):
     mock_post.return_value = mock_response
 
     res = client.post(
-        "/external-api/stashdb/studio",
+        "/api/external-api/stashdb/studio",
         json={"name": "Vixen"},
         headers={"x-api-key": "testkey"}
     )
@@ -289,7 +289,7 @@ def test_stashdb_studio_and_performer_endpoints(mock_post):
 
 def test_universal_metadata_fetch():
     res = client.post(
-        "/external-api/metadata/fetch",
+        "/api/external-api/metadata/fetch",
         json={"provider": "all", "entity_type": "studio", "name": "Evil Angel"}
     )
     assert res.status_code == 200

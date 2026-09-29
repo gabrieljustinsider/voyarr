@@ -17,19 +17,19 @@ services:
     build:
       context: ./backend
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@10.0.0.225:5432/${POSTGRES_DB:-voyarr}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD}@10.0.0.225:5432/${POSTGRES_DB:-voyarr}
       
   celery_worker:
     build:
       context: ./backend
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@10.0.0.225:5432/${POSTGRES_DB:-voyarr}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD}@10.0.0.225:5432/${POSTGRES_DB:-voyarr}
       
   celery_beat:
     build:
       context: ./backend
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD:-voyarr_password}@10.0.0.225:5432/${POSTGRES_DB:-voyarr}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-voyarr_user}:${POSTGRES_PASSWORD}@10.0.0.225:5432/${POSTGRES_DB:-voyarr}
 
   frontend:
     image: node:22-alpine

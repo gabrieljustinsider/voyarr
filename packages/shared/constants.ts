@@ -8,7 +8,7 @@ export const AUTH_EXCLUSIONS = [
   '/api/fleet/status',
   '/api/auth/discord',
   '/api/auth/callback/discord',
-  '/pair',
+  '/api/auth/pair',
   '/favicon.ico',
   '/brand/logo.svg',
   '/manifest.json'

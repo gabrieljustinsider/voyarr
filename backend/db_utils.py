@@ -131,9 +131,13 @@ def run_schema_migrations(engine: Any) -> None:
                 logger.warning(f"Failed to add last_login_at column: {e}")
 
         # Check and dynamically add profile/preference columns if they don't exist
+        allowed_user_columns = {"display_name", "email", "avatar_url", "locale", "date_format", "time_format", "timezone"}
         for col_name, alter_sql in USERS_MIGRATIONS.items():
+            if col_name not in allowed_user_columns:
+                continue
             try:
-                conn.execute(text(f"SELECT {col_name} FROM users LIMIT 1"))
+                conn.execute(text(f"SELECT {col_name} FROM users LIMIT 1"))  # nosec B608 - col_name validated against whitelist
+            # nosemgrep python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text - col_name validated against whitelist, not user input
             except Exception:
                 try:
                     conn.rollback()
@@ -288,9 +292,13 @@ def run_schema_migrations(engine: Any) -> None:
                 logger.warning(f"Failed to create admin_logs table (it may already exist): {e}")
 
         # 3. Check if library_entries table has new columns, if not, add them
+        allowed_library_columns = {"adheres_to_naming_scheme", "has_metadata_match", "has_chapters", "has_facial_clusters"}
         for col_name, alter_sql in LIBRARY_ENTRIES_MIGRATIONS.items():
+            if col_name not in allowed_library_columns:
+                continue
             try:
-                conn.execute(text(f"SELECT {col_name} FROM library_entries LIMIT 1"))
+                conn.execute(text(f"SELECT {col_name} FROM library_entries LIMIT 1"))  # nosec B608 - col_name validated against whitelist
+            # nosemgrep python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text - col_name validated against whitelist, not user input
             except Exception:
                 try:
                     conn.rollback()
@@ -427,8 +435,23 @@ def run_schema_migrations(engine: Any) -> None:
                 logger.warning(f"Failed to create mass_rip_sessions table: {e}")
 
         def ensure_column_exists(table_name: str, column_name: str, pg_type_sql: str, sqlite_type_sql: str = None):
+            allowed_tables = {
+                "download_queue", "mass_rip_sessions", "providers", "studios",
+                "credentials", "live_streams"
+            }
+            allowed_columns = {
+                "user_id", "extraction_method", "logo_url", "favicon_url", "description",
+                "default_biller_id", "supported_methods", "transparent_logo_bg", "fit_logo_to_card",
+                "parent_id", "is_network", "url", "details", "tags",
+                "external_item_id", "external_vault_id",
+                "auto_monitor", "auto_record", "last_checked_at", "last_online_at"
+            }
+            if table_name not in allowed_tables or column_name not in allowed_columns:
+                logger.warning(f"Skipping unauthorized column addition: {column_name} to {table_name}")
+                return
             try:
-                conn.execute(text(f"SELECT {column_name} FROM {table_name} LIMIT 1"))
+                conn.execute(text(f"SELECT {column_name} FROM {table_name} LIMIT 1"))  # nosec B608 - table_name and column_name validated against whitelists
+            # nosemgrep python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text - table_name and column_name validated against whitelists, not user input
             except Exception:
                 try:
                     conn.rollback()
@@ -436,7 +459,8 @@ def run_schema_migrations(engine: Any) -> None:
                     pass
                 try:
                     sql_type = pg_type_sql if dialect_name == "postgresql" else (sqlite_type_sql or pg_type_sql)
-                    conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {sql_type}"))
+                    conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {sql_type}"))  # nosec B608 - table_name and column_name validated against whitelists
+            # nosemgrep python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text - table_name and column_name validated against whitelists, not user input
                     conn.commit()
                     logger.info(f"Database migration successfully added '{column_name}' to '{table_name}'.")
                 except Exception as e:
@@ -469,7 +493,10 @@ def run_schema_migrations(engine: Any) -> None:
         ensure_column_exists("studios", "tags", "JSONB DEFAULT '[]'::jsonb", "JSON DEFAULT '[]'")
 
         # Check dictionary-configured table migrations
+        allowed_billers_columns = {"support_email", "support_phone", "description"}
         for col_name, alter_sql in BILLERS_MIGRATIONS.items():
+            if col_name not in allowed_billers_columns:
+                continue
             try:
                 conn.execute(text(f"SELECT {col_name} FROM billers LIMIT 1"))
             except Exception:
@@ -484,7 +511,13 @@ def run_schema_migrations(engine: Any) -> None:
                     except Exception: pass
                     logger.warning(f"Failed to add column {col_name} to billers: {e}")
 
+        allowed_subscriptions_columns = {
+            "biller_id", "billing_cycle", "cost", "charge_type", "installment_frequency",
+            "subscription_id", "order_number"
+        }
         for col_name, alter_sql in SUBSCRIPTIONS_MIGRATIONS.items():
+            if col_name not in allowed_subscriptions_columns:
+                continue
             try:
                 conn.execute(text(f"SELECT {col_name} FROM subscriptions LIMIT 1"))
             except Exception:
@@ -607,12 +640,15 @@ def run_schema_migrations(engine: Any) -> None:
         ensure_column_exists("credentials", "external_vault_id", "VARCHAR(500)")
 
         # 17. Add monitoring columns to live_streams table
+        allowed_live_stream_columns = {"auto_monitor", "auto_record", "last_checked_at", "last_online_at"}
         for col_name, col_def in [
             ("auto_monitor", "BOOLEAN DEFAULT FALSE"),
             ("auto_record", "BOOLEAN DEFAULT FALSE"),
             ("last_checked_at", "TIMESTAMP"),
             ("last_online_at", "TIMESTAMP"),
         ]:
+            if col_name not in allowed_live_stream_columns:
+                continue
             try:
                 conn.execute(text(f"SELECT {col_name} FROM live_streams LIMIT 1"))
             except Exception:

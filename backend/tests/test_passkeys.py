@@ -70,7 +70,7 @@ def setup_db_and_dependencies():
 
 def test_passkey_lifecycle():
     # 1. Fetch Registration Options
-    response = client.post("/auth/passkeys/register/options")
+    response = client.post("/api/auth/passkeys/register/options")
     assert response.status_code == 200
     options = response.json()
     assert "challenge" in options
@@ -108,12 +108,12 @@ def test_passkey_lifecycle():
         "os_name": "macOS",
     }
     
-    reg_response = client.post("/auth/passkeys/register/verify", json=verify_payload)
+    reg_response = client.post("/api/auth/passkeys/register/verify", json=verify_payload)
     assert reg_response.status_code == 200
     assert reg_response.json()["status"] == "success"
     
     # 3. List Passkeys
-    list_response = client.get("/auth/passkeys/")
+    list_response = client.get("/api/auth/passkeys/")
     assert list_response.status_code == 200
     pks = list_response.json()
     assert len(pks) == 1
@@ -123,16 +123,16 @@ def test_passkey_lifecycle():
     
     # 4. Rename Passkey
     rename_payload = {"name": "MacBook Air TouchID"}
-    rename_response = client.put(f"/auth/passkeys/{passkey_id}", json=rename_payload)
+    rename_response = client.put(f"/api/auth/passkeys/{passkey_id}", json=rename_payload)
     assert rename_response.status_code == 200
     assert rename_response.json()["status"] == "success"
     
     # Check that name is updated
-    list_response2 = client.get("/auth/passkeys/")
+    list_response2 = client.get("/api/auth/passkeys/")
     assert list_response2.json()[0]["name"] == "MacBook Air TouchID"
     
     # 5. Assertion/Login options
-    login_opts_response = client.post("/auth/passkeys/login/options", json={"username": "passkey_user"})
+    login_opts_response = client.post("/api/auth/passkeys/login/options", json={"username": "passkey_user"})
     assert login_opts_response.status_code == 200
     login_opts = login_opts_response.json()
     login_challenge = login_opts["challenge"]
@@ -164,37 +164,37 @@ def test_passkey_lifecycle():
         "signature": sig_b64,
     }
     
-    login_verify_response = client.post("/auth/passkeys/login/verify", json=assert_payload)
+    login_verify_response = client.post("/api/auth/passkeys/login/verify", json=assert_payload)
     assert login_verify_response.status_code == 200
     assert "access_token" in login_verify_response.json()
     assert login_verify_response.json()["username"] == "passkey_user"
     
     # 7. Delete Passkey
-    delete_response = client.delete(f"/auth/passkeys/{passkey_id}")
+    delete_response = client.delete(f"/api/auth/passkeys/{passkey_id}")
     assert delete_response.status_code == 200
     assert delete_response.json()["status"] == "success"
     
     # Ensure list is now empty
-    list_response3 = client.get("/auth/passkeys/")
+    list_response3 = client.get("/api/auth/passkeys/")
     assert len(list_response3.json()) == 0
 
 
 def test_dynamic_rp_id_resolution():
     # 1. Custom Domain (e.g. voyarr.tv)
     headers_domain = {"Host": "voyarr.tv"}
-    response = client.post("/auth/passkeys/register/options", headers=headers_domain)
+    response = client.post("/api/auth/passkeys/register/options", headers=headers_domain)
     assert response.status_code == 200
     assert response.json()["rp"]["id"] == "voyarr.tv"
 
     # 2. Localhost fallback when hostname is localhost
     headers_local = {"Host": "localhost:8000"}
-    response = client.post("/auth/passkeys/register/options", headers=headers_local)
+    response = client.post("/api/auth/passkeys/register/options", headers=headers_local)
     assert response.status_code == 200
     assert response.json()["rp"]["id"] == "localhost"
 
     # 3. Fallback when hostname is IPv4
     headers_ip = {"Host": "192.168.1.15:8000"}
-    response = client.post("/auth/passkeys/register/options", headers=headers_ip)
+    response = client.post("/api/auth/passkeys/register/options", headers=headers_ip)
     assert response.status_code == 200
     assert response.json()["rp"]["id"] == "localhost"
 

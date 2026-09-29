@@ -1,5 +1,7 @@
 // Voyarr Companion Popup Logic
 
+import { requestHostPermission, isRFC1918URL, isRFC1918Hostname } from './rfc1918.js';
+
 document.addEventListener('DOMContentLoaded', () => {
   // Set version badge dynamically from chrome extension manifest
   const extVersionSpan = document.getElementById('extVersion');
@@ -158,6 +160,404 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Export Server Profiles - Enhanced with Providers & Recipes
+  const exportProfilesBtn = document.getElementById('exportProfilesBtn');
+  const importProfilesBtn = document.getElementById('importProfilesBtn');
+  const importProfilesFile = document.getElementById('importProfilesFile');
+  const exportOptionsContainer = document.getElementById('exportOptionsContainer');
+  const importOptionsContainer = document.getElementById('importOptionsContainer');
+  const exportIncludeApiKeys = document.getElementById('exportIncludeApiKeys');
+  const exportIncludeProviders = document.getElementById('exportIncludeProviders');
+  const exportIncludeRecipes = document.getElementById('exportIncludeRecipes');
+  const confirmExportBtn = document.getElementById('confirmExportBtn');
+  const cancelExportBtn = document.getElementById('cancelExportBtn');
+  const importMergeServers = document.getElementById('importMergeServers');
+  const importRestoreProviders = document.getElementById('importRestoreProviders');
+  const importRestoreRecipes = document.getElementById('importRestoreRecipes');
+  const confirmImportBtn = document.getElementById('confirmImportBtn');
+  const cancelImportBtn = document.getElementById('cancelImportBtn');
+
+  let pendingExportData = null;
+  let pendingImportData = null;
+
+  // Export button click - show options
+  if (exportProfilesBtn) {
+    exportProfilesBtn.addEventListener('click', () => {
+      exportOptionsContainer.style.display = 'block';
+      importOptionsContainer.style.display = 'none';
+      exportProfilesBtn.style.display = 'none';
+      importProfilesBtn.style.display = 'none';
+      importProfilesFile.style.display = 'none';
+    });
+  }
+
+  // Cancel export
+  if (cancelExportBtn) {
+    cancelExportBtn.addEventListener('click', () => {
+      exportOptionsContainer.style.display = 'none';
+      exportProfilesBtn.style.display = 'flex';
+      importProfilesBtn.style.display = 'flex';
+      pendingExportData = null;
+    });
+  }
+
+  // Confirm export - fetch data from backend if needed
+  if (confirmExportBtn) {
+    confirmExportBtn.addEventListener('click', async () => {
+      confirmExportBtn.disabled = true;
+      confirmExportBtn.innerHTML = '<span class="spinner"></span> Preparing...';
+
+      try {
+        const config = await chrome.storage.local.get(['voyarrServers', 'activeServerId', 'scanPort', 'voyarrApiUrl', 'voyarrSecret']);
+        
+        let servers = config.voyarrServers || [];
+        let activeServerId = config.activeServerId || '';
+        let scanPort = config.scanPort || '8000,8008,8080';
+
+        // Optionally remove API keys
+        if (!exportIncludeApiKeys.checked) {
+          servers = servers.map(s => ({ ...s, apiKey: '' }));
+        }
+
+        const exportData = {
+          version: '2.0',
+          timestamp: new Date().toISOString(),
+          servers: servers,
+          activeServerId: activeServerId,
+          scanPort: scanPort
+        };
+
+        // Fetch providers and recipes from active server if requested
+        if (exportIncludeProviders.checked || exportIncludeRecipes.checked) {
+          const activeServer = servers.find(s => s.id === activeServerId);
+          if (activeServer && activeServer.url && activeServer.apiKey) {
+            try {
+              confirmExportBtn.innerHTML = '<span class="spinner"></span> Fetching providers...';
+              
+              const baseUrl = activeServer.url.replace(/\/$/, '');
+              const headers = {
+                'X-Voyarr-Api-Key': activeServer.apiKey,
+                'Accept': 'application/json'
+              };
+
+              // Fetch providers
+              if (exportIncludeProviders.checked) {
+                const providersRes = await fetch(`${baseUrl}/providers`, { headers });
+                if (providersRes.ok) {
+                  exportData.providers = await providersRes.json();
+                }
+              }
+
+              // Fetch recipes (selector mappings)
+              if (exportIncludeRecipes.checked) {
+                const recipesRes = await fetch(`${baseUrl}/scraper`, { headers });
+                if (recipesRes.ok) {
+                  exportData.recipes = await recipesRes.json();
+                }
+              }
+            } catch (err) {
+              console.warn('Failed to fetch providers/recipes:', err);
+              showToast(settingsToast, 'Warning: Could not fetch providers/recipes from server', false);
+            }
+          }
+        }
+
+        pendingExportData = exportData;
+        confirmExportBtn.innerHTML = '<span class="spinner"></span> Generating file...';
+
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `voyarr-lens-backup-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showToast(settingsToast, 'Backup exported successfully!', true);
+      } catch (err) {
+        console.error('Export failed:', err);
+        showToast(settingsToast, `Export failed: ${err.message}`, false);
+      } finally {
+        confirmExportBtn.disabled = false;
+        confirmExportBtn.textContent = 'Confirm Export';
+        exportOptionsContainer.style.display = 'none';
+        exportProfilesBtn.style.display = 'flex';
+        importProfilesBtn.style.display = 'flex';
+        pendingExportData = null;
+      }
+    });
+  }
+
+  // Import button click - show options after file selection
+  if (importProfilesBtn && importProfilesFile) {
+    importProfilesBtn.addEventListener('click', () => {
+      importProfilesFile.click();
+    });
+
+    importProfilesFile.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        const importData = JSON.parse(text);
+
+        // Schema validation
+        if (!importData.version || !importData.servers || !Array.isArray(importData.servers)) {
+          throw new Error('Invalid backup format: missing version or servers array');
+        }
+
+        if (importData.version !== '1.0' && importData.version !== '2.0') {
+          throw new Error(`Unsupported backup version: ${importData.version}`);
+        }
+
+        // Validate server objects
+        for (const server of importData.servers) {
+          if (!server.id || !server.name || !server.url) {
+            throw new Error('Invalid server object: missing required fields (id, name, url)');
+          }
+        }
+
+        // Validate providers if present
+        if (importData.providers && !Array.isArray(importData.providers)) {
+          throw new Error('Invalid providers format: must be an array');
+        }
+
+        // Validate recipes if present
+        if (importData.recipes && !Array.isArray(importData.recipes)) {
+          throw new Error('Invalid recipes format: must be an array');
+        }
+
+        pendingImportData = importData;
+        
+        // Show/hide provider/recipe restore options based on backup content
+        const hasProviders = importData.providers && importData.providers.length > 0;
+        const hasRecipes = importData.recipes && importData.recipes.length > 0;
+        
+        const providerRestoreOption = document.getElementById('importRestoreProviders').closest('label');
+        const recipeRestoreOption = document.getElementById('importRestoreRecipes').closest('label');
+        
+        if (providerRestoreOption) {
+          providerRestoreOption.style.display = hasProviders ? 'flex' : 'none';
+        }
+        if (recipeRestoreOption) {
+          recipeRestoreOption.style.display = hasRecipes ? 'flex' : 'none';
+        }
+        
+        // Uncheck if not available
+        if (!hasProviders) importRestoreProviders.checked = false;
+        if (!hasRecipes) importRestoreRecipes.checked = false;
+
+        importOptionsContainer.style.display = 'block';
+        exportOptionsContainer.style.display = 'none';
+        exportProfilesBtn.style.display = 'none';
+        importProfilesBtn.style.display = 'none';
+        importProfilesFile.style.display = 'none';
+      } catch (err) {
+        console.error('Import validation failed:', err);
+        showToast(settingsToast, `Import failed: ${err.message}`, false);
+        importProfilesFile.value = '';
+      }
+    });
+  }
+
+  // Cancel import
+  if (cancelImportBtn) {
+    cancelImportBtn.addEventListener('click', () => {
+      importOptionsContainer.style.display = 'none';
+      exportProfilesBtn.style.display = 'flex';
+      importProfilesBtn.style.display = 'flex';
+      importProfilesFile.value = '';
+      pendingImportData = null;
+    });
+  }
+
+  // Confirm import
+  if (confirmImportBtn) {
+    confirmImportBtn.addEventListener('click', async () => {
+      if (!pendingImportData) return;
+
+      confirmImportBtn.disabled = true;
+      confirmImportBtn.innerHTML = '<span class="spinner"></span> Importing...';
+
+      try {
+        const importData = pendingImportData;
+
+        // Get current servers from storage
+        const currentConfig = await chrome.storage.local.get(['voyarrServers']);
+        let servers = currentConfig.voyarrServers || [];
+        const importedServers = importData.servers;
+
+        if (importMergeServers.checked) {
+          // Merge: add new servers, update existing by URL
+          const existingUrls = new Set(servers.map(s => s.url));
+          for (const imported of importedServers) {
+            const existingIdx = servers.findIndex(s => s.url === imported.url);
+            if (existingIdx >= 0) {
+              // Update existing, preserve API key if import doesn't have one
+              if (imported.apiKey) {
+                servers[existingIdx] = { ...servers[existingIdx], ...imported };
+              } else {
+                servers[existingIdx] = { ...imported, apiKey: servers[existingIdx].apiKey };
+              }
+            } else {
+              servers.push(imported);
+            }
+          }
+        } else {
+          // Replace
+          servers = importedServers;
+        }
+
+        const toSet = {
+          voyarrServers: servers,
+          activeServerId: importData.activeServerId || (servers.length > 0 ? servers[0].id : '')
+        };
+
+        if (importData.scanPort) {
+          toSet.scanPort = importData.scanPort;
+        }
+
+        await chrome.storage.local.set(toSet);
+
+        // Reload settings to update UI
+        await loadSettings();
+
+        // Import providers to backend
+        if (importRestoreProviders.checked && importData.providers && importData.providers.length > 0) {
+          const config = await chrome.storage.local.get(['voyarrApiUrl', 'voyarrSecret']);
+          if (config.voyarrApiUrl && config.voyarrSecret) {
+            confirmImportBtn.innerHTML = '<span class="spinner"></span> Restoring providers...';
+            await restoreProvidersToServer(config.voyarrApiUrl, config.voyarrSecret, importData.providers);
+          }
+        }
+
+        // Import recipes to backend
+        if (importRestoreRecipes.checked && importData.recipes && importData.recipes.length > 0) {
+          const config = await chrome.storage.local.get(['voyarrApiUrl', 'voyarrSecret']);
+          if (config.voyarrApiUrl && config.voyarrSecret) {
+            confirmImportBtn.innerHTML = '<span class="spinner"></span> Restoring recipes...';
+            await restoreRecipesToServer(config.voyarrApiUrl, config.voyarrSecret, importData.recipes);
+          }
+        }
+
+        showToast(settingsToast, `Successfully imported ${importedServers.length} server profile(s)!`, true);
+      } catch (err) {
+        console.error('Import failed:', err);
+        showToast(settingsToast, `Import failed: ${err.message}`, false);
+      } finally {
+        confirmImportBtn.disabled = false;
+        confirmImportBtn.textContent = 'Confirm Import';
+        importOptionsContainer.style.display = 'none';
+        exportProfilesBtn.style.display = 'flex';
+        importProfilesBtn.style.display = 'flex';
+        importProfilesFile.value = '';
+        pendingImportData = null;
+      }
+    });
+  }
+
+  // Helper: Restore providers to backend
+  async function restoreProvidersToServer(baseUrl, apiKey, providers) {
+    const cleanUrl = baseUrl.replace(/\/$/, '');
+    const headers = {
+      'Content-Type': 'application/json',
+      'X-Voyarr-Api-Key': apiKey
+    };
+
+    let restored = 0;
+    for (const provider of providers) {
+      try {
+        // Check if provider already exists by base_url
+        const listRes = await fetch(`${cleanUrl}/providers`, { headers });
+        if (!listRes.ok) continue;
+        const existingProviders = await listRes.json();
+        const existing = existingProviders.find(p => p.base_url === provider.base_url);
+
+        const payload = {
+          name: provider.name,
+          base_url: provider.base_url,
+          naming_pattern: provider.naming_pattern || '{title}_{performers}',
+          separator: provider.separator || '_',
+          space_replacement: provider.space_replacement || '_',
+          transparent_logo_bg: provider.transparent_logo_bg || false,
+          fit_logo_to_card: provider.fit_logo_to_card || false,
+          default_biller_id: provider.default_biller_id || null,
+          logo_url: provider.logo_url || null,
+          favicon_url: provider.favicon_url || null,
+          description: provider.description || null,
+          automatic_limits: provider.automatic_limits || {}
+        };
+
+        if (existing) {
+          // Update existing
+          const res = await fetch(`${cleanUrl}/providers/${existing.id}`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify(payload)
+          });
+          if (res.ok) restored++;
+        } else {
+          // Create new
+          const res = await fetch(`${cleanUrl}/providers`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(payload)
+          });
+          if (res.ok) restored++;
+        }
+      } catch (err) {
+        console.warn(`Failed to restore provider ${provider.name}:`, err);
+      }
+    }
+    return restored;
+  }
+
+  // Helper: Restore recipes to backend
+  async function restoreRecipesToServer(baseUrl, apiKey, recipes) {
+    const cleanUrl = baseUrl.replace(/\/$/, '');
+    const headers = {
+      'Content-Type': 'application/json',
+      'X-Voyarr-Api-Key': apiKey
+    };
+
+    let restored = 0;
+    for (const recipe of recipes) {
+      try {
+        const providerId = recipe.provider_id;
+        if (!providerId) continue;
+
+        // Check if provider exists
+        const providerRes = await fetch(`${cleanUrl}/providers/${providerId}`, { headers });
+        if (!providerRes.ok) {
+          console.warn(`Provider ${providerId} not found for recipe`);
+          continue;
+        }
+
+        // Upsert recipe by provider_id
+        const payload = {
+          css_selectors: recipe.css_selectors || {},
+          xpath_selectors: recipe.xpath_selectors || {},
+          regex_patterns: recipe.regex_patterns || {},
+          map_mode_data: recipe.map_mode_data || {}
+        };
+
+        const res = await fetch(`${cleanUrl}/scraper/by-provider/${providerId}`, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) restored++;
+      } catch (err) {
+        console.warn(`Failed to restore recipe for provider ${recipe.provider_id}:`, err);
+      }
+    }
+    return restored;
+  }
+
   // Tab Switcher
   tabBtns.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -188,13 +588,7 @@ document.addEventListener('DOMContentLoaded', () => {
         : { text: "Insecure (HTTP)", bg: "rgba(245, 158, 11, 0.08)", textCol: "#fbbf24", border: "rgba(245, 158, 11, 0.15)" };
 
       // 2. Is it local or remote?
-      const isLocal = host === "localhost" || 
-                      host === "127.0.0.1" || 
-                      host.endsWith(".local") || 
-                      /^127\./.test(host) || 
-                      /^10\./.test(host) || 
-                      /^192\.168\./.test(host) || 
-                      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host);
+      const isLocal = isRFC1918Hostname(host);
 
       const locationBadge = isLocal
         ? { text: "Local Server", bg: "rgba(59, 130, 246, 0.08)", textCol: "#60a5fa", border: "rgba(59, 130, 246, 0.15)" }
@@ -244,11 +638,11 @@ document.addEventListener('DOMContentLoaded', () => {
       ]);
 
       if (scanPortInput) {
-        scanPortInput.value = config.scanPort || 8000;
+        scanPortInput.value = config.scanPort || "8000,8008,8080";
         scanPortInput.addEventListener('change', async () => {
-          const p = parseInt(scanPortInput.value, 10);
-          if (p && p > 0 && p <= 65535) {
-            await chrome.storage.local.set({ scanPort: p });
+          const val = scanPortInput.value.trim();
+          if (val) {
+            await chrome.storage.local.set({ scanPort: val });
           }
         });
       }
@@ -539,6 +933,7 @@ document.addEventListener('DOMContentLoaded', () => {
       providerSelect.innerHTML = '<option value="">-- No Active Server --</option>';
     }
 
+    chrome.runtime.sendMessage({ action: "triggerConnectivityCheck" });
     populateActiveServerSelect();
     renderServerList();
   }
@@ -557,6 +952,7 @@ document.addEventListener('DOMContentLoaded', () => {
         voyarrApiUrl: activeServer.url,
         voyarrSecret: activeServer.apiKey
       });
+      chrome.runtime.sendMessage({ action: "triggerConnectivityCheck" });
       renderServerList();
       try {
         const connResult = await testConnection(activeServer.url, activeServer.apiKey);
@@ -616,6 +1012,8 @@ document.addEventListener('DOMContentLoaded', () => {
         voyarrSecret: key
       });
 
+      chrome.runtime.sendMessage({ action: "triggerConnectivityCheck" });
+
       showToast(settingsToast, "Server added and connected!", true);
       
       newServerNameInput.value = "";
@@ -639,22 +1037,48 @@ document.addEventListener('DOMContentLoaded', () => {
     await scanLocalNetwork();
   });
 
+  // Scan All Tabs Button click handler
+  const scanAllTabsBtn = document.getElementById('scanAllTabsBtn');
+  if (scanAllTabsBtn) {
+    scanAllTabsBtn.addEventListener('click', async () => {
+      scanAllTabsBtn.disabled = true;
+      scanAllTabsBtn.innerHTML = '<span class="spinner"></span> Scanning...';
+      
+      try {
+        await chrome.runtime.sendMessage({ action: 'triggerDiscovery' });
+        showToast(settingsToast, 'Scanned all open tabs for Voyarr servers', true);
+      } catch (err) {
+        showToast(settingsToast, 'Scan failed: ' + err.message, false);
+      } finally {
+        scanAllTabsBtn.disabled = false;
+        scanAllTabsBtn.innerHTML = '<span>🔍</span><span>Scan All Open Tabs for Voyarr Servers</span>';
+      }
+    });
+  }
+
   // Local network subnet discovery scan
   async function scanLocalNetwork() {
-    let port = 8000;
+    let ports = [8000, 8008, 8080];
     if (scanPortInput && scanPortInput.value) {
-      const parsed = parseInt(scanPortInput.value, 10);
-      if (parsed && parsed > 0 && parsed <= 65535) {
-        port = parsed;
-        await chrome.storage.local.set({ scanPort: port });
+      const portStr = scanPortInput.value.trim();
+      if (portStr.includes(',')) {
+        ports = portStr.split(',').map(p => parseInt(p.trim(), 10)).filter(p => p > 0 && p <= 65535);
+        if (ports.length === 0) ports = [8000];
+      } else {
+        const parsed = parseInt(portStr, 10);
+        if (parsed && parsed > 0 && parsed <= 65535) {
+          ports = [parsed];
+        }
       }
+      await chrome.storage.local.set({ scanPort: scanPortInput.value.trim() });
     }
 
     scanNetworkBtn.disabled = true;
     scanNetworkBtn.innerHTML = '<span class="spinner"></span> Scanning...';
     
     // Clear and display results container
-    localScanResultsContainer.innerHTML = `<div style="font-size: 10px; color: var(--text-muted); text-align: center; padding: 6px 0;">Pinging local IP ranges on port ${port}...</div>`;
+    const portDisplay = ports.length === 1 ? `port ${ports[0]}` : `ports ${ports.join(', ')}`;
+    localScanResultsContainer.innerHTML = `<div style="font-size: 10px; color: var(--text-muted); text-align: center; padding: 6px 0;">Pinging local IP ranges on ${portDisplay}...</div>`;
     localScanResultsContainer.style.display = "flex";
 
     try {
@@ -682,53 +1106,60 @@ document.addEventListener('DOMContentLoaded', () => {
           const batch = scanHosts.slice(b, b + batchSize);
           await Promise.all(batch.map(async (host) => {
             const ip = `${subnet}.${host}`;
-            const targetUrl = `http://${ip}:${port}`;
             
             // Skip scanning if already added
             if (servers.some(s => s.url.includes(ip))) return;
 
-            try {
-              const controller = new AbortController();
-              const timer = setTimeout(() => controller.abort(), 400);
+            // Try each port with fallback
+            for (const port of ports) {
+              const targetUrl = `http://${ip}:${port}`;
               
-              const res = await fetch(`${targetUrl}/api/health`, { 
-                signal: controller.signal 
-              });
-              clearTimeout(timer);
-
-              if (res.ok) {
-                const data = await res.json();
-                if (data && data.status === "healthy") {
-                  foundServers.push(targetUrl);
-                }
-              }
-            } catch(e) {
-              // Try direct health fallback check
               try {
-                const fallbackController = new AbortController();
-                const fallbackTimer = setTimeout(() => fallbackController.abort(), 400);
-                const res = await fetch(`${targetUrl}/health`, { signal: fallbackController.signal });
-                clearTimeout(fallbackTimer);
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), 400);
+                
+                const res = await fetch(`${targetUrl}/api/health`, { 
+                  signal: controller.signal 
+                });
+                clearTimeout(timer);
+
                 if (res.ok) {
                   const data = await res.json();
                   if (data && data.status === "healthy") {
-                    foundServers.push(targetUrl);
+                    foundServers.push({ url: targetUrl, port });
+                    break; // Found on this port, no need to try others for this IP
                   }
                 }
-              } catch(err) {
-                // Try subdirectory proxy fallback check (e.g. /voyarr/health)
+              } catch(e) {
+                // Try direct health fallback check
                 try {
-                  const subDirController = new AbortController();
-                  const subDirTimer = setTimeout(() => subDirController.abort(), 400);
-                  const res = await fetch(`${targetUrl}/voyarr/health`, { signal: subDirController.signal });
-                  clearTimeout(subDirTimer);
+                  const fallbackController = new AbortController();
+                  const fallbackTimer = setTimeout(() => fallbackController.abort(), 400);
+                  const res = await fetch(`${targetUrl}/health`, { signal: fallbackController.signal });
+                  clearTimeout(fallbackTimer);
                   if (res.ok) {
                     const data = await res.json();
                     if (data && data.status === "healthy") {
-                      foundServers.push(`${targetUrl}/voyarr`);
+                      foundServers.push({ url: targetUrl, port });
+                      break;
                     }
                   }
-                } catch(subErr) {}
+                } catch(err) {
+                  // Try subdirectory proxy fallback check (e.g. /voyarr/health)
+                  try {
+                    const subDirController = new AbortController();
+                    const subDirTimer = setTimeout(() => subDirController.abort(), 400);
+                    const res = await fetch(`${targetUrl}/voyarr/health`, { signal: subDirController.signal });
+                    clearTimeout(subDirTimer);
+                    if (res.ok) {
+                      const data = await res.json();
+                      if (data && data.status === "healthy") {
+                        foundServers.push({ url: `${targetUrl}/voyarr`, port });
+                        break;
+                      }
+                    }
+                  } catch(subErr) {}
+                }
               }
             }
           }));
@@ -740,7 +1171,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (foundServers.length === 0) {
         localScanResultsContainer.innerHTML = `<div style="font-size: 10px; color: var(--text-muted); text-align: center; padding: 6px 0;">No active local nodes detected.</div>`;
       } else {
-        foundServers.forEach(srvUrl => {
+        foundServers.forEach(srv => {
           const srvDiv = document.createElement('div');
           srvDiv.style.display = "flex";
           srvDiv.style.alignItems = "center";
@@ -758,7 +1189,7 @@ document.addEventListener('DOMContentLoaded', () => {
           info.style.overflow = "hidden";
           info.style.textOverflow = "ellipsis";
           info.style.whiteSpace = "nowrap";
-          info.textContent = `📡 Found: ${srvUrl}`;
+          info.textContent = `📡 Found: ${srv.url} (port ${srv.port})`;
 
           const addBtn = document.createElement('button');
           addBtn.className = "btn";
@@ -771,7 +1202,7 @@ document.addEventListener('DOMContentLoaded', () => {
           addBtn.textContent = "Connect";
           addBtn.addEventListener('click', () => {
             newServerNameInput.value = "Discovered Server";
-            newServerUrlInput.value = srvUrl;
+            newServerUrlInput.value = srv.url;
             newServerUrlInput.focus();
             localScanResultsContainer.style.display = "none";
             localScanResultsContainer.innerHTML = "";
@@ -801,10 +1232,10 @@ document.addEventListener('DOMContentLoaded', () => {
       // 1. Check for pending pairing requests first
       const stored = await chrome.storage.local.get(['pendingPairing']);
       if (stored.pendingPairing) {
-        const { url, pairingCode, timestamp } = stored.pendingPairing;
+        const { url, pairingCode, timestamp, autoInitiated } = stored.pendingPairing;
         // Expire pairing proposal after 5 minutes (300000ms)
         if (Date.now() - timestamp < 300000) {
-          showPairingInvitation(url, pairingCode);
+          showPairingInvitation(url, pairingCode, autoInitiated);
           return;
         } else {
           await chrome.storage.local.remove(['pendingPairing']);
@@ -834,7 +1265,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         if (result && result.url && result.pairingCode) {
-          showPairingInvitation(result.url, result.pairingCode);
+          showPairingInvitation(result.url, result.pairingCode, result.autoInitiated);
           return;
         }
       } catch (err) {
@@ -913,9 +1344,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function showPairingInvitation(url, pairingCode) {
+  function showPairingInvitation(url, pairingCode, autoInitiated = false) {
     pairingUrlText.textContent = url;
     pairingBanner.style.display = "flex";
+
+    // Update banner text for auto-initiated pairing
+    const pairingTitle = pairingBanner.querySelector('div[style*="font-weight: 600"]');
+    const pairingDesc = document.getElementById('pairingDescText') || pairingBanner.querySelector('div[style*="font-size: 10px"]:not(#pairingUrlText)');
+    
+    if (autoInitiated) {
+      pairingTitle.innerHTML = '🔐 Voyarr Lens: Auto-Discovered Pairing';
+      pairingDesc.textContent = 'Voyarr server was automatically detected. Click below to pair instantly.';
+      confirmPairBtn.textContent = 'Auto-Pair Now';
+      confirmPairBtn.style.background = '#6366f1';
+    } else {
+      pairingTitle.innerHTML = '🔐 Voyarr Lens Pairing Request';
+      pairingDesc.textContent = 'A pairing request was initiated. Click below to automatically pair.';
+      confirmPairBtn.textContent = 'Pair Now';
+      confirmPairBtn.style.background = '#10b981';
+    }
 
     confirmPairBtn.onclick = async () => {
       confirmPairBtn.disabled = true;
@@ -955,7 +1402,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           const newServer = {
             id: 'server-' + Date.now(),
-            name: "Paired Voyarr Server",
+            name: autoInitiated ? "Auto-Paired Voyarr Server" : "Paired Voyarr Server",
             url: finalUrl,
             apiKey: result.raw_key,
             latency: latency
@@ -970,6 +1417,8 @@ document.addEventListener('DOMContentLoaded', () => {
             voyarrApiUrl: newServer.url,
             voyarrSecret: newServer.apiKey
           });
+
+          chrome.runtime.sendMessage({ action: "triggerConnectivityCheck" });
 
           await chrome.storage.local.remove(['pendingPairing']);
           
@@ -986,8 +1435,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           } catch (e) {}
 
-          showToast(settingsToast, "Successfully paired and connected!", true);
+          showToast(settingsToast, autoInitiated ? "Successfully auto-paired and connected!" : "Successfully paired and connected!", true);
           pairingBanner.style.display = "none";
+          
+          // Clear the pairing badge
+          await chrome.runtime.sendMessage({ action: "clearPairingBadge" });
           
           populateActiveServerSelect();
           renderServerList();
@@ -998,7 +1450,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast(settingsToast, "Pairing failed: " + err.message, false);
       } finally {
         confirmPairBtn.disabled = false;
-        confirmPairBtn.textContent = "Pair Now";
+        confirmPairBtn.textContent = autoInitiated ? "Auto-Pair Now" : "Pair Now";
       }
     };
 
@@ -1078,29 +1530,6 @@ document.addEventListener('DOMContentLoaded', () => {
       matchCountBadge.textContent = `Matches ${count} elements (Not unique)`;
       matchCountBadge.style.backgroundColor = "rgba(239, 68, 68, 0.2)";
       matchCountBadge.style.color = "var(--error)";
-    }
-  }
-
-  // Request dynamic host permission for custom remote domains
-  async function requestHostPermission(url) {
-    if (url.includes("localhost") || url.includes("127.0.0.1")) {
-      return true;
-    }
-    try {
-      const parsed = new URL(url);
-      const originPattern = `${parsed.protocol}//${parsed.host}/*`;
-      const hasPermission = await chrome.permissions.contains({
-        origins: [originPattern]
-      });
-      if (!hasPermission) {
-        return await chrome.permissions.request({
-          origins: [originPattern]
-        });
-      }
-      return true;
-    } catch (e) {
-      console.error("Failed to check/request host permission:", e);
-      return false;
     }
   }
 

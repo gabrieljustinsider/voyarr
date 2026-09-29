@@ -77,7 +77,7 @@ def setup_db_and_dependencies():
 
 def test_sso_linking_and_login():
     # 1. Links should be empty initially
-    links_res = client.get("/auth/sso/links")
+    links_res = client.get("/api/auth/sso/links")
     assert links_res.status_code == 200
     assert len(links_res.json()) == 0
     
@@ -88,12 +88,12 @@ def test_sso_linking_and_login():
         "email": "user@gmail.com",
         "token": "google_mock_token"
     }
-    link_res = client.post("/auth/sso/link", json=link_payload)
+    link_res = client.post("/api/auth/sso/link", json=link_payload)
     assert link_res.status_code == 200
     assert "linked successfully" in link_res.json()["message"]
     
     # 3. Check listed links
-    links_res2 = client.get("/auth/sso/links")
+    links_res2 = client.get("/api/auth/sso/links")
     assert len(links_res2.json()) == 1
     assert links_res2.json()[0]["provider"] == "google"
     assert links_res2.json()[0]["email"] == "user@gmail.com"
@@ -109,7 +109,7 @@ def test_sso_linking_and_login():
     
     app.dependency_overrides[get_current_user] = lambda: MockOtherUser()
     
-    link_other_res = client.post("/auth/sso/link", json=link_payload)
+    link_other_res = client.post("/api/auth/sso/link", json=link_payload)
     assert link_other_res.status_code == 400
     assert "already linked to another" in link_other_res.json()["detail"]
     
@@ -122,7 +122,7 @@ def test_sso_linking_and_login():
         "provider_user_id": "google_123456789",
         "token": "google_mock_token"
     }
-    login_res = client.post("/auth/sso/login", json=login_payload)
+    login_res = client.post("/api/auth/sso/login", json=login_payload)
     assert login_res.status_code == 200
     assert "access_token" in login_res.json()
     assert login_res.json()["username"] == "sso_user"
@@ -133,13 +133,13 @@ def test_sso_linking_and_login():
         "provider_user_id": "github_987654321",
         "email": "user@github.com",
     }
-    client.post("/auth/sso/link", json=link_payload_github)
+    client.post("/api/auth/sso/link", json=link_payload_github)
     
-    links_res3 = client.get("/auth/sso/links")
+    links_res3 = client.get("/api/auth/sso/links")
     assert len(links_res3.json()) == 2
     
     # 7. Unlink Google
-    unlink_res = client.post("/auth/sso/unlink/google")
+    unlink_res = client.post("/api/auth/sso/unlink/google")
     assert unlink_res.status_code == 200
     assert "unlinked successfully" in unlink_res.json()["message"]
     
@@ -157,7 +157,7 @@ def test_sso_linking_and_login():
     
     # Now try unlinking the last SSO provider (GitHub)
     # This should fail with 400 Bad Request safeguard!
-    unlink_last_res = client.post("/auth/sso/unlink/github")
+    unlink_last_res = client.post("/api/auth/sso/unlink/github")
     assert unlink_last_res.status_code == 400
     assert "Cannot unlink the last authentication method" in unlink_last_res.json()["detail"]
     
@@ -169,11 +169,11 @@ def test_sso_linking_and_login():
     db.close()
 
     # Test SSO Lookup Endpoint
-    lookup_res = client.post("/auth/sso/lookup", json={"provider": "github", "email": "user@github.com"})
+    lookup_res = client.post("/api/auth/sso/lookup", json={"provider": "github", "email": "user@github.com"})
     assert lookup_res.status_code == 200
     assert lookup_res.json()["provider_user_id"] == "github_987654321"
 
     # Test SSO Lookup Endpoint with non-existent email
-    lookup_fail_res = client.post("/auth/sso/lookup", json={"provider": "github", "email": "missing@github.com"})
+    lookup_fail_res = client.post("/api/auth/sso/lookup", json={"provider": "github", "email": "missing@github.com"})
     assert lookup_fail_res.status_code == 404
 

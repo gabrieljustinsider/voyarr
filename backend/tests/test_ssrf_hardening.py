@@ -191,14 +191,14 @@ def test_validate_url_ssrf_blocked_metadata_endpoint():
 def test_webhook_creation_allowed():
     headers = {"X-Voyarr-Api-Key": "test_master_key_1234567890_abcdef"}
     payload = {"name": "Public Slack Webhook", "url": "https://hooks.slack.com/services/test"}
-    resp = client.post("/webhooks/", json=payload, headers=headers)
+    resp = client.post("/api/webhooks/", json=payload, headers=headers)
     assert resp.status_code == 200
 
 
 def test_webhook_creation_blocked():
     headers = {"X-Voyarr-Api-Key": "test_master_key_1234567890_abcdef"}
     payload = {"name": "Malicious Local Webhook", "url": "http://127.0.0.1:8000/settings"}
-    resp = client.post("/webhooks/", json=payload, headers=headers)
+    resp = client.post("/api/webhooks/", json=payload, headers=headers)
     assert resp.status_code == 400
     assert "Disallowed internal IP" in resp.json()["detail"]
 
@@ -230,18 +230,18 @@ def test_webhook_trigger_ssrf_protection(mocker):
 def test_live_stream_creation_allowed():
     headers = {"X-Voyarr-Api-Key": "test_master_key_1234567890_abcdef"}
     payload = {"name": "Public RTMP Stream", "url": "rtmp://publicstream.com/live"}
-    resp = client.post("/live-streams/", json=payload, headers=headers)
+    resp = client.post("/api/live-streams/", json=payload, headers=headers)
     assert resp.status_code == 201
 
     payload_http = {"name": "Public HTTP Stream", "url": "https://stream.public.com/hls.m3u8"}
-    resp = client.post("/live-streams/", json=payload_http, headers=headers)
+    resp = client.post("/api/live-streams/", json=payload_http, headers=headers)
     assert resp.status_code == 201
 
 
 def test_live_stream_creation_blocked():
     headers = {"X-Voyarr-Api-Key": "test_master_key_1234567890_abcdef"}
     payload = {"name": "Malicious Internal Stream", "url": "http://192.168.0.10:8000/stream.m3u8"}
-    resp = client.post("/live-streams/", json=payload, headers=headers)
+    resp = client.post("/api/live-streams/", json=payload, headers=headers)
     assert resp.status_code == 400
     assert "Disallowed internal IP" in resp.json()["detail"]
 
@@ -255,7 +255,7 @@ def test_live_stream_update_blocked():
 
     headers = {"X-Voyarr-Api-Key": "test_master_key_1234567890_abcdef"}
     payload = {"name": "Renamed Stream", "url": "http://127.0.0.1:80/stream.m3u8"}
-    resp = client.put("/live-streams/1", json=payload, headers=headers)
+    resp = client.put("/api/live-streams/1", json=payload, headers=headers)
     assert resp.status_code == 400
     assert "Disallowed internal IP" in resp.json()["detail"]
 
@@ -267,7 +267,7 @@ def test_live_stream_update_blocked():
 def test_scraper_parse_url_allowed():
     headers = {"X-Voyarr-Api-Key": "test_master_key_1234567890_abcdef"}
     resp = client.post(
-        "/scraper/parse-url",
+        "/api/scraper/parse-url",
         json={"url": "https://my-media-source.com/video123"},
         headers=headers,
     )
@@ -280,7 +280,7 @@ def test_scraper_parse_url_allowed():
 def test_scraper_parse_url_blocked():
     headers = {"X-Voyarr-Api-Key": "test_master_key_1234567890_abcdef"}
     resp = client.post(
-        "/scraper/parse-url",
+        "/api/scraper/parse-url",
         json={"url": "http://169.254.169.254/latest/meta-data/"},
         headers=headers,
     )

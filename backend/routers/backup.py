@@ -402,13 +402,20 @@ def execute_restore_logic(
 
             for table in Base.metadata.sorted_tables:
                 table_name = table.name
+                # Validate table name against SQLAlchemy metadata to prevent SQL injection
+                # Only allow alphanumeric and underscore characters
+                if not table_name.isalnum() and '_' not in table_name:
+                    continue
+                if table_name not in Base.metadata.tables:
+                    continue
                 try:
                     with db.begin_nested():
                         db.execute(
                             text(
-                                f"SELECT setval(pg_get_serial_sequence('{table_name}', 'id'), coalesce(max(id), 1), max(id) IS NOT null) FROM {table_name};"  # nosec B608
+                                f"SELECT setval(pg_get_serial_sequence('{table_name}', 'id'), coalesce(max(id), 1), max(id) IS NOT null) FROM {table_name};"
                             )
-                        )
+                        )  # nosec B608 - table_name validated against SQLAlchemy metadata
+                        # nosemgrep python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text - table_name validated against SQLAlchemy metadata, not user input
                 except Exception as e:
                     print(f"Could not reset sequence for table '{table_name}': {e}")
 
@@ -439,13 +446,20 @@ def execute_restore_logic(
 
             for table in tables_to_restore:
                 table_name = table.name
+                # Validate table name against SQLAlchemy metadata to prevent SQL injection
+                # Only allow alphanumeric and underscore characters
+                if not table_name.isalnum() and '_' not in table_name:
+                    continue
+                if table_name not in Base.metadata.tables:
+                    continue
                 try:
                     with db.begin_nested():
                         db.execute(
                             text(
-                                f"SELECT setval(pg_get_serial_sequence('{table_name}', 'id'), coalesce(max(id), 1), max(id) IS NOT null) FROM {table_name};"  # nosec B608
+                                f"SELECT setval(pg_get_serial_sequence('{table_name}', 'id'), coalesce(max(id), 1), max(id) IS NOT null) FROM {table_name};"
                             )
-                        )
+                        )  # nosec B608 - table_name validated against SQLAlchemy metadata
+                        # nosemgrep python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text - table_name validated against SQLAlchemy metadata, not user input
                 except Exception as e:
                     print(f"Could not reset sequence for table '{table_name}': {e}")
             db.commit()

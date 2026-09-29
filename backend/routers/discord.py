@@ -511,7 +511,7 @@ def _process_discord_command(db: Session, interaction_type: int, data: dict):
 async def discord_handshake():
     return JSONResponse({
         "status": "HANDSHAKE_READY",
-        "endpoint": "/api/v1/discord/interactions",
+        "endpoint": "/api/discord/interactions",
         "service": "voyarr"
     })
 

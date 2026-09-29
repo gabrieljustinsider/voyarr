@@ -133,7 +133,7 @@ def setup_db_and_dependencies(tmp_path):
 @patch("celery.app.task.Task.delay")
 def test_trigger_auto_chaptering(mock_delay):
     mock_delay.return_value.id = "mock_task_123"
-    response = client.post("/chapters/library/1/auto-chapter", headers=headers)
+    response = client.post("/api/chapters/library/1/auto-chapter", headers=headers)
     assert response.status_code == 200
     assert response.json() == {
         "message": "Auto-chaptering task queued",
@@ -145,7 +145,7 @@ def test_trigger_auto_chaptering(mock_delay):
 @patch("tasks.ml_tasks.cluster_faces_task.delay")
 def test_trigger_facial_clustering(mock_delay):
     mock_delay.return_value.id = "mock_task_456"
-    response = client.post("/library/1/cluster-faces", headers=headers)
+    response = client.post("/api/library/1/cluster-faces", headers=headers)
     assert response.status_code == 200
     assert response.json() == {
         "message": "Facial clustering task queued",
@@ -155,14 +155,14 @@ def test_trigger_facial_clustering(mock_delay):
 
 
 def test_get_facial_clusters():
-    response = client.get("/library/1/facial-clusters", headers=headers)
+    response = client.get("/api/library/1/facial-clusters", headers=headers)
     assert response.status_code == 200
     assert response.json() == {"Person_0": [1.5, 3.0]}
 
 
 def test_get_facial_cluster_thumbnail():
     response = client.get(
-        "/library/1/facial-clusters/Person_0/thumbnail", headers=headers
+        "/api/library/1/facial-clusters/Person_0/thumbnail", headers=headers
     )
     assert response.status_code == 200
     assert response.headers["content-type"] == "image/jpeg"
@@ -172,7 +172,7 @@ def test_get_facial_cluster_thumbnail():
 def test_rename_facial_cluster():
     payload = {"new_name": "John Doe"}
     response = client.post(
-        "/library/1/facial-clusters/Person_0/rename", json=payload, headers=headers
+        "/api/library/1/facial-clusters/Person_0/rename", json=payload, headers=headers
     )
     assert response.status_code == 200
     assert response.json() == {
@@ -181,5 +181,5 @@ def test_rename_facial_cluster():
     }
 
     # Verify the actual metadata was updated via the GET endpoint
-    verify_resp = client.get("/library/1/facial-clusters", headers=headers)
+    verify_resp = client.get("/api/library/1/facial-clusters", headers=headers)
     assert verify_resp.json() == {"John Doe": [1.5, 3.0]}

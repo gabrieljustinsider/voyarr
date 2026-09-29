@@ -126,25 +126,25 @@ services:
 16. ~~**Multi-Drive Storage Arrays:** Support parsing comma-separated paths for scalable libraries spanning multiple physical disks.~~
 17. ~~**Password Manager Integrations:** Support for 1Password Connect and Bitwarden CLI REST APIs.~~
 18. ~~**Hardened SSRF Defenses:** Comprehensive internal IP/hostname blocking for scraper proxies.~~
-19. ~~**Deep API Integrations (v1.8.1):** Rich StashDB/ThePornDB GraphQL search, matching, and fingerprint (MD5/OSHASH/PHASH) submissions.~~
-20. ~~**Discord Slash Commands Bot (v1.8.2):** Integrated `/search`, `/add` to queue, and `/scrape` remote triggers.~~
-21. ~~**Visual Quota & Performance Meters (v1.8.2):** Advanced responsive charts mapping active rate limits.~~
-22. ~~**WebSocket Live Log Pipeline (v1.8.3):** Real-time logs streams with advanced searching, filtering, and channel toggling.~~
-23. ~~**Performer Facial Recognition Clustering (v1.11.0):** Implement DBSCAN-based local lightweight facial recognition & groupings to auto-identify unknown actors across the library.~~
-24. ~~**Continuous StashDB Fingerprint Syncing (v1.11.0):** Automated background daemon to continuously push calculated hashes (OSHASH/PHASH) to community databases to improve global coverage.~~
-25. ~~**AI-Driven Auto-Chaptering (v1.11.0):** Frame-based scene change detection paired with LLM/Ollama or OpenAI GPT-4o Vision to auto-slice and title video segments.~~
-26. ~~**Granular Queue Priority & Controls (v1.11.0):** Integrated full pause, resume, cancel, and priority level adjustments for download, transcoding, and live recording queues.~~
-27. ~~**HLS Direct Streaming Support (v1.12.0):** Added direct HLS slicing to the transcoding engine, allowing lag-free, high-bitrate video streaming inside the PWA browser environment.~~
-28. ~~**Peer-to-Peer (P2P) Library & Recipe Syncing (v1.12.0+):** Full peer-to-peer sync engine enabling decentralized recipe and metadata sharing with trusted instances.~~
-29. ~~**Relational Studio Database Schema (v1.12.0+):** Replaced flat text studio names with a robust normalized, relational table `studios` mapped across all media index types.~~
-30. ~~**Bulk Duplicate Detection & Resolution (v1.12.0+):** Batch perceptual hash merge manager with automated resolution algorithms (highest quality, oldest, newest).~~
-31. ~~**Customizable Network Settings & VPN Sidecar Integration (v1.12.0+):** Full support for global HTTP/HTTPS/SOCKS5 proxies, custom outbound User-Agents, active diagnostic scorecards, secure Vault credential storage, and turnkey Gluetun VPN container definitions.~~
-32. ~~**Secure Random User IDs, Passkeys (WebAuthn) & SSO Provider Linking (v1.13.0):** Complete migration to secure non-enumerable string User IDs (prefixed with "usr_"), enterprise-grade passwordless passkeys (WebAuthn) with CRUD features, AAGUID mapping, reverse-geocoded location auditing, external SSO Google/GitHub/Discord integration, and WebAuthn Conditional UI (autofill mediation) support.~~
-33. ~~**Security Hardening, Celery Propagation, Test DB Redirection & Meta Quest VR Support (v1.13.0+):** Implemented strict backup signature validation checking to block unauthorized database updates, propagated background Celery task failures up to the task orchestrator, isolated internal subnet proxies during remote synchronizations (SSRF protection), introduced a centralized Pytest conftest interceptor redirecting all test databases to the system temporary folder to keep the root directory pristine, and added full companion mapping support for the Meta Quest Browser and mobile platforms using a new Universal Bookmarklet Companion with visual point-and-click overlays, local config persistence, and direct backend API integrations.~~
+19. ~~**Deep API Integrations (v1.199.0):** Rich StashDB/ThePornDB GraphQL search, matching, and fingerprint (MD5/OSHASH/PHASH) submissions.~~
+20. ~~**Discord Slash Commands Bot (v1.199.0):** Integrated `/search`, `/add` to queue, and `/scrape` remote triggers.~~
+21. ~~**Visual Quota & Performance Meters (v1.199.0):** Advanced responsive charts mapping active rate limits.~~
+22. ~~**WebSocket Live Log Pipeline (v1.199.0):** Real-time logs streams with advanced searching, filtering, and channel toggling.~~
+23. ~~**Performer Facial Recognition Clustering (v1.199.0):** Implement DBSCAN-based local lightweight facial recognition & groupings to auto-identify unknown actors across the library.~~
+24. ~~**Continuous StashDB Fingerprint Syncing (v1.199.0):** Automated background daemon to continuously push calculated hashes (OSHASH/PHASH) to community databases to improve global coverage.~~
+25. ~~**AI-Driven Auto-Chaptering (v1.199.0):** Frame-based scene change detection paired with LLM/Ollama or OpenAI GPT-4o Vision to auto-slice and title video segments.~~
+26. ~~**Granular Queue Priority & Controls (v1.199.0):** Integrated full pause, resume, cancel, and priority level adjustments for download, transcoding, and live recording queues.~~
+27. ~~**HLS Direct Streaming Support (v1.199.0):** Added direct HLS slicing to the transcoding engine, allowing lag-free, high-bitrate video streaming inside the PWA browser environment.~~
+28. ~~**Peer-to-Peer (P2P) Library & Recipe Syncing (v1.199.0+):** Full peer-to-peer sync engine enabling decentralized recipe and metadata sharing with trusted instances.~~
+29. ~~**Relational Studio Database Schema (v1.199.0+):** Replaced flat text studio names with a robust normalized, relational table `studios` mapped across all media index types.~~
+30. ~~**Bulk Duplicate Detection & Resolution (v1.199.0+):** Batch perceptual hash merge manager with automated resolution algorithms (highest quality, oldest, newest).~~
+31. ~~**Customizable Network Settings & VPN Sidecar Integration (v1.199.0+):** Full support for global HTTP/HTTPS/SOCKS5 proxies, custom outbound User-Agents, active diagnostic scorecards, secure Vault credential storage, and turnkey Gluetun VPN container definitions.~~
+32. ~~**Secure Random User IDs, Passkeys (WebAuthn) & SSO Provider Linking (v1.199.0):** Complete migration to secure non-enumerable string User IDs (prefixed with "usr_"), enterprise-grade passwordless passkeys (WebAuthn) with CRUD features, AAGUID mapping, reverse-geocoded location auditing, external SSO Google/GitHub/Discord integration, and WebAuthn Conditional UI (autofill mediation) support.~~
+33. ~~**Security Hardening, Celery Propagation, Test DB Redirection & Meta Quest VR Support (v1.199.0+):** Implemented strict backup signature validation checking to block unauthorized database updates, propagated background Celery task failures up to the task orchestrator, isolated internal subnet proxies during remote synchronizations (SSRF protection), introduced a centralized Pytest conftest interceptor redirecting all test databases to the system temporary folder to keep the root directory pristine, and added full companion mapping support for the Meta Quest Browser and mobile platforms using a new Universal Bookmarklet Companion with visual point-and-click overlays, local config persistence, and direct backend API integrations.~~
 
 ---
 
-## **⚙️ Specialized System Specifications (v1.12.0+)**
+## **⚙️ Specialized System Specifications (v1.199.0+)**
 
 ### **1. Peer-to-Peer (P2P) Syncing Engine Architecture**
 
@@ -209,9 +209,9 @@ To prevent scraper blocks, protect local hosts from ISP inspection, and bypass g
 
 ---
 
-### **5. Secure Identity & Passkeys (WebAuthn) Architecture (v1.13.0)**
+### **5. Secure Identity & Passkeys (WebAuthn) Architecture (v1.199.0)**
 
-Voyarr v1.13.0 implements enterprise-grade passwordless authentication, third-party identity synchronization, and secure non-enumerable User IDs:
+Voyarr v1.199.0 implements enterprise-grade passwordless authentication, third-party identity synchronization, and secure non-enumerable User IDs:
 - **Secure String User IDs**: Uses cryptographically secure, randomly generated UUIDs prefixed with `"usr_"` (e.g., `usr_5d78a9c...`). This completely eliminates User scanning, horizontal privilege scanning, and account enumeration vulnerabilities.
 - **Passkeys (WebAuthn) CRUD Lifecycle**:
   - Uses standard browser `navigator.credentials.create()` for registering biometric/security keys and `navigator.credentials.get()` for assertions.
@@ -224,9 +224,9 @@ Voyarr v1.13.0 implements enterprise-grade passwordless authentication, third-pa
 
 ---
 
-### **6. Premium Branding, First-User Setup, and Asset Standardization (v1.15.0)**
+### **6. Premium Branding, First-User Setup, and Asset Standardization (v1.199.0)**
 
-Voyarr v1.15.0 unifies the visual identity across the web platform and browser extension, standardizes icon packaging, and introduces a frictionless first-time administrator onboarding flow:
+Voyarr v1.199.0 unifies the visual identity across the web platform and browser extension, standardizes icon packaging, and introduces a frictionless first-time administrator onboarding flow:
 - **Unified Brand Styling (Outfit Font)**: Migrated the entire ecosystem's typography to the premium Google Font **Outfit**, updating global CSS variables and preconnecting to Google Font CDNs for optimized Largest Contentful Paint (LCP) performance.
 - **Sleek Glassmorphic Brand Accents**: Redesigned the login screen and user portal using high-end linear purple-to-blue gradients (`linear-gradient(135deg, #6366f1 0%, #a855f7 100%)`), drop-shadow filters on the official branding logo, and premium responsive glassmorphic cards.
 - **Dynamic Version Synchronization**: Implemented dynamic version rendering across all system views. The main app pulls from `package.json` at build time to render a standard `Chip` badge in the navigation `AppBar`. The browser companion extension dynamically queries the chrome runtime manifest (`chrome.runtime.getManifest()`) to display the extension version badge in the popup header next to the title.
@@ -242,7 +242,7 @@ Voyarr v1.15.0 unifies the visual identity across the web platform and browser e
 
 ---
 
-## **🚀 Future Feature Roadmap (v1.18.0+)**
+## **🚀 Future Feature Roadmap (v1.199.0+)**
 
 The following represents identified feature targets and upcoming components for subsequent releases.
 
