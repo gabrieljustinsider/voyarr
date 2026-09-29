@@ -15,17 +15,17 @@ If you are developing without Docker:
 
 1. Install dependencies:
 ```bash
-npm install
+pnpm install
 ```
 
 2. Start the development server:
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 3. Build for production:
 ```bash
-npm run build
+pnpm run build
 ```
 
 ## PWA Configuration

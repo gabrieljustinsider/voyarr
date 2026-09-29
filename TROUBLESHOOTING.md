@@ -1,6 +1,6 @@
 # Voyarr Troubleshooting Guide
 
-> **Version:** v1.199.0 · [User Guide](USER_GUIDE.md) · [README](README.md)
+> **Version:** v1.199.1 · [User Guide](USER_GUIDE.md) · [README](README.md)
 
 Common issues and their solutions.
 
@@ -18,7 +18,7 @@ Error response from daemon: Bind mount failed: '/path/to/media' does not exist
 **Solution:**
 1. Create the missing directory on your host: `mkdir -p /path/to/media`
 2. Verify `HOST_MEDIA_PATH_1` in `.env` points to an existing directory.
-3. Run `npm run up` again.
+3. Run `pnpm run up` again.
 
 Named volumes for system data (config, db-data, backups) are created automatically by Docker.
 
@@ -59,7 +59,7 @@ PermissionError: [Errno 13] Permission denied: '/media/storage/downloads/video.m
 1. Find your host user ID: `id` (look for `uid=1000` and `gid=1000`).
 2. Set `PUID` and `PGID` in `.env` to match.
 3. If media files are owned by a different group (e.g., a `media` group on a NAS), set `SUPPLEMENTARY_GID` to that group's ID.
-4. Restart the stack: `npm run up`
+4. Restart the stack: `pnpm run up`
 
 ---
 
@@ -204,7 +204,7 @@ Received unregistered task
 
 **Cause:** This was a tab restoration effect dependency loop in earlier versions that reset the active page back to Dashboard on mount.
 
-**Status:** Fixed in v1.199.0. Ensure you are running v1.199.0 or later. If the issue persists, clear your browser's `localStorage` for the Voyarr origin and re-login.
+**Status:** Fixed in v1.199.1. Ensure you are running v1.199.1 or later. If the issue persists, clear your browser's `localStorage` for the Voyarr origin and re-login.
 
 ---
 
@@ -217,7 +217,7 @@ Received unregistered task
 **Solution:**
 1. Verify the variables are set in `.env`.
 2. Confirm the host paths exist: `ls -la /your/media/path`
-3. Restart the stack: `npm run up`
+3. Restart the stack: `pnpm run up`
 4. The Path Picker will now show **Main Storage**, **Additional Storage**, **Downloads**, **Library**, **Scan / Import**, and **Mounts** as quick-access drives.
 
 ---
@@ -333,7 +333,7 @@ If you encounter an issue not listed here:
 
 4. Restart the entire stack:
    ```bash
-   npm run down && npm run up
+   pnpm run down && pnpm run up
    ```
 
 5. For persistent issues, check the [GitHub Issues](https://github.com/gabrieljustinsider/voyarr/issues) page or open a new issue with relevant logs.

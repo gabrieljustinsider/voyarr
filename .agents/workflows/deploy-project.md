@@ -10,7 +10,7 @@ Follow this standard procedure to deploy any GameProductions bot or PWA to Cloud
 1. **Clean Git Working Tree**: Verify all necessary changes are committed and pushed or staged.
 2. **Build Validation**: Always run a clean local build first to catch bundling, typing, and chunking issues:
    ```bash
-   npm run build
+   pnpm run build
    ```
 3. **Verify Git Hygiene**: Ensure build output directories (`build/`, `dist/`, `.wrangler/`) are NOT tracked in git:
    ```bash
@@ -24,8 +24,8 @@ Follow this standard procedure to deploy any GameProductions bot or PWA to Cloud
 ## 3. Deployment Execution
 Run the project's standardized deploy script:
 ```bash
-npm run deploy
-# Which executes: npm run build && wrangler deploy
+pnpm run deploy
+# Which executes: pnpm run build && wrangler deploy
 ```
 
 ## 4. Post-Deployment Verification

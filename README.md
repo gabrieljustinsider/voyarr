@@ -1,6 +1,6 @@
 # Voyarr
 
-> **v1.199.0** — Self-hosted media server and library management system for adult video collections.
+> **v1.199.1** — Self-hosted media server and library management system for adult video collections.
 
 Voyarr unifies your subscriptions, local files, and metadata into one interface. Stream from your subscriptions, organize your personal library, and automate downloads — all from a single self-hosted dashboard.
 

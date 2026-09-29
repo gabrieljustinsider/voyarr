@@ -43,5 +43,5 @@ For every repository:
 
 ## 4. Git & Build Hygiene
 - Check `.gitignore` to ensure `build/`, `dist/`, `.wrangler/`, and `.dev.vars` are never tracked in Git.
-- Confirm `package.json` contains a `deploy` script executing `npm run build && wrangler deploy`.
+- Confirm `package.json` contains a `deploy` script executing `pnpm run build && wrangler deploy`.
 - Audit open GitHub issues across all repos.

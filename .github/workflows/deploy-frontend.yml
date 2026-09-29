@@ -50,10 +50,10 @@ jobs:
           cache: 'npm'
 
       - name: Install root dependencies
-        run: npm install
+        run: pnpm install
 
       - name: Install frontend dependencies
-        run: npm install --prefix frontend
+        run: pnpm install --prefix frontend
 
       - name: Build frontend static assets
         run: |
@@ -63,7 +63,7 @@ jobs:
           VITE_API_BASE_URL="/api" npx vite build --mode production
 
       - name: Install global Wrangler
-        run: npm install -g wrangler@latest
+        run: pnpm install -g wrangler@latest
 
       - name: Deploy Cloudflare Worker
         run: |

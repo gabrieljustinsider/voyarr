@@ -7,7 +7,7 @@ services:
     environment:
       - CHOKIDAR_USEPOLLING=true # Ensures Vite's Hot Module Replacement (HMR) works perfectly across Docker/OS boundaries
     # Overrides the production start command to run the Vite development server
-    command: npm run dev
+    command: pnpm run dev
 
   backend:
     # Mounts your local backend directory into the container

@@ -20,7 +20,7 @@ Follow these steps to initialize a new GameProductions bot/PWA project. All step
 - Set the `routes` to `[project-name].gpnet.dev/*`.
 
 ## 3. Standardized Routing (Hono)
-- Install Hono: `npm install hono`.
+- Install Hono: `pnpm install hono`.
 - Setup the main entry point (e.g., `src/index.ts`) with the following pattern:
   - `/api/*`: Backend/Bot logic.
   - `/*`: UI/Static assets.
@@ -52,7 +52,7 @@ Follow these steps to initialize a new GameProductions bot/PWA project. All step
 - Implement **User Management (CRUD)** for Mods+.
 
 ## 8. Local Development & Deployment
-- **Local Testing**: Always run `npm run dev` or `wrangler dev` before deploying.
+- **Local Testing**: Always run `pnpm run dev` or `wrangler dev` before deploying.
 - **Remote DB**: To test against production data, run `wrangler dev --remote`.
 - **Publishing**: Only run `wrangler deploy` after successful local verification and user confirmation.
 

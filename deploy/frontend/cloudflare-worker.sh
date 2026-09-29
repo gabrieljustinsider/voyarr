@@ -20,7 +20,7 @@ deploy_frontend() {
     echo "$backend_origin" | npx wrangler secret put BACKEND_ORIGIN 2>/dev/null || true
     npx wrangler deploy
   else
-    echo "ERROR: wrangler CLI not found. Install with: npm install -g wrangler" >&2
+    echo "ERROR: wrangler CLI not found. Install with: pnpm install -g wrangler" >&2
     exit 1
   fi
 

@@ -1,11 +1,11 @@
 {
   "name": "voyarr",
-  "version": "1.199.0",
+  "version": "1.199.1",
   "packageManager": "pnpm@11.1.2",
   "description": "Media downloader/manager and metadata scraper",
   "main": "index.js",
   "scripts": {
-    "deploy": "npm run build && wrangler deploy",
+    "deploy": "pnpm run build && wrangler deploy",
     "resolve-env": "bash scripts/resolve-env.sh",
     "deploy:frontend": "bash deploy/frontend/deploy.sh",
     "deploy:backend-api": "bash deploy/backend-api/deploy.sh",
@@ -15,10 +15,10 @@
     "up": "bash deploy/compose.sh up -d",
     "down": "bash deploy/compose.sh down",
     "dev": "docker compose --env-file .env.dev --env-file .env.dev.local -f docker-compose.base.yml -f docker-compose.dev.yml up --build -d",
-    "test": "npm run test:frontend && npm run test:backend",
-    "test:frontend": "cd frontend && npm run build",
+    "test": "pnpm run test:frontend && pnpm run test:backend",
+    "test:frontend": "cd frontend && pnpm run build",
     "test:backend": "cd backend && ../venv/bin/ruff check . && PYTHONPATH=. ../venv/bin/pytest",
-    "build": "cd frontend && npm install && npm run build",
+    "build": "cd frontend && pnpm install && pnpm run build",
     "version": "python3 sync_version.py && git add -u",
     "preview": "wrangler dev"
   },
