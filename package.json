@@ -41,7 +41,7 @@
     "@types/jest": "^30.0.0",
     "@types/node": "^26.4.0",
     "drizzle-kit": "^0.31.10",
-    "drizzle-orm": "^0.45.2",
+    "drizzle-orm": "^0.45.3",
     "hono": "^4.13.8",
     "jest": "^30.5.0",
     "ts-jest": "^29.4.12",
