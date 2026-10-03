@@ -1,6 +1,6 @@
 # Voyarr Troubleshooting Guide
 
-> **Version:** v1.199.1 · [User Guide](USER_GUIDE.md) · [README](README.md)
+> **Version:** v1.199.2 · [User Guide](USER_GUIDE.md) · [README](README.md)
 
 Common issues and their solutions.
 
@@ -204,7 +204,7 @@ Received unregistered task
 
 **Cause:** This was a tab restoration effect dependency loop in earlier versions that reset the active page back to Dashboard on mount.
 
-**Status:** Fixed in v1.199.1. Ensure you are running v1.199.1 or later. If the issue persists, clear your browser's `localStorage` for the Voyarr origin and re-login.
+**Status:** Fixed in v1.199.2. Ensure you are running v1.199.2 or later. If the issue persists, clear your browser's `localStorage` for the Voyarr origin and re-login.
 
 ---
 

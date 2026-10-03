@@ -1,6 +1,6 @@
 # Voyarr & Voyarr Lens: Complete User Guide
 
-> **Version:** v1.199.1 · [README](README.md) · [Troubleshooting](TROUBLESHOOTING.md)
+> **Version:** v1.199.2 · [README](README.md) · [Troubleshooting](TROUBLESHOOTING.md)
 
 Welcome to Voyarr. This guide covers setup, configuration, and daily use of your self-hosted media library and its companion browser extension, Voyarr Lens.
 
